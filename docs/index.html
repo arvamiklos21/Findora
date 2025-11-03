@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
   <title>Findora – Irányt mutat a legjobb ajánlatokhoz</title>
-  <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, Alza, About You, Booking és más partnerek kedvezményei egy helyen." />
-  <meta name="keywords" content="Findora, akció, kupon, kedvezmény, Amazon, Alza, About You, Booking, olcsó laptop, cipő, ruha, wellness" />
+  <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, Alza, About You és más partnerek kedvezményei egy helyen." />
+  <meta name="keywords" content="Findora, akció, kupon, kedvezmény, Amazon, Alza, About You, olcsó laptop, cipő, ruha, wellness" />
 
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="https://arvamiklos21.github.io/Findora/" />
@@ -17,13 +17,14 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Findora" />
   <meta property="og:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
-  <meta property="og:description" content="Válogatott akciók és ajánlatok magyar felhasználóknak. Amazon, Alza, About You, Booking és más partnerek." />
+  <meta property="og:description" content="Válogatott akciók és ajánlatok magyar felhasználóknak. Amazon, Alza, About You és más partnerek." />
   <meta property="og:url" content="https://arvamiklos21.github.io/Findora/" />
-  <meta property="og:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-header.png" />
+  <!-- A fejléc háttérképet állítottam be social képként is -->
+  <meta property="og:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-xmas-header.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
   <meta name="twitter:description" content="A legjobb akciók és kuponok egy helyen. Nézd meg a Findora válogatásait!" />
-  <meta name="twitter:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-header.png" />
+  <meta name="twitter:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-xmas-header.png" />
 
   <script type="application/ld+json">
   {
@@ -59,9 +60,9 @@
       --panel:#ffffffcc;
       --border:#e2e8f0;
 
-      /* Ünnepi képek (szabadon cserélhetők) */
-      /* Kandalló a fejlécben (Unsplash, cozy fireplace) */
-      --fireplace:url("https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=1600&q=80&auto=format&fit=crop");
+      /* ÜNNEPI HEADER: tedd ide a kapott képet */
+      --fireplace:url("assets/img/findora-xmas-header.png");
+
       /* fenyőerdő-sziluett (SVG minta, ismétlődő) */
       --pine-row:url("data:image/svg+xml;utf8,<?xml version='1.0'?>\
 <svg xmlns='http://www.w3.org/2000/svg' width='480' height='120' viewBox='0 0 480 120'>\
@@ -93,18 +94,15 @@
       font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
       color:var(--text);
       background:
-        /* éjszakai ég halvány csillanásokkal */
         radial-gradient(1200px 700px at 12% -10%, rgba(255,255,255,.18), transparent 60%),
         radial-gradient(900px 600px at 110% -10%, rgba(76,201,240,.10), transparent 60%),
-        /* fenyőfák sávja alul, ismételve X irányban */
         var(--pine-row) bottom center/900px 220px repeat-x,
-        /* mély téli kék átmenet */
         linear-gradient(180deg, #0a1830 0%, #0b203f 50%, #0e2b58 100%);
       background-attachment: fixed,fixed,fixed,fixed;
       overflow-x:hidden;
     }
 
-    /* ====== FEJLÉC – meleg kandalló kép, sötét overlay-jel ====== */
+    /* ====== FEJLÉC – ünnepi háttérrel ====== */
     .hero{
       position:relative; z-index:3; width:100%; color:#eef4ff;
       display:flex;align-items:center;justify-content:center;text-align:center;
@@ -117,7 +115,6 @@
       -webkit-backdrop-filter: saturate(140%) blur(3px);
       overflow:hidden;
     }
-    /* ünnepi ajándékdobozok diszkréten, a fejléc elején */
     .hero::after{
       content:""; position:absolute; inset:0; z-index:1; pointer-events:none;
       background:
@@ -162,7 +159,6 @@
       border:1px solid rgba(255,255,255,.28); box-shadow:0 6px 18px rgba(2,6,23,.35);
     }
 
-    /* Kategóriák */
     .categories{
       display:flex;gap:8px;flex-wrap:nowrap;justify-content:center;margin:10px auto 0;
       overflow-x:auto;padding:0 6px;
@@ -179,7 +175,6 @@
       color:#0b1220;border-color:#e2e8f0
     }
 
-    /* Kereső */
     .searchbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
     .searchbar input,.searchbar button{padding:10px;border:none;border-radius:10px;font-size:14px}
     .searchbar input{
@@ -201,10 +196,8 @@
       }
     }
 
-    /* Tartalom */
     main{max-width:1100px;margin:26px auto;padding:0 16px; position:relative; z-index:2}
 
-    /* Szekciók */
     .section{
       background:var(--panel); border:1px solid rgba(226,232,240,.75); border-radius:16px;
       margin-bottom:28px; box-shadow:0 10px 28px rgba(2,6,23,.25); backdrop-filter: blur(8px);
@@ -257,12 +250,10 @@
       box-shadow:0 -6px 18px rgba(2,6,23,.2) inset;
     }
 
-    /* Hóesés – kevesebb és a kártyák mögött */
     .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1}
     .flake{position:absolute;top:-10px;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.9);filter:blur(.5px);animation:fall linear infinite}
     @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
 
-    /* Scroll to top */
     #toTop{
       position:fixed; right:12px; bottom:70px; z-index:60; display:none;
       background:#ffffff; color:#0b1220; border:1px solid #e2e8f0; border-radius:999px;
@@ -318,21 +309,19 @@
   <main id="content"></main>
 
   <footer>
-    © 2025 Findora • Az oldalon affiliate linkek lehetnek. Biztonságos partneroldalak: Amazon, About You, Alza, Booking.
+    © 2025 Findora • Az oldalon affiliate linkek lehetnek. Biztonságos partneroldalak: Amazon, About You, Alza.
   </footer>
 
   <script>
-  /* ====== Link-generátorok ====== */
+  /* ====== Link-generátorok (Booking TÖRÖLVE) ====== */
   const AMAZON_TAG="findora30-20";
   const amazon  = q => `https://www.amazon.com/s?k=${encodeURIComponent(q)}&tag=${AMAZON_TAG}`;
   const alza    = q => `https://www.alza.hu/search.htm?exps=${encodeURIComponent(q)}`;
-  const booking = q => `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(q)}`;
   const aboutyou= q => `https://www.aboutyou.hu/kereses?term=${encodeURIComponent(q)}`;
 
   const LOGO_URLS={
     Amazon:"https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
     Alza:"https://upload.wikimedia.org/wikipedia/commons/d/d2/Alza.cz_logo.svg",
-    Booking:"https://upload.wikimedia.org/wikipedia/commons/e/e6/Booking.com_logo.svg",
     AboutYou:"https://upload.wikimedia.org/wikipedia/commons/7/79/About_You_logo.svg",
     "JátékNet.hu":"https://upload.wikimedia.org/wikipedia/commons/8/8f/Puzzle.svg",
     "Kärcher.hu":"https://upload.wikimedia.org/wikipedia/commons/6/62/Karcher_logo.svg",
@@ -374,7 +363,7 @@
     return `https://source.unsplash.com/800x600/?${encodeURIComponent(title)}`;
   }
 
-  /* Demo-adatok (változatlan) */
+  /* Demo-adatok (Booking TÖRÖLVE) */
   const ITEMS=[
     {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazon("laptop deal"), category:"tech",  desc:"Belépő modellek gyors szállítással."},
     {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazon("gaming laptop rtx"), category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
@@ -383,10 +372,7 @@
     {title:"Smart TV -55%", partner:"Amazon", price:"119 990 Ft", discount:55, url:amazon("smart tv 55"), category:"tech"},
 
     {title:"Női cipők -40%", partner:"AboutYou", price:"Változó", discount:40, url:aboutyou("női cipő"), category:"fashion", desc:"Csizma, sneaker, magassarkú – szezonális."},
-    {title:"Férfi kabát -35%", partner:"AboutYou", price:"Változó", discount:35, url:aboutyou("férfi kabát"), category:"fashion"},
-
-    {title:"Budapest wellness hétvége", partner:"Booking", price:"Változó", discount:30, url:booking("Budapest wellness"), category:"travel", desc:"Wellness hotelek és apartmanok."},
-    {title:"Sí hétvége Ausztria",        partner:"Booking", price:"Változó", discount:25, url:booking("Austria ski weekend"), category:"travel"}
+    {title:"Férfi kabát -35%", partner:"AboutYou", price:"Változó", discount:35, url:aboutyou("férfi kabát"), category:"fashion"}
   ];
 
   function cardHTML(it){
@@ -466,12 +452,11 @@
     renderSection("🎁 Akciók 25–49%", deals25, "deals25", "deals25");
     renderSection("🔥 Legnagyobb kedvezmények (50%+)", deals50, "deals50", "deals50");
 
-    ["Amazon","AboutYou","Alza","Booking"].forEach(p=>{
+    ["Amazon","AboutYou","Alza"].forEach(p=>{
       const list = ITEMS.filter(i=>i.partner===p);
       renderPartnerTable(`${p} találatok`, list, p);
     });
 
-    /* ÚJ placeholder szekciók */
     renderPartnerTable("🏠 Otthon – Kärcher.hu", [], "Kärcher.hu");
     renderPartnerTable("🕹️ Játékok – JátékNet.hu", [], "JátékNet.hu");
     renderPartnerTable("👓 Látás – eOptika.hu", [], "eOptika.hu");
@@ -488,7 +473,7 @@
 
     if(["tech","fashion","travel","home","beauty"].includes(cat)){
       const list=ITEMS.filter(i=>i.category===cat);
-      ["Amazon","AboutYou","Alza","Booking"].forEach(p=>{
+      ["Amazon","AboutYou","Alza"].forEach(p=>{
         const items=list.filter(i=>i.partner===p);
         if(items.length) renderPartnerTable(`🔎 ${p} – ${catName(cat)} találatok`, items, p);
       });
@@ -523,7 +508,7 @@
     document.getElementById('btnBack').onclick=()=>showCategory("all");
     document.getElementById('btnHome').onclick=()=>showCategory("all");
 
-    ["Amazon","AboutYou","Alza","Booking"].forEach(p=>{
+    ["Amazon","AboutYou","Alza"].forEach(p=>{
       const group = results.filter(i=>i.partner===p);
       if(group.length){
         renderPartnerTable(`${p} – találatok „${val}”`, group, p);
@@ -533,7 +518,6 @@
     if(!results.length){
       const sugg=[];
       if(v.match(/cipő|ruha|kabát|dzseki|póló|pulóver/)) sugg.push({title:`Keresés az AboutYou-n: ${val}`,partner:"AboutYou",url:aboutyou(val),price:"",discount:0,desc:"Divat keresés."});
-      if(v.match(/hotel|wellness|utazás|szállás/)) sugg.push({title:`Keresés a Bookingon: ${val}`,partner:"Booking",url:booking(val),price:"",discount:0,desc:"Szállás/wellness keresés."});
       sugg.push({title:`Keresés az Amazonon: ${val}`,partner:"Amazon",url:amazon(val),price:"",discount:0,desc:"Termék keresés."});
       sugg.push({title:`Keresés az Alzán: ${val}`,partner:"Alza",url:alza(val),price:"",discount:0,desc:"Tech keresés."});
       renderSection("🔍 Javasolt külső találatok", sugg, "", "suggest");
@@ -551,7 +535,6 @@
   const urlQ=new URLSearchParams(location.search).get('q');
   if(urlQ){ document.getElementById('q').value=urlQ; showSearch(urlQ); } else { renderAll(); }
 
-  /* Hópehely animáció – visszafogott */
   (function snow(){
     const wrap=document.querySelector('.snow');
     const COUNT=36;
