@@ -59,7 +59,7 @@
       --panel:#ffffffcc;
       --border:#e2e8f0;
 
-      /* ÜNNEPI HEADER: ide tedd a kapott képet */
+      /* ÜNNEPI HEADER: a kapott kép helye */
       --fireplace:url("assets/img/findora-xmas-header.png");
 
       /* fenyőerdő-sziluett (SVG minta, ismétlődő) */
@@ -122,7 +122,6 @@
         url("data:image/svg+xml;utf8,<?xml version='1.0'?>\
 <svg xmlns='http://www.w3.org/2000/svg' width='420' height='180' viewBox='0 0 420 180'>\
   <g opacity='0.28'>\
-    <!-- kis piros dobozok arany szalaggal -->\
     <g transform='translate(26,28) scale(0.9)'>\
       <rect x='0' y='8' rx='4' ry='4' width='26' height='20' fill='%23ef4444'/>\
       <rect x='12' y='0' width='2.5' height='36' fill='%23ffd166'/>\
@@ -148,7 +147,6 @@
       <rect x='12' y='0' width='2.5' height='36' fill='%23ffd166'/>\
       <rect x='0' y='18' width='26' height='2.5' fill='%23ffd166'/>\
     </g>\
-    <!-- alsó sor halványabban -->\
     <g transform='translate(70,110) scale(1)'>\
       <rect x='0' y='8' rx='4' ry='4' width='24' height='18' fill='%23ef4444'/>\
       <rect x='11' y='0' width='2.5' height='34' fill='%23ffd166'/>\
@@ -346,6 +344,13 @@
   const alza    = q => `https://www.alza.hu/search.htm?exps=${encodeURIComponent(q)}`;
   const aboutyou= q => `https://www.aboutyou.hu/kereses?term=${encodeURIComponent(q)}`;
 
+  /* === AFFILIATE KÖZVETLEN LINKEK a placeholder szekciókhoz === */
+  const AFFILIATE_LINKS = {
+    "Kärcher.hu": "https://www.kqzyfj.com/pa117qgpmgo35459BD44C3587B77AD",
+    "JátékNet.hu": "https://www.anrdoezrs.net/2t70r09608OQPQUWYPPXOQTTTXPQQ",
+    "eOptika.hu": "https://www.kqzyfj.com/tf79mu2-u1HJIJNPRIIQHJMIMRRJK"
+  };
+
   const LOGO_URLS={
     Amazon:"https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
     Alza:"https://upload.wikimedia.org/wikipedia/commons/d/d2/Alza.cz_logo.svg",
@@ -444,10 +449,12 @@
     if(items && items.length){
       items.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
     }else{
+      /* Ha nincs konkrét tétel, akkor közvetlen affiliate CTA a partnerre */
+      const aff = AFFILIATE_LINKS[partner] || "#";
       const ph = {
-        title:`${partner} – Hamarosan töltjük az ajánlatokat`,
-        partner, price:"", discount:0, url:"#",
-        desc:"Az integráció folyamatban. Nézz vissza később!"
+        title:`${partner} – Nézd meg az ajánlatokat`,
+        partner, price:"", discount:0, url:aff,
+        desc:"Közvetlenül a partner oldalán."
       };
       grid.insertAdjacentHTML('beforeend', cardHTML(ph));
     }
@@ -484,6 +491,7 @@
       renderPartnerTable(`${p} találatok`, list, p);
     });
 
+    /* Affiliate CTA-s placeholder szekciók */
     renderPartnerTable("🏠 Otthon – Kärcher.hu", [], "Kärcher.hu");
     renderPartnerTable("🕹️ Játékok – JátékNet.hu", [], "JátékNet.hu");
     renderPartnerTable("👓 Látás – eOptika.hu", [], "eOptika.hu");
@@ -511,13 +519,13 @@
 
     if(cat==="games"){
       renderPartnerTable("🕹️ Játékok – JátékNet.hu", [], "JátékNet.hu");
+      hydrateSafeImages(content); return;
     }
     if(cat==="vision"){
       renderPartnerTable("👓 Látás – eOptika.hu", [], "eOptika.hu");
+      hydrateSafeImages(content); return;
     }
-    hydrateSafeImages(content);
   }
-
   const catName=c=>({tech:"Tech",fashion:"Divat",travel:"Utazás",home:"Otthon",beauty:"Szépség"}[c]||"Összes");
   document.querySelectorAll(".catbtn").forEach(btn=>btn.addEventListener("click",()=>showCategory(btn.dataset.cat)));
 
