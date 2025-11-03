@@ -19,7 +19,6 @@
   <meta property="og:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
   <meta property="og:description" content="Válogatott akciók és ajánlatok magyar felhasználóknak. Amazon, Alza, About You és más partnerek." />
   <meta property="og:url" content="https://arvamiklos21.github.io/Findora/" />
-  <!-- A fejléc háttérképet állítottam be social képként is -->
   <meta property="og:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-xmas-header.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
@@ -60,7 +59,7 @@
       --panel:#ffffffcc;
       --border:#e2e8f0;
 
-      /* ÜNNEPI HEADER: tedd ide a kapott képet */
+      /* ÜNNEPI HEADER: ide tedd a kapott képet */
       --fireplace:url("assets/img/findora-xmas-header.png");
 
       /* fenyőerdő-sziluett (SVG minta, ismétlődő) */
@@ -115,26 +114,55 @@
       -webkit-backdrop-filter: saturate(140%) blur(3px);
       overflow:hidden;
     }
+
+    /* ==== PIROS KARÁCSONYI DOBOZOK az overlay-ben (diszkrét) ==== */
     .hero::after{
       content:""; position:absolute; inset:0; z-index:1; pointer-events:none;
       background:
         url("data:image/svg+xml;utf8,<?xml version='1.0'?>\
-<svg xmlns='http://www.w3.org/2000/svg' width='340' height='140' viewBox='0 0 340 140'>\
-  <g opacity='0.22'>\
-    <g transform='translate(16,26)'>\
-      <rect x='0' y='14' rx='8' ry='8' width='66' height='44' fill='%23fff6e0'/>\
-      <rect x='31' y='0' width='4' height='80' fill='%23ffd166'/>\
-      <rect x='0' y='34' width='66' height='4' fill='%23ffd166'/>\
+<svg xmlns='http://www.w3.org/2000/svg' width='420' height='180' viewBox='0 0 420 180'>\
+  <g opacity='0.28'>\
+    <!-- kis piros dobozok arany szalaggal -->\
+    <g transform='translate(26,28) scale(0.9)'>\
+      <rect x='0' y='8' rx='4' ry='4' width='26' height='20' fill='%23ef4444'/>\
+      <rect x='12' y='0' width='2.5' height='36' fill='%23ffd166'/>\
+      <rect x='0' y='18' width='26' height='2.5' fill='%23ffd166'/>\
     </g>\
-    <g transform='translate(126,10) scale(0.9)'>\
-      <rect x='0' y='14' rx='8' ry='8' width='66' height='44' fill='%23e9efff'/>\
-      <rect x='31' y='0' width='4' height='80' fill='%234cc9f0'/>\
-      <rect x='0' y='34' width='66' height='4' fill='%234cc9f0'/>\
+    <g transform='translate(110,16) scale(1.1)'>\
+      <rect x='0' y='8' rx='4' ry='4' width='24' height='18' fill='%23ef4444'/>\
+      <rect x='11' y='0' width='2.5' height='34' fill='%23ffd166'/>\
+      <rect x='0' y='17' width='24' height='2.5' fill='%23ffd166'/>\
     </g>\
-    <g transform='translate(236,30) scale(1.05)'>\
-      <rect x='0' y='14' rx='8' ry='8' width='66' height='44' fill='%23e6fff3'/>\
-      <rect x='31' y='0' width='4' height='80' fill='%2322c55e'/>\
-      <rect x='0' y='34' width='66' height='4' fill='%2322c55e'/>\
+    <g transform='translate(196,34) scale(1.2)'>\
+      <rect x='0' y='8' rx='4' ry='4' width='22' height='16' fill='%23ef4444'/>\
+      <rect x='10' y='0' width='2.5' height='32' fill='%23ffd166'/>\
+      <rect x='0' y='16' width='22' height='2.5' fill='%23ffd166'/>\
+    </g>\
+    <g transform='translate(278,20) scale(0.95)'>\
+      <rect x='0' y='8' rx='4' ry='4' width='24' height='18' fill='%23ef4444'/>\
+      <rect x='11' y='0' width='2.5' height='34' fill='%23ffd166'/>\
+      <rect x='0' y='17' width='24' height='2.5' fill='%23ffd166'/>\
+    </g>\
+    <g transform='translate(356,30) scale(1.05)'>\
+      <rect x='0' y='8' rx='4' ry='4' width='26' height='20' fill='%23ef4444'/>\
+      <rect x='12' y='0' width='2.5' height='36' fill='%23ffd166'/>\
+      <rect x='0' y='18' width='26' height='2.5' fill='%23ffd166'/>\
+    </g>\
+    <!-- alsó sor halványabban -->\
+    <g transform='translate(70,110) scale(1)'>\
+      <rect x='0' y='8' rx='4' ry='4' width='24' height='18' fill='%23ef4444'/>\
+      <rect x='11' y='0' width='2.5' height='34' fill='%23ffd166'/>\
+      <rect x='0' y='17' width='24' height='2.5' fill='%23ffd166'/>\
+    </g>\
+    <g transform='translate(190,118) scale(0.9)'>\
+      <rect x='0' y='8' rx='4' ry='4' width='22' height='16' fill='%23ef4444'/>\
+      <rect x='10' y='0' width='2.5' height='32' fill='%23ffd166'/>\
+      <rect x='0' y='16' width='22' height='2.5' fill='%23ffd166'/>\
+    </g>\
+    <g transform='translate(310,112) scale(1.15)'>\
+      <rect x='0' y='8' rx='4' ry='4' width='24' height='18' fill='%23ef4444'/>\
+      <rect x='11' y='0' width='2.5' height='34' fill='%23ffd166'/>\
+      <rect x='0' y='17' width='24' height='2.5' fill='%23ffd166'/>\
     </g>\
   </g>\
 </svg>") center/900px 380px repeat-x;
@@ -247,7 +275,6 @@
       text-align:center;padding:24px;
       background:#0b3a6a; color:#fff;margin-top:30px;font-size:14px;
       border-top:1px solid rgba(255,255,255,.15);
-      box-shadow:0 -6px 18px rgba(2,6,23,.2) inset;
     }
 
     .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1}
@@ -484,13 +511,13 @@
 
     if(cat==="games"){
       renderPartnerTable("🕹️ Játékok – JátékNet.hu", [], "JátékNet.hu");
-      hydrateSafeImages(content); return;
     }
     if(cat==="vision"){
       renderPartnerTable("👓 Látás – eOptika.hu", [], "eOptika.hu");
-      hydrateSafeImages(content); return;
     }
+    hydrateSafeImages(content);
   }
+
   const catName=c=>({tech:"Tech",fashion:"Divat",travel:"Utazás",home:"Otthon",beauty:"Szépség"}[c]||"Összes");
   document.querySelectorAll(".catbtn").forEach(btn=>btn.addEventListener("click",()=>showCategory(btn.dataset.cat)));
 
