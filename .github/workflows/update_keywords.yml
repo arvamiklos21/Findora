@@ -1,4 +1,4 @@
-name: Update Keywords
+name: Update Keywords (debug)
 
 on:
   push:
@@ -15,7 +15,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # kellhet a push-hoz
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Debug env & repo state
+        shell: bash
+        run: |
+          echo "ref:        $GITHUB_REF"
+          echo "ref_name:   $GITHUB_REF_NAME"
+          echo "actor:      $GITHUB_ACTOR"
+          echo "repo:       $GITHUB_REPOSITORY"
+          echo "pwd:        $(pwd)"
+          echo "git status:"
+          git status
+          echo "tree:"
+          ls -la
+          echo "docs/:"
+          ls -la docs || true
 
       - name: Find index.html (root or docs/)
         id: find_file
@@ -28,47 +44,66 @@ jobs:
           elif [[ -f "docs/index.html" ]]; then
             FILE="docs/index.html"
           fi
+          echo "Found file: $FILE"
           echo "file=$FILE" >> "$GITHUB_OUTPUT"
 
-      - name: Update keywords (no fail if missing)
+      - name: Show head of file
+        if: steps.find_file.outputs.file != ''
+        shell: bash
+        run: |
+          FILE="${{ steps.find_file.outputs.file }}"
+          echo "=== FIRST 40 LINES OF $FILE ==="
+          head -n 40 "$FILE" || true
+          echo "================================"
+
+      - name: Update keywords (safe)
         if: steps.find_file.outputs.file != ''
         shell: bash
         run: |
           set -euo pipefail
           FILE="${{ steps.find_file.outputs.file }}"
+          NEWKW='Findora, akció, kupon, kedvezmény, Amazon, Alza, About You, olcsó laptop, cipő, ruha, wellness'
           echo "Updating keywords in: $FILE"
 
-          NEWKW='Findora, akció, kupon, kedvezmény, Amazon, Alza, About You, olcsó laptop, cipő, ruha, wellness'
-
-          # ha van keywords meta, cseréljük; ha nincs, beszúrjuk </head> elé
-          if grep -qi '<meta[^>]*name="keywords"' "$FILE"; then
-            perl -0777 -pe "s|<meta\\s+name=\"keywords\"[^>]*>|<meta name=\"keywords\" content=\"${NEWKW}\">|gi" -i "$FILE"
+          # Van-e már keywords meta tag?
+          if grep -Eiq '<meta[^>]*name=["'\'']keywords["'\'']' "$FILE"; then
+            # Cseréljük a teljes keywords sort az újra (case-insensitive)
+            sed -E -i 's#<meta[^>]*name=["'"'"']keywords["'"'"'][^>]*>#<meta name="keywords" content="'"$NEWKW"'">#Ig' "$FILE"
+            echo "Replaced existing keywords meta."
           else
-            perl -0777 -pe "s|</head>|  <meta name=\"keywords\" content=\"${NEWKW}\">\n</head>|i" -i "$FILE"
+            # Szúrjuk be a </head> elé (IGEN, case-insensitive)
+            awk 'BEGIN{IGNORECASE=1} /<\/head>/{print "  <meta name=\"keywords\" content=\"'"$NEWKW"'\">"; print; next} {print}' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+            echo "Inserted new keywords meta before </head>."
           fi
 
-          echo "Preview of change (first 30 lines):"
-          head -n 30 "$FILE" || true
+          echo "=== DIFF PREVIEW ==="
+          git --no-pager diff -- "$FILE" || true
+          echo "===================="
 
       - name: Skip gracefully if index.html not found
         if: steps.find_file.outputs.file == ''
         run: |
           echo "No index.html found in repo root or docs/. Nothing to do."
-          exit 0
 
       - name: Commit & push if changed
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -n "$(git status --porcelain)" ]]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            # Biztonság kedvéért pull-oljunk a legfrissebbre rebase-zel
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
-            git add -A
-            git commit -m "chore: update keywords meta tag"
-            git push origin "${GITHUB_REF_NAME}"
-            echo "Changes pushed."
-          else
+          if git diff --quiet; then
             echo "No changes to commit."
+            exit 0
           fi
+
+          BRANCH="${{ github.ref_name }}"
+          echo "Preparing commit on branch: $BRANCH"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Rebase a biztonság kedvéért (ha nincs upstream, ne bukjon el)
+          git pull --rebase --autostash origin "$BRANCH" || true
+
+          git add -A
+          git commit -m "chore: update keywords meta tag"
+          git push origin "$BRANCH"
+          echo "Changes pushed."
