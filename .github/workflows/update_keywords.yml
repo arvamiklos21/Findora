@@ -12,34 +12,63 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # kellhet a push-hoz
 
-      # (opcionális) Frissíti az index.html keywords meta taget a lent megadott listára.
-      - name: Update keywords in index.html
+      - name: Find index.html (root or docs/)
+        id: find_file
+        shell: bash
         run: |
-          set -e
-          FILE="index.html"
-          if [[ ! -f "$FILE" ]]; then
-            echo "index.html not found at repo root" >&2
-            exit 1
+          set -euo pipefail
+          FILE=""
+          if [[ -f "index.html" ]]; then
+            FILE="index.html"
+          elif [[ -f "docs/index.html" ]]; then
+            FILE="docs/index.html"
           fi
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Update keywords (no fail if missing)
+        if: steps.find_file.outputs.file != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="${{ steps.find_file.outputs.file }}"
+          echo "Updating keywords in: $FILE"
+
           NEWKW='Findora, akció, kupon, kedvezmény, Amazon, Alza, About You, olcsó laptop, cipő, ruha, wellness'
-          # Ha van keywords meta, lecseréli; ha nincs, hozzáadja a </head> elé.
+
+          # ha van keywords meta, cseréljük; ha nincs, beszúrjuk </head> elé
           if grep -qi '<meta[^>]*name="keywords"' "$FILE"; then
             perl -0777 -pe "s|<meta\\s+name=\"keywords\"[^>]*>|<meta name=\"keywords\" content=\"${NEWKW}\">|gi" -i "$FILE"
           else
-            perl -0777 -pe "s|</head>|  <meta name=\"keywords\" content=\"${NEWKW}\">\\n</head>|i" -i "$FILE"
+            perl -0777 -pe "s|</head>|  <meta name=\"keywords\" content=\"${NEWKW}\">\n</head>|i" -i "$FILE"
           fi
 
-      - name: Commit and push changes (if any)
+          echo "Preview of change (first 30 lines):"
+          head -n 30 "$FILE" || true
+
+      - name: Skip gracefully if index.html not found
+        if: steps.find_file.outputs.file == ''
         run: |
+          echo "No index.html found in repo root or docs/. Nothing to do."
+          exit 0
+
+      - name: Commit & push if changed
+        shell: bash
+        run: |
+          set -euo pipefail
           if [[ -n "$(git status --porcelain)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            # Biztonság kedvéért pull-oljunk a legfrissebbre rebase-zel
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
             git add -A
             git commit -m "chore: update keywords meta tag"
-            git push
+            git push origin "${GITHUB_REF_NAME}"
+            echo "Changes pushed."
           else
             echo "No changes to commit."
           fi
