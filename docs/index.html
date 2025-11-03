@@ -3,596 +3,134 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-
   <title>Findora – Irányt mutat a legjobb ajánlatokhoz</title>
   <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, Alza, About You és más partnerek kedvezményei egy helyen." />
   <meta name="keywords" content="Findora, akció, kupon, kedvezmény, Amazon, Alza, About You, olcsó laptop, cipő, ruha, wellness" />
-
-  <meta name="robots" content="index,follow,max-image-preview:large" />
-  <link rel="canonical" href="https://arvamiklos21.github.io/Findora/" />
-  <link rel="alternate" href="https://arvamiklos21.github.io/Findora/" hreflang="hu" />
-  <meta name="google-site-verification" content="vDPKx3UXBaAFpEBO4fQXqrX8bXr6mjlogt8qUr" />
   <link rel="icon" href="assets/img/findora_mark.png" />
-
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Findora" />
-  <meta property="og:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
-  <meta property="og:description" content="Válogatott akciók és ajánlatok magyar felhasználóknak. Amazon, Alza, About You és más partnerek." />
-  <meta property="og:url" content="https://arvamiklos21.github.io/Findora/" />
   <meta property="og:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-xmas-header.png" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
-  <meta name="twitter:description" content="A legjobb akciók és kuponok egy helyen. Nézd meg a Findora válogatásait!" />
-  <meta name="twitter:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-xmas-header.png" />
-
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name": "Findora",
-    "url": "https://arvamiklos21.github.io/Findora/",
-    "description": "Válogatott akciók és ajánlatok magyar felhasználóknak.",
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": "https://arvamiklos21.github.io/Findora/?q={search_term_string}",
-      "query-input": "required name=search_term_string"
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Findora",
-      "logo": { "@type": "ImageObject", "url": "https://arvamiklos21.github.io/Findora/assets/img/findora-header.png" }
-    }
-  }
-  </script>
-
-  <!-- Betűk -->
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Dancing+Script:wght@600&family=Pacifico&family=Playfair+Display:ital,wght@0,700;1,700&family=Montserrat+Alternates:wght@700&display=swap" rel="stylesheet">
 
   <style>
     :root{
-      --primary:#0f2742;
-      --gold:#ffd166;
-      --text:#0f172a;
-      --muted:#64748b;
-      --card:rgba(255,255,255,0.85);
-      --panel:#ffffffcc;
-      --border:#e2e8f0;
-
-      /* ÜNNEPI HEADER: a kapott kép helye */
       --fireplace:url("assets/img/findora-xmas-header.png");
-
-      /* fenyőerdő-sziluett (SVG minta, ismétlődő) */
-      --pine-row:url("data:image/svg+xml;utf8,<?xml version='1.0'?>\
-<svg xmlns='http://www.w3.org/2000/svg' width='480' height='120' viewBox='0 0 480 120'>\
-  <defs>\
-    <linearGradient id='fog' x1='0' x2='0' y1='0' y2='1'>\
-      <stop offset='0' stop-color='%230b1a33' stop-opacity='0.0'/>\
-      <stop offset='1' stop-color='%230b1a33' stop-opacity='0.35'/>\
-    </linearGradient>\
-  </defs>\
-  <rect width='480' height='120' fill='url(%23fog)'/>\
-  <g fill='%23152a4a' opacity='0.75'>\
-    <path d='M10,110 l20,-40 l20,40 z'/>\
-    <path d='M60,110 l22,-44 l22,44 z'/>\
-    <path d='M120,110 l18,-36 l18,36 z'/>\
-    <path d='M170,110 l24,-48 l24,48 z'/>\
-    <path d='M230,110 l20,-42 l20,42 z'/>\
-    <path d='M290,110 l22,-44 l22,44 z'/>\
-    <path d='M350,110 l18,-36 l18,36 z'/>\
-    <path d='M400,110 l24,-48 l24,48 z'/>\
-  </g>\
-</svg>");
     }
 
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%}
-
-    /* ====== TÉLI, FENYŐFÁS HÁTTÉR ====== */
     body{
-      font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
-      color:var(--text);
-      background:
-        radial-gradient(1200px 700px at 12% -10%, rgba(255,255,255,.18), transparent 60%),
-        radial-gradient(900px 600px at 110% -10%, rgba(76,201,240,.10), transparent 60%),
-        var(--pine-row) bottom center/900px 220px repeat-x,
-        linear-gradient(180deg, #0a1830 0%, #0b203f 50%, #0e2b58 100%);
-      background-attachment: fixed,fixed,fixed,fixed;
-      overflow-x:hidden;
+      margin:0;
+      font-family:Inter,Arial,sans-serif;
+      color:#fff;
+      background:#0b1220;
     }
 
-    /* ====== FEJLÉC – ünnepi háttérrel ====== */
     .hero{
-      position:relative; z-index:3; width:100%; color:#eef4ff;
-      display:flex;align-items:center;justify-content:center;text-align:center;
-      padding:84px 10px 34px;
+      position:relative;
+      width:100%;
+      color:#fff;
+      text-align:center;
+      padding:90px 10px 40px;
       background:
-        linear-gradient(180deg, rgba(6,14,28,.75) 0%, rgba(6,14,28,.6) 60%, rgba(6,14,28,.55) 100%),
+        linear-gradient(180deg, rgba(10,18,35,.8) 0%, rgba(10,18,35,.6) 70%, rgba(10,18,35,.55) 100%),
         var(--fireplace) center/cover no-repeat;
-      border-bottom:1px solid rgba(226,232,240,.35);
-      backdrop-filter: saturate(140%) blur(3px);
-      -webkit-backdrop-filter: saturate(140%) blur(3px);
+      border-bottom:1px solid rgba(255,255,255,.25);
       overflow:hidden;
     }
 
-    /* ==== PIROS KARÁCSONYI DOBOZOK az overlay-ben (diszkrét) ==== */
+    .hero-inner{max-width:1100px;margin:auto;position:relative;z-index:2}
+    .brand img{height:46px;margin-bottom:8px;border-radius:12px;background:#0f2742;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+    .hero h1{font-size:32px;font-weight:800;margin:0}
+    .hero p{font-size:15px;color:#dbe7ff;margin:4px 0 0}
+
+    /* === 🎁 3D KARÁCSONYI DOBOZOK === */
     .hero::after{
-      content:""; position:absolute; inset:0; z-index:1; pointer-events:none;
+      content:"";
+      position:absolute;
+      inset:0;
+      z-index:1;
+      pointer-events:none;
       background:
-        url("data:image/svg+xml;utf8,<?xml version='1.0'?>\
-<svg xmlns='http://www.w3.org/2000/svg' width='420' height='180' viewBox='0 0 420 180'>\
-  <g opacity='0.28'>\
-    <g transform='translate(26,28) scale(0.9)'>\
-      <rect x='0' y='8' rx='4' ry='4' width='26' height='20' fill='%23ef4444'/>\
-      <rect x='12' y='0' width='2.5' height='36' fill='%23ffd166'/>\
-      <rect x='0' y='18' width='26' height='2.5' fill='%23ffd166'/>\
-    </g>\
-    <g transform='translate(110,16) scale(1.1)'>\
-      <rect x='0' y='8' rx='4' ry='4' width='24' height='18' fill='%23ef4444'/>\
-      <rect x='11' y='0' width='2.5' height='34' fill='%23ffd166'/>\
-      <rect x='0' y='17' width='24' height='2.5' fill='%23ffd166'/>\
-    </g>\
-    <g transform='translate(196,34) scale(1.2)'>\
-      <rect x='0' y='8' rx='4' ry='4' width='22' height='16' fill='%23ef4444'/>\
-      <rect x='10' y='0' width='2.5' height='32' fill='%23ffd166'/>\
-      <rect x='0' y='16' width='22' height='2.5' fill='%23ffd166'/>\
-    </g>\
-    <g transform='translate(278,20) scale(0.95)'>\
-      <rect x='0' y='8' rx='4' ry='4' width='24' height='18' fill='%23ef4444'/>\
-      <rect x='11' y='0' width='2.5' height='34' fill='%23ffd166'/>\
-      <rect x='0' y='17' width='24' height='2.5' fill='%23ffd166'/>\
-    </g>\
-    <g transform='translate(356,30) scale(1.05)'>\
-      <rect x='0' y='8' rx='4' ry='4' width='26' height='20' fill='%23ef4444'/>\
-      <rect x='12' y='0' width='2.5' height='36' fill='%23ffd166'/>\
-      <rect x='0' y='18' width='26' height='2.5' fill='%23ffd166'/>\
-    </g>\
-    <g transform='translate(70,110) scale(1)'>\
-      <rect x='0' y='8' rx='4' ry='4' width='24' height='18' fill='%23ef4444'/>\
-      <rect x='11' y='0' width='2.5' height='34' fill='%23ffd166'/>\
-      <rect x='0' y='17' width='24' height='2.5' fill='%23ffd166'/>\
-    </g>\
-    <g transform='translate(190,118) scale(0.9)'>\
-      <rect x='0' y='8' rx='4' ry='4' width='22' height='16' fill='%23ef4444'/>\
-      <rect x='10' y='0' width='2.5' height='32' fill='%23ffd166'/>\
-      <rect x='0' y='16' width='22' height='2.5' fill='%23ffd166'/>\
-    </g>\
-    <g transform='translate(310,112) scale(1.15)'>\
-      <rect x='0' y='8' rx='4' ry='4' width='24' height='18' fill='%23ef4444'/>\
-      <rect x='11' y='0' width='2.5' height='34' fill='%23ffd166'/>\
-      <rect x='0' y='17' width='24' height='2.5' fill='%23ffd166'/>\
-    </g>\
-  </g>\
-</svg>") center/900px 380px repeat-x;
+        url("data:image/svg+xml;utf8,<?xml version='1.0'?>
+<svg xmlns='http://www.w3.org/2000/svg' width='900' height='400' viewBox='0 0 900 400'>
+  <defs>
+    <linearGradient id='redGrad' x1='0' x2='1'>
+      <stop offset='0' stop-color='%23b91c1c'/>
+      <stop offset='1' stop-color='%23ef4444'/>
+    </linearGradient>
+    <linearGradient id='shadow' x1='0' y1='0' x2='0' y2='1'>
+      <stop offset='0' stop-opacity='0'/>
+      <stop offset='1' stop-opacity='0.5'/>
+    </linearGradient>
+  </defs>
+
+  <!-- random 3D stílusú dobozok -->
+  <g opacity='0.22'>
+    <rect x='40' y='60' width='36' height='30' rx='4' fill='url(%23redGrad)' stroke='%23a11' stroke-width='1.2'/>
+    <rect x='56' y='45' width='4' height='50' fill='%23ffd166'/>
+    <polygon points='40,90 76,90 68,95 48,95' fill='url(%23shadow)'/>
+  </g>
+  <g opacity='0.28'>
+    <rect x='160' y='120' width='42' height='34' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
+    <rect x='179' y='100' width='5' height='60' fill='%23fef08a'/>
+    <path d='M168 120 h28 v4 h-28z' fill='%23ffd166'/>
+    <polygon points='160,154 202,154 194,160 168,160' fill='url(%23shadow)'/>
+  </g>
+  <g opacity='0.24'>
+    <rect x='300' y='90' width='50' height='38' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
+    <rect x='322' y='70' width='6' height='68' fill='%23ffe8a3'/>
+    <path d='M300 108 h50 v5 h-50z' fill='%23ffd166'/>
+    <polygon points='300,128 350,128 342,134 308,134' fill='url(%23shadow)'/>
+  </g>
+  <g opacity='0.3'>
+    <rect x='480' y='150' width='44' height='36' rx='4' fill='url(%23redGrad)' stroke='%23a11'/>
+    <rect x='500' y='130' width='5' height='60' fill='%23ffd166'/>
+    <path d='M480 166 h44 v4 h-44z' fill='%23ffe8a3'/>
+    <polygon points='480,186 524,186 516,192 488,192' fill='url(%23shadow)'/>
+  </g>
+  <g opacity='0.26'>
+    <rect x='620' y='100' width='40' height='32' rx='4' fill='url(%23redGrad)' stroke='%23a11'/>
+    <rect x='638' y='80' width='4' height='60' fill='%23ffd166'/>
+    <polygon points='620,132 660,132 652,138 628,138' fill='url(%23shadow)'/>
+  </g>
+  <g opacity='0.2'>
+    <rect x='740' y='70' width='36' height='30' rx='4' fill='url(%23redGrad)' stroke='%23a11'/>
+    <rect x='757' y='50' width='4' height='55' fill='%23ffe8a3'/>
+    <polygon points='740,100 776,100 768,106 748,106' fill='url(%23shadow)'/>
+  </g>
+
+  <!-- alsó sor -->
+  <g opacity='0.25'>
+    <rect x='100' y='270' width='42' height='34' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
+    <rect x='119' y='250' width='5' height='60' fill='%23fef08a'/>
+    <polygon points='100,304 142,304 134,310 108,310' fill='url(%23shadow)'/>
+  </g>
+  <g opacity='0.18'>
+    <rect x='260' y='260' width='48' height='36' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
+    <rect x='281' y='240' width='6' height='64' fill='%23ffd166'/>
+    <polygon points='260,296 308,296 300,302 268,302' fill='url(%23shadow)'/>
+  </g>
+  <g opacity='0.3'>
+    <rect x='420' y='285' width='50' height='38' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
+    <rect x='441' y='265' width='6' height='68' fill='%23ffe8a3'/>
+    <polygon points='420,320 470,320 462,326 430,326' fill='url(%23shadow)'/>
+  </g>
+  <g opacity='0.22'>
+    <rect x='600' y='270' width='46' height='36' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
+    <rect x='621' y='250' width='5' height='64' fill='%23ffd166'/>
+    <polygon points='600,306 646,306 638,312 610,312' fill='url(%23shadow)'/>
+  </g>
+</svg>") center/cover repeat-x;
       mix-blend-mode: screen;
     }
-
-    .hero-inner{max-width:1100px;width:100%; position:relative; z-index:2}
-    .brand{display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:8px}
-    .brand img{height:46px;border-radius:12px;background:#0f2742;box-shadow:0 2px 8px rgba(2,6,23,.4)}
-    .hero h1{font-size:clamp(20px,3.5vw,32px);color:#ffffff;font-weight:800;letter-spacing:.2px}
-    .hero p{font-size:clamp(13px,1.7vw,16px); color:#dbe7ff}
-    .dev-badge{
-      position:absolute; left:12px; top:12px; z-index:4;
-      background:#0b3a6a; color:#fff; padding:6px 10px; border-radius:10px;
-      font-weight:700; font-size:13px; box-shadow:0 2px 6px rgba(0,0,0,.25);
-    }
-
-    .promo{
-      margin:12px auto 12px;
-      background:linear-gradient(90deg,rgba(255,255,255,.18),rgba(255,255,255,.24));
-      color:#f6fbff;padding:8px 12px;border-radius:14px;max-width:860px;font-weight:700;
-      border:1px solid rgba(255,255,255,.28); box-shadow:0 6px 18px rgba(2,6,23,.35);
-    }
-
-    .categories{
-      display:flex;gap:8px;flex-wrap:nowrap;justify-content:center;margin:10px auto 0;
-      overflow-x:auto;padding:0 6px;
-    }
-    .categories::-webkit-scrollbar{height:8px}
-    .categories::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:999px}
-    .catbtn{
-      border:1px solid #dbeafe;background:#ffffffc9;border-radius:999px;padding:8px 12px;
-      cursor:pointer;font-weight:700;font-size:14px;white-space:nowrap;backdrop-filter: blur(6px)
-    }
-    .catbtn:hover{background:#f1f5f9}
-    .catbtn.active{
-      background:linear-gradient(90deg,#4cc9f0,#ffd166);
-      color:#0b1220;border-color:#e2e8f0
-    }
-
-    .searchbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
-    .searchbar input,.searchbar button{padding:10px;border:none;border-radius:10px;font-size:14px}
-    .searchbar input{
-      min-width:220px;max-width:360px;flex:1;padding-left:36px;background:#fff
-        url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="%2399a1ad"><path d="M21 20l-5.6-5.6a7 7 0 10-1.4 1.4L20 21l1-1zM10 16a6 6 0 110-12 6 6 0 010 12z"/></svg>')
-        no-repeat 10px center;
-      background-size:18px 18px; border:1px solid #e2e8f0
-    }
-    .searchbar button{
-      background:linear-gradient(90deg,#4cc9f0,#ffd166);
-      color:#0b1220;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(2,6,23,.12)
-    }
-    @media (max-width:640px){
-      .floating-search{
-        position:fixed; right:12px; bottom:12px; z-index:50;
-        background:linear-gradient(90deg,#4cc9f0,#ffd166);
-        border:none; color:#0b1220; font-weight:800; border-radius:999px; padding:10px 14px;
-        box-shadow:0 10px 24px rgba(2,6,23,.22)
-      }
-    }
-
-    main{max-width:1100px;margin:26px auto;padding:0 16px; position:relative; z-index:2}
-
-    .section{
-      background:var(--panel); border:1px solid rgba(226,232,240,.75); border-radius:16px;
-      margin-bottom:28px; box-shadow:0 10px 28px rgba(2,6,23,.25); backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px); position:relative; overflow:hidden;
-    }
-    .section h2{
-      font-size:18px;padding:10px 12px;border-radius:16px 16px 0 0;
-      display:flex;align-items:center;gap:10px;border-bottom:1px solid #e2e8f0;
-      background:linear-gradient(90deg,#e0f2fe,#fff);
-    }
-    .section.deals25 h2{background:linear-gradient(90deg,#ffe0b2,#ffcc80)}
-    .section.deals50 h2{background:linear-gradient(90deg,#ffcdd2,#ef9a9a)}
-    .section.highlight h2{background:linear-gradient(90deg,#d1fae5,#a7f3d0)}
-
-    .section::after{
-      content:""; display:block; height:8px; background:
-        linear-gradient(90deg, rgba(76,201,240,.25), rgba(255,209,102,.25), rgba(76,201,240,.25));
-      border-top:1px solid #e2e8f0;
-    }
-
-    .grid{display:flex; gap:14px; padding:12px; overflow-x:auto; scroll-snap-type:x proximity}
-    .grid::-webkit-scrollbar{height:8px}
-    .grid::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
-
-    .card{min-width:240px; scroll-snap-align:start; background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative;height:330px;transition:transform .25s, box-shadow .25s; backdrop-filter: blur(6px)}
-    .card:hover{transform:translateY(-4px);box-shadow:0 16px 28px rgba(2,6,23,.25)}
-    .thumb{height:150px;position:relative;background:#e8eef7;overflow:hidden}
-    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-    .badge{position:absolute;top:8px;left:8px;background:#ff4d4f;color:#fff;font-weight:800;padding:4px 8px;border-radius:6px;font-size:12px}
-    .body{padding:10px;flex-grow:1}
-    .title{font-weight:800;margin-bottom:4px;font-size:14px;line-height:1.25}
-    .desc{font-size:12px;color:#475569;margin-top:4px;line-height:1.3;max-height:3.1em;overflow:hidden}
-    .muted{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px;margin-top:6px}
-    .price{font-weight:800;margin-top:6px;font-size:14px}
-    .cta{margin-top:auto;padding:10px;text-align:center}
-    .cta a{
-      display:inline-block;background:linear-gradient(90deg,#4cc9f0,#ffd166);
-      padding:8px 12px;border-radius:8px;color:#0b1220;font-weight:800;box-shadow:0 6px 16px rgba(2,6,23,.12)
-    }
-
-    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
-    .toolbtn{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:700}
-    .toolbtn:hover{background:#f8fafc}
-
-    footer{
-      position:relative; z-index:2;
-      text-align:center;padding:24px;
-      background:#0b3a6a; color:#fff;margin-top:30px;font-size:14px;
-      border-top:1px solid rgba(255,255,255,.15);
-    }
-
-    .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1}
-    .flake{position:absolute;top:-10px;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.9);filter:blur(.5px);animation:fall linear infinite}
-    @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
-
-    #toTop{
-      position:fixed; right:12px; bottom:70px; z-index:60; display:none;
-      background:#ffffff; color:#0b1220; border:1px solid #e2e8f0; border-radius:999px;
-      padding:8px 12px; font-weight:800; box-shadow:0 8px 22px rgba(2,6,23,.22); cursor:pointer;
-    }
-    #toTop.show{display:block}
   </style>
 </head>
+
 <body>
-
-  <!-- hó -->
-  <div class="snow" aria-hidden="true"></div>
-
   <header class="hero">
-    <span class="dev-badge">Folyamatos fejlesztés</span>
     <div class="hero-inner">
       <div class="brand">
-        <img id="brandLogo" src="assets/img/findora-header.png"
-             data-fallback1="assets/img/findora_mark.png"
-             data-fallback2="https://upload.wikimedia.org/wikipedia/commons/3/3f/Compass_rose_simple.svg"
-             alt="Findora logó" />
-        <div>
-          <h1>Findora</h1>
-          <p>Irányt mutat a legjobb ajánlatokhoz</p>
-        </div>
+        <img src="assets/img/findora-header.png" alt="Findora logó" />
       </div>
-
-      <div class="promo" role="note">🎄 Ünnepi hangulat, friss karácsonyi ajánlatokkal!</div>
-
-      <nav class="categories" aria-label="Kategóriák">
-        <button class="catbtn active" data-cat="all">Összes</button>
-        <button class="catbtn" data-cat="tech">💻 Tech</button>
-        <button class="catbtn" data-cat="fashion">👗 Divat</button>
-        <button class="catbtn" data-cat="travel">✈️ Utazás</button>
-        <button class="catbtn" data-cat="home">🏠 Otthon</button>
-        <button class="catbtn" data-cat="beauty">💄 Szépség</button>
-        <button class="catbtn" data-cat="games">🕹️ Játékok</button>
-        <button class="catbtn" data-cat="vision">👓 Látás</button>
-      </nav>
-
-      <form id="searchForm" class="searchbar" role="search" action="">
-        <input id="q" name="q" type="search" placeholder="Írja be a keresett terméket…" aria-label="Keresés" />
-        <button type="submit" aria-label="Keresés indítása">Keresés</button>
-      </form>
+      <h1>Findora</h1>
+      <p>Irányt mutat a legjobb ajánlatokhoz</p>
     </div>
   </header>
-
-  <!-- mobil lebegő kereső -->
-  <button class="floating-search" aria-label="Keresés megnyitása" onclick="document.getElementById('q').focus()">🔍</button>
-  <!-- vissza a tetejére -->
-  <button id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">▲</button>
-
-  <main id="content"></main>
-
-  <footer>
-    © 2025 Findora • Az oldalon affiliate linkek lehetnek. Biztonságos partneroldalak: Amazon, About You, Alza.
-  </footer>
-
-  <script>
-  /* ====== Link-generátorok (Booking TÖRÖLVE) ====== */
-  const AMAZON_TAG="findora30-20";
-  const amazon  = q => `https://www.amazon.com/s?k=${encodeURIComponent(q)}&tag=${AMAZON_TAG}`;
-  const alza    = q => `https://www.alza.hu/search.htm?exps=${encodeURIComponent(q)}`;
-  const aboutyou= q => `https://www.aboutyou.hu/kereses?term=${encodeURIComponent(q)}`;
-
-  /* === AFFILIATE KÖZVETLEN LINKEK a placeholder szekciókhoz === */
-  const AFFILIATE_LINKS = {
-    "Kärcher.hu": "https://www.kqzyfj.com/pa117qgpmgo35459BD44C3587B77AD",
-    "JátékNet.hu": "https://www.anrdoezrs.net/2t70r09608OQPQUWYPPXOQTTTXPQQ",
-    "eOptika.hu": "https://www.kqzyfj.com/tf79mu2-u1HJIJNPRIIQHJMIMRRJK"
-  };
-
-  const LOGO_URLS={
-    Amazon:"https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
-    Alza:"https://upload.wikimedia.org/wikipedia/commons/d/d2/Alza.cz_logo.svg",
-    AboutYou:"https://upload.wikimedia.org/wikipedia/commons/7/79/About_You_logo.svg",
-    "JátékNet.hu":"https://upload.wikimedia.org/wikipedia/commons/8/8f/Puzzle.svg",
-    "Kärcher.hu":"https://upload.wikimedia.org/wikipedia/commons/6/62/Karcher_logo.svg",
-    "eOptika.hu":"https://upload.wikimedia.org/wikipedia/commons/7/72/Glasses_icon.svg"
-  };
-
-  /* brand logó fallback */
-  (function(){
-    const img=document.getElementById('brandLogo'); let step=0;
-    img.onerror=()=>{ step++; if(step===1) img.src=img.dataset.fallback1; else if(step===2) img.src=img.dataset.fallback2; };
-  })();
-
-  /* Kulcsszó → kép */
-  const IMG_KEY={
-    laptop:"https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1200&q=80&auto=format&fit=crop",
-    "gaming laptop":"https://images.unsplash.com/photo-1518779578993-ec3579fee39f?w=1200&q=80&auto=format&fit=crop",
-    cipő:"https://images.unsplash.com/photo-1596464716121-5d0ae0e87dfd?w=1200&q=80&auto=format&fit=crop",
-    "női cipő":"https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=1200&q=80&auto=format&fit=crop",
-    ruha:"https://images.unsplash.com/photo-1542062703-2a3b6c84b6d0?w=1200&q=80&auto=format&fit=crop",
-    kabát:"https://images.unsplash.com/photo-1603251579431-8041402bdeda?w=1200&q=80&auto=format&fit=crop",
-    tv:"https://images.unsplash.com/photo-1512445239393-63e626ac6b86?w=1200&q=80&auto=format&fit=crop",
-    okosóra:"https://images.unsplash.com/photo-1517433456452-f9633a875f6f?w=1200&q=80&auto=format&fit=crop",
-    wellness:"https://images.unsplash.com/photo-1501117716987-c8e1ecb2101f?w=1200&q=80&auto=format&fit=crop",
-    hotel:"https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=1200&q=80&auto=format&fit=crop",
-    fülhallgató:"https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=1200&q=80&auto=format&fit=crop",
-    "smart tv":"https://images.unsplash.com/photo-1527443154391-507e9dc6c5cc?w=1200&q=80&auto=format&fit=crop"
-  };
-  const PLACEHOLDER = `data:image/svg+xml;utf8,`+
-    encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400'>
-      <defs><linearGradient id='g' x1='0' x2='1'><stop stop-color='#eee'/><stop offset='1' stop-color='#ddd'/></linearGradient></defs>
-      <rect fill='url(#g)' width='600' height='400'/>
-      <g fill='#999' font-family='Inter, Arial, Helvetica, sans-serif' font-size='22'>
-        <text x='50%' y='50%' text-anchor='middle'>Kép előkészítés alatt…</text>
-      </g></svg>`);
-
-  function keyImage(title){
-    const t=title.toLowerCase();
-    for(const k of Object.keys(IMG_KEY)){ if(t.includes(k)) return IMG_KEY[k]; }
-    return `https://source.unsplash.com/800x600/?${encodeURIComponent(title)}`;
-  }
-
-  /* Demo-adatok (Booking TÖRÖLVE) */
-  const ITEMS=[
-    {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazon("laptop deal"), category:"tech",  desc:"Belépő modellek gyors szállítással."},
-    {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazon("gaming laptop rtx"), category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
-    {title:"Okosóra akció", partner:"Alza",    price:"39 990 Ft", discount:40, url:alza("okosóra"), category:"tech",     desc:"Sport, értesítések, egészségkövetés."},
-    {title:"Vezeték nélküli fülhallgató", partner:"Amazon", price:"17 990 Ft", discount:28, url:amazon("wireless earbuds"), category:"tech"},
-    {title:"Smart TV -55%", partner:"Amazon", price:"119 990 Ft", discount:55, url:amazon("smart tv 55"), category:"tech"},
-
-    {title:"Női cipők -40%", partner:"AboutYou", price:"Változó", discount:40, url:aboutyou("női cipő"), category:"fashion", desc:"Csizma, sneaker, magassarkú – szezonális."},
-    {title:"Férfi kabát -35%", partner:"AboutYou", price:"Változó", discount:35, url:aboutyou("férfi kabát"), category:"fashion"}
-  ];
-
-  function cardHTML(it){
-    const primary = keyImage(it.title);
-    const secondary = `https://source.unsplash.com/800x600/?${encodeURIComponent(it.title)}`;
-    const imgTag =
-      `<img class="imgsafe" alt="${it.title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
-            data-src1="${primary}" data-src2="${secondary}" data-src3="${PLACEHOLDER}" />`;
-    const badge=it.discount>=25?`<span class="badge">-${it.discount}%</span>`:"";
-    const logo=LOGO_URLS[it.partner]?`<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">`:"";
-    const desc=it.desc?`<div class="desc">${it.desc}</div>`:"";
-    return `<div class="card">
-      ${badge}
-      <div class="thumb">${imgTag}</div>
-      <div class="body">
-        <div class="title">${it.title}</div>
-        ${desc}
-        <div class="muted">${logo} ${it.partner}</div>
-        <div class="price">${it.price||""}</div>
-      </div>
-      <div class="cta"><a href="${it.url}" target="_blank" rel="nofollow sponsored noopener">Megnézem az ajánlatot</a></div>
-    </div>`;
-  }
-
-  function hydrateSafeImages(ctx=document){
-    ctx.querySelectorAll("img.imgsafe").forEach(img=>{
-      const chain=[img.dataset.src1, img.dataset.src2, img.dataset.src3].filter(Boolean);
-      let i=0; const set = () => { img.src = chain[i]; };
-      img.onerror = () => { i = Math.min(i+1, chain.length-1); if (img.src !== chain[i]) set(); };
-      set();
-    });
-  }
-
-  const content=document.getElementById('content');
-
-  function renderPartnerTable(title, items, partner){
-    const sec=document.createElement('section');
-    sec.className='section partner';
-    sec.innerHTML=`<h2>${title}</h2><div class="grid"></div>`;
-    const grid=sec.querySelector('.grid');
-
-    if(items && items.length){
-      items.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
-    }else{
-      /* Ha nincs konkrét tétel, akkor közvetlen affiliate CTA a partnerre */
-      const aff = AFFILIATE_LINKS[partner] || "#";
-      const ph = {
-        title:`${partner} – Nézd meg az ajánlatokat`,
-        partner, price:"", discount:0, url:aff,
-        desc:"Közvetlenül a partner oldalán."
-      };
-      grid.insertAdjacentHTML('beforeend', cardHTML(ph));
-    }
-    content.appendChild(sec);
-  }
-
-  function renderSection(title, items, extraClass="", id=""){
-    if(!items.length)return;
-    const s=document.createElement('section');
-    s.className=`section ${extraClass}`.trim();
-    if(id)s.id=id;
-    s.innerHTML=`<h2>${title}</h2><div class="grid"></div>`;
-    const g=s.querySelector('.grid');
-    items.forEach(it=>g.insertAdjacentHTML('beforeend', cardHTML(it)));
-    content.appendChild(s);
-  }
-
-  function renderTopDeals(){
-    const top=[...ITEMS].sort((a,b)=>b.discount-a.discount).slice(0,3);
-    renderSection("🏆 A hét legjobb ajánlatai", top, "highlight", "topdeals");
-  }
-
-  function renderAll(){
-    content.innerHTML="";
-    renderTopDeals();
-
-    const deals25=ITEMS.filter(i=>i.discount>=25 && i.discount<50);
-    const deals50=ITEMS.filter(i=>i.discount>=50);
-    renderSection("🎁 Akciók 25–49%", deals25, "deals25", "deals25");
-    renderSection("🔥 Legnagyobb kedvezmények (50%+)", deals50, "deals50", "deals50");
-
-    ["Amazon","AboutYou","Alza"].forEach(p=>{
-      const list = ITEMS.filter(i=>i.partner===p);
-      renderPartnerTable(`${p} találatok`, list, p);
-    });
-
-    /* Affiliate CTA-s placeholder szekciók */
-    renderPartnerTable("🏠 Otthon – Kärcher.hu", [], "Kärcher.hu");
-    renderPartnerTable("🕹️ Játékok – JátékNet.hu", [], "JátékNet.hu");
-    renderPartnerTable("👓 Látás – eOptika.hu", [], "eOptika.hu");
-
-    hydrateSafeImages(content);
-  }
-
-  function showCategory(cat){
-    document.querySelectorAll(".catbtn").forEach(b=>{
-      b.classList.toggle("active", b.dataset.cat===cat || (cat==="all" && b.dataset.cat==="all"));
-    });
-    content.innerHTML="";
-    if(cat==="all"){ renderAll(); return; }
-
-    if(["tech","fashion","travel","home","beauty"].includes(cat)){
-      const list=ITEMS.filter(i=>i.category===cat);
-      ["Amazon","AboutYou","Alza"].forEach(p=>{
-        const items=list.filter(i=>i.partner===p);
-        if(items.length) renderPartnerTable(`🔎 ${p} – ${catName(cat)} találatok`, items, p);
-      });
-      if(cat==="home") renderPartnerTable("🏠 Otthon – Kärcher.hu", [], "Kärcher.hu");
-      hydrateSafeImages(content);
-      return;
-    }
-
-    if(cat==="games"){
-      renderPartnerTable("🕹️ Játékok – JátékNet.hu", [], "JátékNet.hu");
-      hydrateSafeImages(content); return;
-    }
-    if(cat==="vision"){
-      renderPartnerTable("👓 Látás – eOptika.hu", [], "eOptika.hu");
-      hydrateSafeImages(content); return;
-    }
-  }
-  const catName=c=>({tech:"Tech",fashion:"Divat",travel:"Utazás",home:"Otthon",beauty:"Szépség"}[c]||"Összes");
-  document.querySelectorAll(".catbtn").forEach(btn=>btn.addEventListener("click",()=>showCategory(btn.dataset.cat)));
-
-  function showSearch(val){
-    const v=val.toLowerCase();
-    const results=ITEMS.filter(i=>i.title.toLowerCase().includes(v));
-    content.innerHTML=`
-      <section class="section">
-        <div class="toolbar">
-          <button class="toolbtn" id="btnBack">← Vissza</button>
-          <strong>Keresés: „${val}”</strong>
-          <button class="toolbtn" id="btnHome">🏠 Főoldal</button>
-        </div>
-      </section>`;
-    document.getElementById('btnBack').onclick=()=>showCategory("all");
-    document.getElementById('btnHome').onclick=()=>showCategory("all");
-
-    ["Amazon","AboutYou","Alza"].forEach(p=>{
-      const group = results.filter(i=>i.partner===p);
-      if(group.length){
-        renderPartnerTable(`${p} – találatok „${val}”`, group, p);
-      }
-    });
-
-    if(!results.length){
-      const sugg=[];
-      if(v.match(/cipő|ruha|kabát|dzseki|póló|pulóver/)) sugg.push({title:`Keresés az AboutYou-n: ${val}`,partner:"AboutYou",url:aboutyou(val),price:"",discount:0,desc:"Divat keresés."});
-      sugg.push({title:`Keresés az Amazonon: ${val}`,partner:"Amazon",url:amazon(val),price:"",discount:0,desc:"Termék keresés."});
-      sugg.push({title:`Keresés az Alzán: ${val}`,partner:"Alza",url:alza(val),price:"",discount:0,desc:"Tech keresés."});
-      renderSection("🔍 Javasolt külső találatok", sugg, "", "suggest");
-    }
-
-    hydrateSafeImages(content);
-  }
-
-  document.getElementById('searchForm').addEventListener('submit',e=>{
-    e.preventDefault();
-    const val=document.getElementById('q').value.trim();
-    if(val) showSearch(val); else showCategory("all");
-  });
-
-  const urlQ=new URLSearchParams(location.search).get('q');
-  if(urlQ){ document.getElementById('q').value=urlQ; showSearch(urlQ); } else { renderAll(); }
-
-  (function snow(){
-    const wrap=document.querySelector('.snow');
-    const COUNT=36;
-    for(let i=0;i<COUNT;i++){
-      const f=document.createElement('div');
-      f.className='flake';
-      f.style.left = Math.random()*100 + 'vw';
-      const dur = 8 + Math.random()*12;
-      f.style.animationDuration = dur + 's';
-      f.style.animationDelay = (Math.random()*-dur) + 's';
-      f.style.opacity = (0.45 + Math.random()*0.35).toFixed(2);
-      const size = 2 + Math.random()*5;
-      f.style.width = f.style.height = size + 'px';
-      wrap.appendChild(f);
-    }
-  })();
-
-  (function(){
-    const btn = document.getElementById('toTop');
-    window.addEventListener('scroll', ()=>{
-      if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show');
-    });
-  })();
-  </script>
 </body>
 </html>
