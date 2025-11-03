@@ -2,131 +2,162 @@
 <html lang="hu">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <title>Findora – Irányt mutat a legjobb ajánlatokhoz</title>
-  <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, Alza, About You és más partnerek kedvezményei egy helyen." />
-  <meta name="keywords" content="Findora, akció, kupon, kedvezmény, Amazon, Alza, About You, olcsó laptop, cipő, ruha, wellness" />
-  <link rel="icon" href="assets/img/findora_mark.png" />
-  <meta property="og:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-xmas-header.png" />
+  <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, Alza, About You és más partnerek kedvezményei egy helyen.">
+  <meta name="keywords" content="Findora, akció, kupon, kedvezmény, Amazon, Alza, About You, olcsó laptop, cipő, ruha, wellness">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#0b1220">
+
+  <!-- Canonical (állítsd át, ha más a végleges URL) -->
+  <link rel="canonical" href="https://arvamiklos21.github.io/Findora/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="hu_HU">
+  <meta property="og:site_name" content="Findora">
+  <meta property="og:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz">
+  <meta property="og:description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, Alza, About You és más partnerek kedvezményei egy helyen.">
+  <meta property="og:url" content="https://arvamiklos21.github.io/Findora/">
+  <meta property="og:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-xmas-header.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz">
+  <meta name="twitter:description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, Alza, About You és más partnerek kedvezményei egy helyen.">
+  <meta name="twitter:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-xmas-header.png">
+
+  <!-- Favicon -->
+  <link rel="icon" href="assets/img/findora_mark.png">
+
+  <!-- Preload a háttérképre (LCP segítség) -->
+  <link rel="preload" as="image" href="assets/img/findora-xmas-header.png" imagesrcset="assets/img/findora-xmas-header.png 1x">
 
   <style>
-    :root{
-      --fireplace:url("assets/img/findora-xmas-header.png");
+    :root {
+      --fireplace: url("assets/img/findora-xmas-header.png");
+      --bg: #0b1220;
+      --text: #ffffff;
+      --muted: #dbe7ff;
     }
 
-    body{
-      margin:0;
-      font-family:Inter,Arial,sans-serif;
-      color:#fff;
-      background:#0b1220;
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
     }
 
-    .hero{
-      position:relative;
-      width:100%;
-      color:#fff;
-      text-align:center;
-      padding:90px 10px 40px;
+    .hero {
+      position: relative;
+      width: 100%;
+      text-align: center;
+      padding: 90px 10px 40px;
       background:
         linear-gradient(180deg, rgba(10,18,35,.8) 0%, rgba(10,18,35,.6) 70%, rgba(10,18,35,.55) 100%),
-        var(--fireplace) center/cover no-repeat;
-      border-bottom:1px solid rgba(255,255,255,.25);
-      overflow:hidden;
+        var(--fireplace) center / cover no-repeat;
+      border-bottom: 1px solid rgba(255,255,255,.25);
+      overflow: hidden;
+      color: #fff;
     }
 
-    .hero-inner{max-width:1100px;margin:auto;position:relative;z-index:2}
-    .brand img{height:46px;margin-bottom:8px;border-radius:12px;background:#0f2742;box-shadow:0 2px 8px rgba(0,0,0,.5)}
-    .hero h1{font-size:32px;font-weight:800;margin:0}
-    .hero p{font-size:15px;color:#dbe7ff;margin:4px 0 0}
+    .hero-inner { max-width: 1100px; margin: auto; position: relative; z-index: 2; }
+    .brand img {
+      height: 46px;
+      margin-bottom: 8px;
+      border-radius: 12px;
+      background: #0f2742;
+      box-shadow: 0 2px 8px rgba(0,0,0,.5);
+    }
+    .hero h1 { font-size: 32px; font-weight: 800; margin: 0; }
+    .hero p  { font-size: 15px; color: var(--muted); margin: 4px 0 0; }
 
-    /* === 🎁 3D KARÁCSONYI DOBOZOK === */
-    .hero::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      z-index:1;
-      pointer-events:none;
+    /* 🎁 Díszítő SVG – URL-escape-elve, XML deklaráció nélkül, hogy biztosan CSS-kompatibilis legyen */
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
       background:
-        url("data:image/svg+xml;utf8,<?xml version='1.0'?>
-<svg xmlns='http://www.w3.org/2000/svg' width='900' height='400' viewBox='0 0 900 400'>
-  <defs>
-    <linearGradient id='redGrad' x1='0' x2='1'>
-      <stop offset='0' stop-color='%23b91c1c'/>
-      <stop offset='1' stop-color='%23ef4444'/>
-    </linearGradient>
-    <linearGradient id='shadow' x1='0' y1='0' x2='0' y2='1'>
-      <stop offset='0' stop-opacity='0'/>
-      <stop offset='1' stop-opacity='0.5'/>
-    </linearGradient>
-  </defs>
-
-  <!-- random 3D stílusú dobozok -->
-  <g opacity='0.22'>
-    <rect x='40' y='60' width='36' height='30' rx='4' fill='url(%23redGrad)' stroke='%23a11' stroke-width='1.2'/>
-    <rect x='56' y='45' width='4' height='50' fill='%23ffd166'/>
-    <polygon points='40,90 76,90 68,95 48,95' fill='url(%23shadow)'/>
-  </g>
-  <g opacity='0.28'>
-    <rect x='160' y='120' width='42' height='34' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
-    <rect x='179' y='100' width='5' height='60' fill='%23fef08a'/>
-    <path d='M168 120 h28 v4 h-28z' fill='%23ffd166'/>
-    <polygon points='160,154 202,154 194,160 168,160' fill='url(%23shadow)'/>
-  </g>
-  <g opacity='0.24'>
-    <rect x='300' y='90' width='50' height='38' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
-    <rect x='322' y='70' width='6' height='68' fill='%23ffe8a3'/>
-    <path d='M300 108 h50 v5 h-50z' fill='%23ffd166'/>
-    <polygon points='300,128 350,128 342,134 308,134' fill='url(%23shadow)'/>
-  </g>
-  <g opacity='0.3'>
-    <rect x='480' y='150' width='44' height='36' rx='4' fill='url(%23redGrad)' stroke='%23a11'/>
-    <rect x='500' y='130' width='5' height='60' fill='%23ffd166'/>
-    <path d='M480 166 h44 v4 h-44z' fill='%23ffe8a3'/>
-    <polygon points='480,186 524,186 516,192 488,192' fill='url(%23shadow)'/>
-  </g>
-  <g opacity='0.26'>
-    <rect x='620' y='100' width='40' height='32' rx='4' fill='url(%23redGrad)' stroke='%23a11'/>
-    <rect x='638' y='80' width='4' height='60' fill='%23ffd166'/>
-    <polygon points='620,132 660,132 652,138 628,138' fill='url(%23shadow)'/>
-  </g>
-  <g opacity='0.2'>
-    <rect x='740' y='70' width='36' height='30' rx='4' fill='url(%23redGrad)' stroke='%23a11'/>
-    <rect x='757' y='50' width='4' height='55' fill='%23ffe8a3'/>
-    <polygon points='740,100 776,100 768,106 748,106' fill='url(%23shadow)'/>
-  </g>
-
-  <!-- alsó sor -->
-  <g opacity='0.25'>
-    <rect x='100' y='270' width='42' height='34' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
-    <rect x='119' y='250' width='5' height='60' fill='%23fef08a'/>
-    <polygon points='100,304 142,304 134,310 108,310' fill='url(%23shadow)'/>
-  </g>
-  <g opacity='0.18'>
-    <rect x='260' y='260' width='48' height='36' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
-    <rect x='281' y='240' width='6' height='64' fill='%23ffd166'/>
-    <polygon points='260,296 308,296 300,302 268,302' fill='url(%23shadow)'/>
-  </g>
-  <g opacity='0.3'>
-    <rect x='420' y='285' width='50' height='38' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
-    <rect x='441' y='265' width='6' height='68' fill='%23ffe8a3'/>
-    <polygon points='420,320 470,320 462,326 430,326' fill='url(%23shadow)'/>
-  </g>
-  <g opacity='0.22'>
-    <rect x='600' y='270' width='46' height='36' rx='5' fill='url(%23redGrad)' stroke='%23a11'/>
-    <rect x='621' y='250' width='5' height='64' fill='%23ffd166'/>
-    <polygon points='600,306 646,306 638,312 610,312' fill='url(%23shadow)'/>
-  </g>
-</svg>") center/cover repeat-x;
+        url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='900' height='400' viewBox='0 0 900 400'>\
+  <defs>\
+    <linearGradient id='redGrad' x1='0' x2='1'>\
+      <stop offset='0' stop-color='%23b91c1c'/>\
+      <stop offset='1' stop-color='%23ef4444'/>\
+    </linearGradient>\
+    <linearGradient id='shadow' x1='0' y1='0' x2='0' y2='1'>\
+      <stop offset='0' stop-opacity='0'/>\
+      <stop offset='1' stop-opacity='.5'/>\
+    </linearGradient>\
+  </defs>\
+  <g opacity='.22'>\
+    <rect x='40' y='60' width='36' height='30' rx='4' fill='url(%23redGrad)' stroke='%23aa1111' stroke-width='1.2'/>\
+    <rect x='56' y='45' width='4' height='50' fill='%23ffd166'/>\
+    <polygon points='40,90 76,90 68,95 48,95' fill='url(%23shadow)'/>\
+  </g>\
+  <g opacity='.28'>\
+    <rect x='160' y='120' width='42' height='34' rx='5' fill='url(%23redGrad)' stroke='%23aa1111'/>\
+    <rect x='179' y='100' width='5' height='60' fill='%23fef08a'/>\
+    <path d='M168 120 h28 v4 h-28z' fill='%23ffd166'/>\
+    <polygon points='160,154 202,154 194,160 168,160' fill='url(%23shadow)'/>\
+  </g>\
+  <g opacity='.24'>\
+    <rect x='300' y='90' width='50' height='38' rx='5' fill='url(%23redGrad)' stroke='%23aa1111'/>\
+    <rect x='322' y='70' width='6' height='68' fill='%23ffe8a3'/>\
+    <path d='M300 108 h50 v5 h-50z' fill='%23ffd166'/>\
+    <polygon points='300,128 350,128 342,134 308,134' fill='url(%23shadow)'/>\
+  </g>\
+  <g opacity='.3'>\
+    <rect x='480' y='150' width='44' height='36' rx='4' fill='url(%23redGrad)' stroke='%23aa1111'/>\
+    <rect x='500' y='130' width='5' height='60' fill='%23ffd166'/>\
+    <path d='M480 166 h44 v4 h-44z' fill='%23ffe8a3'/>\
+    <polygon points='480,186 524,186 516,192 488,192' fill='url(%23shadow)'/>\
+  </g>\
+  <g opacity='.26'>\
+    <rect x='620' y='100' width='40' height='32' rx='4' fill='url(%23redGrad)' stroke='%23aa1111'/>\
+    <rect x='638' y='80' width='4' height='60' fill='%23ffd166'/>\
+    <polygon points='620,132 660,132 652,138 628,138' fill='url(%23shadow)'/>\
+  </g>\
+  <g opacity='.2'>\
+    <rect x='740' y='70' width='36' height='30' rx='4' fill='url(%23redGrad)' stroke='%23aa1111'/>\
+    <rect x='757' y='50' width='4' height='55' fill='%23ffe8a3'/>\
+    <polygon points='740,100 776,100 768,106 748,106' fill='url(%23shadow)'/>\
+  </g>\
+  <g opacity='.25'>\
+    <rect x='100' y='270' width='42' height='34' rx='5' fill='url(%23redGrad)' stroke='%23aa1111'/>\
+    <rect x='119' y='250' width='5' height='60' fill='%23fef08a'/>\
+    <polygon points='100,304 142,304 134,310 108,310' fill='url(%23shadow)'/>\
+  </g>\
+  <g opacity='.18'>\
+    <rect x='260' y='260' width='48' height='36' rx='5' fill='url(%23redGrad)' stroke='%23aa1111'/>\
+    <rect x='281' y='240' width='6' height='64' fill='%23ffd166'/>\
+    <polygon points='260,296 308,296 300,302 268,302' fill='url(%23shadow)'/>\
+  </g>\
+  <g opacity='.3'>\
+    <rect x='420' y='285' width='50' height='38' rx='5' fill='url(%23redGrad)' stroke='%23aa1111'/>\
+    <rect x='441' y='265' width='6' height='68' fill='%23ffe8a3'/>\
+    <polygon points='420,320 470,320 462,326 430,326' fill='url(%23shadow)'/>\
+  </g>\
+  <g opacity='.22'>\
+    <rect x='600' y='270' width='46' height='36' rx='5' fill='url(%23redGrad)' stroke='%23aa1111'/>\
+    <rect x='621' y='250' width='5' height='64' fill='%23ffd166'/>\
+    <polygon points='600,306 646,306 638,312 610,312' fill='url(%23shadow)'/>\
+  </g>\
+</svg>") center / cover repeat-x;
       mix-blend-mode: screen;
     }
   </style>
 </head>
 
 <body>
-  <header class="hero">
+  <header class="hero" role="banner" aria-label="Findora karácsonyi ajánlatok">
     <div class="hero-inner">
       <div class="brand">
-        <img src="assets/img/findora-header.png" alt="Findora logó" />
+        <img src="assets/img/findora-header.png" alt="Findora logó" decoding="async" fetchpriority="high">
       </div>
       <h1>Findora</h1>
       <p>Irányt mutat a legjobb ajánlatokhoz</p>
