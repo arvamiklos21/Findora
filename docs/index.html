@@ -9,9 +9,8 @@
   <meta name="keywords" content="Findora, akció, kedvezmény, Amazon, JátékNet, Kärcher, eOptika, Tchibo, olcsó, ajánlat" />
 
   <meta name="robots" content="index,follow,max-image-preview:large" />
-  <link rel="canonical" href="https://arvamiklos21.github.io/Findora/" />
-  <link rel="alternate" href="https://arvamiklos21.github.io/Findora/" hreflang="hu" />
-  <meta name="google-site-verification" content="vDPKx3UXBaAFpEBO4fQXqrX8bXr6mjlogt8qUr" />
+  <link rel="canonical" href="./" />
+  <link rel="alternate" href="./" hreflang="hu" />
   <link rel="icon" href="assets/img/findora_mark.png" />
 
   <!-- OG/Twitter -->
@@ -19,48 +18,41 @@
   <meta property="og:site_name" content="Findora" />
   <meta property="og:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
   <meta property="og:description" content="Válogatott akciók és ajánlatok magyar felhasználóknak. Amazon, JátékNet, Kärcher, eOptika, Tchibo." />
-  <meta property="og:url" content="https://arvamiklos21.github.io/Findora/" />
-  <meta property="og:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-header.png" />
+  <meta property="og:url" content="./" />
+  <meta property="og:image" content="assets/img/findora-header.png" />
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
   <meta name="twitter:description" content="A legjobb akciók és kuponok egy helyen. Nézd meg a Findora válogatásait!" />
-  <meta name="twitter:image" content="https://arvamiklos21.github.io/Findora/assets/img/findora-header.png" />
+  <meta name="twitter:image" content="assets/img/findora-header.png" />
 
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
     "@type":"WebSite",
     "name":"Findora",
-    "url":"https://arvamiklos21.github.io/Findora/",
+    "url":"./",
     "description":"Válogatott akciók és ajánlatok magyar felhasználóknak.",
     "potentialAction":{
       "@type":"SearchAction",
-      "target":"https://arvamiklos21.github.io/Findora/?q={search_term_string}",
+      "target":"./?q={search_term_string}",
       "query-input":"required name=search_term_string"
     },
     "publisher":{
       "@type":"Organization",
       "name":"Findora",
-      "logo":{"@type":"ImageObject","url":"https://arvamiklos21.github.io/Findora/assets/img/findora-header.png"}
+      "logo":{"@type":"ImageObject","url":"assets/img/findora-header.png"}
     }
   }
   </script>
 
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Montserrat+Alternates:wght@700&display=swap" rel="stylesheet">
 
   <style>
     :root{
-      --primary:#0f2742;
-      --gold:#ffd166;
-      --text:#0f172a;
-      --muted:#64748b;
-      --card:rgba(255,255,255,0.9);
-      --panel:#ffffffee;
-      --border:#e2e8f0;
-
+      --primary:#0f2742; --gold:#ffd166; --text:#0f172a; --muted:#64748b;
+      --card:rgba(255,255,255,0.9); --panel:#ffffffee; --border:#e2e8f0;
       --fireplace:url("https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=1600&q=80&auto=format&fit=crop");
       --pine-row:url("data:image/svg+xml;utf8,<?xml version='1.0'?>\
 <svg xmlns='http://www.w3.org/2000/svg' width='480' height='120' viewBox='0 0 480 120'>\
@@ -80,69 +72,32 @@
     <path d='M400,110 l24,-48 l24,48 z'/>\
   </g></svg>");
     }
-
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{height:100%}
-
     body{
-      font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
-      color:var(--text);
+      font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);
       background:
         radial-gradient(1200px 700px at 12% -10%, rgba(255,255,255,.18), transparent 60%),
         radial-gradient(900px 600px at 110% -10%, rgba(76,201,240,.10), transparent 60%),
         var(--pine-row) bottom center/900px 220px repeat-x,
         linear-gradient(180deg, #0a1830 0%, #0b203f 50%, #0e2b58 100%);
-      background-attachment: fixed,fixed,fixed,fixed;
-      overflow-x:hidden;
+      background-attachment: fixed,fixed,fixed,fixed; overflow-x:hidden;
     }
-    @media (max-width:640px){
-      body{ background-attachment: scroll,scroll,scroll,scroll; }
-    }
-
-    .hero{
-      position:relative; z-index:3; width:100%; color:#eef4ff;
-      display:flex;align-items:center;justify-content:center;text-align:center;
-      padding:64px 10px 26px;
-      background:
-        linear-gradient(180deg, rgba(6,14,28,.72) 0%, rgba(6,14,28,.58) 60%, rgba(6,14,28,.54) 100%),
-        var(--fireplace) center/cover no-repeat;
+    @media (max-width:640px){ body{ background-attachment: scroll,scroll,scroll,scroll; } }
+    .hero{ position:relative; z-index:3; color:#eef4ff; text-align:center; padding:64px 10px 26px;
+      background: linear-gradient(180deg, rgba(6,14,28,.72) 0%, rgba(6,14,28,.58) 60%, rgba(6,14,28,.54) 100%), var(--fireplace) center/cover no-repeat;
       border-bottom:1px solid rgba(226,232,240,.35);
     }
-
-    .hero-inner{max-width:1100px;width:100%; position:relative; z-index:2}
+    .hero-inner{max-width:1100px;margin:0 auto}
     .brand{display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:8px}
     .brand img{height:44px;border-radius:12px;background:#0f2742;box-shadow:0 2px 8px rgba(2,6,23,.4)}
-    .hero h1{font-size:clamp(20px,3.5vw,32px);color:#ffffff;font-weight:800;letter-spacing:.2px}
+    .hero h1{font-size:clamp(20px,3.5vw,32px);font-weight:800}
     .hero p{font-size:clamp(13px,1.7vw,16px); color:#dbe7ff}
-    .dev-badge{
-      position:absolute; left:12px; top:12px; z-index:4;
-      background:#0b3a6a; color:#fff; padding:6px 10px; border-radius:10px;
-      font-weight:700; font-size:13px; box-shadow:0 2px 6px rgba(0,0,0,.25);
-    }
-
-    .promo{
-      margin:10px auto 10px;
-      background:linear-gradient(90deg,rgba(255,255,255,.16),rgba(255,255,255,.22));
-      color:#f6fbff;padding:8px 12px;border-radius:14px;max-width:860px;font-weight:700;
-      border:1px solid rgba(255,255,255,.24);
-    }
-
-    .categories{
-      display:flex;gap:8px;flex-wrap:nowrap;justify-content:center;margin:8px auto 0;
-      overflow-x:auto;padding:0 6px;
-    }
-    .categories::-webkit-scrollbar{height:8px}
-    .categories::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:999px}
-    .catbtn{
-      border:1px solid #dbeafe;background:#ffffffc9;border-radius:999px;padding:8px 12px;
-      cursor:pointer;font-weight:700;font-size:14px;white-space:nowrap
-    }
-    .catbtn:hover{background:#f1f5f9}
-    .catbtn.active{
-      background:linear-gradient(90deg,#4cc9f0,#ffd166);
-      color:#0b1220;border-color:#e2e8f0
-    }
-
+    .dev-badge{position:absolute;left:12px;top:12px;background:#0b3a6a;color:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+    .promo{margin:10px auto;background:linear-gradient(90deg,rgba(255,255,255,.16),rgba(255,255,255,.22));color:#f6fbff;padding:8px 12px;border-radius:14px;max-width:860px;font-weight:700;border:1px solid rgba(255,255,255,.24)}
+    .categories{display:flex;gap:8px;justify-content:center;margin:8px auto 0;overflow-x:auto;padding:0 6px}
+    .catbtn{border:1px solid #dbeafe;background:#ffffffc9;border-radius:999px;padding:8px 12px;cursor:pointer;font-weight:700;font-size:14px;white-space:nowrap}
+    .catbtn.active{background:linear-gradient(90deg,#4cc9f0,#ffd166);color:#0b1220;border-color:#e2e8f0}
     .searchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:8px}
     .searchbar input,.searchbar button{padding:10px;border:none;border-radius:10px;font-size:14px}
     .searchbar input{
@@ -151,53 +106,22 @@
         no-repeat 10px center;
       background-size:18px 18px; border:1px solid #e2e8f0
     }
-    .searchbar button{
-      background:linear-gradient(90deg,#4cc9f0,#ffd166);
-      color:#0b1220;font-weight:800;cursor:pointer;
-    }
+    .searchbar button{background:linear-gradient(90deg,#4cc9f0,#ffd166);color:#0b1220;font-weight:800;cursor:pointer}
+    .floating-search{display:none}
     @media (max-width:640px){
-      .floating-search{
-        position:fixed; right:12px; bottom:12px; z-index:50;
-        background:linear-gradient(90deg,#4cc9f0,#ffd166);
-        border:none; color:#0b1220; font-weight:800; border-radius:999px; padding:10px 14px; 
-        box-shadow:0 10px 24px rgba(2,6,23,.22)
-      }
+      .floating-search{display:block;position:fixed; right:12px; bottom:12px; z-index:50;
+        background:linear-gradient(90deg,#4cc9f0,#ffd166); color:#0b1220; font-weight:800; border-radius:999px; padding:10px 14px; box-shadow:0 10px 24px rgba(2,6,23,.22)}
     }
-
     main{max-width:1100px;margin:22px auto;padding:0 12px; position:relative; z-index:2}
-
-    .section{
-      background:var(--panel); border:1px solid rgba(226,232,240,.75); border-radius:18px;
-      margin-bottom:24px; box-shadow:0 8px 20px rgba(2,6,23,.18);
-      overflow:hidden;
-    }
-    .section h2{
-      font-size:18px;padding:10px 12px;border-radius:18px 18px 0 0;
-      display:flex;align-items:center;gap:10px;border-bottom:1px solid #e2e8f0;
-      background:linear-gradient(90deg,#e0f2fe,#fff);
-    }
-    .section h2 .aslink{cursor:pointer;text-decoration:underline;text-decoration-color:#cfe3ff}
-    .section.highlight h2{background:linear-gradient(90deg,#d1fae5,#a7f3d0)}
-    .section::after{
-      content:""; display:block; height:8px; background:
-        linear-gradient(90deg, rgba(76,201,240,.25), rgba(255,209,102,.25), rgba(76,201,240,.25));
-      border-top:1px solid #e2e8f0;
-    }
-
-    /* GRID – nincs vízszintes csúszka, 4 kártya / sor desktopon */
-    .grid{display:flex; flex-wrap:wrap; gap:12px; padding:12px; overflow:visible}
+    .section{background:var(--panel); border:1px solid rgba(226,232,240,.75); border-radius:18px; margin-bottom:24px; box-shadow:0 8px 20px rgba(2,6,23,.18); overflow:hidden;}
+    .section h2{font-size:18px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:linear-gradient(90deg,#e0f2fe,#fff)}
+    .grid{display:flex; flex-wrap:wrap; gap:12px; padding:12px}
     .grid .card{min-width:220px; flex:1 1 calc(25% - 12px); max-width:calc(25% - 12px)}
     @media (max-width:1024px){ .grid .card{flex-basis:calc(33.333% - 12px);max-width:calc(33.333% - 12px)} }
     @media (max-width:760px){ .grid .card{flex-basis:calc(50% - 12px);max-width:calc(50% - 12px)} }
-
-    .card{
-      scroll-snap-align:start; background:var(--card);
-      border:1px solid var(--border);border-radius:14px;overflow:hidden;
-      display:flex;flex-direction:column;position:relative;height:300px;
-      transition:transform .2s, box-shadow .2s;
-    }
-    .card:hover{transform:translateY(-3px);box-shadow:0 12px 22px rgba(2,6,23,.18)}
-    .thumb{height:130px;position:relative;background:#e8eef7;overflow:hidden}
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; height:300px; transition:transform .2s, box-shadow .2s}
+    .card:hover{transform:translateY(-3px); box-shadow:0 12px 22px rgba(2,6,23,.18)}
+    .thumb{height:130px;background:#e8eef7;overflow:hidden}
     .thumb img{width:100%;height:100%;object-fit:cover;display:block}
     .body{padding:10px;flex-grow:1}
     .title{font-weight:800;margin-bottom:4px;font-size:14px;line-height:1.25}
@@ -205,45 +129,21 @@
     .muted{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px;margin-top:6px}
     .price{font-weight:800;margin-top:6px;font-size:14px}
     .cta{margin-top:auto;padding:10px;text-align:center}
-    .cta a{
-      display:inline-block;background:linear-gradient(90deg,#4cc9f0,#ffd166);
-      padding:8px 12px;border-radius:8px;color:#0b1220;font-weight:800;
-    }
-
+    .cta a{display:inline-block;background:linear-gradient(90deg,#4cc9f0,#ffd166);padding:8px 12px;border-radius:8px;color:#0b1220;font-weight:800}
     .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
-    .toolbar .group{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .toolbtn, .toolsel{
-      background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px
-    }
-
+    .toolbtn, .toolsel{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px}
     .pager{display:flex;gap:8px;justify-content:center;align-items:center;padding:12px;flex-wrap:wrap}
     .pager button{border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
     .pager .active{background:#0b3a6a;color:#fff;border-color:#0b3a6a}
-    .pager .info{font-weight:700; color:#0b1220; padding:0 6px}
-
-    footer{
-      position:relative; z-index:2;
-      text-align:center;padding:20px;
-      background:#0b3a6a; color:#fff;margin-top:24px;font-size:14px;
-      border-top:1px solid rgba(255,255,255,.15);
-    }
-
+    footer{text-align:center;padding:20px;background:#0b3a6a;color:#fff;margin-top:24px;font-size:14px;border-top:1px solid rgba(255,255,255,.15)}
     .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1}
     .flake{position:absolute;top:-10px;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.9);filter:blur(.5px);animation:fall linear infinite}
     @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
-    @media (max-width:640px){ .flake{ width:4px;height:4px } }
-    @media (prefers-reduced-motion: reduce){ .flake{animation:none;display:none} }
-
-    #toTop{
-      position:fixed; right:12px; bottom:70px; z-index:60; display:none;
-      background:#ffffff; color:#0b1220; border:1px solid #e2e8f0; border-radius:999px;
-      padding:8px 12px; font-weight:800; box-shadow:0 8px 22px rgba(2,6,23,.22); cursor:pointer;
-    }
+    #toTop{position:fixed; right:12px; bottom:70px; z-index:60; display:none; background:#ffffff; color:#0b1220; border:1px solid #e2e8f0; border-radius:999px; padding:8px 12px; font-weight:800; box-shadow:0 8px 22px rgba(2,6,23,.22); cursor:pointer}
     #toTop.show{display:block}
   </style>
 </head>
 <body>
-
   <div class="snow" aria-hidden="true"></div>
 
   <header class="hero">
@@ -271,7 +171,6 @@
         <button class="catbtn" data-cat="travel">✈️ Utazás</button>
       </nav>
 
-      <!-- külön Játéksziget link NINCS – a Játékok nézet tölti be automatikusan -->
       <form id="searchForm" class="searchbar" role="search" action="">
         <input id="q" name="q" type="search" placeholder="Írja be a keresett terméket…" aria-label="Keresés" />
         <button type="submit" aria-label="Keresés indítása">Keresés</button>
@@ -289,18 +188,18 @@
   </footer>
 
   <script>
-  /* ====== Beállítás: 4 elem / oldal MINDEN táblázatban ====== */
+  /* ====== Oldal beállítás ====== */
   const PER_PAGE = 4;
 
-  /* ====== Linkek / partnerek ====== */
+  /* ====== PARTNER LINKEK (a Te aff kódjaiddal) ====== */
   const AMAZON_TAG = "findora30-20";
   const amazonBase = `https://www.amazon.com/?tag=${AMAZON_TAG}`;
-
-  const ACTIVE_PARTNERS = ["Amazon","JátékNet.hu","Kärcher.hu","eOptika.hu","Tchibo.hu"];
 
   const LINK_EOPTIKA = "https://www.kqzyfj.com/tf79mu2-u1HJIJNPRIIQHJMIMRRJK";
   const LINK_JATEKNET= "https://www.anrdoezrs.net/2t70r09608OQPQUWYPPXOQTTTXPQQ";
   const LINK_KARCHER  = "https://www.kqzyfj.com/pa117qgpmgo35459BD44C3587B77AD";
+
+  const ACTIVE_PARTNERS = ["Amazon","JátékNet.hu","Kärcher.hu","eOptika.hu","Tchibo.hu"];
 
   const LOGO_URLS={
     Amazon:"https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
@@ -346,7 +245,7 @@
     return PLACEHOLDER;
   }
 
-  /* DEMO Amazon */
+  /* DEMÓ Amazon kártyák */
   const ITEMS=[
     {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech",  desc:"Belépő modellek gyors szállítással."},
     {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazonBase, category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
@@ -373,102 +272,32 @@
     {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
   ];
 
-  /* Tchibo – JSON-ból jön */
-  let TCHIBO_ITEMS = [];    // {title, url, image, price}
-  let TCHIBO_READY = false;
-
+  /* ---- Tchibo (külön workflow tölti a docs/tchibo.json-t) ---- */
+  let TCHIBO_ITEMS = []; let TCHIBO_READY = false;
   async function loadTchibo(){
     try{
-      const r = await fetch("tchibo.json", { cache:"no-store" });
+      const r = await fetch("./tchibo.json", { cache:"no-store" });
       const all = await r.json();
-
-      // Dognet-en belüli eredeti URL kiszedése
-      const extractDognetOriginal = (u) => {
-        try{
-          const t = new URL(u);
-          if (t.hostname.includes("go.dognet.com")) {
-            const inner = t.searchParams.get("url");
-            if (inner) return decodeURIComponent(inner);
-          }
-        }catch(_){}
-        return u;
-      };
-
-      const normPath = (u) => {
-        try{
-          const t = new URL(u);
-          t.hash = ""; t.search = "";
-          return (t.origin + t.pathname).replace(/\/$/,"");
-        }catch(_){ return ""; }
-      };
-      const stemTitle = (s) => {
-        const t = String(s||"").toLowerCase();
-        return t
-          .replace(/\b(xxs|xs|s|m|l|xl|xxl|xxxl)\b/g, "")
-          .replace(/\b(eu|uk|us)\s?\d+\b/g, "")
-          .replace(/méret\s*[:\-]?\s*[^\s,)\]]+/g, "")
-          .replace(/\(\s*(méret|size)\s*[:\-]?[^\)]*\)/g, "")
-          .replace(/\s{2,}/g," ")
-          .trim();
-      };
       const parsePrice = (p) => {
         if (p===undefined || p===null) return NaN;
         const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",",".")); 
         return Number.isFinite(n) ? n : NaN;
       };
-
-      const seen = new Map();
-      for (const x of all){
-        const orig = extractDognetOriginal(x.url||"");
-        const baseKey = normPath(orig);
-        const titleKey = stemTitle(x.title||"");
-        const key = (baseKey || titleKey) + "|" + titleKey;
-
-        const priceNum = parsePrice(x.price);
-        const rec = {
-          title: x.title || "",
-          partner:"Tchibo.hu",
-          priceRaw: x.price,
-          price: !isNaN(priceNum) ? new Intl.NumberFormat('hu-HU').format(priceNum) + " Ft" : "",
-          discount: 0,
-          url: x.url,
-          image: x.image || "",
-          category:"home",
-          desc: ""
+      TCHIBO_ITEMS = (all||[]).map(x=>{
+        const pn = parsePrice(x.price);
+        return {
+          title: x.title||"", partner:"Tchibo.hu",
+          price: Number.isFinite(pn)? new Intl.NumberFormat('hu-HU').format(pn)+" Ft" : "",
+          discount: 0, url: x.url, image: x.image||"", category:"home", desc:""
         };
-
-        if (seen.has(key)){
-          const prev = seen.get(key);
-          const prevNum = parsePrice(prev.priceRaw);
-          if (!isNaN(priceNum) && (isNaN(prevNum) || priceNum < prevNum)){
-            prev.priceRaw = rec.priceRaw;
-            prev.price = rec.price;
-            if (rec.image) prev.image = rec.image;
-            if (rec.url) prev.url = rec.url;
-          }
-        } else {
-          seen.set(key, rec);
-        }
-      }
-
-      TCHIBO_ITEMS = [...seen.values()];
+      });
       TCHIBO_READY = true;
-    }catch(e){
-      console.warn("Tchibo betöltési hiba:", e);
-      TCHIBO_ITEMS = [];
-      TCHIBO_READY = true;
-      const err = document.createElement('section');
-      err.className = 'section';
-      err.innerHTML = `<div style="padding:12px;border:1px solid #eee;border-radius:10px">A Tchibo kínálat jelenleg nem tölthető. Próbáld meg később.</div>`;
-      document.getElementById('content').appendChild(err);
-    }
+    }catch(e){ TCHIBO_READY = true; TCHIBO_ITEMS=[]; }
   }
 
   function cardHTML(it){
     const primary = (it.image) ? it.image : keyImage(it.title);
-    const imgTag =
-      `<img class="imgsafe" alt="${it.title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
-            data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
+    const imgTag = `<img class="imgsafe" alt="${it.title}" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
     const logo=LOGO_URLS[it.partner]?`<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">`:"";
     const desc=it.desc?`<div class="desc">${it.desc}</div>`:"";
     return `<div class="card">
@@ -482,7 +311,6 @@
       <div class="cta"><a href="${it.url}" target="_blank" rel="nofollow sponsored noopener">Megnézem az ajánlatot</a></div>
     </div>`;
   }
-
   function hydrateSafeImages(ctx=document){
     ctx.querySelectorAll("img.imgsafe").forEach(img=>{
       const chain=[img.dataset.src1, img.dataset.src2, img.dataset.src3].filter(Boolean);
@@ -493,17 +321,13 @@
   }
 
   const content=document.getElementById('content');
-
-  /* ---------- LAPOZÓ ---------- */
   function pagerHTML(total, page, per){
     const pages = Math.max(1, Math.ceil(total / per));
     let html = `<div class="pager">`;
     const mkBtn = (p, lbl, active=false, disabled=false) =>
       `<button data-page="${p}" ${disabled?'disabled':''} class="${active?'active':''}">${lbl}</button>`;
     const mkDots = () => `<span class="info">…</span>`;
-
     html += mkBtn(Math.max(1,page-1), "«", false, page<=1);
-
     if (pages <= 7){
       for (let i=1;i<=pages;i++) html += mkBtn(i, i, i===page);
     } else {
@@ -525,73 +349,35 @@
         html += mkBtn(pages, pages, false);
       }
     }
-
     html += mkBtn(Math.min(pages,page+1), "»", false, page>=pages);
     html += `</div>`;
     return html;
   }
-
-  /* ---------- TÁBLÁZAT ---------- */
-  function renderPartnerTable(title, items, opts={}){
+  function renderPartnerTable(title, items){
     if(!items || !items.length) return;
-    const clickable = opts.clickTo || null;
     const sec=document.createElement('section');
     sec.className='section partner';
-    const titleHTML = clickable ? `<h2 data-open="${clickable.type}">${title}</h2>` : `<h2>${title}</h2>`;
-    sec.innerHTML=`${titleHTML}
-      <div class="toolbar">
-        <div class="group">
-          <label>Rendezés:</label>
-          <select class="toolsel sortsel">
-            <option value="relevance">Relevancia</option>
-            <option value="price_asc">Ár ↑</option>
-            <option value="price_desc">Ár ↓</option>
-            <option value="az">A → Z</option>
-            <option value="za">Z → A</option>
-          </select>
-        </div>
-      </div>
+    sec.innerHTML=`<h2>${title}</h2>
       <div class="grid"></div>
       <div class="pager"></div>`;
     const grid=sec.querySelector('.grid');
     let page = 1;
-    let sort = "relevance";
-
-    function priceNum(p){ if(!p)return NaN; return Number(String(p).replace(/[^\d.]/g,"")); }
-    function sortedArr(){
-      let arr=[...items];
-      if(sort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
-      if(sort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
-      if(sort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
-      if(sort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
-      return arr;
-    }
     function apply(){
-      const arr = sortedArr();
-      const pages = Math.max(1, Math.ceil(arr.length/PER_PAGE));
+      const pages = Math.max(1, Math.ceil(items.length/PER_PAGE));
       page = Math.min(Math.max(1,page), pages);
-      const st=(page-1)*PER_PAGE, sl=arr.slice(st, st+PER_PAGE);
+      const st=(page-1)*PER_PAGE, sl=items.slice(st, st+PER_PAGE);
       grid.innerHTML="";
       sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
-      sec.querySelector('.pager').innerHTML = pagerHTML(arr.length, page, PER_PAGE);
+      sec.querySelector('.pager').innerHTML = pagerHTML(items.length, page, PER_PAGE);
     }
-
-    sec.addEventListener('change', (e)=>{
-      if(e.target.matches('.sortsel')){ sort=e.target.value; apply(); }
-    });
     sec.addEventListener('click', (e)=>{
-      const openH2 = e.target.closest('h2[data-open]');
-      if(openH2 && openH2.dataset.open==='tchibo'){ showTchiboPage(1); }
       const b = e.target.closest('.pager button');
       if(b){ page = Number(b.dataset.page)||1; apply(); }
     });
-
     apply();
     content.appendChild(sec);
   }
-
-  /* ---------- Egyszerű szekció ---------- */
   function renderSection(title, items, extraClass="", id=""){
     if(!items.length)return;
     const s=document.createElement('section');
@@ -600,7 +386,6 @@
     s.innerHTML=`<h2>${title}</h2><div class="grid"></div><div class="pager"></div>`;
     const g=s.querySelector('.grid');
     let page=1;
-
     function apply(){
       const pages = Math.max(1, Math.ceil(items.length/PER_PAGE));
       page = Math.min(Math.max(1,page), pages);
@@ -614,17 +399,13 @@
       const b = e.target.closest('.pager button');
       if(b){ page = Number(b.dataset.page)||1; apply(); }
     });
-
     apply();
     content.appendChild(s);
   }
-
   function renderTopDeals(){
     const top=[...ITEMS].sort((a,b)=>b.discount-a.discount);
     renderSection("🏆 A hét legjobb ajánlatai", top, "highlight", "topdeals");
   }
-
-  /* --- Kedvezmény szekciók --- */
   function computeDiscount(it){
     if (typeof it.discount === 'number' && it.discount>0) return it.discount;
     const m = (it.title||"").match(/-?\s*(\d{1,3})\s*%/);
@@ -643,75 +424,6 @@
     }
     if (b2549.length) renderSection("📉 -25% – -49%", b2549);
     if (b50.length)   renderSection("🔥 -50% és több", b50);
-  }
-
-  /* ---------- Tchibo TELJES nézet ---------- */
-  function renderTchiboFull(title, items, page=1){
-    const sec=document.createElement('section');
-    sec.className='section partner';
-    sec.innerHTML=`
-      <h2>${title}</h2>
-      <div class="toolbar">
-        <div class="group">
-          <button class="toolbtn" id="btnHome">🏠 Főoldal</button>
-          <button class="toolbtn" id="btnBackHome">← Vissza az Otthonhoz</button>
-        </div>
-        <div class="group">
-          <label>Rendezés:</label>
-          <select class="toolsel sortsel">
-            <option value="relevance">Relevancia</option>
-            <option value="price_asc">Ár ↑</option>
-            <option value="price_desc">Ár ↓</option>
-            <option value="az">A → Z</option>
-            <option value="za">Z → A</option>
-          </select>
-        </div>
-      </div>
-      <div class="grid"></div>
-      <div class="pager"></div>
-    `;
-    const grid=sec.querySelector('.grid');
-    let currentSort="relevance";
-    let pageState=page;
-
-    function priceNum(p){ if(!p)return NaN; return Number(String(p).replace(/[^\d.]/g,"")); }
-    function sorted(){
-      let arr=[...items];
-      if(currentSort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
-      if(currentSort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
-      if(currentSort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
-      if(currentSort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
-      return arr;
-    }
-    function apply(){
-      const arr = sorted();
-      const pages = Math.max(1, Math.ceil(arr.length / PER_PAGE));
-      pageState = Math.min(Math.max(1,pageState), pages);
-      const st=(pageState-1)*PER_PAGE;
-      const sl=arr.slice(st, st+PER_PAGE);
-
-      grid.innerHTML="";
-      sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
-      hydrateSafeImages(sec);
-
-      sec.querySelector('.pager').innerHTML = pagerHTML(arr.length, pageState, PER_PAGE);
-    }
-
-    sec.addEventListener('change', (e)=>{
-      if(e.target.matches('.sortsel')){ currentSort=e.target.value; apply(); }
-    });
-    sec.addEventListener('click', (e)=>{
-      const b = e.target.closest('.pager button');
-      if(b){
-        const np = Number(b.dataset.page)||1;
-        pageState = np; apply();
-      }
-      if(e.target.id==='btnHome'){ showCategory("all"); }
-      if(e.target.id==='btnBackHome'){ showCategory("home"); }
-    });
-
-    apply();
-    content.appendChild(sec);
   }
 
   async function renderAll(){
@@ -733,18 +445,11 @@
     renderPartnerTable("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
 
     if(TCHIBO_ITEMS.length){
-      renderPartnerTable("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS, {clickTo:{type:'tchibo'}});
+      renderPartnerTable("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS);
     }
 
     renderPartnerTable("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
     renderPartnerTable("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
-  }
-
-  async function showTchiboPage(page=1){
-    if(!TCHIBO_READY) await loadTchibo();
-    content.innerHTML="";
-    renderTchiboFull("🛍️ Tchibo.hu – Teljes kínálat", TCHIBO_ITEMS, page);
-    window.scrollTo({top:0, behavior:'smooth'});
   }
 
   /* ---------- Kategória váltás ---------- */
@@ -763,7 +468,7 @@
       // 1) JátékNet tábla
       renderPartnerTable("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
 
-      // 2) Játéksziget blokk a Játékok oldalon belül
+      // 2) Játéksziget blokk (lazy load, docs-ból mindent, CORS nélkül)
       const host = document.createElement('section');
       host.className = 'section';
       host.innerHTML = `
@@ -772,29 +477,25 @@
       `;
       content.appendChild(host);
 
-      // 3) Lazy-load modul a saját domain gyökeréből és SAJÁT feedről (CORS-mentes, cache-busttal)
       try{
-        const { init } = await import('/partners/jateksziget.js');
+        const { init } = await import('./jateksziget.js');
         await init({
           container: '#games_jateksziget',
-          dt: '70plBVdT', // Dognet dt
-          feed: '/partners/jateksziget.xml?v=' + Date.now(), // ← cache-bust
+          dt: '70plBVdT',                         // ← a Te Dognet dt kódod
+          feed: './jateksziget.xml',              // ← a workflow tölti ide
           utm: '&utm_source=findora&utm_medium=affiliate&utm_campaign=jateksziget',
           title: 'Játéksziget – Ajánlatok'
         });
       }catch(err){
         const errBox = document.createElement('div');
         errBox.style = "padding:12px;border:1px solid #eee;border-radius:10px;margin:12px";
-        errBox.textContent = "Hoppá, nem sikerült betölteni a Játéksziget modult. Ellenőrizd: /partners/jateksziget.js és /partners/jateksziget.xml";
+        errBox.textContent = "Hoppá, nem sikerült betölteni a Játéksziget modult. Ellenőrizd: docs/jateksziget.js és docs/jateksziget.xml";
         host.appendChild(errBox);
         console.error(err);
       }
       return;
     }
-    if(cat==="vision"){
-      renderPartnerTable("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
-      return;
-    }
+    if(cat==="vision"){ renderPartnerTable("👓 eOptika.hu – Látás", EOPTIKA_ITEMS); return; }
     if(cat==="travel"){
       const s=document.createElement('section'); s.className='section';
       s.innerHTML=`<h2>✈️ Utazás</h2><div style="padding:12px">Hamarosan...</div>`;
@@ -803,7 +504,7 @@
     if(cat==="home"){
       renderPartnerTable("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
       if(!TCHIBO_READY) await loadTchibo();
-      renderPartnerTable("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS, {clickTo:{type:'tchibo'}});
+      renderPartnerTable("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS);
       return;
     }
   }
@@ -838,7 +539,7 @@
     if(jatek.length)  renderPartnerTable(`JátékNet.hu – találatok „${val}”`, jatek);
     if(karch.length)  renderPartnerTable(`Kärcher.hu – találatok „${val}”`, karch);
     if(eopt.length)   renderPartnerTable(`eOptika.hu – találatok „${val}”`, eopt);
-    if(tchibo.length) renderPartnerTable(`Tchibo.hu – találatok „${val}”`, tchibo, {clickTo:{type:'tchibo'}});
+    if(tchibo.length) renderPartnerTable(`Tchibo.hu – találatok „${val}”`, tchibo);
 
     if(!amazon.length && !jatek.length && !karch.length && !eopt.length && !tchibo.length){
       const s=document.createElement('section');
@@ -847,18 +548,11 @@
       content.appendChild(s);
     }
   }
-
   document.getElementById('searchForm').addEventListener('submit',e=>{
     e.preventDefault();
     const val=document.getElementById('q').value.trim();
     if(val) showSearch(val); else showCategory("all");
   });
-
-  (async function init(){
-    const urlQ=new URLSearchParams(location.search).get('q');
-    if(urlQ){ document.getElementById('q').value=urlQ; await showSearch(urlQ); }
-    else { await showCategory("all"); }
-  })();
 
   (function snow(){
     const wrap=document.querySelector('.snow');
@@ -878,12 +572,16 @@
       wrap.appendChild(f);
     }
   })();
-
   (function(){
     const btn = document.getElementById('toTop');
-    window.addEventListener('scroll', ()=>{
-      if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show');
-    });
+    window.addEventListener('scroll', ()=>{ if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show'); });
+  })();
+
+  // indulás
+  (async function init(){
+    const urlQ=new URLSearchParams(location.search).get('q');
+    if(urlQ){ document.getElementById('q').value=urlQ; await showSearch(urlQ); }
+    else { await showCategory("all"); }
   })();
   </script>
 </body>
