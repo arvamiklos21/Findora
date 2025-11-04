@@ -143,11 +143,6 @@
       color:#0b1220;border-color:#e2e8f0
     }
 
-    /* --- ÚJ: partner al-menü link (stílus a catbtn-hez igazítva) --- */
-    .subnav { display:flex; gap:8px; justify-content:center; margin:8px auto 0; padding:0 6px; flex-wrap:wrap }
-    .subnav a { text-decoration:none; }
-    .subnav .catbtn { display:inline-block }
-
     .searchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:8px}
     .searchbar input,.searchbar button{padding:10px;border:none;border-radius:10px;font-size:14px}
     .searchbar input{
@@ -215,7 +210,7 @@
       padding:8px 12px;border-radius:8px;color:#0b1220;font-weight:800;
     }
 
-    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10: 16px; padding:10px 16px; background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
+    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
     .toolbar .group{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .toolbtn, .toolsel{
       background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px
@@ -276,11 +271,7 @@
         <button class="catbtn" data-cat="travel">✈️ Utazás</button>
       </nav>
 
-      <!-- ÚJ: Játékok alatti al-menü a Játéksziget modulhoz (lazy-load) -->
-      <div class="subnav">
-        <a href="#jateksziget" data-module="jateksziget" id="btnJateksziget" class="catbtn">🧩 Játékok → Játéksziget</a>
-      </div>
-
+      <!-- külön Játéksziget link NINCS – a Játékok nézet tölti be automatikusan -->
       <form id="searchForm" class="searchbar" role="search" action="">
         <input id="q" name="q" type="search" placeholder="Írja be a keresett terméket…" aria-label="Keresés" />
         <button type="submit" aria-label="Keresés indítása">Keresés</button>
@@ -290,9 +281,6 @@
 
   <button class="floating-search" aria-label="Keresés megnyitása" onclick="document.getElementById('q').focus()">🔍</button>
   <button id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">▲</button>
-
-  <!-- ÚJ: a Játéksziget modul cél-szekciója (kezdetben rejtve) -->
-  <section id="jateksziget" hidden></section>
 
   <main id="content"></main>
 
@@ -506,7 +494,7 @@
 
   const content=document.getElementById('content');
 
-  /* ---------- LAPOZÓ (MÓDOSÍTVA: rövidített 1 2 3 4 … N / környéki oldalak) ---------- */
+  /* ---------- LAPOZÓ (rövidített: 1 2 3 4 … N, valamint középen … P-1 P P+1 …) ---------- */
   function pagerHTML(total, page, per){
     const pages = Math.max(1, Math.ceil(total / per));
     let html = `<div class="pager">`;
@@ -514,10 +502,8 @@
       `<button data-page="${p}" ${disabled?'disabled':''} class="${active?'active':''}">${lbl}</button>`;
     const mkDots = () => `<span class="info">…</span>`;
 
-    // Prev
     html += mkBtn(Math.max(1,page-1), "«", false, page<=1);
 
-    // Pages
     if (pages <= 7){
       for (let i=1;i<=pages;i++) html += mkBtn(i, i, i===page);
     } else {
@@ -540,22 +526,18 @@
       }
     }
 
-    // Next
     html += mkBtn(Math.min(pages,page+1), "»", false, page>=pages);
-
     html += `</div>`;
     return html;
   }
 
-  /* ---------- TÁBLÁZAT: Rendezés + 4-es lapozás, KERESŐ NINCS ---------- */
+  /* ---------- TÁBLÁZAT: Rendezés + 4-es lapozás ---------- */
   function renderPartnerTable(title, items, opts={}){
     if(!items || !items.length) return;
-    const clickable = opts.clickTo || null; // {type:'tchibo'}
+    const clickable = opts.clickTo || null;
     const sec=document.createElement('section');
     sec.className='section partner';
-    const titleHTML = clickable
-      ? `<h2 data-open="${clickable.type}">${title}</h2>`
-      : `<h2>${title}</h2>`;
+    const titleHTML = clickable ? `<h2 data-open="${clickable.type}">${title}</h2>` : `<h2>${title}</h2>`;
     sec.innerHTML=`${titleHTML}
       <div class="toolbar">
         <div class="group">
@@ -588,8 +570,7 @@
       const arr = sortedArr();
       const pages = Math.max(1, Math.ceil(arr.length/PER_PAGE));
       page = Math.min(Math.max(1,page), pages);
-      const st=(page-1)*PER_PAGE;
-      const sl=arr.slice(st, st+PER_PAGE);
+      const st=(page-1)*PER_PAGE, sl=arr.slice(st, st+PER_PAGE);
       grid.innerHTML="";
       sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
@@ -610,26 +591,24 @@
     content.appendChild(sec);
   }
 
-  /* ---------- Egyszerű szekció (pl. Top ajánlatok, kedvezmény-bucketek) 4-es lapozással ---------- */
+  /* ---------- Egyszerű szekció (pl. Top ajánlatok, kedvezmény-bucketek) ---------- */
   function renderSection(title, items, extraClass="", id=""){
     if(!items.length)return;
     const s=document.createElement('section');
-    s.className=`${'section'} ${extraClass}`.trim();
+    s.className=`section ${extraClass}`.trim();
     if(id)s.id=id;
     s.innerHTML=`<h2>${title}</h2><div class="grid"></div><div class="pager"></div>`;
-    const g=s.find ? s.find('.grid') : s.querySelector('.grid'); // fallback
-    const pgr=s.querySelector('.pager');
+    const g=s.querySelector('.grid');
     let page=1;
 
     function apply(){
-      const pages = Math.max(1, Math.ceil(items.length / PER_PAGE));
+      const pages = Math.max(1, Math.ceil(items.length/PER_PAGE));
       page = Math.min(Math.max(1,page), pages);
-      const st=(page-1)*PER_PAGE;
-      const sl=items.slice(st, st+PER_PAGE);
+      const st=(page-1)*PER_PAGE, sl=items.slice(st, st+PER_PAGE);
       g.innerHTML="";
       sl.forEach(it=>g.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(s);
-      pgr.innerHTML = pagerHTML(items.length, page, PER_PAGE);
+      s.querySelector('.pager').innerHTML = pagerHTML(items.length, page, PER_PAGE);
     }
     s.addEventListener('click',(e)=>{
       const b = e.target.closest('.pager button');
@@ -666,7 +645,7 @@
     if (b50.length)   renderSection("🔥 -50% és több", b50);
   }
 
-  /* ---------- Tchibo TELJES nézet – itt is 4 / oldal + rövidített pager ---------- */
+  /* ---------- Tchibo TELJES nézet ---------- */
   function renderTchiboFull(title, items, page=1){
     const sec=document.createElement('section');
     sec.className='section partner';
@@ -768,6 +747,7 @@
     window.scrollTo({top:0, behavior:'smooth'});
   }
 
+  /* ---------- Kategória váltás ---------- */
   async function showCategory(cat){
     document.querySelectorAll(".catbtn").forEach(b=>{
       b.classList.toggle("active", b.dataset.cat===cat || (cat==="all" && b.dataset.cat==="all"));
@@ -780,7 +760,35 @@
       return;
     }
     if(cat==="games"){
+      // 1) JátékNet tábla
       renderPartnerTable("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
+
+      // 2) Játéksziget blokk a Játékok oldalon belül
+      const host = document.createElement('section');
+      host.className = 'section';
+      host.innerHTML = `
+        <h2>🧩 Játéksziget – Ajánlatok</h2>
+        <div id="games_jateksziget"></div>
+      `;
+      content.appendChild(host);
+
+      // 3) Lazy-load modul és render ide
+      try{
+        const { init } = await import('./partners/jateksziget.js');
+        await init({
+          container: '#games_jateksziget',
+          dt: '70plBVdT', // ← a te Dognet dt tokened
+          feed: 'https://dl.product-service.dognet.sk/fp/jateksziget.hu-arukereso.xml',
+          utm: '',        // pl.: '&utm_source=findora&utm_medium=affiliate&utm_campaign=jateksziget'
+          title: 'Játéksziget – Ajánlatok'
+        });
+      }catch(err){
+        const errBox = document.createElement('div');
+        errBox.style = "padding:12px;border:1px solid #eee;border-radius:10px;margin:12px";
+        errBox.textContent = "Hoppá, nem sikerült betölteni a Játéksziget modult. Ellenőrizd: partners/jateksziget.js";
+        host.appendChild(errBox);
+        console.error(err);
+      }
       return;
     }
     if(cat==="vision"){
@@ -877,41 +885,6 @@
       if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show');
     });
   })();
-  </script>
-
-  <!-- ÚJ: dinamikus betöltő – csak a Játéksziget modult húzza le kattintáskor -->
-  <script type="module">
-    const routes = {
-      jateksziget: () => import('./partners/jateksziget.js'),
-    };
-
-    document.querySelectorAll('[data-module]').forEach(a=>{
-      a.addEventListener('click', async ()=>{
-        const mod = a.dataset.module;
-        const sectionId = a.getAttribute('href')?.replace('#','') || '';
-        const sectionEl = document.getElementById(sectionId);
-        if (!routes[mod] || !sectionEl) return;
-
-        const { init } = await routes[mod]();
-        await init({
-          container: '#jateksziget',
-          dt: '70plBVdT', // ← a te Dognet dt tokened
-          feed: 'https://dl.product-service.dognet.sk/fp/jateksziget.hu-arukereso.xml',
-          utm: '', // ha szeretnél mérést: '&utm_source=findora&utm_medium=affiliate&utm_campaign=jateksziget'
-          title: 'Játéksziget – Ajánlatok'
-        });
-
-        sectionEl.hidden = false;
-      });
-    });
-
-    // közvetlen #jateksziget linkre is lazy-load
-    window.addEventListener('DOMContentLoaded', async ()=>{
-      const hash = location.hash?.replace('#','');
-      if (!hash) return;
-      const link = document.querySelector(`[data-module][href="#${hash}"]`);
-      if (link) link.click();
-    });
   </script>
 </body>
 </html>
