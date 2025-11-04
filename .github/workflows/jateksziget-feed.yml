@@ -1,4 +1,3 @@
-# .github/workflows/jateksziget-feed.yml
 name: Sync Játéksziget feed (PR)
 
 on:
@@ -19,8 +18,8 @@ jobs:
 
       - name: Download feed
         run: |
-          mkdir -p docs/partners
-          curl -fsSL "https://dl.product-service.dognet.sk/fp/jateksziget.hu-arukereso.xml" -o docs/partners/jateksziget.xml
+          mkdir -p partners
+          curl -fsSL "https://dl.product-service.dognet.sk/fp/jateksziget.hu-arukereso.xml" -o partners/jateksziget.xml
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
@@ -29,6 +28,6 @@ jobs:
           title: "chore(feed): update Játéksziget XML"
           commit-message: "chore(feed): update Játéksziget XML"
           add-paths: |
-            docs/partners/jateksziget.xml
+            partners/jateksziget.xml
           body: |
             Automatikus frissítés a Dognet feedből.
