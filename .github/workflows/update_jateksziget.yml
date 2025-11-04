@@ -1,24 +1,29 @@
-name: Update Jateksziget
+name: Update Jateksziget (XML)
 
 on:
   schedule:
-    - cron: "30 */6 * * *"    # 6 óránként, de fél órával eltérítve
-  workflow_dispatch:
+    - cron: "30 */6 * * *"    # 6 óránként, félkor
+  workflow_dispatch:          # kézzel is indítható
+
+permissions:
+  contents: write
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.x" }
-      - run: pip install requests
-      - name: Build Jateksziget JSON
-        run: python scripts/jateksziget_feed_to_json.py
-      - name: Commit & push jateksziget.json
+
+      - name: Download Jateksziget XML
+        run: |
+          mkdir -p docs
+          curl -fsSL "https://dl.product-service.dognet.sk/fp/jateksziget.hu-arukereso.xml" \
+            -o docs/jateksziget.xml
+
+      - name: Commit & push docs/jateksziget.xml
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/jateksziget.json
-          git commit -m "Update Jateksziget feed" || echo "No changes"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/jateksziget.xml
+          git commit -m "Update Jateksziget XML feed" || echo "No changes"
           git push
