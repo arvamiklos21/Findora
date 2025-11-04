@@ -84,7 +84,6 @@
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{height:100%}
 
-    /* Háttér – mobilon nincs fixed */
     body{
       font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
       color:var(--text);
@@ -100,7 +99,6 @@
       body{ background-attachment: scroll,scroll,scroll,scroll; }
     }
 
-    /* HEADER */
     .hero{
       position:relative; z-index:3; width:100%; color:#eef4ff;
       display:flex;align-items:center;justify-content:center;text-align:center;
@@ -232,7 +230,6 @@
       border-top:1px solid rgba(255,255,255,.15);
     }
 
-    /* Hóesés */
     .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1}
     .flake{position:absolute;top:-10px;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.9);filter:blur(.5px);animation:fall linear infinite}
     @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
@@ -249,7 +246,6 @@
 </head>
 <body>
 
-  <!-- hó -->
   <div class="snow" aria-hidden="true"></div>
 
   <header class="hero">
@@ -275,7 +271,6 @@
         <button class="catbtn" data-cat="games">🕹️ Játékok</button>
         <button class="catbtn" data-cat="vision">👓 Látás</button>
         <button class="catbtn" data-cat="travel">✈️ Utazás</button>
-        <!-- Tchibo külön menü ELTÁVOLÍTVA kérésre -->
       </nav>
 
       <form id="searchForm" class="searchbar" role="search" action="">
@@ -285,9 +280,7 @@
     </div>
   </header>
 
-  <!-- mobil lebegő kereső -->
   <button class="floating-search" aria-label="Keresés megnyitása" onclick="document.getElementById('q').focus()">🔍</button>
-  <!-- vissza a tetejére -->
   <button id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">▲</button>
 
   <main id="content"></main>
@@ -398,15 +391,13 @@
         return u;
       };
 
-      // FONTOS: ne dobjuk el a query-t, mert abban van az eredeti URL!
+      // Ne dobjuk el a query-t, mert abban lehet az eredeti URL!
       const norm = (u) => {
         if (!u) return "";
         try {
           let s = extractDognetOriginal(u);
           const t = new URL(s);
-          // csak az utolsó perces / hash nélküli normalizálás
           t.hash = "";
-          // query-t MEGTARTJUK, mert az azonosít!
           return t.toString().replace(/\/$/,"");
         } catch {
           return String(u).replace(/\/$/,"");
@@ -414,7 +405,7 @@
       };
       const parsePrice = (p) => {
         if (p===undefined || p===null) return NaN;
-        const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",",".")); 
+        const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",","."));
         return Number.isFinite(n) ? n : NaN;
       };
 
@@ -491,7 +482,7 @@
 
   const content=document.getElementById('content');
 
-  // TÁBLÁZAT: csak rendező combó, KERESŐ NINCS (kérésre)
+  // TÁBLÁZAT: csak rendező combó, KERESŐ NINCS
   function renderPartnerTable(title, items, opts={}){
     if(!items || !items.length) return;
     const clickable = opts.clickTo || null; // {type:'tchibo'}
@@ -591,7 +582,7 @@
     return html;
   }
 
-  // Teljes Tchibo nézet (maradhat, ide kattint a user az Otthon részben a címsorra)
+  // Teljes Tchibo nézet (Otthon címsor kattintására)
   function renderTchiboFull(title, items, page=1, per=40){
     const sec=document.createElement('section');
     sec.className='section partner';
@@ -619,7 +610,6 @@
     const grid=sec.querySelector('.grid');
     let currentSort="relevance";
     let pageState=page;
-    const per=40;
 
     function priceNum(p){ if(!p)return NaN; return Number(String(p).replace(/[^\d.]/g,"")); }
     function apply(){
@@ -662,10 +652,8 @@
     content.innerHTML="";
     renderTopDeals();
 
-    // Betöltjük a Tchibót, hogy a kedvezmény vödrökbe is bekerüljön, ha lenne %-os cím
     if(!TCHIBO_READY) await loadTchibo();
 
-    // Két kedvezmény-szekció a főoldalon
     const ALL_FOR_BUCKETS = [
       ...ITEMS,
       ...KARCHER_ITEMS,
@@ -675,12 +663,10 @@
     ];
     renderDiscountBuckets(ALL_FOR_BUCKETS);
 
-    // Partnerek sima listái (KERESŐ nélkül)
     renderPartnerTable("🛒 Amazon – válogatás", ITEMS);
     renderPartnerTable("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
 
     if(TCHIBO_ITEMS.length){
-      // Fejléc kattintható a teljes Tchibo oldalra
       renderPartnerTable("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS.slice(0,48), {clickTo:{type:'tchibo'}});
     }
 
@@ -722,7 +708,6 @@
     if(cat==="home"){
       renderPartnerTable("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
       if(!TCHIBO_READY) await loadTchibo();
-      // Otthonból a fejléc is kattintható a teljes nézethez
       renderPartnerTable("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS, {clickTo:{type:'tchibo'}});
       return;
     }
@@ -777,10 +762,9 @@
   (async function init(){
     const urlQ=new URLSearchParams(location.search).get('q');
     if(urlQ){ document.getElementById('q').value=urlQ; await showSearch(urlQ); }
-    else { await renderAll(); }
+    else { await showCategory("all"); }
   })();
 
-  /* hó animáció */
   (function snow(){
     const wrap=document.querySelector('.snow');
     const isMobile = matchMedia('(max-width: 640px)').matches;
