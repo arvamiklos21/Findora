@@ -1,0 +1,36 @@
+# .github/workflows/update_tchibo.yml
+name: Update Tchibo feed (2-hour)
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"   # 2 óránként
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Generate tchibo.json
+        run: python scripts/tchibo_feed_to_json.py
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/tchibo.json
+          git commit -m "chore: auto-update tchibo feed" || echo "No changes"
+          git push
