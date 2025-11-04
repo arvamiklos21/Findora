@@ -302,18 +302,13 @@
   function ensureAbsolute(u, partner){
     let href = unwrapDognet(String(u||"").trim());
     if(!href) return "";
-    // már abszolút?
     if(/^https?:\/\//i.test(href)) return href;
-    // protokoll nélküli abszolút: //domain/…
     if(/^\/\//.test(href)) return "https:" + href;
-    // www.domain/…
     if(/^www\./i.test(href)) return "https://" + href;
-    // relatív: "/", "./", "../"
     if(/^(\/|\.\/|\.\.\/)/.test(href)){
       const base = PARTNER_BASE[partner] || "";
       return base ? base.replace(/\/$/,"") + "/" + href.replace(/^\.?\//,"") : href;
     }
-    // ha semmi nem illik, de nincs protokoll: tegyünk elé partnert alapnak
     if(!/^[a-z]+:\/\//i.test(href)){
       const base = PARTNER_BASE[partner] || "";
       return base ? base.replace(/\/$/,"") + "/" + href.replace(/^\/+/,"") : "https://" + href;
@@ -323,7 +318,6 @@
   function safeHref(partner, u){
     const h = ensureAbsolute(u, partner);
     try{ new URL(h); return h; }catch(_){
-      // utolsó fallback: partner főoldal
       return PARTNER_BASE[partner] || "#";
     }
   }
@@ -546,7 +540,7 @@
 
   /* ====== Főoldal szekciók ====== */
   function computeDiscount(it){
-    if (typeof it.discount === 'number' && it.discount>0) return it;
+    if (typeof it.discount === 'number' && it.discount>0) return it.discount;
     const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
     if (m){ const d=parseInt(m[1],10); return Number.isFinite(d)?d:0; }
     return 0;
@@ -581,10 +575,10 @@
     renderBlock("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
 
     if(TCHIBO_ITEMS.length) renderBlock("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS, {openKey:"tchibo"});
+    if(JATSZIG_ITEMS.length) renderBlock("🧸 Játéksziget – Játékok", JATSZIG_ITEMS, {openKey:"jateksziget"});
 
     renderBlock("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
     renderBlock("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
-    /* Szándékosan NINCS Játéksziget blokk a főoldalon (kérésed szerint a Játék menüpont alá kerül). */
   }
 
   async function showCategory(cat){
