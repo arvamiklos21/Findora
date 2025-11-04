@@ -7,11 +7,11 @@
   <title>Findora – Irányt mutat a legjobb ajánlatokhoz</title>
   <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, JátékNet, Kärcher, eOptika, Tchibo, Játéksziget egy helyen." />
   <meta name="keywords" content="Findora, akció, kedvezmény, Amazon, JátékNet, Kärcher, eOptika, Tchibo, Játéksziget, olcsó, ajánlat" />
-
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="./" />
   <link rel="alternate" href="./" hreflang="hu" />
   <link rel="icon" href="assets/img/findora_mark.png" />
+  <meta name="referrer" content="no-referrer" />
 
   <!-- OG/Twitter -->
   <meta property="og:type" content="website" />
@@ -20,7 +20,6 @@
   <meta property="og:description" content="Válogatott akciók és ajánlatok magyar felhasználóknak. Amazon, JátékNet, Kärcher, eOptika, Tchibo, Játéksziget." />
   <meta property="og:url" content="./" />
   <meta property="og:image" content="assets/img/findora-header.png" />
-
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
   <meta name="twitter:description" content="A legjobb akciók és kuponok egy helyen. Nézd meg a Findora válogatásait!" />
@@ -202,7 +201,7 @@
 
   <script>
   /* ====== Globális beállítás ====== */
-  const PER_PAGE = 4;        // minden táblában 4 kártya/oldal
+  const PER_PAGE = 4;        // táblákban 4 kártya/oldal
   const FULL_PER_PAGE = 20;  // teljes partner nézetben 20/oldal
 
   /* ====== PARTNER LINKEK ====== */
@@ -212,9 +211,6 @@
   const LINK_EOPTIKA = "https://www.kqzyfj.com/tf79mu2-u1HJIJNPRIIQHJMIMRRJK";
   const LINK_JATEKNET= "https://www.anrdoezrs.net/2t70r09608OQPQUWYPPXOQTTTXPQQ";
   const LINK_KARCHER  = "https://www.kqzyfj.com/pa117qgpmgo35459BD44C3587B77AD";
-
-  /* ====== AFFILIATE WRAP – JÁTÉKSZIGET (DOGNET) ====== */
-  const DOGNET_WRAP_JATSZIGET = "https://go.dognet.com/?chid=P5FMC4cN&url=";
 
   const LOGO_URLS={
     Amazon:"https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
@@ -261,6 +257,51 @@
     return PLACEHOLDER;
   }
 
+  /* ====== Link-normalizálás (DOGNET + abszolút URL) ====== */
+  const PARTNER_BASE = {
+    "Tchibo.hu": "https://www.tchibo.hu",
+    "Játéksziget.hu": "https://www.jateksziget.hu"
+  };
+  function unwrapDognet(u){
+    try{
+      const t=new URL(u);
+      if(t.hostname.includes("go.dognet.com")){
+        const inner=t.searchParams.get("url");
+        if(inner) return decodeURIComponent(inner);
+      }
+    }catch(_){}
+    return u;
+  }
+  function ensureAbsolute(u, partner){
+    let href = unwrapDognet(String(u||"").trim());
+    if(!href) return "";
+    if(/^https?:\/\//i.test(href)) return href;
+    if(/^\/\//.test(href)) return "https:" + href;
+    if(/^www\./i.test(href)) return "https://" + href;
+    if(/^(\/|\.\/|\.\.\/)/.test(href)){
+      const base = PARTNER_BASE[partner] || "";
+      return base ? base.replace(/\/$/,"") + "/" + href.replace(/^\.?\//,"") : href;
+    }
+    if(!/^[a-z]+:\/\//i.test(href)){
+      const base = PARTNER_BASE[partner] || "";
+      return base ? base.replace(/\/$/,"") + "/" + href.replace(/^\/+/,"") : "https://" + href;
+    }
+    return href;
+  }
+  function safeHref(partner, u){
+    const h = ensureAbsolute(u, partner);
+    try{ new URL(h); return h; }catch(_){
+      return PARTNER_BASE[partner] || "#";
+    }
+  }
+  function openPartner(a){
+    try{
+      const url = a.getAttribute('href');
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return false;
+    }catch(_){ return true; }
+  }
+
   /* ====== DEMÓ fix listák ====== */
   const ITEMS=[
     {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech",  desc:"Belépő modellek gyors szállítással."},
@@ -286,51 +327,6 @@
     {title:"Porszívó kiegészítők", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Szűrők, zsákok, tartozékok."},
     {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
   ];
-
-  /* ====== Link-normalizálás (DOGNET + abszolút URL) ====== */
-  const PARTNER_BASE = {
-    "Tchibo.hu": "https://www.tchibo.hu",
-    "Játéksziget.hu": "https://www.jateksziget.hu"
-  };
-  function unwrapDognet(u){
-    try{
-      const t=new URL(u);
-      if(t.hostname.includes("go.dognet.com")){
-        const inner=t.searchParams.get("url");
-        if(inner) return decodeURIComponent(inner);
-      }
-    }catch(_){}
-    return u;
-  }
-  function ensureAbsolute(u, partner){
-    let href = unwrapDognet(String(u||"").trim());
-    if(!href) return "";
-    if(/^https?:\/\//i.test(href)) return href;         // már abszolút
-    if(/^\/\//.test(href)) return "https:" + href;      // protokoll nélküli
-    if(/^www\./i.test(href)) return "https://" + href;  // www.*
-    if(/^(\/|\.\/|\.\.\/)/.test(href)){                 // relatív
-      const base = PARTNER_BASE[partner] || "";
-      return base ? base.replace(/\/$/,"") + "/" + href.replace(/^\.?\//,"") : href;
-    }
-    if(!/^[a-z]+:\/\//i.test(href)){                    // semmi protokoll
-      const base = PARTNER_BASE[partner] || "";
-      return base ? base.replace(/\/$/,"") + "/" + href.replace(/^\/+/,"") : "https://" + href;
-    }
-    return href;
-  }
-  function wrapAffiliate(partner, absoluteHref){
-    // CSAK Játékszigethez tekerjük be a megadott Dognet mélylinkkel
-    if(partner==="Játéksziget.hu"){
-      return DOGNET_WRAP_JATSZIGET + encodeURIComponent(absoluteHref);
-    }
-    return absoluteHref;
-  }
-  function safeHref(partner, u){
-    const abs = ensureAbsolute(u, partner);
-    const withAff = wrapAffiliate(partner, abs);
-    try{ new URL(withAff); return withAff; }
-    catch(_){ return PARTNER_BASE[partner] || "#"; }
-  }
 
   /* ====== Tchibo / Játéksziget JSON betöltés + méret-duplák szűrése ====== */
   let TCHIBO_ITEMS = [];   let TCHIBO_READY=false;
@@ -392,16 +388,11 @@
     }catch(_){ TCHIBO_ITEMS=[]; }
     TCHIBO_READY=true;
   }
-  async function tryFetchJson(path){
-    try{ const r=await fetch(path,{cache:"no-store"}); if(!r.ok) throw 0; return await r.json(); }
-    catch(_){ return null; }
-  }
   async function loadJatszig(){
-    // próbáljuk ./ és ./docs/ alól is
-    let all = await tryFetchJson("./jateksziget.json");
-    if(!all) all = await tryFetchJson("./docs/jateksziget.json");
-    if(!all) all = []; 
-    JATSZIG_ITEMS = dedupeBySizeKeepCheapest(all,"Játéksziget.hu","games");
+    try{
+      const r=await fetch("./jateksziget.json",{cache:"no-store"}); const all=await r.json();
+      JATSZIG_ITEMS = dedupeBySizeKeepCheapest(all,"Játéksziget.hu","games");
+    }catch(_){ JATSZIG_ITEMS=[]; }
     JATSZIG_READY=true;
   }
 
@@ -421,7 +412,9 @@
         <div class="muted">${logo} ${it.partner}</div>
         <div class="price">${it.price||""}</div>
       </div>
-      <div class="cta"><a href="${href}" target="_blank" rel="nofollow sponsored noopener">Megnézem az ajánlatot</a></div>
+      <div class="cta">
+        <a href="${href}" class="out" rel="nofollow sponsored noopener noreferrer" onclick="return openPartner(this);">Megnézem az ajánlatot</a>
+      </div>
     </div>`;
   }
   function hydrateSafeImages(ctx=document){
@@ -451,12 +444,12 @@
     return html;
   }
 
-  /* ====== Blokkszintű lista (4/oldal) fejléc-kattal teljes nézetre ====== */
+  /* ====== Blokkszintű lista ====== */
   const content=document.getElementById('content');
 
   function renderBlock(title, items, opts={}){
     if(!items || !items.length) return;
-    const { openKey=null } = opts; // pl. "tchibo" vagy "jateksziget"
+    const { openKey=null } = opts;
     const sec=document.createElement('section');
     sec.className='section partner';
     const h2attr = openKey ? `data-open="${openKey}" title="Teljes kínálat megnyitása"` : "";
@@ -486,7 +479,7 @@
     content.appendChild(sec);
   }
 
-  /* ====== Teljes partner nézet (20/oldal, helyi kereső + rendezés) ====== */
+  /* ====== Teljes partner nézet ====== */
   function showPartnerFull(label, items, backCat){
     content.innerHTML="";
     let page=1, sort="relevance", q="";
@@ -575,7 +568,7 @@
     renderBlock("🏆 A hét legjobb ajánlatai", top);
   }
 
-  /* ====== Kategóriák / Home ====== */
+  /* ====== Kategóriák ====== */
   async function renderAll(){
     content.innerHTML="";
     renderTopDeals();
@@ -590,10 +583,11 @@
     renderBlock("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
 
     if(TCHIBO_ITEMS.length) renderBlock("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS, {openKey:"tchibo"});
+
     renderBlock("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
     renderBlock("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
 
-    /* ÚJ: Játéksziget a Főoldalon is */
+    /* ÚJ: Játéksziget blokk a főoldalon is */
     if(JATSZIG_ITEMS.length) renderBlock("🧸 Játéksziget – Játékok", JATSZIG_ITEMS, {openKey:"jateksziget"});
   }
 
