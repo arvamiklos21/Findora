@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SHOP>
+  <SHOPITEM>
+    <ITEM_ID>demo-1</ITEM_ID>
+    <PRODUCTNAME>LEGO City kezdő készlet</PRODUCTNAME>
+    <URL>https://www.jateksziget.hu/p/lego-city-kezdo</URL>
+    <IMGURL>https://via.placeholder.com/600x600.png?text=LEGO</IMGURL>
+    <PRICE_VAT>9990</PRICE_VAT>
+    <OLD_PRICE>12990</OLD_PRICE>
+    <AVAILABILITY>raktaron</AVAILABILITY>
+    <MANUFACTURER>LEGO</MANUFACTURER>
+  </SHOPITEM>
+  <SHOPITEM>
+    <ITEM_ID>demo-2</ITEM_ID>
+    <PRODUCTNAME>Családi társasjáték</PRODUCTNAME>
+    <URL>https://www.jateksziget.hu/p/csaladi-tarsas</URL>
+    <IMGURL>https://via.placeholder.com/600x600.png?text=Tarsas</IMGURL>
+    <PRICE_VAT>5990</PRICE_VAT>
+    <OLD_PRICE>0</OLD_PRICE>
+    <AVAILABILITY>in stock</AVAILABILITY>
+    <MANUFACTURER>Trefl</MANUFACTURER>
+  </SHOPITEM>
+</SHOP>
