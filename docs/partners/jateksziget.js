@@ -3,18 +3,69 @@ export async function init(cfg){
   // cfg: { container, dt, feed, utm, title }
   const root = document.querySelector(cfg.container);
   if (!root) return;
-
-  // ha már egyszer felépítettük, ne építsük újra
   if (root.dataset.ready === '1') return;
   root.dataset.ready = '1';
 
-  // UI váz
+  // --- helper-ek
+  const $ = s => root.querySelector(s);
+  const Ft = n => (Math.round(n).toLocaleString("hu-HU") + " Ft");
+  const pct = (oldP, nowP) => oldP>0 ? Math.round((1 - (nowP/oldP)) * 100) : 0;
+  const PLACEHOLDER = `data:image/svg+xml;utf8,`+encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400'>
+      <defs><linearGradient id='g' x1='0' x2='1'><stop stop-color='#eee'/><stop offset='1' stop-color='#ddd'/></linearGradient></defs>
+      <rect fill='url(#g)' width='600' height='400'/>
+      <g fill='#999' font-family='Arial,Helvetica,sans-serif' font-size='20'>
+        <text x='50%' y='50%' text-anchor='middle'>Kép előkészítés alatt…</text>
+      </g></svg>`
+  );
+
+  function dognetLink(targetUrl){
+    const base = `https://go.dognet.com/?dt=${encodeURIComponent(cfg.dt)}&url=`;
+    const utm = cfg.utm ? (targetUrl.includes("?") ? "&" : "?") + cfg.utm.replace(/^&/,"") : "";
+    return base + encodeURIComponent(targetUrl + utm);
+  }
+  function parseNumber(s){
+    if (s == null) return NaN;
+    return Number(String(s).replace(/[^\d.,]/g,"").replace(",",".")); // 12 345,67 -> 12345.67
+  }
+  function el(tag, attrs={}, children=[]){
+    const e = document.createElement(tag);
+    Object.entries(attrs).forEach(([k,v])=>{
+      if (k==="class") e.className = v;
+      else if (k==="html") e.innerHTML = v;
+      else e.setAttribute(k,v);
+    });
+    (children||[]).forEach(c => e.appendChild(c));
+    return e;
+  }
+
+  // --- URL normalizálás + keresés fallback
+  function normalizeProductUrl(u){
+    try{
+      const t = new URL(String(u).trim());
+      // csak a végső termék-URL kell, paraméterek nélkül
+      t.search = "";
+      t.hash = "";
+      // egységes host
+      if (t.hostname.includes("jateksziget.hu")) {
+        t.protocol = "https:";
+        t.hostname = "www.jateksziget.hu";
+      }
+      return t.origin + t.pathname;
+    }catch(_){ return String(u||""); }
+  }
+  function searchUrlFor(title){
+    const q = encodeURIComponent((title||"").trim());
+    return `https://www.jateksziget.hu/kereses?text=${q}`;
+  }
+
+  // --- UI váz
   root.innerHTML = `
     <section style="max-width:1200px;margin:0 auto;padding:16px">
       <h1 style="margin:6px 0 14px 0">${cfg.title || 'Játéksziget – Ajánlatok'}</h1>
 
       <header style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px">
-        <button onclick="history.back()">⟵ Vissza</button>
+        <button type="button" onclick="history.back()">⟵ Vissza</button>
         <div style="display:flex;gap:8px;align-items:center">
           <label for="sortAll_j">Rendezés:</label>
           <select id="sortAll_j">
@@ -52,42 +103,18 @@ export async function init(cfg){
       .tab.active { background:#111; color:#fff; border-color:#111 }
       .card { border:1px solid #eee; border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:10px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.04) }
       .price-pill { margin-left:auto; font-size:.85rem; padding:2px 6px; border-radius:6px; border:1px solid #ddd }
+      .meta2 a { font-size:.85rem; opacity:.8; text-decoration:underline; }
     </style>
   `;
 
-  // állapot – csak memóriában
+  // állapot
   let loaded = false;
   let allItems = [];
   let listAll = [], listD25 = [], listD50 = [];
   let pageAll = 1, pageD25 = 1, pageD50 = 1;
   let curTab = 'all';
 
-  // segédek
-  const $ = s => root.querySelector(s);
-  const Ft = n => (Math.round(n).toLocaleString("hu-HU") + " Ft");
-  const pct = (oldP, nowP) => oldP>0 ? Math.round((1 - (nowP/oldP)) * 100) : 0;
-
-  function dognetLink(targetUrl){
-    const base = `https://go.dognet.com/?dt=${encodeURIComponent(cfg.dt)}&url=`;
-    const utm = cfg.utm ? (targetUrl.includes("?") ? "&" : "?") + cfg.utm.replace(/^&/,"") : "";
-    return base + encodeURIComponent(targetUrl + utm);
-  }
-  function parseNumber(s){
-    if (s == null) return NaN;
-    return Number(String(s).replace(/[^\d.,]/g,"").replace(",","."));
-  }
-  function el(tag, attrs={}, children=[]){
-    const e = document.createElement(tag);
-    Object.entries(attrs).forEach(([k,v])=>{
-      if(k==="class") e.className = v;
-      else if(k==="html") e.innerHTML = v;
-      else e.setAttribute(k,v);
-    });
-    (children||[]).forEach(c => e.appendChild(c));
-    return e;
-  }
-
-  // feed – csak az első aktiváláskor
+  // feed
   async function loadOnce(){
     if (loaded) return;
     const res = await fetch(cfg.feed, { cache: 'no-store' });
@@ -100,7 +127,8 @@ export async function init(cfg){
       const val = t => (n.getElementsByTagName(t)[0]?.textContent || '').trim();
       const id   = val('ITEM_ID') || val('ID') || val('CODE') || '';
       const name = val('PRODUCTNAME') || val('NAME') || '';
-      const url  = val('URL') || '';
+      const raw  = val('URL') || '';
+      const url  = normalizeProductUrl(raw);
       const img  = val('IMGURL') || val('IMAGE') || '';
       const pNow = parseNumber(val('PRICE_VAT') || val('PRICE'));
       const pOld = parseNumber(val('OLD_PRICE')  || val('PRICE_ORIG') || val('PRICE_BEFORE'));
@@ -112,7 +140,8 @@ export async function init(cfg){
         price: isNaN(pNow)?0:pNow,
         oldPrice: isNaN(pOld)?0:pOld,
         discount: (!isNaN(pOld) && pOld>0 && !isNaN(pNow)) ? pct(pOld, pNow) : 0,
-        inStock, brand
+        inStock, brand,
+        searchUrl: searchUrlFor(name)
       };
     }).filter(x=>x.name && x.url);
 
@@ -122,7 +151,7 @@ export async function init(cfg){
     loaded = true;
   }
 
-  // rendezés + kirajzolás
+  // rendezés
   function applySort(list){
     const s = $('#sortAll_j').value;
     if (s === 'price_asc') list.sort((a,b)=>a.price-b.price);
@@ -148,19 +177,32 @@ export async function init(cfg){
       if (p.oldPrice && p.oldPrice > p.price){
         priceRow.appendChild(el('span',{style:'text-decoration:line-through;opacity:.6'},[document.createTextNode(Ft(p.oldPrice))]));
       }
-      priceRow.appendChild(el('strong',{},[document.createTextNode(Ft(p.price))]));
+      if (p.price){
+        priceRow.appendChild(el('strong',{},[document.createTextNode(Ft(p.price))]));
+      }
       if (p.discount >= 25){
         priceRow.appendChild(el('span',{class:'price-pill'},[document.createTextNode(`-${p.discount}%`)]));
       }
 
       const card = el('article',{class:'card'});
-      const a = el('a',{href: dognetLink(p.url), target:'_blank', rel:'nofollow sponsored noopener'});
-      const img = el('img',{src:p.img, alt:p.name, loading:'lazy', style:'width:100%;aspect-ratio:1/1;object-fit:contain;border-radius:10px;background:#fafafa'});
-      a.appendChild(img);
 
-      card.appendChild(a);
-      card.appendChild(el('a',{href: dognetLink(p.url), target:'_blank', rel:'nofollow sponsored noopener',
-        style:'font-weight:600;line-height:1.3;text-decoration:none;color:#111'}, [document.createTextNode(p.name)]));
+      // kép – no-referrer + fallback
+      const aImg = el('a',{href: dognetLink(p.url), target:'_blank', rel:'nofollow sponsored noopener'});
+      const img = el('img',{
+        alt:p.name, loading:'lazy', referrerpolicy:'no-referrer',
+        style:'width:100%;aspect-ratio:1/1;object-fit:contain;border-radius:10px;background:#fafafa'
+      });
+      img.src = p.img || PLACEHOLDER;
+      img.onerror = ()=>{ if (img.src !== PLACEHOLDER) img.src = PLACEHOLDER; };
+      aImg.appendChild(img);
+      card.appendChild(aImg);
+
+      // cím
+      card.appendChild(el('a',{
+        href: dognetLink(p.url), target:'_blank', rel:'nofollow sponsored noopener',
+        style:'font-weight:600;line-height:1.3;text-decoration:none;color:#111'
+      }, [document.createTextNode(p.name)]));
+
       card.appendChild(priceRow);
 
       const meta = el('div',{style:'font-size:.85rem;opacity:.75;display:flex;gap:8px;flex-wrap:wrap'});
@@ -168,10 +210,19 @@ export async function init(cfg){
       if (p.inStock) meta.appendChild(el('span',{},[document.createTextNode('Raktáron')]));
       card.appendChild(meta);
 
-      const cta = el('a',{href: dognetLink(p.url), target:'_blank', rel:'nofollow sponsored noopener',
-        style:'margin-top:auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-radius:10px;background:#111;color:#fff;text-decoration:none'},
-        [document.createTextNode('Megnézem a Játékszigetnél →')]);
-      card.appendChild(cta);
+      // CTA + tartalék keresés link
+      const ctaWrap = el('div',{class:'meta2', style:'display:flex;flex-direction:column;gap:6px;margin-top:auto'});
+      const cta1 = el('a',{
+        href: dognetLink(p.url), target:'_blank', rel:'nofollow sponsored noopener',
+        style:'display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-radius:10px;background:#111;color:#fff;text-decoration:none;font-weight:600'
+      }, [document.createTextNode('Megnézem a Játékszigetnél →')]);
+      const cta2 = el('a',{
+        href: dognetLink(p.searchUrl), target:'_blank', rel:'nofollow sponsored noopener',
+        style:'text-align:center;'
+      }, [document.createTextNode('Nem nyílik meg? Keresés a Játékszigeten')]);
+      ctaWrap.appendChild(cta1);
+      ctaWrap.appendChild(cta2);
+      card.appendChild(ctaWrap);
 
       grid.appendChild(card);
     });
@@ -188,6 +239,7 @@ export async function init(cfg){
       };
       pager.appendChild(b);
     }
+
     addBtn('⟨', Math.max(1, page-1), page<=1);
     const nums = new Set([1, page-1, page, page+1, pages].filter(p=>p>=1 && p<=pages));
     let last = 0;
@@ -222,7 +274,7 @@ export async function init(cfg){
     if (e.target && e.target.id==='sortAll_j'){ render(); }
   });
 
-  // aktiváláskor első betöltés
+  // aktiválás
   try{
     await loadOnce();
     render();
