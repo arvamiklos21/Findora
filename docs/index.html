@@ -465,34 +465,8 @@
       return;
     }
     if(cat==="games"){
-      // 1) JátékNet tábla
+      // Csak JátékNet – NINCS Játéksziget blokk
       renderPartnerTable("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
-
-      // 2) Játéksziget blokk (lazy load, docs-ból mindent, CORS nélkül)
-      const host = document.createElement('section');
-      host.className = 'section';
-      host.innerHTML = `
-        <h2>🧩 Játéksziget – Ajánlatok</h2>
-        <div id="games_jateksziget"></div>
-      `;
-      content.appendChild(host);
-
-      try{
-        const { init } = await import('./jateksziget.js');
-        await init({
-          container: '#games_jateksziget',
-          dt: '70plBVdT',                         // ← a Te Dognet dt kódod
-          feed: './jateksziget.xml',              // ← a workflow tölti ide
-          utm: '&utm_source=findora&utm_medium=affiliate&utm_campaign=jateksziget',
-          title: 'Játéksziget – Ajánlatok'
-        });
-      }catch(err){
-        const errBox = document.createElement('div');
-        errBox.style = "padding:12px;border:1px solid #eee;border-radius:10px;margin:12px";
-        errBox.textContent = "Hoppá, nem sikerült betölteni a Játéksziget modult. Ellenőrizd: docs/jateksziget.js és docs/jateksziget.xml";
-        host.appendChild(errBox);
-        console.error(err);
-      }
       return;
     }
     if(cat==="vision"){ renderPartnerTable("👓 eOptika.hu – Látás", EOPTIKA_ITEMS); return; }
