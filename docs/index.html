@@ -7,11 +7,11 @@
   <title>Findora – Irányt mutat a legjobb ajánlatokhoz</title>
   <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, JátékNet, Kärcher, eOptika, Tchibo, Játéksziget egy helyen." />
   <meta name="keywords" content="Findora, akció, kedvezmény, Amazon, JátékNet, Kärcher, eOptika, Tchibo, Játéksziget, olcsó, ajánlat" />
+
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="./" />
   <link rel="alternate" href="./" hreflang="hu" />
   <link rel="icon" href="assets/img/findora_mark.png" />
-  <meta name="referrer" content="no-referrer" />
 
   <!-- OG/Twitter -->
   <meta property="og:type" content="website" />
@@ -20,6 +20,7 @@
   <meta property="og:description" content="Válogatott akciók és ajánlatok magyar felhasználóknak. Amazon, JátékNet, Kärcher, eOptika, Tchibo, Játéksziget." />
   <meta property="og:url" content="./" />
   <meta property="og:image" content="assets/img/findora-header.png" />
+
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
   <meta name="twitter:description" content="A legjobb akciók és kuponok egy helyen. Nézd meg a Findora válogatásait!" />
@@ -201,7 +202,7 @@
 
   <script>
   /* ====== Globális beállítás ====== */
-  const PER_PAGE = 4;        // táblákban 4 kártya/oldal
+  const PER_PAGE = 4;        // minden táblában 4 kártya/oldal
   const FULL_PER_PAGE = 20;  // teljes partner nézetben 20/oldal
 
   /* ====== PARTNER LINKEK ====== */
@@ -257,7 +258,33 @@
     return PLACEHOLDER;
   }
 
-  /* ====== Link-normalizálás (DOGNET + abszolút URL) ====== */
+  /* ====== DEMÓ fix listák ====== */
+  const ITEMS=[
+    {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech",  desc:"Belépő modellek gyors szállítással."},
+    {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazonBase, category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
+    {title:"Vezeték nélküli fülhallgató", partner:"Amazon", price:"17 990 Ft", discount:28, url:amazonBase, category:"tech"},
+    {title:"Smart TV -55%", partner:"Amazon", price:"119 990 Ft", discount:55, url:amazonBase, category:"tech"}
+  ];
+  const EOPTIKA_ITEMS = [
+    {title:"Divatos szemüvegkeret", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Klasszikus formák, prémium anyagok."},
+    {title:"Polarizált napszemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"UV400 védelem, több színben."},
+    {title:"Napi kontaktlencse csomag", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Kényelmes, higiénikus megoldás."},
+    {title:"Kékfény-szűrős szemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Számítógépezéshez ideális."}
+  ];
+  const JATEKNET_ITEMS = [
+    {title:"LEGO kreatív készlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Építsd meg, amit csak elképzelsz."},
+    {title:"Családi társasjáték", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Garantált közös élmények."},
+    {title:"Játékkonzol kontrollerek", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Extra irányítók többjátékos mókához."},
+    {title:"Kreatív rajzkészlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Fejleszti a fantáziát és ügyességet."}
+  ];
+  const KARCHER_ITEMS = [
+    {title:"Magasnyomású mosó", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Teraszok, autó gyors tisztítása."},
+    {title:"Gőztisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Vegyszermentes, higiénikus tisztítás."},
+    {title:"Porszívó kiegészítők", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Szűrők, zsákok, tartozékok."},
+    {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
+  ];
+
+  /* ====== Link-normalizálás ====== */
   const PARTNER_BASE = {
     "Tchibo.hu": "https://www.tchibo.hu",
     "Játéksziget.hu": "https://www.jateksziget.hu"
@@ -294,39 +321,6 @@
       return PARTNER_BASE[partner] || "#";
     }
   }
-  function openPartner(a){
-    try{
-      const url = a.getAttribute('href');
-      window.open(url, '_blank', 'noopener,noreferrer');
-      return false;
-    }catch(_){ return true; }
-  }
-
-  /* ====== DEMÓ fix listák ====== */
-  const ITEMS=[
-    {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech",  desc:"Belépő modellek gyors szállítással."},
-    {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazonBase, category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
-    {title:"Vezeték nélküli fülhallgató", partner:"Amazon", price:"17 990 Ft", discount:28, url:amazonBase, category:"tech"},
-    {title:"Smart TV -55%", partner:"Amazon", price:"119 990 Ft", discount:55, url:amazonBase, category:"tech"}
-  ];
-  const EOPTIKA_ITEMS = [
-    {title:"Divatos szemüvegkeret", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Klasszikus formák, prémium anyagok."},
-    {title:"Polarizált napszemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"UV400 védelem, több színben."},
-    {title:"Napi kontaktlencse csomag", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Kényelmes, higiénikus megoldás."},
-    {title:"Kékfény-szűrős szemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Számítógépezéshez ideális."}
-  ];
-  const JATEKNET_ITEMS = [
-    {title:"LEGO kreatív készlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Építsd meg, amit csak elképzelsz."},
-    {title:"Családi társasjáték", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Garantált közös élmények."},
-    {title:"Játékkonzol kontrollerek", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Extra irányítók többjátékos mókához."},
-    {title:"Kreatív rajzkészlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Fejleszti a fantáziát és ügyességet."}
-  ];
-  const KARCHER_ITEMS = [
-    {title:"Magasnyomású mosó", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Teraszok, autó gyors tisztítása."},
-    {title:"Gőztisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Vegyszermentes, higiénikus tisztítás."},
-    {title:"Porszívó kiegészítők", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Szűrők, zsákok, tartozékok."},
-    {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
-  ];
 
   /* ====== Tchibo / Játéksziget JSON betöltés + méret-duplák szűrése ====== */
   let TCHIBO_ITEMS = [];   let TCHIBO_READY=false;
@@ -334,7 +328,7 @@
 
   function parsePrice(p){
     if (p===undefined || p===null) return NaN;
-    const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",","."));
+    const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",",".")); 
     return Number.isFinite(n) ? n : NaN;
   }
   function normUrl(u){
@@ -412,9 +406,7 @@
         <div class="muted">${logo} ${it.partner}</div>
         <div class="price">${it.price||""}</div>
       </div>
-      <div class="cta">
-        <a href="${href}" class="out" rel="nofollow sponsored noopener noreferrer" onclick="return openPartner(this);">Megnézem az ajánlatot</a>
-      </div>
+      <div class="cta"><a href="${href}" target="_blank" rel="nofollow sponsored noopener">Megnézem az ajánlatot</a></div>
     </div>`;
   }
   function hydrateSafeImages(ctx=document){
@@ -444,12 +436,12 @@
     return html;
   }
 
-  /* ====== Blokkszintű lista ====== */
+  /* ====== Blokkszintű lista (4/oldal) ====== */
   const content=document.getElementById('content');
 
   function renderBlock(title, items, opts={}){
     if(!items || !items.length) return;
-    const { openKey=null } = opts;
+    const { openKey=null } = opts; // pl. "tchibo" vagy "jateksziget"
     const sec=document.createElement('section');
     sec.className='section partner';
     const h2attr = openKey ? `data-open="${openKey}" title="Teljes kínálat megnyitása"` : "";
@@ -548,7 +540,7 @@
 
   /* ====== Főoldal szekciók ====== */
   function computeDiscount(it){
-    if (typeof it.discount === 'number' && it.discount>0) return it.discount;
+    if (typeof it.discount === 'number' && it.discount>0) return it.discount; // <-- FIX
     const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
     if (m){ const d=parseInt(m[1],10); return Number.isFinite(d)?d:0; }
     return 0;
@@ -588,7 +580,7 @@
     renderBlock("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
 
     /* ÚJ: Játéksziget blokk a főoldalon is */
-    if(JATSZIG_ITEMS.length) renderBlock("🧸 Játéksziget – Játékok", JATSZIG_ITEMS, {openKey:"jateksziget"});
+    if(JATSZIG_ITEMS.length) renderBlock("🧸 Játéksziget.hu – Játékok", JATSZIG_ITEMS, {openKey:"jateksziget"});
   }
 
   async function showCategory(cat){
