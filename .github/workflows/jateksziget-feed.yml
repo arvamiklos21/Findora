@@ -1,0 +1,33 @@
+name: Sync Játéksziget feed (PR)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */3 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download feed
+        run: |
+          mkdir -p docs
+          curl -fsSL "https://dl.product-service.dognet.sk/fp/jateksziget.hu-arukereso.xml" -o docs/jateksziget.xml
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/jateksziget-feed
+          title: "chore(feed): update Játéksziget XML"
+          commit-message: "chore(feed): update Játéksziget XML"
+          add-paths: |
+            docs/jateksziget.xml
+          body: |
+            Automatikus frissítés a Dognet feedből.
