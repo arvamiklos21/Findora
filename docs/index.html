@@ -284,13 +284,40 @@
     {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
   ];
 
-  /* ====== Tchibo / Játéksziget JSON betöltés + méret-duplák kiszűrése ====== */
+  /* ====== Link-normalizálás (DOGNET + abszolút URL) ====== */
+  const PARTNER_BASE = {
+    "Tchibo.hu": "https://www.tchibo.hu",
+    "Játéksziget.hu": "https://www.jateksziget.hu"
+  };
+  function unwrapDognet(u){
+    try{
+      const t=new URL(u);
+      if(t.hostname.includes("go.dognet.com")){
+        const inner=t.searchParams.get("url");
+        if(inner) return decodeURIComponent(inner);
+      }
+    }catch(_){}
+    return u;
+  }
+  function ensureAbsolute(u, partner){
+    let href = unwrapDognet(String(u||"").trim());
+    if(!href) return "";
+    if(/^https?:\/\//i.test(href)) return href;
+    if(/^\/\.?/.test(href)){ // "/" vagy "./"
+      const base = PARTNER_BASE[partner] || "";
+      return base ? base.replace(/\/$/,"") + "/" + href.replace(/^\.?\//,"") : href;
+    }
+    if(/^www\./i.test(href)) return "https://" + href;
+    return href; // egyéb – hagyjuk
+  }
+
+  /* ====== Tchibo / Játéksziget JSON betöltés + méret-duplák szűrése ====== */
   let TCHIBO_ITEMS = [];   let TCHIBO_READY=false;
   let JATSZIG_ITEMS = [];  let JATSZIG_READY=false;
 
   function parsePrice(p){
     if (p===undefined || p===null) return NaN;
-    const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",","."));
+    const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",",".")); 
     return Number.isFinite(n) ? n : NaN;
   }
   function normUrl(u){
@@ -308,9 +335,10 @@
   function dedupeBySizeKeepCheapest(list, partner, category){
     const seen=new Map();
     for(const x of (list||[])){
-      const keyBase = normUrl(x.url)||"";
+      const absUrl = ensureAbsolute(x.url, partner);
+      const keyBase = normUrl(absUrl)||"";
       const titleKey = stemSizeFromTitle(x.title||"");
-      const key = (keyBase||titleKey)+"|"+titleKey; // ha csak méret tér el → összevonjuk
+      const key = (keyBase||titleKey)+"|"+titleKey;
       const pn = parsePrice(x.price);
       const rec = {
         title: x.title||"",
@@ -318,7 +346,7 @@
         price: Number.isFinite(pn)? new Intl.NumberFormat('hu-HU').format(pn)+" Ft" : "",
         priceRaw: x.price,
         discount: 0,
-        url: x.url,
+        url: absUrl,
         image: x.image||"",
         desc: ""
       };
