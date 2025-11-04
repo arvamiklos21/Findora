@@ -772,20 +772,20 @@
       `;
       content.appendChild(host);
 
-      // 3) Lazy-load modul a domain gyökeréből és render ide
+      // 3) Lazy-load modul a saját domain gyökeréből és SAJÁT feedről (CORS-mentes, hivatalos)
       try{
         const { init } = await import('/partners/jateksziget.js');
         await init({
           container: '#games_jateksziget',
-          dt: '70plBVdT', // ← a te Dognet dt tokened
-          feed: 'https://dl.product-service.dognet.sk/fp/jateksziget.hu-arukereso.xml',
-          utm: '',        // pl.: '&utm_source=findora&utm_medium=affiliate&utm_campaign=jateksziget'
+          dt: '70plBVdT', // Dognet dt
+          feed: '/partners/jateksziget.xml', // saját domainre kitett XML (Actions frissíti)
+          utm: '&utm_source=findora&utm_medium=affiliate&utm_campaign=jateksziget',
           title: 'Játéksziget – Ajánlatok'
         });
       }catch(err){
         const errBox = document.createElement('div');
         errBox.style = "padding:12px;border:1px solid #eee;border-radius:10px;margin:12px";
-        errBox.textContent = "Hoppá, nem sikerült betölteni a Játéksziget modult. Ellenőrizd: /partners/jateksziget.js";
+        errBox.textContent = "Hoppá, nem sikerült betölteni a Játéksziget modult. Ellenőrizd: /partners/jateksziget.js és /partners/jateksziget.xml";
         host.appendChild(errBox);
         console.error(err);
       }
