@@ -302,13 +302,30 @@
   function ensureAbsolute(u, partner){
     let href = unwrapDognet(String(u||"").trim());
     if(!href) return "";
+    // már abszolút?
     if(/^https?:\/\//i.test(href)) return href;
-    if(/^\/\.?/.test(href)){ // "/" vagy "./"
+    // protokoll nélküli abszolút: //domain/…
+    if(/^\/\//.test(href)) return "https:" + href;
+    // www.domain/…
+    if(/^www\./i.test(href)) return "https://" + href;
+    // relatív: "/", "./", "../"
+    if(/^(\/|\.\/|\.\.\/)/.test(href)){
       const base = PARTNER_BASE[partner] || "";
       return base ? base.replace(/\/$/,"") + "/" + href.replace(/^\.?\//,"") : href;
     }
-    if(/^www\./i.test(href)) return "https://" + href;
-    return href; // egyéb – hagyjuk
+    // ha semmi nem illik, de nincs protokoll: tegyünk elé partnert alapnak
+    if(!/^[a-z]+:\/\//i.test(href)){
+      const base = PARTNER_BASE[partner] || "";
+      return base ? base.replace(/\/$/,"") + "/" + href.replace(/^\/+/,"") : "https://" + href;
+    }
+    return href;
+  }
+  function safeHref(partner, u){
+    const h = ensureAbsolute(u, partner);
+    try{ new URL(h); return h; }catch(_){
+      // utolsó fallback: partner főoldal
+      return PARTNER_BASE[partner] || "#";
+    }
   }
 
   /* ====== Tchibo / Játéksziget JSON betöltés + méret-duplák szűrése ====== */
@@ -346,7 +363,7 @@
         price: Number.isFinite(pn)? new Intl.NumberFormat('hu-HU').format(pn)+" Ft" : "",
         priceRaw: x.price,
         discount: 0,
-        url: absUrl,
+        url: absUrl || PARTNER_BASE[partner] || "#",
         image: x.image||"",
         desc: ""
       };
@@ -382,6 +399,7 @@
   /* ====== Kártya, képek ====== */
   function cardHTML(it){
     const primary = it.image ? it.image : keyImage(it.title);
+    const href = safeHref(it.partner, it.url);
     const imgTag = `<img class="imgsafe" alt="${it.title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
                       data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
     const logo = LOGO_URLS[it.partner]?`<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">`:"";
@@ -394,7 +412,7 @@
         <div class="muted">${logo} ${it.partner}</div>
         <div class="price">${it.price||""}</div>
       </div>
-      <div class="cta"><a href="${it.url}" target="_blank" rel="nofollow sponsored noopener">Megnézem az ajánlatot</a></div>
+      <div class="cta"><a href="${href}" target="_blank" rel="nofollow sponsored noopener">Megnézem az ajánlatot</a></div>
     </div>`;
   }
   function hydrateSafeImages(ctx=document){
@@ -528,7 +546,7 @@
 
   /* ====== Főoldal szekciók ====== */
   function computeDiscount(it){
-    if (typeof it.discount === 'number' && it.discount>0) return it.discount;
+    if (typeof it.discount === 'number' && it.discount>0) return it;
     const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
     if (m){ const d=parseInt(m[1],10); return Number.isFinite(d)?d:0; }
     return 0;
@@ -566,6 +584,7 @@
 
     renderBlock("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
     renderBlock("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
+    /* Szándékosan NINCS Játéksziget blokk a főoldalon (kérésed szerint a Játék menüpont alá kerül). */
   }
 
   async function showCategory(cat){
