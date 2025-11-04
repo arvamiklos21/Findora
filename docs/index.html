@@ -135,7 +135,7 @@
     .categories::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:999px}
     .catbtn{
       border:1px solid #dbeafe;background:#ffffffc9;border-radius:999px;padding:8px 12px;
-      cursor:pointer;font-weight:700;font-size:14px;white-space:nowrap;
+      cursor:pointer;font-weight:700;font-size:14px;white-space:nowrap
     }
     .catbtn:hover{background:#f1f5f9}
     .catbtn.active{
@@ -143,7 +143,12 @@
       color:#0b1220;border-color:#e2e8f0
     }
 
-    .searchbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+    /* --- ÚJ: partner al-menü link (stílus a catbtn-hez igazítva) --- */
+    .subnav { display:flex; gap:8px; justify-content:center; margin:8px auto 0; padding:0 6px; flex-wrap:wrap }
+    .subnav a { text-decoration:none; }
+    .subnav .catbtn { display:inline-block }
+
+    .searchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:8px}
     .searchbar input,.searchbar button{padding:10px;border:none;border-radius:10px;font-size:14px}
     .searchbar input{
       min-width:220px;max-width:360px;flex:1;padding-left:36px;background:#fff
@@ -159,7 +164,7 @@
       .floating-search{
         position:fixed; right:12px; bottom:12px; z-index:50;
         background:linear-gradient(90deg,#4cc9f0,#ffd166);
-        border:none; color:#0b1220; font-weight:800; border-radius:999px; padding:10px 14px;
+        border:none; color:#0b1220; font-weight:800; border-radius:999px; padding:10px 14px; 
         box-shadow:0 10px 24px rgba(2,6,23,.22)
       }
     }
@@ -210,7 +215,7 @@
       padding:8px 12px;border-radius:8px;color:#0b1220;font-weight:800;
     }
 
-    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
+    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10: 16px; padding:10px 16px; background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
     .toolbar .group{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .toolbtn, .toolsel{
       background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px
@@ -271,6 +276,11 @@
         <button class="catbtn" data-cat="travel">✈️ Utazás</button>
       </nav>
 
+      <!-- ÚJ: Játékok alatti al-menü a Játéksziget modulhoz (lazy-load) -->
+      <div class="subnav">
+        <a href="#jateksziget" data-module="jateksziget" id="btnJateksziget" class="catbtn">🧩 Játékok → Játéksziget</a>
+      </div>
+
       <form id="searchForm" class="searchbar" role="search" action="">
         <input id="q" name="q" type="search" placeholder="Írja be a keresett terméket…" aria-label="Keresés" />
         <button type="submit" aria-label="Keresés indítása">Keresés</button>
@@ -280,6 +290,9 @@
 
   <button class="floating-search" aria-label="Keresés megnyitása" onclick="document.getElementById('q').focus()">🔍</button>
   <button id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">▲</button>
+
+  <!-- ÚJ: a Játéksziget modul cél-szekciója (kezdetben rejtve) -->
+  <section id="jateksziget" hidden></section>
 
   <main id="content"></main>
 
@@ -318,9 +331,9 @@
     laptop:"https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1200&q=80&auto=format&fit=crop",
     "gaming laptop":"https://images.unsplash.com/photo-1518779578993-ec3579fee39f?w=1200&q=80&auto=format&fit=crop",
     tv:"https://images.unsplash.com/photo-1512445239393-63e626ac6b86?w=1200&q=80&auto=format&fit=crop",
+    "smart tv":"https://images.unsplash.com/photo-1527443154391-507e9dc6c5cc?w=1200&q=80&auto=format&fit=crop",
     okosóra:"https://images.unsplash.com/photo-1517433456452-f9633a875f6f?w=1200&q=80&auto=format&fit=crop",
     fülhallgató:"https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=1200&q=80&auto=format&fit=crop",
-    "smart tv":"https://images.unsplash.com/photo-1527443154391-507e9dc6c5cc?w=1200&q=80&auto=format&fit=crop",
     lego:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=1200&q=80&auto=format&fit=crop",
     "társasjáték":"https://images.unsplash.com/photo-1542990253-a781e04c0083?w=1200&q=80&auto=format&fit=crop",
     "játékkonzol":"https://images.unsplash.com/photo-1605901309584-818e25960a8b?w=1200&q=80&auto=format&fit=crop",
@@ -412,7 +425,7 @@
       };
       const parsePrice = (p) => {
         if (p===undefined || p===null) return NaN;
-        const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",","."));
+        const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",",".")); 
         return Number.isFinite(n) ? n : NaN;
       };
 
@@ -458,7 +471,7 @@
       TCHIBO_READY = true;
       const err = document.createElement('section');
       err.className = 'section';
-      err.innerHTML = `<h2>Hiba</h2><div style="padding:12px">A Tchibo kínálat jelenleg nem tölthető. Próbáld meg később.</div>`;
+      err.innerHTML = `<div style="padding:12px;border:1px solid #eee;border-radius:10px">A Tchibo kínálat jelenleg nem tölthető. Próbáld meg később.</div>`;
       document.getElementById('content').appendChild(err);
     }
   }
@@ -493,18 +506,43 @@
 
   const content=document.getElementById('content');
 
-  /* ---------- LAPOZÓ ---------- */
+  /* ---------- LAPOZÓ (MÓDOSÍTVA: rövidített 1 2 3 4 … N / környéki oldalak) ---------- */
   function pagerHTML(total, page, per){
-    const pages = Math.max(1, Math.ceil(total/per));
+    const pages = Math.max(1, Math.ceil(total / per));
     let html = `<div class="pager">`;
-    const mk = (p, lbl, cls="") => `<button data-page="${p}" class="${cls}">${lbl}</button>`;
-    html += mk(Math.max(1,page-1),"«");
-    for (let i=1;i<=pages;i++){
-      const cls = (i===page) ? "active" : "";
-      html += mk(i, i, cls);
+    const mkBtn = (p, lbl, active=false, disabled=false) =>
+      `<button data-page="${p}" ${disabled?'disabled':''} class="${active?'active':''}">${lbl}</button>`;
+    const mkDots = () => `<span class="info">…</span>`;
+
+    // Prev
+    html += mkBtn(Math.max(1,page-1), "«", false, page<=1);
+
+    // Pages
+    if (pages <= 7){
+      for (let i=1;i<=pages;i++) html += mkBtn(i, i, i===page);
+    } else {
+      if (page <= 4){
+        for (let i=1;i<=4;i++) html += mkBtn(i, i, i===page);
+        html += mkDots();
+        html += mkBtn(pages, pages, page===pages);
+      } else if (page >= pages-3){
+        html += mkBtn(1, 1, page===1);
+        html += mkDots();
+        for (let i=pages-3;i<=pages;i++) html += mkBtn(i, i, i===page);
+      } else {
+        html += mkBtn(1, 1, false);
+        html += mkDots();
+        html += mkBtn(page-1, page-1, false);
+        html += mkBtn(page, page, true);
+        html += mkBtn(page+1, page+1, false);
+        html += mkDots();
+        html += mkBtn(pages, pages, false);
+      }
     }
-    html += `<span class="info">Oldal ${page} / ${pages}</span>`;
-    html += mk(Math.min(pages,page+1),"»");
+
+    // Next
+    html += mkBtn(Math.min(pages,page+1), "»", false, page>=pages);
+
     html += `</div>`;
     return html;
   }
@@ -541,7 +579,7 @@
     function sortedArr(){
       let arr=[...items];
       if(sort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
-      if(sort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
+      if(sort==="price_desc") arr.sort((a,b)=>b.price-a.price);
       if(sort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
       if(sort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
       return arr;
@@ -550,7 +588,8 @@
       const arr = sortedArr();
       const pages = Math.max(1, Math.ceil(arr.length/PER_PAGE));
       page = Math.min(Math.max(1,page), pages);
-      const st=(page-1)*PER_PAGE, sl=arr.slice(st, st+PER_PAGE);
+      const st=(page-1)*PER_PAGE;
+      const sl=arr.slice(st, st+PER_PAGE);
       grid.innerHTML="";
       sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
@@ -575,20 +614,22 @@
   function renderSection(title, items, extraClass="", id=""){
     if(!items.length)return;
     const s=document.createElement('section');
-    s.className=`section ${extraClass}`.trim();
+    s.className=`${'section'} ${extraClass}`.trim();
     if(id)s.id=id;
     s.innerHTML=`<h2>${title}</h2><div class="grid"></div><div class="pager"></div>`;
-    const g=s.querySelector('.grid');
+    const g=s.find ? s.find('.grid') : s.querySelector('.grid'); // fallback
+    const pgr=s.querySelector('.pager');
     let page=1;
 
     function apply(){
-      const pages = Math.max(1, Math.ceil(items.length/PER_PAGE));
+      const pages = Math.max(1, Math.ceil(items.length / PER_PAGE));
       page = Math.min(Math.max(1,page), pages);
-      const st=(page-1)*PER_PAGE, sl=items.slice(st, st+PER_PAGE);
+      const st=(page-1)*PER_PAGE;
+      const sl=items.slice(st, st+PER_PAGE);
       g.innerHTML="";
       sl.forEach(it=>g.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(s);
-      s.querySelector('.pager').innerHTML = pagerHTML(items.length, page, PER_PAGE);
+      pgr.innerHTML = pagerHTML(items.length, page, PER_PAGE);
     }
     s.addEventListener('click',(e)=>{
       const b = e.target.closest('.pager button');
@@ -625,7 +666,7 @@
     if (b50.length)   renderSection("🔥 -50% és több", b50);
   }
 
-  /* ---------- Tchibo TELJES nézet – itt is 4 / oldal ---------- */
+  /* ---------- Tchibo TELJES nézet – itt is 4 / oldal + rövidített pager ---------- */
   function renderTchiboFull(title, items, page=1){
     const sec=document.createElement('section');
     sec.className='section partner';
@@ -658,16 +699,17 @@
     function sorted(){
       let arr=[...items];
       if(currentSort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
-      if(currentSort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
+      if(currentSort==="price_desc") arr.sort((a,b)=>b.price-a.price);
       if(currentSort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
       if(currentSort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
       return arr;
     }
     function apply(){
       const arr = sorted();
-      const pages = Math.max(1, Math.ceil(arr.length/PER_PAGE));
+      const pages = Math.max(1, Math.ceil(arr.length / PER_PAGE));
       pageState = Math.min(Math.max(1,pageState), pages);
-      const st=(pageState-1)*PER_PAGE, sl=arr.slice(st, st+PER_PAGE);
+      const st=(pageState-1)*PER_PAGE;
+      const sl=arr.slice(st, st+PER_PAGE);
 
       grid.innerHTML="";
       sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
@@ -835,6 +877,41 @@
       if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show');
     });
   })();
+  </script>
+
+  <!-- ÚJ: dinamikus betöltő – csak a Játéksziget modult húzza le kattintáskor -->
+  <script type="module">
+    const routes = {
+      jateksziget: () => import('./partners/jateksziget.js'),
+    };
+
+    document.querySelectorAll('[data-module]').forEach(a=>{
+      a.addEventListener('click', async ()=>{
+        const mod = a.dataset.module;
+        const sectionId = a.getAttribute('href')?.replace('#','') || '';
+        const sectionEl = document.getElementById(sectionId);
+        if (!routes[mod] || !sectionEl) return;
+
+        const { init } = await routes[mod]();
+        await init({
+          container: '#jateksziget',
+          dt: '70plBVdT', // ← a te Dognet dt tokened
+          feed: 'https://dl.product-service.dognet.sk/fp/jateksziget.hu-arukereso.xml',
+          utm: '', // ha szeretnél mérést: '&utm_source=findora&utm_medium=affiliate&utm_campaign=jateksziget'
+          title: 'Játéksziget – Ajánlatok'
+        });
+
+        sectionEl.hidden = false;
+      });
+    });
+
+    // közvetlen #jateksziget linkre is lazy-load
+    window.addEventListener('DOMContentLoaded', async ()=>{
+      const hash = location.hash?.replace('#','');
+      if (!hash) return;
+      const link = document.querySelector(`[data-module][href="#${hash}"]`);
+      if (link) link.click();
+    });
   </script>
 </body>
 </html>
