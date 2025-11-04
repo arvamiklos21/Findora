@@ -184,17 +184,17 @@
       border-top:1px solid #e2e8f0;
     }
 
-    .grid{display:flex; gap:12px; padding:12px; overflow-x:auto; scroll-snap-type:x proximity}
+    .grid{display:flex; gap:12px; padding:12px; overflow:visible}
+    .grid.full{flex-wrap:wrap}
     .grid::-webkit-scrollbar{height:8px}
     .grid::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
 
-    .grid.full{flex-wrap:wrap; overflow:visible}
     .grid.full .card{min-width:260px; flex:1 1 calc(25% - 12px); max-width:calc(25% - 12px)}
     @media (max-width:1024px){ .grid.full .card{flex-basis:calc(33.333% - 12px);max-width:calc(33.333% - 12px)} }
     @media (max-width:760px){ .grid.full .card{flex-basis:calc(50% - 12px);max-width:calc(50% - 12px)} }
 
     .card{
-      min-width:220px; scroll-snap-align:start; background:var(--card);
+      min-width:220px; background:var(--card);
       border:1px solid var(--border);border-radius:14px;overflow:hidden;
       display:flex;flex-direction:column;position:relative;height:300px;
       transition:transform .2s, box-shadow .2s;
@@ -215,11 +215,13 @@
 
     .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
     .toolbar .group{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .toolbtn, .toolsel{
+    .toolbtn, .toolsel, .toolinput{
       background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px
     }
+    .toolinput{min-width:220px;max-width:320px}
 
     .pager{display:flex;gap:8px;justify-content:center;align-items:center;padding:12px;flex-wrap:wrap}
+    .pager .info{font-weight:700}
     .pager button{border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
     .pager .active{background:#0b3a6a;color:#fff;border-color:#0b3a6a}
 
@@ -290,6 +292,8 @@
   </footer>
 
   <script>
+  const PER_PAGE = 20;
+
   /* ====== Linkek / partnerek ====== */
   const AMAZON_TAG = "findora30-20";
   const amazonBase = `https://www.amazon.com/?tag=${AMAZON_TAG}`;
@@ -392,7 +396,6 @@
         return u;
       };
 
-      // Kulcs a duplikátumok ellen: host+pathname (query nélkül) + "méret-szűrt" cím
       const normPath = (u) => {
         try{
           const t = new URL(u);
@@ -403,7 +406,6 @@
       const stemTitle = (s) => {
         const t = String(s||"").toLowerCase();
         return t
-          // méret minták
           .replace(/\b(xxs|xs|s|m|l|xl|xxl|xxxl)\b/g, "")
           .replace(/\b(eu|uk|us)\s?\d+\b/g, "")
           .replace(/méret\s*[:\-]?\s*[^\s,)\]]+/g, "")
@@ -438,7 +440,6 @@
         };
 
         if (seen.has(key)){
-          // tartsuk meg az olcsóbbat és a jobb képet
           const prev = seen.get(key);
           const prevNum = parsePrice(prev.priceRaw);
           if (!isNaN(priceNum) && (isNaN(prevNum) || priceNum < prevNum)){
@@ -495,7 +496,22 @@
 
   const content=document.getElementById('content');
 
-  // TÁBLÁZAT: csak rendező combó, KERESŐ NINCS
+  function pagerHTML(total, page, per){
+    const pages = Math.max(1, Math.ceil(total/per));
+    let html = `<div class="pager">`;
+    const mk = (p, lbl, cls="") => `<button data-page="${p}" class="${cls}">${lbl}</button>`;
+    html += `<span class="info">Oldal ${page} / ${pages}</span>`;
+    html += mk(Math.max(1,page-1),"«");
+    for (let i=1;i<=pages && i<=10;i++){
+      const p = i; html += mk(p, p, p===page?"active":"");
+    }
+    if (pages>10) html += `<span>…</span>`+mk(pages,pages);
+    html += mk(Math.min(pages,page+1),"»");
+    html += `</div>`;
+    return html;
+  }
+
+  // TÁBLÁZAT: rendezés + lapozás (20/db), NINCS belső kereső
   function renderPartnerTable(title, items, opts={}){
     if(!items || !items.length) return;
     const clickable = opts.clickTo || null; // {type:'tchibo'}
@@ -517,27 +533,44 @@
           </select>
         </div>
       </div>
-      <div class="grid"></div>`;
+      <div class="grid full"></div>
+      <div class="pager"></div>`;
     const grid=sec.querySelector('.grid');
 
+    let currentSort="relevance";
+    let page=1;
+
     function priceNum(p){ if(!p)return NaN; return Number(String(p).replace(/[^\d.]/g,"")); }
+
+    function sorted(itemsArr){
+      const arr=[...itemsArr];
+      if(currentSort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
+      if(currentSort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
+      if(currentSort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
+      if(currentSort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
+      return arr;
+    }
+
     function applyRender(){
-      let arr = [...items];
-      const sort = sec.querySelector('.sortsel').value;
-      if(sort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
-      if(sort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
-      if(sort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
-      if(sort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
+      const arr = sorted(items);
+      const pages = Math.max(1, Math.ceil(arr.length/PER_PAGE));
+      page = Math.min(Math.max(1,page), pages);
+      const start = (page-1)*PER_PAGE;
+      const slice = arr.slice(start, start+PER_PAGE);
 
       grid.innerHTML="";
-      arr.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+      slice.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
+      sec.querySelector('.pager').outerHTML = pagerHTML(arr.length, page, PER_PAGE);
     }
-    sec.querySelector('.sortsel').addEventListener('change', applyRender);
-    // teljes H2 klikkelhető a Tchibo teljes nézethez
+
+    sec.querySelector('.sortsel').addEventListener('change', ()=>{ currentSort=sec.querySelector('.sortsel').value; page=1; applyRender(); });
+
     sec.addEventListener('click', (e)=>{
       const openH2 = e.target.closest('h2[data-open]');
       if(openH2 && openH2.dataset.open==='tchibo'){ showTchiboPage(1); }
+      const b = e.target.closest('.pager button');
+      if(b){ page = Number(b.dataset.page)||1; applyRender(); }
     });
 
     applyRender();
@@ -549,7 +582,7 @@
     const s=document.createElement('section');
     s.className=`section ${extraClass}`.trim();
     if(id)s.id=id;
-    s.innerHTML=`<h2>${title}</h2><div class="grid"></div>`;
+    s.innerHTML=`<h2>${title}</h2><div class="grid full"></div>`;
     const g=s.querySelector('.grid');
     items.forEach(it=>g.insertAdjacentHTML('beforeend', cardHTML(it)));
     content.appendChild(s);
@@ -582,22 +615,8 @@
     if (b50.length)   renderSection("🔥 -50% és több", b50.slice(0,40));
   }
 
-  function pagerHTML(total, page, per){
-    const pages = Math.max(1, Math.ceil(total/per));
-    let html = `<div class="pager">`;
-    const mk = (p, lbl, cls="") => `<button data-page="${p}" class="${cls}">${lbl}</button>`;
-    html += mk(Math.max(1,page-1),"«");
-    for (let i=1;i<=pages && i<=10;i++){
-      const p = i; html += mk(p, p, p===page?"active":"");
-    }
-    if (pages>10) html += `<span>…</span>`+mk(pages,pages);
-    html += mk(Math.min(pages,page+1),"»");
-    html += `</div>`;
-    return html;
-  }
-
-  // Teljes Tchibo nézet (Otthon címsor kattintására)
-  function renderTchiboFull(title, items, page=1, per=40){
+  // Teljes Tchibo nézet (Otthon címsor kattintására) — 20/db + belső kereső
+  function renderTchiboFull(title, items, page=1){
     const sec=document.createElement('section');
     sec.className='section partner';
     sec.innerHTML=`
@@ -606,6 +625,9 @@
         <div class="group">
           <button class="toolbtn" id="btnHome">🏠 Főoldal</button>
           <button class="toolbtn" id="btnBackHome">← Vissza az Otthonhoz</button>
+        </div>
+        <div class="group">
+          <input class="toolinput filterinput" placeholder="Keresés a Tchibo kínálatban…" />
         </div>
         <div class="group">
           <label>Rendezés:</label>
@@ -623,30 +645,35 @@
     `;
     const grid=sec.querySelector('.grid');
     let currentSort="relevance";
+    let filterVal="";
     let pageState=page;
 
     function priceNum(p){ if(!p)return NaN; return Number(String(p).replace(/[^\d.]/g,"")); }
     function apply(){
       let arr = [...items];
+      if(filterVal) arr = arr.filter(x=>(x.title||"").toLowerCase().includes(filterVal));
       if(currentSort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
       if(currentSort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
       if(currentSort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
       if(currentSort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
 
-      const pages = Math.max(1, Math.ceil(arr.length/per));
-      const p = Math.min(Math.max(1,pageState), pages);
-      const st=(p-1)*per;
-      const sl=arr.slice(st, st+per);
+      const pages = Math.max(1, Math.ceil(arr.length/PER_PAGE));
+      pageState = Math.min(Math.max(1,pageState), pages);
+      const st=(pageState-1)*PER_PAGE;
+      const sl=arr.slice(st, st+PER_PAGE);
 
       grid.innerHTML="";
       sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
 
-      sec.querySelector('.pager').outerHTML = pagerHTML(arr.length, p, per);
+      sec.querySelector('.pager').outerHTML = pagerHTML(arr.length, pageState, PER_PAGE);
     }
 
     sec.addEventListener('change', (e)=>{
-      if(e.target.matches('.sortsel')){ currentSort=e.target.value; apply(); }
+      if(e.target.matches('.sortsel')){ currentSort=e.target.value; pageState=1; apply(); }
+    });
+    sec.addEventListener('input', (e)=>{
+      if(e.target.matches('.filterinput')){ filterVal=e.target.value.trim().toLowerCase(); pageState=1; apply(); }
     });
     sec.addEventListener('click', (e)=>{
       const b = e.target.closest('.pager button');
@@ -681,7 +708,7 @@
     renderPartnerTable("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
 
     if(TCHIBO_ITEMS.length){
-      renderPartnerTable("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS.slice(0,48), {clickTo:{type:'tchibo'}});
+      renderPartnerTable("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS, {clickTo:{type:'tchibo'}});
     }
 
     renderPartnerTable("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
@@ -691,7 +718,7 @@
   async function showTchiboPage(page=1){
     if(!TCHIBO_READY) await loadTchibo();
     content.innerHTML="";
-    renderTchiboFull("🛍️ Tchibo.hu – Teljes kínálat", TCHIBO_ITEMS, page, 40);
+    renderTchiboFull("🛍️ Tchibo.hu – Teljes kínálat", TCHIBO_ITEMS, page);
     window.scrollTo({top:0, behavior:'smooth'});
   }
 
@@ -762,7 +789,7 @@
     if(!amazon.length && !jatek.length && !karch.length && !eopt.length && !tchibo.length){
       const s=document.createElement('section');
       s.className='section';
-      s.innerHTML=`<h2>Nincs találat</h2><div class="grid"></div>`;
+      s.innerHTML=`<h2>Nincs találat</h2><div class="grid full"></div>`;
       content.appendChild(s);
     }
   }
