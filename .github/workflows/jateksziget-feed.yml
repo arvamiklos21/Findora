@@ -1,32 +1,24 @@
-name: Pull Jateksziget feed
+name: Sync Játéksziget feed
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *" # 6 óránként
+    - cron: "0 */3 * * *"   # 3 óránként
 
 jobs:
-  fetch-and-commit:
+  sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Make partners dir
-        run: mkdir -p docs/partners
-
-      - name: Download XML
+      - name: Fetch feed to docs/partners/jateksziget.xml
         run: |
-          curl -fsSL "https://dl.product-service.dognet.sk/fp/jateksziget.hu-arukereso.xml" -o docs/partners/jateksziget.xml
+          mkdir -p docs/partners
+          curl -fL "https://dl.product-service.dognet.sk/fp/jateksziget.hu-arukereso.xml" \
+            -o docs/partners/jateksziget.xml
 
       - name: Commit if changed
-        run: |
-          if git diff --quiet -- docs/partners/jateksziget.xml; then
-            echo "No changes."
-          else
-            git config user.name "github-actions"
-            git config user.email "actions@users.noreply.github.com"
-            git add docs/partners/jateksziget.xml
-            git commit -m "chore(feeds): update jateksziget.xml"
-            git push
-          fi
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(feed): update Játéksziget XML"
+          file_pattern: docs/partners/jateksziget.xml
