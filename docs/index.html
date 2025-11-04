@@ -494,7 +494,7 @@
 
   const content=document.getElementById('content');
 
-  /* ---------- LAPOZÓ (rövidített: 1 2 3 4 … N, valamint középen … P-1 P P+1 …) ---------- */
+  /* ---------- LAPOZÓ ---------- */
   function pagerHTML(total, page, per){
     const pages = Math.max(1, Math.ceil(total / per));
     let html = `<div class="pager">`;
@@ -531,7 +531,7 @@
     return html;
   }
 
-  /* ---------- TÁBLÁZAT: Rendezés + 4-es lapozás ---------- */
+  /* ---------- TÁBLÁZAT ---------- */
   function renderPartnerTable(title, items, opts={}){
     if(!items || !items.length) return;
     const clickable = opts.clickTo || null;
@@ -591,7 +591,7 @@
     content.appendChild(sec);
   }
 
-  /* ---------- Egyszerű szekció (pl. Top ajánlatok, kedvezmény-bucketek) ---------- */
+  /* ---------- Egyszerű szekció ---------- */
   function renderSection(title, items, extraClass="", id=""){
     if(!items.length)return;
     const s=document.createElement('section');
@@ -624,7 +624,7 @@
     renderSection("🏆 A hét legjobb ajánlatai", top, "highlight", "topdeals");
   }
 
-  /* --- Kedvezmény szekciók a főoldalon --- */
+  /* --- Kedvezmény szekciók --- */
   function computeDiscount(it){
     if (typeof it.discount === 'number' && it.discount>0) return it.discount;
     const m = (it.title||"").match(/-?\s*(\d{1,3})\s*%/);
@@ -772,13 +772,13 @@
       `;
       content.appendChild(host);
 
-      // 3) Lazy-load modul a saját domain gyökeréből és SAJÁT feedről (CORS-mentes, hivatalos)
+      // 3) Lazy-load modul a saját domain gyökeréből és SAJÁT feedről (CORS-mentes, cache-busttal)
       try{
         const { init } = await import('/partners/jateksziget.js');
         await init({
           container: '#games_jateksziget',
           dt: '70plBVdT', // Dognet dt
-          feed: '/partners/jateksziget.xml', // saját domainre kitett XML (Actions frissíti)
+          feed: '/partners/jateksziget.xml?v=' + Date.now(), // ← cache-bust
           utm: '&utm_source=findora&utm_medium=affiliate&utm_campaign=jateksziget',
           title: 'Játéksziget – Ajánlatok'
         });
