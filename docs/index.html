@@ -53,34 +53,23 @@
 
   <style>
     :root{
-      --primary:#0f2742;
-      --gold:#ffd166;
-      --text:#0f172a;
-      --muted:#64748b;
-      --card:rgba(255,255,255,0.9);
-      --panel:#ffffffee;
-      --border:#e2e8f0;
-
+      --primary:#0f2742; --gold:#ffd166; --text:#0f172a; --muted:#64748b;
+      --card:rgba(255,255,255,0.9); --panel:#ffffffee; --border:#e2e8f0;
       --fireplace:url("https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=1600&q=80&auto=format&fit=crop");
       --pine-row:url("data:image/svg+xml;utf8,<?xml version='1.0'?>\
 <svg xmlns='http://www.w3.org/2000/svg' width='480' height='120' viewBox='0 0 480 120'>\
-  <defs><linearGradient id='fog' x1='0' x2='0' y1='0' y2='1'>\
-    <stop offset='0' stop-color='%230b1a33' stop-opacity='0.0'/>\
-    <stop offset='1' stop-color='%230b1a33' stop-opacity='0.35'/>\
-  </linearGradient></defs>\
-  <rect width='480' height='120' fill='url(%23fog)'/>\
-  <g fill='%23152a4a' opacity='0.75'>\
-    <path d='M10,110 l20,-40 l20,40 z'/>\
-    <path d='M60,110 l22,-44 l22,44 z'/>\
-    <path d='M120,110 l18,-36 l18,36 z'/>\
-    <path d='M170,110 l24,-48 l24,48 z'/>\
-    <path d='M230,110 l20,-42 l20,42 z'/>\
-    <path d='M290,110 l22,-44 l22,44 z'/>\
-    <path d='M350,110 l18,-36 l18,36 z'/>\
-    <path d='M400,110 l24,-48 l24,48 z'/>\
-  </g></svg>");
+<defs><linearGradient id='fog' x1='0' x2='0' y1='0' y2='1'>\
+<stop offset='0' stop-color='%230b1a33' stop-opacity='0.0'/>\
+<stop offset='1' stop-color='%230b1a33' stop-opacity='0.35'/>\
+</linearGradient></defs>\
+<rect width='480' height='120' fill='url(%23fog)'/>\
+<g fill='%23152a4a' opacity='0.75'>\
+<path d='M10,110 l20,-40 l20,40 z'/><path d='M60,110 l22,-44 l22,44 z'/>\
+<path d='M120,110 l18,-36 l18,36 z'/><path d='M170,110 l24,-48 l24,48 z'/>\
+<path d='M230,110 l20,-42 l20,42 z'/><path d='M290,110 l22,-44 l22,44 z'/>\
+<path d='M350,110 l18,-36 l18,36 z'/><path d='M400,110 l24,-48 l24,48 z'/>\
+</g></svg>");
     }
-
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{height:100%}
 
@@ -96,9 +85,7 @@
       background-attachment: fixed,fixed,fixed,fixed;
       overflow-x:hidden;
     }
-    @media (max-width:640px){
-      body{ background-attachment: scroll,scroll,scroll,scroll; }
-    }
+    @media (max-width:640px){ body{ background-attachment: scroll,scroll,scroll,scroll; } }
 
     /* HEADER */
     .hero{
@@ -110,7 +97,6 @@
         var(--fireplace) center/cover no-repeat;
       border-bottom:1px solid rgba(226,232,240,.35);
     }
-
     .hero-inner{max-width:1100px;width:100%; position:relative; z-index:2}
     .brand{display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:8px}
     .brand img{height:44px;border-radius:12px;background:#0f2742;box-shadow:0 2px 8px rgba(2,6,23,.4)}
@@ -121,7 +107,6 @@
       background:#0b3a6a; color:#fff; padding:6px 10px; border-radius:10px;
       font-weight:700; font-size:13px; box-shadow:0 2px 6px rgba(0,0,0,.25);
     }
-
     .promo{
       margin:10px auto 10px;
       background:linear-gradient(90deg,rgba(255,255,255,.16),rgba(255,255,255,.22));
@@ -211,9 +196,7 @@
 
     .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
     .toolbar .group{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .toolbtn, .toolsel, .toolinput{
-      background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px
-    }
+    .toolbtn, .toolsel, .toolinput{ background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px }
     .toolinput{min-width:180px}
 
     footer{
@@ -265,7 +248,7 @@
         <button class="catbtn" data-cat="home">🏠 Otthon</button>
         <button class="catbtn" data-cat="games">🕹️ Játékok</button>
         <button class="catbtn" data-cat="vision">👓 Látás</button>
-        <button class="catbtn" data-cat="tchibo">🛍️ Tchibo</button>
+        <button class="catbtn" data-cat="travel">✈️ Utazás</button>
       </nav>
 
       <form id="searchForm" class="searchbar" role="search" action="">
@@ -291,10 +274,6 @@
   const AMAZON_TAG = "findora30-20";
   const amazonBase = `https://www.amazon.com/?tag=${AMAZON_TAG}`;
 
-  /* Aktív partnerek – CSAK ezek maradtak! */
-  const ACTIVE_PARTNERS = ["Amazon","JátékNet.hu","Kärcher.hu","eOptika.hu","Tchibo.hu"];
-
-  /* Partner affiliate alaplinkek (tőled kapottak) */
   const LINK_EOPTIKA = "https://www.kqzyfj.com/tf79mu2-u1HJIJNPRIIQHJMIMRRJK";
   const LINK_JATEKNET= "https://www.anrdoezrs.net/2t70r09608OQPQUWYPPXOQTTTXPQQ";
   const LINK_KARCHER  = "https://www.kqzyfj.com/pa117qgpmgo35459BD44C3587B77AD";
@@ -307,13 +286,10 @@
     "Tchibo.hu":"https://www.tchibo.hu/medias/sys_master/root/h6f/h24/9016963760158.png"
   };
 
-  /* Brand fallback */
-  (function(){
-    const img=document.getElementById('brandLogo'); let step=0;
+  (function(){ const img=document.getElementById('brandLogo'); let step=0;
     img.onerror=()=>{ step++; if(step===1) img.src=img.dataset.fallback1; else if(step===2) img.src=img.dataset.fallback2; };
   })();
 
-  /* Kulcsszó -> fix kép (nincs random) */
   const IMG_KEY={
     laptop:"https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1200&q=80&auto=format&fit=crop",
     "gaming laptop":"https://images.unsplash.com/photo-1518779578993-ec3579fee39f?w=1200&q=80&auto=format&fit=crop",
@@ -345,62 +321,83 @@
     return PLACEHOLDER;
   }
 
-  /* DEMO – csak Amazon marad (Alza/AboutYou eltávolítva) */
+  /* DEMÓ – csak Amazon marad */
   const ITEMS=[
-    {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech",  desc:"Belépő modellek gyors szállítással."},
-    {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazonBase, category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
+    {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech"},
+    {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazonBase, category:"tech"},
     {title:"Vezeték nélküli fülhallgató", partner:"Amazon", price:"17 990 Ft", discount:28, url:amazonBase, category:"tech"},
     {title:"Smart TV -55%", partner:"Amazon", price:"119 990 Ft", discount:55, url:amazonBase, category:"tech"}
   ];
 
-  /* Fix partnerek (API nélkül) */
   const EOPTIKA_ITEMS = [
-    {title:"Divatos szemüvegkeret", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Klasszikus formák, prémium anyagok."},
-    {title:"Polarizált napszemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"UV400 védelem, több színben."},
-    {title:"Napi kontaktlencse csomag", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Kényelmes, higiénikus megoldás."},
-    {title:"Kékfény-szűrős szemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Számítógépezéshez ideális."}
+    {title:"Divatos szemüvegkeret", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision"},
+    {title:"Polarizált napszemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision"},
+    {title:"Napi kontaktlencse csomag", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision"},
+    {title:"Kékfény-szűrős szemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision"}
   ];
   const JATEKNET_ITEMS = [
-    {title:"LEGO kreatív készlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Építsd meg, amit csak elképzelsz."},
-    {title:"Családi társasjáték", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Garantált közös élmények."},
-    {title:"Játékkonzol kontrollerek", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Extra irányítók többjátékos mókához."},
-    {title:"Kreatív rajzkészlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Fejleszti a fantáziát és ügyességet."}
+    {title:"LEGO kreatív készlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games"},
+    {title:"Családi társasjáték", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games"},
+    {title:"Játékkonzol kontrollerek", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games"},
+    {title:"Kreatív rajzkészlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games"}
   ];
   const KARCHER_ITEMS = [
-    {title:"Magasnyomású mosó", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Teraszok, autó gyors tisztítása."},
-    {title:"Gőztisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Vegyszermentes, higiénikus tisztítás."},
-    {title:"Porszívó kiegészítők", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Szűrők, zsákok, tartozékok."},
-    {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
+    {title:"Magasnyomású mosó", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home"},
+    {title:"Gőztisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home"},
+    {title:"Porszívó kiegészítők", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home"},
+    {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home"}
   ];
 
-  /* Tchibo – JSON-ból jön */
-  let TCHIBO_ITEMS = [];    // {title, url, image, price}
+  /* ===== Tchibo betöltés – próbálja: tchibo.json, majd feeds/tchibo.json ===== */
+  let TCHIBO_ITEMS = [];
   let TCHIBO_READY = false;
 
+  async function tryFetchJson(path){
+    const r = await fetch(path, {cache:"no-store"});
+    if(!r.ok) throw new Error(`HTTP ${r.status} @ ${path}`);
+    return r.json();
+  }
+
   async function loadTchibo(){
+    if (TCHIBO_READY) return TCHIBO_ITEMS;
     try{
-      const r = await fetch("tchibo.json", {cache:"no-store"});
-      const all = await r.json();
-      // teljes feed nagy → első körben limitáljuk, aztán a Tchibo oldalon lehet "Több" gombbal bővíteni
-      TCHIBO_ITEMS = all.slice(0, 120).map(x=>({
+      let data;
+      try{
+        data = await tryFetchJson("tchibo.json");
+      }catch(e1){
+        console.warn("tchibo.json nem elérhető, próbálom: feeds/tchibo.json", e1);
+        data = await tryFetchJson("feeds/tchibo.json");
+      }
+      // nagy feed → limitáljuk az első körben
+      TCHIBO_ITEMS = data.slice(0, 120).map(x=>({
         title: x.title || "",
         partner:"Tchibo.hu",
-        price: x.price ? (x.price+" Ft").replace(".00","") : "",
+        price: x.price ? (String(x.price).includes("Ft") ? x.price : `${x.price} Ft`) : "",
         discount: 0,
         url: x.url,
         category:"home",
+        image: x.image || "",
         desc: ""
       }));
       TCHIBO_READY = true;
     }catch(e){
-      console.warn("Tchibo betöltési hiba:", e);
       TCHIBO_ITEMS = [];
       TCHIBO_READY = true;
+      console.error("Tchibo betöltési hiba:", e);
+      showError("A Tchibo kínálat jelenleg nem tölthető. Próbáld meg később.");
     }
+    return TCHIBO_ITEMS;
+  }
+
+  function showError(msg){
+    const s=document.createElement('section');
+    s.className='section';
+    s.innerHTML = `<h2>Hiba</h2><div style="padding:12px;color:#b91c1c;font-weight:700">${msg}</div>`;
+    content.appendChild(s);
   }
 
   function cardHTML(it){
-    const primary = (it.image) ? it.image : keyImage(it.title);
+    const primary = it.image || keyImage(it.title);
     const imgTag =
       `<img class="imgsafe" alt="${it.title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
             data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
@@ -497,15 +494,12 @@
     content.innerHTML="";
     renderTopDeals();
 
-    // Főoldal: aktív partnerek blokkja
     renderPartnerTable("🛒 Amazon – válogatás", ITEMS);
-
-    // Otthon: Kärcher + Tchibo teaser
     renderPartnerTable("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
 
-    if(!TCHIBO_READY) await loadTchibo();
-    if(TCHIBO_ITEMS.length){
-      renderPartnerTable("🛍️ Tchibo.hu – Újdonságok", TCHIBO_ITEMS.slice(0,48));
+    const tch = await loadTchibo();
+    if (tch.length){
+      renderPartnerTable("🛍️ Tchibo.hu – Újdonságok", tch.slice(0,48));
     }
 
     renderPartnerTable("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
@@ -519,30 +513,19 @@
     content.innerHTML="";
     if(cat==="all"){ await renderAll(); return; }
 
-    // Kategória-only kereső és partnerbontás
     if(cat==="tech"){
       renderPartnerTable("💻 Amazon – Tech", ITEMS.filter(i=>i.category==="tech" && i.partner==="Amazon"));
       return;
     }
-    if(cat==="games"){
-      renderPartnerTable("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
-      return;
-    }
-    if(cat==="vision"){
-      renderPartnerTable("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
-      return;
-    }
     if(cat==="home"){
       renderPartnerTable("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
-      if(!TCHIBO_READY) await loadTchibo();
-      renderPartnerTable("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS);
+      const tch = await loadTchibo();
+      if (tch.length) renderPartnerTable("🛍️ Tchibo.hu – Otthon", tch);
       return;
     }
-    if(cat==="tchibo"){
-      if(!TCHIBO_READY) await loadTchibo();
-      renderPartnerTable("🛍️ Tchibo.hu – Teljes kínálat (részlet)", TCHIBO_ITEMS);
-      return;
-    }
+    if(cat==="games"){ renderPartnerTable("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS); return; }
+    if(cat==="vision"){ renderPartnerTable("👓 eOptika.hu – Látás", EOPTIKA_ITEMS); return; }
+    if(cat==="travel"){ renderSection("✈️ Utazás – hamarosan", [], "", "travel"); return; }
   }
   document.querySelectorAll(".catbtn").forEach(btn=>btn.addEventListener("click",()=>showCategory(btn.dataset.cat)));
 
@@ -563,22 +546,19 @@
     document.getElementById('btnBack').onclick=()=>showCategory("all");
     document.getElementById('btnHome').onclick=()=>showCategory("all");
 
-    // csak aktív partnerek
     const amazon = ITEMS.filter(i=>i.title.toLowerCase().includes(v));
     const jatek  = JATEKNET_ITEMS.filter(i=>i.title.toLowerCase().includes(v));
     const karch  = KARCHER_ITEMS.filter(i=>i.title.toLowerCase().includes(v));
     const eopt   = EOPTIKA_ITEMS.filter(i=>i.title.toLowerCase().includes(v));
-
-    if(!TCHIBO_READY) await loadTchibo();
-    const tchibo = TCHIBO_ITEMS.filter(i=>i.title.toLowerCase().includes(v));
+    const tch    = await loadTchibo().then(arr=>arr.filter(i=>i.title.toLowerCase().includes(v)));
 
     if(amazon.length) renderPartnerTable(`Amazon – találatok „${val}”`, amazon);
     if(jatek.length)  renderPartnerTable(`JátékNet.hu – találatok „${val}”`, jatek);
     if(karch.length)  renderPartnerTable(`Kärcher.hu – találatok „${val}”`, karch);
     if(eopt.length)   renderPartnerTable(`eOptika.hu – találatok „${val}”`, eopt);
-    if(tchibo.length) renderPartnerTable(`Tchibo.hu – találatok „${val}”`, tchibo);
+    if(tch.length)    renderPartnerTable(`Tchibo.hu – találatok „${val}”`, tch);
 
-    if(!amazon.length && !jatek.length && !karch.length && !eopt.length && !tchibo.length){
+    if(!amazon.length && !jatek.length && !karch.length && !eopt.length && !tch.length){
       const s=document.createElement('section');
       s.className='section';
       s.innerHTML=`<h2>Nincs találat</h2><div class="grid"></div>`;
@@ -586,10 +566,10 @@
     }
   }
 
-  document.getElementById('searchForm').addEventListener('submit',e=>{
+  document.getElementById('searchForm').addEventListener('submit',async e=>{
     e.preventDefault();
     const val=document.getElementById('q').value.trim();
-    if(val) showSearch(val); else showCategory("all");
+    if(val) await showSearch(val); else await showCategory("all");
   });
 
   (async function init(){
@@ -598,15 +578,14 @@
     else { await renderAll(); }
   })();
 
-  /* hó animáció – mobilon/erőforráskímélő */
-  (function snow(){
+  /* hó animáció */
+  (function(){
     const wrap=document.querySelector('.snow');
     const isMobile = matchMedia('(max-width: 640px)').matches;
     const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const COUNT = prefersReduced ? 0 : (isMobile ? 14 : 28);
     for(let i=0;i<COUNT;i++){
-      const f=document.createElement('div');
-      f.className='flake';
+      const f=document.createElement('div'); f.className='flake';
       f.style.left = Math.random()*100 + 'vw';
       const dur = (isMobile ? 10 : 8) + Math.random()*10;
       f.style.animationDuration = dur + 's';
@@ -620,9 +599,7 @@
 
   (function(){
     const btn = document.getElementById('toTop');
-    window.addEventListener('scroll', ()=>{
-      if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show');
-    });
+    window.addEventListener('scroll', ()=>{ if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show'); });
   })();
   </script>
 </body>
