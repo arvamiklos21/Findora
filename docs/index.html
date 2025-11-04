@@ -292,7 +292,8 @@
   </footer>
 
   <script>
-  const PER_PAGE = 20;
+  const PER_PAGE = 20;         // általános lapméret
+  const PER_PAGE_TCHIBO_FULL = 4; // CSAK a „Tchibo – Teljes kínálat”-hoz
 
   /* ====== Linkek / partnerek ====== */
   const AMAZON_TAG = "findora30-20";
@@ -384,7 +385,6 @@
       const r = await fetch("tchibo.json", { cache:"no-store" });
       const all = await r.json();
 
-      // Dognet-en belüli eredeti URL kiszedése
       const extractDognetOriginal = (u) => {
         try{
           const t = new URL(u);
@@ -415,7 +415,7 @@
       };
       const parsePrice = (p) => {
         if (p===undefined || p===null) return NaN;
-        const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",","."));
+        const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",",".")); 
         return Number.isFinite(n) ? n : NaN;
       };
 
@@ -511,7 +511,7 @@
     return html;
   }
 
-  // TÁBLÁZAT: rendezés + lapozás (20/db), NINCS belső kereső
+  // TÁBLÁZAT: rendezés + lapozás (20/db)
   function renderPartnerTable(title, items, opts={}){
     if(!items || !items.length) return;
     const clickable = opts.clickTo || null; // {type:'tchibo'}
@@ -615,7 +615,7 @@
     if (b50.length)   renderSection("🔥 -50% és több", b50.slice(0,40));
   }
 
-  // Teljes Tchibo nézet (Otthon címsor kattintására) — 20/db + belső kereső
+  // „Tchibo – Teljes kínálat” — csak 4 termék/oldal + belső kereső
   function renderTchiboFull(title, items, page=1){
     const sec=document.createElement('section');
     sec.className='section partner';
@@ -657,16 +657,17 @@
       if(currentSort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
       if(currentSort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
 
-      const pages = Math.max(1, Math.ceil(arr.length/PER_PAGE));
+      const per = PER_PAGE_TCHIBO_FULL; // itt 4!
+      const pages = Math.max(1, Math.ceil(arr.length/per));
       pageState = Math.min(Math.max(1,pageState), pages);
-      const st=(pageState-1)*PER_PAGE;
-      const sl=arr.slice(st, st+PER_PAGE);
+      const st=(pageState-1)*per;
+      const sl=arr.slice(st, st+per);
 
       grid.innerHTML="";
       sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
 
-      sec.querySelector('.pager').outerHTML = pagerHTML(arr.length, pageState, PER_PAGE);
+      sec.querySelector('.pager').outerHTML = pagerHTML(arr.length, pageState, per);
     }
 
     sec.addEventListener('change', (e)=>{
