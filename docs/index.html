@@ -184,17 +184,14 @@
       border-top:1px solid #e2e8f0;
     }
 
-    .grid{display:flex; gap:12px; padding:12px; overflow:visible}
-    .grid.full{flex-wrap:wrap}
-    .grid::-webkit-scrollbar{height:8px}
-    .grid::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
-
-    .grid.full .card{min-width:260px; flex:1 1 calc(25% - 12px); max-width:calc(25% - 12px)}
-    @media (max-width:1024px){ .grid.full .card{flex-basis:calc(33.333% - 12px);max-width:calc(33.333% - 12px)} }
-    @media (max-width:760px){ .grid.full .card{flex-basis:calc(50% - 12px);max-width:calc(50% - 12px)} }
+    /* GRID – nincs vízszintes csúszka, 4 kártya / sor desktopon */
+    .grid{display:flex; flex-wrap:wrap; gap:12px; padding:12px; overflow:visible}
+    .grid .card{min-width:220px; flex:1 1 calc(25% - 12px); max-width:calc(25% - 12px)}
+    @media (max-width:1024px){ .grid .card{flex-basis:calc(33.333% - 12px);max-width:calc(33.333% - 12px)} }
+    @media (max-width:760px){ .grid .card{flex-basis:calc(50% - 12px);max-width:calc(50% - 12px)} }
 
     .card{
-      min-width:220px; background:var(--card);
+      scroll-snap-align:start; background:var(--card);
       border:1px solid var(--border);border-radius:14px;overflow:hidden;
       display:flex;flex-direction:column;position:relative;height:300px;
       transition:transform .2s, box-shadow .2s;
@@ -215,15 +212,14 @@
 
     .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
     .toolbar .group{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .toolbtn, .toolsel, .toolinput{
+    .toolbtn, .toolsel{
       background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px
     }
-    .toolinput{min-width:220px;max-width:320px}
 
     .pager{display:flex;gap:8px;justify-content:center;align-items:center;padding:12px;flex-wrap:wrap}
-    .pager .info{font-weight:700}
     .pager button{border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
     .pager .active{background:#0b3a6a;color:#fff;border-color:#0b3a6a}
+    .pager .info{font-weight:700; color:#0b1220; padding:0 6px}
 
     footer{
       position:relative; z-index:2;
@@ -292,8 +288,8 @@
   </footer>
 
   <script>
-  const PER_PAGE = 20;         // általános lapméret
-  const PER_PAGE_TCHIBO_FULL = 4; // CSAK a „Tchibo – Teljes kínálat”-hoz
+  /* ====== Beállítás: 4 elem / oldal MINDEN táblázatban ====== */
+  const PER_PAGE = 4;
 
   /* ====== Linkek / partnerek ====== */
   const AMAZON_TAG = "findora30-20";
@@ -385,6 +381,7 @@
       const r = await fetch("tchibo.json", { cache:"no-store" });
       const all = await r.json();
 
+      // Dognet-en belüli eredeti URL kiszedése
       const extractDognetOriginal = (u) => {
         try{
           const t = new URL(u);
@@ -415,7 +412,7 @@
       };
       const parsePrice = (p) => {
         if (p===undefined || p===null) return NaN;
-        const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",",".")); 
+        const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",","."));
         return Number.isFinite(n) ? n : NaN;
       };
 
@@ -496,22 +493,23 @@
 
   const content=document.getElementById('content');
 
+  /* ---------- LAPOZÓ ---------- */
   function pagerHTML(total, page, per){
     const pages = Math.max(1, Math.ceil(total/per));
     let html = `<div class="pager">`;
     const mk = (p, lbl, cls="") => `<button data-page="${p}" class="${cls}">${lbl}</button>`;
-    html += `<span class="info">Oldal ${page} / ${pages}</span>`;
     html += mk(Math.max(1,page-1),"«");
-    for (let i=1;i<=pages && i<=10;i++){
-      const p = i; html += mk(p, p, p===page?"active":"");
+    for (let i=1;i<=pages;i++){
+      const cls = (i===page) ? "active" : "";
+      html += mk(i, i, cls);
     }
-    if (pages>10) html += `<span>…</span>`+mk(pages,pages);
+    html += `<span class="info">Oldal ${page} / ${pages}</span>`;
     html += mk(Math.min(pages,page+1),"»");
     html += `</div>`;
     return html;
   }
 
-  // TÁBLÁZAT: rendezés + lapozás (20/db)
+  /* ---------- TÁBLÁZAT: Rendezés + 4-es lapozás, KERESŐ NINCS ---------- */
   function renderPartnerTable(title, items, opts={}){
     if(!items || !items.length) return;
     const clickable = opts.clickTo || null; // {type:'tchibo'}
@@ -533,68 +531,80 @@
           </select>
         </div>
       </div>
-      <div class="grid full"></div>
+      <div class="grid"></div>
       <div class="pager"></div>`;
     const grid=sec.querySelector('.grid');
-
-    let currentSort="relevance";
-    let page=1;
+    let page = 1;
+    let sort = "relevance";
 
     function priceNum(p){ if(!p)return NaN; return Number(String(p).replace(/[^\d.]/g,"")); }
-
-    function sorted(itemsArr){
-      const arr=[...itemsArr];
-      if(currentSort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
-      if(currentSort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
-      if(currentSort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
-      if(currentSort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
+    function sortedArr(){
+      let arr=[...items];
+      if(sort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
+      if(sort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
+      if(sort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
+      if(sort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
       return arr;
     }
-
-    function applyRender(){
-      const arr = sorted(items);
+    function apply(){
+      const arr = sortedArr();
       const pages = Math.max(1, Math.ceil(arr.length/PER_PAGE));
       page = Math.min(Math.max(1,page), pages);
-      const start = (page-1)*PER_PAGE;
-      const slice = arr.slice(start, start+PER_PAGE);
-
+      const st=(page-1)*PER_PAGE, sl=arr.slice(st, st+PER_PAGE);
       grid.innerHTML="";
-      slice.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+      sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
-      sec.querySelector('.pager').outerHTML = pagerHTML(arr.length, page, PER_PAGE);
+      sec.querySelector('.pager').innerHTML = pagerHTML(arr.length, page, PER_PAGE);
     }
 
-    sec.querySelector('.sortsel').addEventListener('change', ()=>{ currentSort=sec.querySelector('.sortsel').value; page=1; applyRender(); });
-
+    sec.addEventListener('change', (e)=>{
+      if(e.target.matches('.sortsel')){ sort=e.target.value; apply(); }
+    });
     sec.addEventListener('click', (e)=>{
       const openH2 = e.target.closest('h2[data-open]');
       if(openH2 && openH2.dataset.open==='tchibo'){ showTchiboPage(1); }
       const b = e.target.closest('.pager button');
-      if(b){ page = Number(b.dataset.page)||1; applyRender(); }
+      if(b){ page = Number(b.dataset.page)||1; apply(); }
     });
 
-    applyRender();
+    apply();
     content.appendChild(sec);
   }
 
+  /* ---------- Egyszerű szekció (pl. Top ajánlatok, kedvezmény-bucketek) 4-es lapozással ---------- */
   function renderSection(title, items, extraClass="", id=""){
     if(!items.length)return;
     const s=document.createElement('section');
     s.className=`section ${extraClass}`.trim();
     if(id)s.id=id;
-    s.innerHTML=`<h2>${title}</h2><div class="grid full"></div>`;
+    s.innerHTML=`<h2>${title}</h2><div class="grid"></div><div class="pager"></div>`;
     const g=s.querySelector('.grid');
-    items.forEach(it=>g.insertAdjacentHTML('beforeend', cardHTML(it)));
+    let page=1;
+
+    function apply(){
+      const pages = Math.max(1, Math.ceil(items.length/PER_PAGE));
+      page = Math.min(Math.max(1,page), pages);
+      const st=(page-1)*PER_PAGE, sl=items.slice(st, st+PER_PAGE);
+      g.innerHTML="";
+      sl.forEach(it=>g.insertAdjacentHTML('beforeend', cardHTML(it)));
+      hydrateSafeImages(s);
+      s.querySelector('.pager').innerHTML = pagerHTML(items.length, page, PER_PAGE);
+    }
+    s.addEventListener('click',(e)=>{
+      const b = e.target.closest('.pager button');
+      if(b){ page = Number(b.dataset.page)||1; apply(); }
+    });
+
+    apply();
     content.appendChild(s);
-    hydrateSafeImages(s);
   }
 
   function renderTopDeals(){
-    const top=[...ITEMS].sort((a,b)=>b.discount-a.discount).slice(0,3);
+    const top=[...ITEMS].sort((a,b)=>b.discount-a.discount);
     renderSection("🏆 A hét legjobb ajánlatai", top, "highlight", "topdeals");
   }
 
-  // --- Kedvezmény szekciók a főoldalon ---
+  /* --- Kedvezmény szekciók a főoldalon --- */
   function computeDiscount(it){
     if (typeof it.discount === 'number' && it.discount>0) return it.discount;
     const m = (it.title||"").match(/-?\s*(\d{1,3})\s*%/);
@@ -611,11 +621,11 @@
       if (d>=25 && d<=49) b2549.push(it);
       if (d>=50) b50.push(it);
     }
-    if (b2549.length) renderSection("📉 -25% – -49%", b2549.slice(0,40));
-    if (b50.length)   renderSection("🔥 -50% és több", b50.slice(0,40));
+    if (b2549.length) renderSection("📉 -25% – -49%", b2549);
+    if (b50.length)   renderSection("🔥 -50% és több", b50);
   }
 
-  // „Tchibo – Teljes kínálat” — csak 4 termék/oldal + belső kereső
+  /* ---------- Tchibo TELJES nézet – itt is 4 / oldal ---------- */
   function renderTchiboFull(title, items, page=1){
     const sec=document.createElement('section');
     sec.className='section partner';
@@ -625,9 +635,6 @@
         <div class="group">
           <button class="toolbtn" id="btnHome">🏠 Főoldal</button>
           <button class="toolbtn" id="btnBackHome">← Vissza az Otthonhoz</button>
-        </div>
-        <div class="group">
-          <input class="toolinput filterinput" placeholder="Keresés a Tchibo kínálatban…" />
         </div>
         <div class="group">
           <label>Rendezés:</label>
@@ -640,41 +647,37 @@
           </select>
         </div>
       </div>
-      <div class="grid full"></div>
+      <div class="grid"></div>
       <div class="pager"></div>
     `;
     const grid=sec.querySelector('.grid');
     let currentSort="relevance";
-    let filterVal="";
     let pageState=page;
 
     function priceNum(p){ if(!p)return NaN; return Number(String(p).replace(/[^\d.]/g,"")); }
-    function apply(){
-      let arr = [...items];
-      if(filterVal) arr = arr.filter(x=>(x.title||"").toLowerCase().includes(filterVal));
+    function sorted(){
+      let arr=[...items];
       if(currentSort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
       if(currentSort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
       if(currentSort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
       if(currentSort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
-
-      const per = PER_PAGE_TCHIBO_FULL; // itt 4!
-      const pages = Math.max(1, Math.ceil(arr.length/per));
+      return arr;
+    }
+    function apply(){
+      const arr = sorted();
+      const pages = Math.max(1, Math.ceil(arr.length/PER_PAGE));
       pageState = Math.min(Math.max(1,pageState), pages);
-      const st=(pageState-1)*per;
-      const sl=arr.slice(st, st+per);
+      const st=(pageState-1)*PER_PAGE, sl=arr.slice(st, st+PER_PAGE);
 
       grid.innerHTML="";
       sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
 
-      sec.querySelector('.pager').outerHTML = pagerHTML(arr.length, pageState, per);
+      sec.querySelector('.pager').innerHTML = pagerHTML(arr.length, pageState, PER_PAGE);
     }
 
     sec.addEventListener('change', (e)=>{
-      if(e.target.matches('.sortsel')){ currentSort=e.target.value; pageState=1; apply(); }
-    });
-    sec.addEventListener('input', (e)=>{
-      if(e.target.matches('.filterinput')){ filterVal=e.target.value.trim().toLowerCase(); pageState=1; apply(); }
+      if(e.target.matches('.sortsel')){ currentSort=e.target.value; apply(); }
     });
     sec.addEventListener('click', (e)=>{
       const b = e.target.closest('.pager button');
@@ -790,7 +793,7 @@
     if(!amazon.length && !jatek.length && !karch.length && !eopt.length && !tchibo.length){
       const s=document.createElement('section');
       s.className='section';
-      s.innerHTML=`<h2>Nincs találat</h2><div class="grid full"></div>`;
+      s.innerHTML=`<h2>Nincs találat</h2><div class="grid"></div>`;
       content.appendChild(s);
     }
   }
