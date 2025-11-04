@@ -1,104 +1,62 @@
-# scripts/jateksziget_feed_to_json.py
-# Letölti a Játéksziget (Dognet) XML-t és JSON-t készít belőle affiliate linkkel.
-
-import json, re, sys, os
+import json, requests, xml.etree.ElementTree as ET
 from urllib.parse import quote
-import requests
-import xml.etree.ElementTree as ET
 
 FEED_URL = "https://dl.product-service.dognet.sk/fp/jateksziget.hu-arukereso.xml"
-DOGNET_STD = "https://go.dognet.com/?dt=NGEc8ZwG&url="  # <- a TE dt kódod (ugyanaz, mint Tchibo)
+DOGNET_STD = "https://go.dognet.com/?dt=NGEc8ZwG&url="
 
-OUT_PATH = os.path.join("docs", "jateksziget.json")
-os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
-
-def strip_ns(tag: str) -> str:
-    if not tag:
+def normalize_url(u: str) -> str:
+    if not u:
         return ""
-    return tag.split("}", 1)[-1].split(":", 1)[-1].upper()
-
-def findtext_ci(elem: ET.Element, candidates):
-    for c in candidates:
-        for ch in elem:
-            if strip_ns(ch.tag) == c:
-                return (ch.text or "").strip()
-    return ""
-
-def wrap_affiliate(url: str) -> str:
-    url = (url or "").strip()
-    # ha több URL lenne a szövegben, az utolsót tartsuk
-    urls = re.findall(r'https?://[^\s"]+', url)
-    if urls:
-        url = urls[-1]
-    if not url:
-        return ""
-    # ha már Dognet-es, hagyjuk békén
-    if "go.dognet.com" in url:
-        return url
-    return DOGNET_STD + quote(url, safe="")
-
-def parse_price(s: str) -> str:
-    if not s:
-        return ""
-    s = s.replace(" ", "").replace("HUF", "").replace("Ft", "").replace(",", ".")
-    m = re.findall(r"[0-9]+(?:\.[0-9]+)?", s)
-    if not m:
-        return ""
-    try:
-        n = float(m[0])
-        return f"{n:.2f}"
-    except:
-        return ""
+    u = u.strip()
+    if not u.startswith("http"):
+        u = "https://" + u.lstrip("/")
+    return u
 
 def main():
-    print(f"Letöltés: {FEED_URL}")
-    r = requests.get(FEED_URL, timeout=60)
-    r.raise_for_status()
-    root = ET.fromstring(r.content)
+    try:
+        print("Letöltés:", FEED_URL)
+        r = requests.get(FEED_URL, timeout=90)
+        r.raise_for_status()
+        xml = ET.fromstring(r.text)
+    except Exception as e:
+        print("❌ Hiba az XML letöltésében:", e)
+        return
 
-    items = []
-    # Heureka/Árukereső-szerű feed: engedékeny elemnév-keresés
-    def lname(x): return strip_ns(x.tag).upper()
-    CAND_ITEM = {"SHOPITEM", "ITEM", "PRODUCT", "OFFER", "ENTRY"}
-    shopitems = [e for e in root.iter() if lname(e) in CAND_ITEM]
+    products = []
+    for item in xml.findall(".//product"):
+        try:
+            title = item.findtext("name") or ""
+            price = item.findtext("price") or ""
+            img = item.findtext("image_url") or ""
+            url = item.findtext("product_url") or ""
+            desc = item.findtext("description") or ""
+            category = item.findtext("category") or ""
 
-    for it in shopitems:
-        title = (findtext_ci(it, [
-            "PRODUCTNAME","PRODUCT","NAME","TITLE","ITEM_NAME"
-        ]) or "").strip()
-        url   = (findtext_ci(it, [
-            "URL","ITEM_URL","PRODUCTURL","LINK"
-        ]) or "").strip()
-        img   = (findtext_ci(it, [
-            "IMGURL","IMGURL_ALTERNATIVE","IMAGE","IMAGE_URL","IMG"
-        ]) or "").strip()
-        price = (findtext_ci(it, [
-            "PRICE_VAT","PRICE","PRICE_WITH_VAT","ITEM_PRICE","PRICE_FINAL"
-        ]) or "").strip()
+            if not title or not url:
+                continue
 
-        if not title or not url:
+            # Méretvariánsok kiszűrése (ha a névben van pl. 'XS', 'L', 'M', 'XL')
+            if any(size in title.upper() for size in ["XS", "S ", "M ", "L ", "XL", "XXL", "EU", "UK", "US", " (SIZE"]):
+                # csak egyszer tartjuk meg az adott terméket, ha már van hasonló név
+                if any(p["title"].split()[0] in title for p in products):
+                    continue
+
+            products.append({
+                "title": title.strip(),
+                "price": price.strip(),
+                "image": img.strip(),
+                "url": DOGNET_STD + quote(normalize_url(url)),
+                "desc": desc.strip(),
+                "category": category.strip(),
+            })
+        except Exception as e:
+            print("⚠️ Hiba elemnél:", e)
             continue
 
-        items.append({
-            "title": title,
-            "url":   wrap_affiliate(url),
-            "image": img,
-            "price": parse_price(price)
-        })
-
-    print(f"OK, {len(items)} termék")
-
-    with open(OUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(items, f, ensure_ascii=False, separators=(",", ":"))
-
-    print(f"→ Mentve: {OUT_PATH}")
-    for row in items[:3]:
-        p = (row.get("price") or "").replace(".", ",")
-        print(f"- {row['title']} | {p} | {row['url'][:100]}")
+    print(f"✅ OK, {len(products)} termék feldolgozva")
+    with open("docs/jateksziget.json", "w", encoding="utf-8") as f:
+        json.dump(products, f, ensure_ascii=False, indent=2)
+    print("→ Mentve: docs/jateksziget.json")
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print("HIBA:", e)
-        sys.exit(1)
+    main()
