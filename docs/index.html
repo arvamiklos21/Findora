@@ -380,6 +380,7 @@
       const r = await fetch("tchibo.json", { cache:"no-store" });
       const all = await r.json();
 
+      // Dognet-en belüli eredeti URL kiszedése
       const extractDognetOriginal = (u) => {
         try{
           const t = new URL(u);
@@ -391,17 +392,24 @@
         return u;
       };
 
-      // Ne dobjuk el a query-t, mert abban lehet az eredeti URL!
-      const norm = (u) => {
-        if (!u) return "";
-        try {
-          let s = extractDognetOriginal(u);
-          const t = new URL(s);
-          t.hash = "";
-          return t.toString().replace(/\/$/,"");
-        } catch {
-          return String(u).replace(/\/$/,"");
-        }
+      // Kulcs a duplikátumok ellen: host+pathname (query nélkül) + "méret-szűrt" cím
+      const normPath = (u) => {
+        try{
+          const t = new URL(u);
+          t.hash = ""; t.search = "";
+          return (t.origin + t.pathname).replace(/\/$/,"");
+        }catch(_){ return ""; }
+      };
+      const stemTitle = (s) => {
+        const t = String(s||"").toLowerCase();
+        return t
+          // méret minták
+          .replace(/\b(xxs|xs|s|m|l|xl|xxl|xxxl)\b/g, "")
+          .replace(/\b(eu|uk|us)\s?\d+\b/g, "")
+          .replace(/méret\s*[:\-]?\s*[^\s,)\]]+/g, "")
+          .replace(/\(\s*(méret|size)\s*[:\-]?[^\)]*\)/g, "")
+          .replace(/\s{2,}/g," ")
+          .trim();
       };
       const parsePrice = (p) => {
         if (p===undefined || p===null) return NaN;
@@ -411,22 +419,13 @@
 
       const seen = new Map();
       for (const x of all){
-        const key = norm(x.url) || (x.title||"").toLowerCase().trim();
+        const orig = extractDognetOriginal(x.url||"");
+        const baseKey = normPath(orig);
+        const titleKey = stemTitle(x.title||"");
+        const key = (baseKey || titleKey) + "|" + titleKey;
+
         const priceNum = parsePrice(x.price);
-
-        if (seen.has(key)){
-          const prev = seen.get(key);
-          const prevNum = parsePrice(prev.priceRaw);
-          if (!isNaN(priceNum) && (isNaN(prevNum) || priceNum < prevNum)){
-            prev.priceRaw = x.price;
-            prev.price = new Intl.NumberFormat('hu-HU').format(priceNum) + " Ft";
-            prev.image = x.image || prev.image;
-            prev.url = x.url || prev.url;
-          }
-          continue;
-        }
-
-        seen.set(key, {
+        const rec = {
           title: x.title || "",
           partner:"Tchibo.hu",
           priceRaw: x.price,
@@ -436,7 +435,21 @@
           image: x.image || "",
           category:"home",
           desc: ""
-        });
+        };
+
+        if (seen.has(key)){
+          // tartsuk meg az olcsóbbat és a jobb képet
+          const prev = seen.get(key);
+          const prevNum = parsePrice(prev.priceRaw);
+          if (!isNaN(priceNum) && (isNaN(prevNum) || priceNum < prevNum)){
+            prev.priceRaw = rec.priceRaw;
+            prev.price = rec.price;
+            if (rec.image) prev.image = rec.image;
+            if (rec.url) prev.url = rec.url;
+          }
+        } else {
+          seen.set(key, rec);
+        }
       }
 
       TCHIBO_ITEMS = [...seen.values()];
@@ -489,7 +502,7 @@
     const sec=document.createElement('section');
     sec.className='section partner';
     const titleHTML = clickable
-      ? `<h2><span class="aslink" data-open="${clickable.type}">${title}</span></h2>`
+      ? `<h2 data-open="${clickable.type}">${title}</h2>`
       : `<h2>${title}</h2>`;
     sec.innerHTML=`${titleHTML}
       <div class="toolbar">
@@ -521,9 +534,10 @@
       hydrateSafeImages(sec);
     }
     sec.querySelector('.sortsel').addEventListener('change', applyRender);
+    // teljes H2 klikkelhető a Tchibo teljes nézethez
     sec.addEventListener('click', (e)=>{
-      const open = e.target.closest('[data-open]');
-      if(open && open.dataset.open==='tchibo'){ showTchiboPage(1); }
+      const openH2 = e.target.closest('h2[data-open]');
+      if(openH2 && openH2.dataset.open==='tchibo'){ showTchiboPage(1); }
     });
 
     applyRender();
@@ -547,7 +561,7 @@
     renderSection("🏆 A hét legjobb ajánlatai", top, "highlight", "topdeals");
   }
 
-  // --- ÚJ: kedvezmény vödrök a főoldalra ---
+  // --- Kedvezmény szekciók a főoldalon ---
   function computeDiscount(it){
     if (typeof it.discount === 'number' && it.discount>0) return it.discount;
     const m = (it.title||"").match(/-?\s*(\d{1,3})\s*%/);
