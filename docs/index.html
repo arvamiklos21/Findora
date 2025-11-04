@@ -561,7 +561,7 @@
     function sortedArr(){
       let arr=[...items];
       if(sort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
-      if(sort==="price_desc") arr.sort((a,b)=>b.price-a.price);
+      if(sort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
       if(sort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
       if(sort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
       return arr;
@@ -678,7 +678,7 @@
     function sorted(){
       let arr=[...items];
       if(currentSort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
-      if(currentSort==="price_desc") arr.sort((a,b)=>b.price-a.price);
+      if(currentSort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
       if(currentSort==="az") arr.sort((a,b)=>(a.title||"").localeCompare(b.title||"","hu"));
       if(currentSort==="za") arr.sort((a,b)=>(b.title||"").localeCompare(a.title||"","hu"));
       return arr;
@@ -772,9 +772,9 @@
       `;
       content.appendChild(host);
 
-      // 3) Lazy-load modul és render ide
+      // 3) Lazy-load modul a domain gyökeréből és render ide
       try{
-        const { init } = await import('./partners/jateksziget.js');
+        const { init } = await import('/partners/jateksziget.js');
         await init({
           container: '#games_jateksziget',
           dt: '70plBVdT', // ← a te Dognet dt tokened
@@ -785,7 +785,7 @@
       }catch(err){
         const errBox = document.createElement('div');
         errBox.style = "padding:12px;border:1px solid #eee;border-radius:10px;margin:12px";
-        errBox.textContent = "Hoppá, nem sikerült betölteni a Játéksziget modult. Ellenőrizd: partners/jateksziget.js";
+        errBox.textContent = "Hoppá, nem sikerült betölteni a Játéksziget modult. Ellenőrizd: /partners/jateksziget.js";
         host.appendChild(errBox);
         console.error(err);
       }
