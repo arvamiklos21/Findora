@@ -109,7 +109,11 @@ def parse_feed(xml_bytes: bytes):
     except ParseError:
         return []
     # ProductsUp: <products><product>...
-    products = root.findall(".//product") or root.findall(".//PRODUCT") or []
+    products = (root.findall(".//SHOPITEM")
+                or root.findall(".//item")
+                or root.findall(".//PRODUCT")
+                or root.findall(".//product"))
+
     out = []
     for p in products:
         rec = product_to_record(p)
