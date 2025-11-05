@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # KELL a push-hoz
+  contents: write
 
 jobs:
   run:
@@ -17,7 +17,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -30,38 +29,16 @@ jobs:
       - name: Ensure docs folder
         run: mkdir -p docs
 
-      - name: Build tchibo.json (+ raw xml)
+      - name: Build tchibo.json
         run: python scripts/tchibo_feed_to_json.py
-
-      # (opcionális) gyors ellenőrzés logba
-      - name: Show first lines
-        run: |
-          echo "== tchibo.xml =="
-          head -n 20 docs/tchibo.xml || true
-          echo "== tchibo.json =="
-          head -n 20 docs/tchibo.json || true
-          echo "== file sizes =="
-          ls -lh docs/tchibo.*
 
       - name: Commit & push tchibo files
         run: |
-        git config --global user.name  "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git config --global --add safe.directory $GITHUB_WORKSPACE
-        git fetch origin main
-        git reset --hard origin/main
-        git add docs/tchibo.json
-        git commit -m "Update Tchibo feed (json only)" || echo "No changes"
-        git push --force
-
-
-
-
-      # (opcionális) artefakt a gyors letöltéshez
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: tchibo-output
-          path: |
-            docs/tchibo.json
-            docs/tchibo.xml
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          git fetch origin main
+          git reset --hard origin/main
+          git add docs/tchibo.json
+          git commit -m "Update Tchibo feed (json only)" || echo "No changes"
+          git push --force
