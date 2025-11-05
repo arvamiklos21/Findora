@@ -180,9 +180,11 @@
   const PER_PAGE_PARTNER = 20; // Partner-nézet
 
   /* ====== API végpontok ====== */
-  const TCHIBO_API = "/api/tchibo";
-  const REGIO_API = "/api/regiojatek";
-  const JATEKSZIGET_API = "/api/jateksziget";
+const API_BASE = "https://findora.hu";
+const TCHIBO_API = `${API_BASE}/api/tchibo`;
+const REGIO_API = `${API_BASE}/api/regiojatek`;
+const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
+
 
   /* ====== PARTNER LINKEK ====== */
   const AMAZON_TAG = "findora30-20";
@@ -706,3 +708,4 @@
   </script>
 </body>
 </html>
+
