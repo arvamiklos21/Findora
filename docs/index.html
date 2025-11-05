@@ -384,6 +384,39 @@
     if (b50.length) renderSection("🔥 -50% és több", b50);
   }
 
+  /* ====== Tchibo (élő Worker API) ====== */
+  async function loadTchiboLive(limit=60){
+    try{
+      const r = await fetch(`/api/tchibo?limit=${limit}`, { cache: "no-store" });
+      if(!r.ok) throw new Error("Feed hiba: "+r.status);
+      const data = await r.json();
+      const arr = Array.isArray(data.items) ? data.items : [];
+
+      const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
+
+      return arr.map(x=>{
+        const price = Number.isFinite(x.price) ? x.price : null;
+        const old   = Number.isFinite(x.old_price) ? x.old_price : null;
+        const disc  = (Number.isFinite(price) && Number.isFinite(old) && old>0)
+          ? Math.round((1 - price/old)*100) : (Number.isFinite(x.discount) ? x.discount : 0);
+
+        return {
+          title: x.title || "",
+          partner: "Tchibo.hu",
+          price: fmt(price),
+          discount: disc>0 ? disc : 0,
+          url: x.affiliate_url || x.product_url || "",
+          image: x.image || "",
+          category: "home",
+          desc: (x.desc||"").slice(0,160)
+        };
+      }).filter(o=>o.title && o.url);
+    }catch(e){
+      console.warn("Tchibo feed nem elérhető:", e);
+      return [];
+    }
+  }
+
   /* ====== Főoldal render ====== */
   async function renderAll(){
     content.innerHTML="";
@@ -397,6 +430,11 @@
 
     renderPartnerTable("🛒 Amazon – válogatás", ITEMS);
     renderPartnerTable("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
+
+    // Tchibo csak az Otthon blokkban lesz listázva (külön kérés szerint nincs külön menü)
+    const tch = await loadTchiboLive(60);
+    if (tch.length) renderPartnerTable("🛍️ Tchibo.hu – Otthon", tch);
+
     renderPartnerTable("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
     renderPartnerTable("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
   }
@@ -426,6 +464,8 @@
     }
     if(cat==="home"){
       renderPartnerTable("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
+      const tch = await loadTchiboLive(60);
+      if (tch.length) renderPartnerTable("🛍️ Tchibo.hu – Otthon", tch);
       return;
     }
   }
