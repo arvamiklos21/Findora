@@ -1,168 +1,154 @@
 # scripts/tchibo_feed_to_json.py
 import json, re, requests, xml.etree.ElementTree as ET
 from xml.etree.ElementTree import ParseError
-from collections import Counter
 
 FEED_URL = "https://transport.productsup.io/92670536fcbd28a5708a/channel/695671/HU_heureka.xml"
 OUT_JSON = "docs/tchibo.json"
 UA = "FindoraBot/1.0 (+https://www.findora.hu) Python-requests"
 
-def strip_ns(elem):
-    for e in elem.iter():
-        if isinstance(e.tag, str) and e.tag.startswith("{"):
-            e.tag = e.tag.split("}", 1)[1]
-    return elem
-
-def txt1(node, names):
-    for name in names:
-        el = node.find(name)
-        if el is not None:
-            v = (el.text or "").strip()
-            if v:
-                return v
-    return ""
-
-def any_child(node, name_parts):
-    parts = [p.lower() for p in name_parts]
-    for el in list(node):
-        tag = (el.tag or "").lower() if isinstance(el.tag, str) else ""
-        if any(p in tag for p in parts):
-            v = (el.text or "").strip()
-            if v:
-                return v
-    return ""
-
-def clean_price(s: str) -> str:
-    if not s: return ""
-    m = re.findall(r"[\d\.\,]+", s.strip())
-    return m[0] if m else ""
-
-def ensure_https(u: str) -> str:
+def norm_https(u: str) -> str:
     if not u: return ""
     try:
         from urllib.parse import urlsplit, urlunsplit
-        raw = u.strip()
-        sp = urlsplit(raw)
-        # /products/... -> https://www.tchibo.hu/products/...
-        if not sp.scheme and not sp.netloc and raw.startswith("/"):
-            return "https://www.tchibo.hu" + raw
-        # //www.tchibo.hu/... -> https://www.tchibo.hu/...
-        if not sp.scheme and raw.startswith("//"):
-            return "https:" + raw
+        s = u.strip().replace("]]", "")  # feed maradék lecsapása
+        sp = urlsplit(s)
         if not sp.scheme:
             sp = sp._replace(scheme="https")
-        if not sp.netloc:
-            return ""
+        if not sp.netloc and s.startswith("/"):
+            sp = sp._replace(netloc="www.tchibo.hu")
         sp = sp._replace(fragment="")
         return urlunsplit(sp)
     except Exception:
         return ""
 
-def parse_xml_to_items(xml_bytes):
+def first_url_from_text(txt: str) -> str:
+    if not txt: return ""
+    m = re.search(r"https?://[^\s,]+", txt)
+    return m.group(0) if m else ""
+
+def clean_price(p: str) -> str:
+    if not p: return ""
+    # elfogadja a "6 995,00" / "6995,00" formátumokat is
+    x = re.findall(r"[\d\.,\s]+", p)
+    if not x: return ""
+    v = x[0].replace(" ", "")
+    return v
+
+def lower_tag(t):
+    if not isinstance(t, str): return ""
+    if t.startswith("{"):  # namespace lecsupaszítás
+        t = t.split("}", 1)[1]
+    return t.lower()
+
+def product_to_record(node) -> dict:
+    """
+    Egy <product> csomópontból minden közvetlen gyerek TAG->TEXT mapet építünk,
+    és több lehetséges kulcsból válogatunk (PRODUCTNAME/PRODUCT/TITLE, stb.)
+    """
+    fields = {}
+    for ch in list(node):
+        tag = lower_tag(ch.tag)
+        val = (ch.text or "").strip()
+        if val:
+            fields[tag] = val
+
+    # Kép: IMGURL, IMGURL_ALTERNATIVE1/2..., PARAM_MAIN_IMAGE, vagy ISBN-ben URL
+    image = (
+        fields.get("imgurl")
+        or fields.get("param_main_image")
+        or fields.get("image_link")
+        or fields.get("main_image")
+        or first_url_from_text(fields.get("isbn", ""))
+        or ""
+    )
+    image = norm_https(image)
+
+    # Ár: PRICE_VAT, különben PARAM_PRICE
+    price = clean_price(fields.get("price_vat") or fields.get("param_price") or "")
+    old_price = clean_price(fields.get("price_old") or fields.get("original_price") or "")
+
+    # Leírás
+    desc = fields.get("description") or fields.get("param_description_short") or ""
+
+    # URL + article_id megtartása, sallangok levágása
+    raw_url = fields.get("url") or fields.get("product_url") or fields.get("link") or ""
+    raw_url = raw_url.replace("]]", "").strip()
+    url = norm_https(raw_url)
+    if url:
+        try:
+            from urllib.parse import urlsplit, urlunsplit, parse_qs, urlencode
+            sp = urlsplit(url)
+            q = parse_qs(sp.query)
+            new_q = {}
+            if "article_id" in q and q["article_id"]:
+                aid = q["article_id"][0].replace("]", "")
+                new_q["article_id"] = aid
+            sp = sp._replace(netloc="www.tchibo.hu", query=urlencode(new_q, doseq=True), fragment="")
+            url = urlunsplit(sp)
+        except Exception:
+            pass
+
+    # Cím
+    title = (
+        fields.get("productname")
+        or fields.get("product")
+        or fields.get("title")
+        or fields.get("name")
+        or ""
+    )
+
+    # Ha még mindig nincs cím, próbáljuk a URL-ből
+    if not title and "/products/" in url:
+        slug = url.split("/products/", 1)[-1]
+        slug = re.split(r"[?&#]", slug)[0]
+        title = re.sub(r"[-_]+", " ", slug).strip().capitalize()
+
+    if not title or not url:
+        return {}
+
+    return {
+        "title": title,
+        "desc": desc,
+        "url": url,
+        "image": image,
+        "price": price,
+        "old_price": old_price,
+    }
+
+def parse_feed(xml_bytes: bytes):
     items = []
     try:
         root = ET.fromstring(xml_bytes)
     except ParseError:
         return items
-    root = strip_ns(root)
 
-    # diagnosztika (logban)
-    tags = Counter()
-    for e in root.iter():
-        if isinstance(e.tag, str):
-            tags[e.tag] += 1
-    print("Top tagek:", ", ".join(t for t,_ in tags.most_common(20)))
-
-    # tipikus csomópontok
-    nodes = root.findall(".//SHOPITEM") or root.findall(".//item") or root.findall(".//PRODUCT") or root.findall(".//product")
-    print("Klasszikus csomópontok:", len(nodes))
-
-    if not nodes:
-        cand = []
-        for n in root.iter():
-            nm = any_child(n, ["productname","product","title","name"])
-            ul = any_child(n, ["url","product_url","link","shopurl","deeplink","item_url"])
-            if nm and ul:
-                cand.append(n)
-        nodes = cand
-        print("Heurisztikus csomópontok:", len(nodes))
-
-    drop_title = drop_url = 0
-    for it in nodes:
-        title = txt1(it, ["PRODUCTNAME","PRODUCT","TITLE","NAME"]) or any_child(it, ["productname","product","title","name"])
-        url   = txt1(it, ["URL","PRODUCT_URL","LINK","SHOPURL","DEEPLINK","ITEM_URL"]) or any_child(it, ["url","product_url","link","shopurl","deeplink","item_url"])
-        desc  = txt1(it, ["DESCRIPTION","DESC","LONG_DESCRIPTION","FULL_DESCRIPTION","ANNOTATION"]) or any_child(it, ["description","desc"])
-        img   = txt1(it, ["IMGURL","IMGURL_ALTERNATIVE","IMAGE","IMAGE_LINK","IMG","MAIN_IMAGE"]) or any_child(it, ["img","image"])
-        price = txt1(it, ["PRICE_VAT","PRICE","PRICE_NEW","SELLING_PRICE","SALE_PRICE"]) or any_child(it, ["price"])
-        price_old = txt1(it, ["PRICE_OLD","OLD_PRICE","ORIGINAL_PRICE","PRICE_BEFORE","REGULAR_PRICE"]) or any_child(it, ["old"])
-
-        if not title:
-            drop_title += 1
-            continue
-        url = ensure_https(url)
-        if not url:
-            drop_url += 1
-            continue
-        items.append({
-            "title": title,
-            "desc":  desc,
-            "url":   url,
-            "image": img,
-            "price": clean_price(price),
-            "old_price": clean_price(price_old),
-        })
-    print(f"XML-ből kimenthető: {len(items)}  (eldobva title nélkül: {drop_title}, url nélkül: {drop_url})")
-    return items
-
-def regex_fallback_to_items(text_bytes):
-    # ha valamiért nem XML-ként sikerül értelmesen kinyerni
-    txt = text_bytes.decode("utf-8", errors="replace")
-    urls = set(re.findall(r"https?://(?:www\.)?tchibo\.hu/[^\s\"'<>()]*?products/[^\s\"'<>()]+", txt))
-    urls |= set("https://www.tchibo.hu" + u for u in re.findall(r"(?<!https:)(?<!http:)//(?:www\.)?tchibo\.hu/[^\s\"'<>()]*?products/[^\s\"'<>()]+", txt))
-    urls |= set("https://www.tchibo.hu" + u for u in re.findall(r"(?<![a-zA-Z:])(/products/[^\s\"'<>()]+)", txt))
-
-    items = []
-    for u in list(urls)[:60]:
-        slug = u.split("/products/", 1)[-1]
-        slug = re.split(r"[?&#]", slug)[0]
-        slug_words = re.split(r"[-_]", slug)
-        title_guess = " ".join(w for w in slug_words if w and len(w) > 1)
-        title_guess = title_guess.strip().capitalize() or "Tchibo termék"
-        items.append({
-            "title": title_guess,
-            "desc":  "",
-            "url":   ensure_https(u),
-            "image": "",
-            "price": "",
-            "old_price": "",
-        })
-    print(f"Regex fallback-találatok: {len(items)}")
+    # products/product struktúra
+    products = root.findall(".//product") or root.findall(".//PRODUCT") or []
+    for p in products:
+        rec = product_to_record(p)
+        if rec:
+            items.append(rec)
     return items
 
 def main():
     headers = {
         "User-Agent": UA,
-        "Accept": "application/xml,text/xml,application/xhtml+xml,text/html;q=0.9,*/*;q=0.8",
+        "Accept": "application/xml,text/xml;q=1,application/xhtml+xml,text/html;q=0.9,*/*;q=0.8",
         "Accept-Language": "hu-HU,hu;q=0.9,en;q=0.8",
     }
-    r = requests.get(FEED_URL, headers=headers, timeout=90, allow_redirects=True)
-    print("HTTP", r.status_code, "bytes=", len(r.content))
+    r = requests.get(FEED_URL, headers=headers, timeout=90)
     r.raise_for_status()
 
-    items = parse_xml_to_items(r.content)
-    if not items:
-        print("XML kinyerés 0 — indul a REGEX fallback…")
-        items = regex_fallback_to_items(r.content)
+    items = parse_feed(r.content)
 
-    if len(items) == 0:
-        print("NINCS KIMENTHETŐ TÉTEL – a docs/tchibo.json változatlan marad.")
+    # Ha valamiért nem sikerül kinyerni, NE írjuk felül 0-val
+    if not items:
+        print("WARN: 0 tétel – a meglévő JSON érintetlen marad.")
         return
 
     with open(OUT_JSON, "w", encoding="utf-8") as f:
         json.dump(items, f, ensure_ascii=False, indent=2)
-
-    print(f"Mentve: {OUT_JSON}  (összes tétel: {len(items)})")
-    print("Minta:", json.dumps({k: items[0].get(k) for k in ("title","url")}, ensure_ascii=False))
+    print(f"OK: {OUT_JSON} mentve, {len(items)} tétel.")
 
 if __name__ == "__main__":
     main()
