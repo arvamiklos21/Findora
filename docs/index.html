@@ -244,27 +244,40 @@
     {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
   ];
 
-  /* ====== Dognet DT wrap (Tchibo & társai) ====== */
-  const DOGNET_DT = "NGEc8ZwG"; // tőled kapott dt token
+  /* ====== Dognet DT wrap + URL tisztítás ====== */
+  const DOGNET_DT = "NGEc8ZwG";
 
-  function wrapDognetDT(cleanUrl){
-    const u = String(cleanUrl||"").trim();
-    const safe = (() => {
-      try {
-        const x = new URL(u);
-        x.protocol = "https:";
-        // Tchibo host biztosítása (feedből is jöhet jó, de normalizáljuk)
-        x.hostname = "www.tchibo.hu";
-        x.hash = "";
-        return x.toString();
-      } catch(_) {
-        return "https://www.tchibo.hu/";
-      }
-    })();
-    return `https://go.dognet.com/?dt=${encodeURIComponent(DOGNET_DT)}&url=${encodeURIComponent(safe)}`;
+  function sanitizeProductUrl(rawUrl, wantedHost){
+    try{
+      const base = "https://" + (wantedHost || "www.tchibo.hu");
+      const t = new URL(String(rawUrl||"").trim(), base);
+      t.protocol = "https:";
+      if (wantedHost) t.hostname = wantedHost;
+      t.hash = "";
+
+      // csak article_id marad a query-ben
+      const keep = new URLSearchParams();
+      const aid = t.searchParams.get("article_id");
+      if (aid) keep.set("article_id", aid);
+      t.search = keep.toString() ? "?" + keep.toString() : "";
+
+      // feedből jövő felesleg: ]] és whitespace ek végéről
+      return t.toString().replace(/[\]\s]+$/g, "");
+    }catch(_){
+      return wantedHost ? `https://${wantedHost}/` : "https://www.tchibo.hu/";
+    }
   }
 
-  /* ====== Tchibo betöltés (docs/tchibo.json -> ./tchibo.json fallback) ====== */
+  function wrapDognetDT(partner, rawUrl){
+    const hostMap = {
+      "Tchibo.hu": "www.tchibo.hu",
+      "Játéksziget.hu": "www.jateksziget.hu",
+    };
+    const clean = sanitizeProductUrl(rawUrl, hostMap[partner] || null);
+    return `https://go.dognet.com/?dt=${encodeURIComponent(DOGNET_DT)}&url=${encodeURIComponent(clean)}`;
+  }
+
+  /* ====== Tchibo betöltés ====== */
   let TCHIBO_ITEMS = [];
   let TCHIBO_READY = false;
 
@@ -292,7 +305,7 @@
             partner:"Tchibo.hu",
             price: Number.isFinite(pNow)? new Intl.NumberFormat('hu-HU').format(pNow)+" Ft" : "",
             discount: d>0? d : 0,
-            url: wrapDognetDT(urlRaw),
+            url: wrapDognetDT("Tchibo.hu", urlRaw),
             image: x.image||x.img||"",
             category:"home",
             desc: (x.desc||"").slice(0,160)
@@ -304,21 +317,9 @@
     TCHIBO_READY = true;
   }
 
-  /* ====== Játéksziget betöltés (docs/jateksziget.json) ====== */
+  /* ====== Játéksziget betöltés ====== */
   let JATEKSZIGET_ITEMS = [];
   let JATEKSZ_READY = false;
-
-  function normalizeJsziUrl(u){
-    try{
-      const t = new URL(String(u||"").trim());
-      t.protocol = "https:";
-      t.hostname = "www.jateksziget.hu";
-      t.hash="";
-      return t.toString();
-    }catch(_){
-      return "https://www.jateksziget.hu/";
-    }
-  }
 
   async function loadJateksziget(){
     if (JATEKSZ_READY) return;
@@ -332,8 +333,7 @@
         const img   = rec.image || rec.img || "";
         const pNow  = parsePriceNum(rec.price);
         const pOld  = parsePriceNum(rec.old_price || rec.price_before || rec.price_orig);
-        const norm  = url0 ? normalizeJsziUrl(url0) : `https://www.jateksziget.hu/kereses?text=${encodeURIComponent(title)}`;
-        const aff   = `https://go.dognet.com/?dt=${encodeURIComponent(DOGNET_DT)}&url=${encodeURIComponent(norm)}`;
+        const aff   = wrapDognetDT("Játéksziget.hu", url0 || `https://www.jateksziget.hu/kereses?text=${encodeURIComponent(title)}`);
         return {
           title,
           partner:"Játéksziget.hu",
