@@ -247,33 +247,38 @@
   /* ====== Dognet DT wrap + URL tisztítás ====== */
   const DOGNET_DT = "NGEc8ZwG";
 
-  function sanitizeProductUrl(rawUrl, wantedHost){
-    try{
-      const base = "https://" + (wantedHost || "www.tchibo.hu");
-      const t = new URL(String(rawUrl||"").trim(), base);
-      t.protocol = "https:";
-      if (wantedHost) t.hostname = wantedHost;
-      t.hash = "";
+  function wrapDognetDT(partner, rawUrl){
+  const hostMap = {
+    "Tchibo.hu": "www.tchibo.hu",
+    "Játéksziget.hu": "www.jateksziget.hu",
+    "JátékNet.hu": "www.jateknet.hu"
+  };
 
+  const clean = sanitizeProductUrl(rawUrl, hostMap[partner] || null);
+  return `https://go.dognet.com/?dt=${encodeURIComponent(DOGNET_DT)}&url=${encodeURIComponent(clean)}`;
+}
+
+function sanitizeProductUrl(rawUrl, wantedHost){
+  try{
+    const base = "https://" + (wantedHost || "www.tchibo.hu");
+    const t = new URL(String(rawUrl||"").trim().replace(/]+$/,""), base);
+    t.protocol = "https:";
+    if (wantedHost) t.hostname = wantedHost;
+    t.hash = "";
+
+    // csak Tchibo esetén tartjuk meg az article_id-t
+    if (wantedHost === "www.tchibo.hu"){
       const keep = new URLSearchParams();
       const aid = t.searchParams.get("article_id");
-      if (aid) keep.set("article_id", aid);
+      if (aid) keep.set("article_id", aid.replace(/]+$/,""));
       t.search = keep.toString() ? "?" + keep.toString() : "";
-
-      return t.toString().replace(/[\]\s]+$/g, "");
-    }catch(_){
-      return wantedHost ? `https://${wantedHost}/` : "https://www.tchibo.hu/";
     }
-  }
 
-  function wrapDognetDT(partner, rawUrl){
-    const hostMap = {
-      "Tchibo.hu": "www.tchibo.hu",
-      "Játéksziget.hu": "www.jateksziget.hu",
-    };
-    const clean = sanitizeProductUrl(rawUrl, hostMap[partner] || null);
-    return `https://go.dognet.com/?dt=${encodeURIComponent(DOGNET_DT)}&url=${encodeURIComponent(clean)}`;
+    return t.toString();
+  }catch(_){
+    return wantedHost ? `https://${wantedHost}/` : "https://www.tchibo.hu/";
   }
+}
 
   /* ====== Tchibo betöltés ====== */
   let TCHIBO_ITEMS = [];
@@ -638,4 +643,5 @@
   </script>
 </body>
 </html>
+
 
