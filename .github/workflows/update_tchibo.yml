@@ -48,7 +48,7 @@ jobs:
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global --add safe.directory $GITHUB_WORKSPACE
-          git add docs/tchibo.json docs/tchibo.xml
+          git add docs/tchibo.json #docs/tchibo.xml
           git diff --cached --quiet && echo "No changes" && exit 0
           git commit -m "Update Tchibo feed (json+xml)"
           git pull --rebase
