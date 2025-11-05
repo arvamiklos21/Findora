@@ -2,16 +2,30 @@ name: Update Jateksziget
 
 on:
   schedule:
-    - cron: "30 */6 * * *"   # 6 óránként (UTC), félkor
+    - cron: "30 */6 * * *"    # 6 óránként (UTC), félkor
   workflow_dispatch:
+
+# KELL a push-hoz
+permissions:
+  contents: write
+
+# Ne fusson párhuzamosan, ne ütközzen
+concurrency:
+  group: update-jateksziget
+  cancel-in-progress: false
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                # rebase-hez kell a teljes történet
+          persist-credentials: true     # GITHUB_TOKEN maradjon beállítva
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.x"
 
@@ -20,11 +34,18 @@ jobs:
 
       - name: Build Jateksziget JSON
         run: python scripts/jateksziget_feed_to_json.py
+        # FONTOS: a scripted írja a docs/jateksziget.json-t, ahonnan a Pages szervál
 
       - name: Commit & push jateksziget.json
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # >>> EZ SZÜNTETI MEG AZ ÜTKÖZÉST:
+          git pull origin main --rebase
+
           git add docs/jateksziget.json
           git commit -m "Update Jateksziget feed" || echo "No changes"
-          git push
+
+          # Ha védett a branch, a HEAD:main formátum stabilabb
+          git push origin HEAD:main
