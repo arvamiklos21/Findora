@@ -44,15 +44,16 @@ jobs:
           ls -lh docs/tchibo.*
 
       - name: Commit & push tchibo files
-  run: |
-    git config --global user.name  "github-actions[bot]"
-    git config --global user.email "github-actions[bot]@users.noreply.github.com"
-    git config --global --add safe.directory $GITHUB_WORKSPACE
-    git fetch origin main
-    git reset --hard origin/main
-    git add docs/tchibo.json
-    git commit -m "Update Tchibo feed (json only)" || echo "No changes"
-    git push --force
+      run: |
+        git config --global user.name  "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global --add safe.directory $GITHUB_WORKSPACE
+        git fetch origin main
+        git reset --hard origin/main
+        git add docs/tchibo.json
+        git commit -m "Update Tchibo feed (json only)" || echo "No changes"
+        git push --force
+
 
 
 
