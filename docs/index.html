@@ -286,65 +286,34 @@
   }
 
   async function loadTchibo(){
-    if (TCHIBO_READY) return;
-    const paths = ["./docs/tchibo.json","./tchibo.json"];
-    for (const path of paths){
-      try{
-        const r = await fetch(path, { cache:"no-store" });
-        if(!r.ok) continue;
-        const all = await r.json();
-
-        // --- IDE ILLesztett ÚJ MAP BLOKK ---
-        TCHIBO_ITEMS = (all||[]).map(x=>{
-          const pNow = parsePriceNum(x.price);
-          const pOld = parsePriceNum(x.old_price);
-          const d = (Number.isFinite(pOld) && pOld>0 && Number.isFinite(pNow)) ? Math.round((1 - pNow/pOld)*100) : 0;
-
-          // cím szépítés
-          const tidy = (t) => {
-            if(!t) return "";
-            let s = String(t);
-            if (s.includes("/")) s = s.split("/",1)[1];
-            s = s.replace(/-/g," ").trim();
-            return s ? s.charAt(0).toUpperCase()+s.slice(1) : String(t);
-          };
-
-          // url biztosíték a feed ']]' maradéka ellen
-          const fixUrl = (u) => {
-            try{
-              let s = String(u||"").trim().replace(/\]+$/,"");
-              const U = new URL(s.startsWith("http")?s:("https://www.tchibo.hu"+s));
-              U.protocol = "https:";
-              U.hostname = "www.tchibo.hu";
-              const q = new URLSearchParams(U.search);
-              const aid = q.get("article_id");
-              U.search = aid ? ("?article_id="+encodeURIComponent(aid.replace(/\]+$/,""))) : "";
-              U.hash = "";
-              return U.toString();
-            }catch(_){
-              return "https://www.tchibo.hu/";
-            }
-          };
-
-          const urlRaw = x.url || x.link || "https://www.tchibo.hu/";
-          return {
-            title: tidy(x.title||""),
-            partner:"Tchibo.hu",
-            price: Number.isFinite(pNow)? new Intl.NumberFormat('hu-HU').format(pNow)+" Ft" : "",
-            discount: d>0? d : 0,
-            url: wrapDognetDT("Tchibo.hu", fixUrl(urlRaw)),
-            image: (x.image||x.img||""),
-            category:"home",
-            desc: (x.desc||"").slice(0,160)
-          };
-        }).filter(o=>o.title && o.url);
-        // --- /ÚJ MAP BLOKK ---
-
-        break;
-      }catch(_){}
-    }
-    TCHIBO_READY = true;
+  if (TCHIBO_READY) return;
+  const paths = ["/tchibo.json","./tchibo.json"];
+  for (const path of paths){
+    try{
+      const r = await fetch(path, { cache:"no-store" });
+      if(!r.ok) continue;
+      const all = await r.json();
+      TCHIBO_ITEMS = (all||[]).map(x=>{
+        const pNow = parsePriceNum(x.price);
+        const pOld = parsePriceNum(x.old_price);
+        const d = (Number.isFinite(pOld) && pOld>0 && Number.isFinite(pNow)) ? Math.round((1 - pNow/pOld)*100) : 0;
+        const urlRaw = x.url || x.link || "https://www.tchibo.hu/";
+        return {
+          title: x.title||"",
+          partner:"Tchibo.hu",
+          price: Number.isFinite(pNow)? new Intl.NumberFormat('hu-HU').format(pNow)+" Ft" : "",
+          discount: d>0? d : 0,
+          url: wrapDognetDT("Tchibo.hu", urlRaw),
+          image: x.image||x.img||"",
+          category:"home",
+          desc: (x.desc||"").slice(0,160)
+        };
+      }).filter(o=>o.title && o.url);
+      break;
+    }catch(_){}
   }
+  TCHIBO_READY = true;
+}
 
   /* ====== Játéksziget betöltés ====== */
   let JATEKSZIGET_ITEMS = [];
@@ -353,7 +322,7 @@
   async function loadJateksziget(){
     if (JATEKSZ_READY) return;
     try{
-      const res = await fetch("./docs/jateksziget.json", { cache:"no-store" });
+      const res = await fetch("/jateksziget.json", { cache:"no-store" });
       if(!res.ok) throw new Error("Feed hiba: "+res.status);
       const all = await res.json();
       JATEKSZIGET_ITEMS = (all||[]).map(rec=>{
@@ -669,3 +638,4 @@
   </script>
 </body>
 </html>
+
