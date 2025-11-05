@@ -255,13 +255,11 @@
       if (wantedHost) t.hostname = wantedHost;
       t.hash = "";
 
-      // csak article_id marad a query-ben
       const keep = new URLSearchParams();
       const aid = t.searchParams.get("article_id");
       if (aid) keep.set("article_id", aid);
       t.search = keep.toString() ? "?" + keep.toString() : "";
 
-      // feedből jövő felesleg: ]] és whitespace ek végéről
       return t.toString().replace(/[\]\s]+$/g, "");
     }catch(_){
       return wantedHost ? `https://${wantedHost}/` : "https://www.tchibo.hu/";
@@ -283,7 +281,7 @@
 
   function parsePriceNum(p){
     if (p===undefined || p===null) return NaN;
-    const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",",".")); // , -> .
+    const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",",".")); 
     return Number.isFinite(n) ? n : NaN;
   }
 
@@ -295,22 +293,53 @@
         const r = await fetch(path, { cache:"no-store" });
         if(!r.ok) continue;
         const all = await r.json();
+
+        // --- IDE ILLesztett ÚJ MAP BLOKK ---
         TCHIBO_ITEMS = (all||[]).map(x=>{
           const pNow = parsePriceNum(x.price);
           const pOld = parsePriceNum(x.old_price);
           const d = (Number.isFinite(pOld) && pOld>0 && Number.isFinite(pNow)) ? Math.round((1 - pNow/pOld)*100) : 0;
+
+          // cím szépítés
+          const tidy = (t) => {
+            if(!t) return "";
+            let s = String(t);
+            if (s.includes("/")) s = s.split("/",1)[1];
+            s = s.replace(/-/g," ").trim();
+            return s ? s.charAt(0).toUpperCase()+s.slice(1) : String(t);
+          };
+
+          // url biztosíték a feed ']]' maradéka ellen
+          const fixUrl = (u) => {
+            try{
+              let s = String(u||"").trim().replace(/\]+$/,"");
+              const U = new URL(s.startsWith("http")?s:("https://www.tchibo.hu"+s));
+              U.protocol = "https:";
+              U.hostname = "www.tchibo.hu";
+              const q = new URLSearchParams(U.search);
+              const aid = q.get("article_id");
+              U.search = aid ? ("?article_id="+encodeURIComponent(aid.replace(/\]+$/,""))) : "";
+              U.hash = "";
+              return U.toString();
+            }catch(_){
+              return "https://www.tchibo.hu/";
+            }
+          };
+
           const urlRaw = x.url || x.link || "https://www.tchibo.hu/";
           return {
-            title: x.title||"",
+            title: tidy(x.title||""),
             partner:"Tchibo.hu",
             price: Number.isFinite(pNow)? new Intl.NumberFormat('hu-HU').format(pNow)+" Ft" : "",
             discount: d>0? d : 0,
-            url: wrapDognetDT("Tchibo.hu", urlRaw),
-            image: x.image||x.img||"",
+            url: wrapDognetDT("Tchibo.hu", fixUrl(urlRaw)),
+            image: (x.image||x.img||""),
             category:"home",
             desc: (x.desc||"").slice(0,160)
           };
         }).filter(o=>o.title && o.url);
+        // --- /ÚJ MAP BLOKK ---
+
         break;
       }catch(_){}
     }
@@ -475,7 +504,7 @@
   }
 
   function computeDiscount(it){
-    if (typeof it.discount === 'number' && it.discount>0) return it.discount;
+    if (typeof it.discount === 'number' && it.discount>0) return it;
     const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
     if (m) {
       const d=parseInt(m[1],10);
