@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+
   <title>Findora – Irányt mutat a legjobb ajánlatokhoz</title>
   <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, JátékNet, Kärcher, eOptika, Tchibo, Játéksziget egy helyen." />
   <meta name="keywords" content="Findora, akció, kedvezmény, Amazon, JátékNet, Kärcher, eOptika, Tchibo, Játéksziget, olcsó, ajánlat" />
+
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="./" />
   <link rel="alternate" href="./" hreflang="hu" />
@@ -48,10 +50,115 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Montserrat+Alternates:wght@700&display=swap" rel="stylesheet">
 
   <style>
-    /* -- CSS Style code here -- */
+    :root{
+      --primary:#0f2742; --gold:#ffd166; --text:#0f172a; --muted:#64748b;
+      --card:rgba(255,255,255,0.9); --panel:#ffffffee; --border:#e2e8f0;
+      --fireplace:url("https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=1600&q=80&auto=format&fit=crop");
+      --pine-row:url("data:image/svg+xml;utf8,<?xml version='1.0'?>\
+<svg xmlns='http://www.w3.org/2000/svg' width='480' height='120' viewBox='0 0 480 120'>\
+  <defs><linearGradient id='fog' x1='0' x2='0' y1='0' y2='1'>\
+    <stop offset='0' stop-color='%230b1a33' stop-opacity='0.0'/>\
+    <stop offset='1' stop-color='%230b1a33' stop-opacity='0.35'/>\
+  </linearGradient></defs>\
+  <rect width='480' height='120' fill='url(%23fog)'/>\
+  <g fill='%23152a4a' opacity='0.75'>\
+    <path d='M10,110 l20,-40 l20,40 z'/>\
+    <path d='M60,110 l22,-44 l22,44 z'/>\
+    <path d='M120,110 l18,-36 l18,36 z'/>\
+    <path d='M170,110 l24,-48 l24,48 z'/>\
+    <path d='M230,110 l20,-42 l20,42 z'/>\
+    <path d='M290,110 l22,-44 l22,44 z'/>\
+    <path d='M350,110 l18,-36 l18,36 z'/>\
+    <path d='M400,110 l24,-48 l24,48 z'/>\
+  </g></svg>");
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);
+      background:
+        radial-gradient(1200px 700px at 12% -10%, rgba(255,255,255,.18), transparent 60%),
+        radial-gradient(900px 600px at 110% -10%, rgba(76,201,240,.10), transparent 60%),
+        var(--pine-row) bottom center/900px 220px repeat-x,
+        linear-gradient(180deg, #0a1830 0%, #0b203f 50%, #0e2b58 100%);
+      background-attachment: fixed,fixed,fixed,fixed; overflow-x:hidden;
+    }
+    @media (max-width:640px){ body{ background-attachment: scroll,scroll,scroll,scroll; } }
+
+    .hero{ position:relative; z-index:3; color:#eef4ff; text-align:center; padding:64px 10px 26px;
+      background: linear-gradient(180deg, rgba(6,14,28,.72) 0%, rgba(6,14,28,.58) 60%, rgba(6,14,28,.54) 100%), var(--fireplace) center/cover no-repeat;
+      border-bottom:1px solid rgba(226,232,240,.35);
+    }
+    .hero-inner{max-width:1100px;margin:0 auto}
+    .brand{display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:8px}
+    .brand img{height:44px;border-radius:12px;background:#0f2742;box-shadow:0 2px 8px rgba(2,6,23,.4)}
+    .hero h1{font-size:clamp(20px,3.5vw,32px);font-weight:800}
+    .hero p{font-size:clamp(13px,1.7vw,16px); color:#dbe7ff}
+    .dev-badge{position:absolute;left:12px;top:12px;background:#0b3a6a;color:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+    .promo{margin:10px auto;background:linear-gradient(90deg,rgba(255,255,255,.16),rgba(255,255,255,.22));color:#f6fbff;padding:8px 12px;border-radius:14px;max-width:860px;font-weight:700;border:1px solid rgba(255,255,255,.24)}
+
+    .categories{display:flex;gap:8px;justify-content:center;margin:8px auto 0;overflow-x:auto;padding:0 6px}
+    .catbtn{border:1px solid #dbeafe;background:#ffffffc9;border-radius:999px;padding:8px 12px;cursor:pointer;font-weight:700;font-size:14px;white-space:nowrap}
+    .catbtn.active{background:linear-gradient(90deg,#4cc9f0,#ffd166);color:#0b1220;border-color:#e2e8f0}
+
+    .searchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:8px}
+    .searchbar input,.searchbar button{padding:10px;border:none;border-radius:10px;font-size:14px}
+    .searchbar input{
+      min-width:220px;max-width:360px;flex:1;padding-left:36px;background:#fff
+        url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="%2399a1ad"><path d="M21 20l-5.6-5.6a7 7 0 10-1.4 1.4L20 21l1-1zM10 16a6 6 0 110-12 6 6 0 010 12z"/></svg>')
+        no-repeat 10px center;
+      background-size:18px 18px; border:1px solid #e2e8f0
+    }
+    .searchbar button{background:linear-gradient(90deg,#4cc9f0,#ffd166);color:#0b1220;font-weight:800;cursor:pointer}
+    .floating-search{display:none}
+    @media (max-width:640px){
+      .floating-search{display:block;position:fixed; right:12px; bottom:12px; z-index:50;
+        background:linear-gradient(90deg,#4cc9f0,#ffd166); color:#0b1220; font-weight:800; border-radius:999px; padding:10px 14px; box-shadow:0 10px 24px rgba(2,6,23,.22)}
+    }
+
+    main{max-width:1100px;margin:22px auto;padding:0 12px; position:relative; z-index:2}
+    .section{background:var(--panel); border:1px solid rgba(226,232,240,.75); border-radius:18px; margin-bottom:24px; box-shadow:0 8px 20px rgba(2,6,23,.18); overflow:hidden;}
+    .section h2{font-size:18px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:linear-gradient(90deg,#e0f2fe,#fff);cursor:default}
+    .section h2[data-open]{cursor:pointer; text-decoration:underline; text-decoration-color:#cfe3ff}
+
+    .grid{display:flex; flex-wrap:wrap; gap:12px; padding:12px}
+    .grid .card{min-width:220px; flex:1 1 calc(25% - 12px); max-width:calc(25% - 12px)}
+    @media (max-width:1024px){ .grid .card{flex-basis:calc(33.333% - 12px);max-width:calc(33.333% - 12px)} }
+    @media (max-width:760px){ .grid .card{flex-basis:calc(50% - 12px);max-width:calc(50% - 12px)} }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; height:300px; transition:transform .2s, box-shadow .2s}
+    .card:hover{transform:translateY(-3px); box-shadow:0 12px 22px rgba(2,6,23,.18)}
+    .thumb{height:130px;background:#e8eef7;overflow:hidden}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .body{padding:10px;flex-grow:1}
+    .title{font-weight:800;margin-bottom:4px;font-size:14px;line-height:1.25}
+    .desc{font-size:12px;color:#475569;margin-top:4px;line-height:1.3;max-height:3.1em;overflow:hidden}
+    .muted{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px;margin-top:6px}
+    .price{font-weight:800;margin-top:6px;font-size:14px}
+    .cta{margin-top:auto;padding:10px;text-align:center}
+    .cta a{display:inline-block;background:linear-gradient(90deg,#4cc9f0,#ffd166);padding:8px 12px;border-radius:8px;color:#0b1220;font-weight:800}
+
+    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0; flex-wrap:wrap}
+    .toolgrp{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .toolbtn, .toolsel, .toolinput{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px}
+    .toolinput{min-width:220px}
+
+    .pager{display:flex;gap:8px;justify-content:center;align-items:center;padding:12px;flex-wrap:wrap}
+    .pager button{border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
+    .pager .active{background:#0b3a6a;color:#fff;border-color:#0b3a6a}
+
+    footer{text-align:center;padding:20px;background:#0b3a6a;color:#fff;margin-top:24px;font-size:14px;border-top:1px solid rgba(255,255,255,.15)}
+
+    .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1}
+    .flake{position:absolute;top:-10px;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.9);filter:blur(.5px);animation:fall linear infinite}
+    @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
+
+    #toTop{position:fixed; right:12px; bottom:70px; z-index:60; display:none; background:#ffffff; color:#0b1220; border:1px solid #e2e8f0; border-radius:999px; padding:8px 12px; font-weight:800; box-shadow:0 8px 22px rgba(2,6,23,.22); cursor:pointer}
+    #toTop.show{display:block}
   </style>
 </head>
 <body>
+  <div class="snow" aria-hidden="true"></div>
+
   <header class="hero">
     <span class="dev-badge">Folyamatos fejlesztés</span>
     <div class="hero-inner">
@@ -94,45 +201,505 @@
   </footer>
 
   <script>
-  const DOGNET_CHID = "P5FMC4cN"; // Dognet Affiliate ID
+  /* ====== Globális beállítás ====== */
+  const PER_PAGE = 4;
+  const FULL_PER_PAGE = 20;
 
+  /* ====== PARTNER LINKEK ====== */
+  const AMAZON_TAG = "findora30-20";
+  const amazonBase = `https://www.amazon.com/?tag=${AMAZON_TAG}`;
+
+  const LINK_EOPTIKA = "https://www.kqzyfj.com/tf79mu2-u1HJIJNPRIIQHJMIMRRJK";
+  const LINK_JATEKNET= "https://www.anrdoezrs.net/2t70r09608OQPQUWYPPXOQTTTXPQQ";
+  const LINK_KARCHER  = "https://www.kqzyfj.com/pa117qgpmgo35459BD44C3587B77AD";
+
+  const LOGO_URLS={
+    Amazon:"https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
+    "JátékNet.hu":"https://upload.wikimedia.org/wikipedia/commons/8/8f/Puzzle.svg",
+    "Kärcher.hu":"https://upload.wikimedia.org/wikipedia/commons/6/62/Karcher_logo.svg",
+    "eOptika.hu":"https://upload.wikimedia.org/wikipedia/commons/7/72/Glasses_icon.svg",
+    "Tchibo.hu":"https://www.tchibo.hu/medias/sys_master/root/h6f/h24/9016963760158.png",
+    "Játéksziget.hu":"https://upload.wikimedia.org/wikipedia/commons/7/70/Toy_Icon.svg"
+  };
+
+  (function failoverLogo(){
+    const img=document.getElementById('brandLogo'); let step=0;
+    img.onerror=()=>{ step++; if(step===1) img.src=img.dataset.fallback1; else if(step===2) img.src=img.dataset.fallback2; };
+  })();
+
+  /* ====== Képek kulcsszavas helyettesítő ====== */
+  const IMG_KEY={
+    laptop:"https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1200&q=80&auto=format&fit=crop",
+    "gaming laptop":"https://images.unsplash.com/photo-1518779578993-ec3579fee39f?w=1200&q=80&auto=format&fit=crop",
+    tv:"https://images.unsplash.com/photo-1512445239393-63e626ac6b86?w=1200&q=80&auto=format&fit=crop",
+    okosóra:"https://images.unsplash.com/photo-1517433456452-f9633a875f6f?w=1200&q=80&auto=format&fit=crop",
+    fülhallgató:"https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=1200&q=80&auto=format&fit=crop",
+    lego:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=1200&q=80&auto=format&fit=crop",
+    "társasjáték":"https://images.unsplash.com/photo-1542990253-a781e04c0083?w=1200&q=80&auto=format&fit=crop",
+    "játékkonzol":"https://images.unsplash.com/photo-1605901309584-818e25960a8b?w=1200&q=80&auto=format&fit=crop",
+    "magasnyomású mosó":"https://images.unsplash.com/photo-1593955982181-b123dc5b5fba?w=1200&q=80&auto=format&fit=crop",
+    gőztisztító:"https://images.unsplash.com/photo-1598514982516-4e64d96d86d4?w=1200&q=80&auto=format&fit=crop",
+    porszívó:"https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1200&q=80&auto=format&fit=crop",
+    szemüveg:"https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=1200&q=80&auto=format&fit=crop",
+    "napszemüveg":"https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=1200&q=80&auto=format&fit=crop",
+    kontaktlencse:"https://images.unsplash.com/photo-1612198182713-6cfa7d3c1240?w=1200&q=80&auto=format&fit=crop"
+  };
+  const PLACEHOLDER = `data:image/svg+xml;utf8,`+
+    encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400'>
+      <defs><linearGradient id='g' x1='0' x2='1'><stop stop-color='#eee'/><stop offset='1' stop-color='#ddd'/></linearGradient></defs>
+      <rect fill='url(#g)' width='600' height='400'/>
+      <g fill='#999' font-family='Inter, Arial, Helvetica, sans-serif' font-size='22'>
+        <text x='50%' y='50%' text-anchor='middle'>Kép előkészítés alatt…</text>
+      </g></svg>`);
+
+  function keyImage(title){
+    const t=String(title||"").toLowerCase();
+    for(const k of Object.keys(IMG_KEY)){ if(t.includes(k)) return IMG_KEY[k]; }
+    return PLACEHOLDER;
+  }
+
+  /* ====== Dognet deeplink wrapper (chid) – Tchibo + Játéksziget ====== */
+  const DOGNET_CHID = "P5FMC4cN"; // <-- ha változik, itt írd át!
+  function isDognet(u){
+    try{ return new URL(u).hostname.includes("go.dognet.com"); }catch(_){ return false; }
+  }
   function wrapAffiliate(partner, absUrl){
-    if(!absUrl) return "";
+    if(!absUrl || isDognet(absUrl)) return absUrl;
     if(partner === "Játéksziget.hu" || partner === "Tchibo.hu"){
       return `https://go.dognet.com/?chid=${DOGNET_CHID}&url=${encodeURIComponent(absUrl)}`;
     }
-    return absUrl; // Retain the original URL for other partners
+    return absUrl;
   }
 
-  const ITEMS = [
-    {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:"https://www.amazon.com", category:"tech"},
-    {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:"https://www.amazon.com", category:"tech"},
-    // Add other items...
+  /* ====== DEMÓ fix listák ====== */
+  const ITEMS=[
+    {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech",  desc:"Belépő modellek gyors szállítással."},
+    {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazonBase, category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
+    {title:"Vezeték nélküli fülhallgató", partner:"Amazon", price:"17 990 Ft", discount:28, url:amazonBase, category:"tech"},
+    {title:"Smart TV -55%", partner:"Amazon", price:"119 990 Ft", discount:55, url:amazonBase, category:"tech"}
   ];
-
+  const EOPTIKA_ITEMS = [
+    {title:"Divatos szemüvegkeret", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Klasszikus formák, prémium anyagok."},
+    {title:"Polarizált napszemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"UV400 védelem, több színben."},
+    {title:"Napi kontaktlencse csomag", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Kényelmes, higiénikus megoldás."},
+    {title:"Kékfény-szűrős szemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Számítógépezéshez ideális."}
+  ];
   const JATEKNET_ITEMS = [
-    {title:"LEGO kreatív készlet", partner:"JátékNet.hu", price:"", discount:0, url:"https://www.jateksziget.hu", category:"games"},
-    {title:"Családi társasjáték", partner:"JátékNet.hu", price:"", discount:0, url:"https://www.jateksziget.hu", category:"games"},
-    // Add other JátékNet items...
+    {title:"LEGO kreatív készlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Építsd meg, amit csak elképzelsz."},
+    {title:"Családi társasjáték", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Garantált közös élmények."},
+    {title:"Játékkonzol kontrollerek", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Extra irányítók többjátékos mókához."},
+    {title:"Kreatív rajzkészlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Fejleszti a fantáziát és ügyességet."}
+  ];
+  const KARCHER_ITEMS = [
+    {title:"Magasnyomású mosó", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Teraszok, autó gyors tisztítása."},
+    {title:"Gőztisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Vegyszermentes, higiénikus tisztítás."},
+    {title:"Porszívó kiegészítők", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Szűrők, zsákok, tartozékok."},
+    {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
   ];
 
-  const TCHIBO_ITEMS = [
-    {title:"Tchibo ajánlat", partner:"Tchibo.hu", price:"10 000 Ft", discount:20, url:"https://www.tchibo.hu", category:"home"},
-    // Add other Tchibo items...
-  ];
+  /* ====== Link-normalizálás ====== */
+  const PARTNER_BASE = {
+    "Tchibo.hu": "https://www.tchibo.hu",
+    "Játéksziget.hu": "https://www.jateksziget.hu"
+  };
 
-  // Add a function to render your items here, and wrap affiliate links.
-  function renderItems(items) {
-    items.forEach(item => {
-      const wrappedUrl = wrapAffiliate(item.partner, item.url);
-      // Insert item into the page with wrapped URL
+  function ensureAbsolute(u, partner){
+    let href = String(u||"").trim();
+    if(!href) return "";
+    if(/^https?:\/\//i.test(href)) return href;
+    if(/^\/\//.test(href)) return "https:" + href;
+    if(/^www\./i.test(href)) return "https://" + href;
+    if(/^(\/|\.\/|\.\.\/)/.test(href)){
+      const base = PARTNER_BASE[partner] || "";
+      return base ? base.replace(/\/$/,"") + "/" + href.replace(/^\.?\//,"") : href;
+    }
+    if(!/^[a-z]+:\/\//i.test(href)){
+      const base = PARTNER_BASE[partner] || "";
+      return base ? base.replace(/\/$/,"") + "/" + href.replace(/^\/+/,"") : "https://" + href;
+    }
+    return href;
+  }
+
+  function safeHref(partner, u){
+    if(isDognet(u)) return u; // meglévő Dognet marad
+    const h = ensureAbsolute(u, partner);
+    try{ new URL(h); return h; }catch(_){
+      return PARTNER_BASE[partner] || "#";
+    }
+  }
+
+  /* ====== Tchibo / Játéksziget JSON betöltés + méret-duplák szűrése ====== */
+  let TCHIBO_ITEMS = [];   let TCHIBO_READY=false;
+  let JATSZIG_ITEMS = [];  let JATSZIG_READY=false;
+
+  function parsePrice(p){
+    if (p===undefined || p===null) return NaN;
+    const n = Number(String(p).replace(/[^\d.,]/g,"").replace(",",".")); 
+    return Number.isFinite(n) ? n : NaN;
+  }
+  function normUrl(u){
+    try{ const t=new URL(u); t.search=""; t.hash=""; return t.toString().replace(/\/$/,""); }
+    catch(_){ return String(u||"").split("?")[0].replace(/\/$/,""); }
+  }
+  function stemSizeFromTitle(s){
+    return String(s||"").toLowerCase()
+      .replace(/\b(xxs|xs|s|m|l|xl|xxl|xxxl)\b/g,"")
+      .replace(/\b(eu|uk|us)\s?\d+\b/g,"")
+      .replace(/méret\s*[:\-]?\s*[^\s,)\]]+/g,"")
+      .replace(/\(\s*(méret|size)\s*[:\-]?[^\)]*\)/g,"")
+      .replace(/\s{2,}/g," ").trim();
+  }
+  function dedupeBySizeKeepCheapest(list, partner, category){
+    const seen=new Map();
+    for(const x of (list||[])){
+      const absUrl = ensureAbsolute(x.url, partner);
+      const affUrl = wrapAffiliate(partner, absUrl); // <-- Dognet (chid) csomagolás
+      const keyBase = normUrl(absUrl)||"";
+      const titleKey = stemSizeFromTitle(x.title||"");
+      const key = (keyBase||titleKey)+"|"+titleKey;
+      const pn = parsePrice(x.price);
+      const rec = {
+        title: x.title||"",
+        partner, category,
+        price: Number.isFinite(pn)? new Intl.NumberFormat('hu-HU').format(pn)+" Ft" : "",
+        priceRaw: x.price,
+        discount: 0,
+        url: affUrl || PARTNER_BASE[partner] || "#",
+        image: x.image||"",
+        desc: ""
+      };
+      if(seen.has(key)){
+        const prev=seen.get(key);
+        const prevNum=parsePrice(prev.priceRaw);
+        if(!isNaN(pn) && (isNaN(prevNum) || pn<prevNum)){
+          prev.price = rec.price; prev.priceRaw=rec.priceRaw;
+          if(rec.image) prev.image=rec.image;
+          if(rec.url) prev.url=rec.url;
+        }
+      } else {
+        seen.set(key, rec);
+      }
+    }
+    return [...seen.values()];
+  }
+  async function loadTchibo(){
+    try{
+      const r=await fetch("./tchibo.json",{cache:"no-store"}); const all=await r.json();
+      TCHIBO_ITEMS = dedupeBySizeKeepCheapest(all,"Tchibo.hu","home");
+    }catch(_){ TCHIBO_ITEMS=[]; }
+    TCHIBO_READY=true;
+  }
+  async function loadJatszig(){
+    try{
+      const r=await fetch("./jateksziget.json",{cache:"no-store"}); const all=await r.json();
+      JATSZIG_ITEMS = dedupeBySizeKeepCheapest(all,"Játéksziget.hu","games");
+    }catch(_){ JATSZIG_ITEMS=[]; }
+    JATSZIG_READY=true;
+  }
+
+  /* ====== Kártya, képek ====== */
+  function cardHTML(it){
+    const primary = it.image ? it.image : keyImage(it.title);
+    const href = safeHref(it.partner, it.url); // ha Dognet, úgy marad
+    const imgTag = `<img class="imgsafe" alt="${it.title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
+                      data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
+    const logo = LOGO_URLS[it.partner]?`<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">`:"";
+    const desc = it.desc?`<div class="desc">${it.desc}</div>`:"";
+    return `<div class="card">
+      <div class="thumb">${imgTag}</div>
+      <div class="body">
+        <div class="title">${it.title}</div>
+        ${desc}
+        <div class="muted">${logo} ${it.partner}</div>
+        <div class="price">${it.price||""}</div>
+      </div>
+      <div class="cta"><a href="${href}" target="_blank" rel="nofollow sponsored noopener">Megnézem az ajánlatot</a></div>
+    </div>`;
+  }
+  function hydrateSafeImages(ctx=document){
+    ctx.querySelectorAll("img.imgsafe").forEach(img=>{
+      const chain=[img.dataset.src1,img.dataset.src2,img.dataset.src3].filter(Boolean);
+      let i=0; const set=()=>{ img.src=chain[i]; };
+      img.onerror=()=>{ i=Math.min(i+1,chain.length-1); if(img.src!==chain[i]) set(); };
+      set();
     });
   }
-  
-  // Call the render function with items
-  renderItems(ITEMS);
-  renderItems(JATEKNET_ITEMS);
-  renderItems(TCHIBO_ITEMS);
+
+  /* ====== Pagelő ====== */
+  function pagerHTML(total, page, per){
+    const pages=Math.max(1, Math.ceil(total/per));
+    let html=`<div class="pager">`;
+    const btn=(p,l,a=false,d=false)=>`<button data-page="${p}" ${d?'disabled':''} class="${a?'active':''}">${l}</button>`;
+    const dots=()=>`<span class="info">…</span>`;
+    html+=btn(Math.max(1,page-1),"«",false,page<=1);
+    if(pages<=7){ for(let i=1;i<=pages;i++) html+=btn(i,i,i===page); }
+    else{
+      if(page<=4){ for(let i=1;i<=4;i++) html+=btn(i,i,i===page); html+=dots()+btn(pages,pages,page===pages); }
+      else if(page>=pages-3){ html+=btn(1,1,page===1)+dots(); for(let i=pages-3;i<=pages;i++) html+=btn(i,i,i===page); }
+      else{ html+=btn(1,1,false)+dots()+btn(page-1,page-1)+btn(page,page>true)+btn(page+1,page+1)+dots()+btn(pages,pages); }
+    }
+    html+=btn(Math.min(pages,page+1),"»",false,page>=pages);
+    html+=`</div>`;
+    return html;
+  }
+
+  /* ====== Blokkszintű lista (4/oldal) ====== */
+  const content=document.getElementById('content');
+
+  function renderBlock(title, items, opts={}){
+    if(!items || !items.length) return;
+    const { openKey=null } = opts;
+    const sec=document.createElement('section');
+    sec.className='section partner';
+    const h2attr = openKey ? `data-open="${openKey}" title="Teljes kínálat megnyitása"` : "";
+    sec.innerHTML=`<h2 ${h2attr}>${title}</h2>
+      <div class="grid"></div>
+      <div class="pager"></div>`;
+    const grid=sec.querySelector('.grid');
+    let page=1;
+    function apply(){
+      const pages=Math.max(1, Math.ceil(items.length/PER_PAGE));
+      page=Math.min(Math.max(1,page),pages);
+      const st=(page-1)*PER_PAGE, sl=items.slice(st, st+PER_PAGE);
+      grid.innerHTML="";
+      sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+      hydrateSafeImages(sec);
+      sec.querySelector('.pager').innerHTML=pagerHTML(items.length,page,PER_PAGE);
+    }
+    sec.addEventListener('click', (e)=>{
+      const b=e.target.closest('.pager button'); if(b){ page=Number(b.dataset.page)||1; apply(); }
+      const h=e.target.closest('h2[data-open]'); if(h){
+        const key=h.dataset.open;
+        if(key==='tchibo') showPartnerFull('Tchibo.hu', TCHIBO_ITEMS, 'home');
+        if(key==='jateksziget') showPartnerFull('Játéksziget.hu', JATSZIG_ITEMS, 'games');
+      }
+    });
+    apply();
+    content.appendChild(sec);
+  }
+
+  /* ====== Teljes partner nézet ====== */
+  function showPartnerFull(label, items, backCat){
+    content.innerHTML="";
+    let page=1, sort="relevance", q="";
+    const sec=document.createElement('section'); sec.className='section partner';
+    sec.innerHTML=`
+      <h2>${label} – Teljes kínálat</h2>
+      <div class="toolbar">
+        <div class="toolgrp">
+          <button class="toolbtn" id="btnHome">🏠 Főoldal</button>
+          <button class="toolbtn" id="btnBackCat">← Vissza: ${backCat==='home'?'Otthon':'Játékok'}</button>
+        </div>
+        <div class="toolgrp">
+          <input class="toolinput" id="localQ" placeholder="Keresés ezen belül…" />
+          <label>Rendezés:</label>
+          <select class="toolsel" id="localSort">
+            <option value="relevance">Relevancia</option>
+            <option value="price_asc">Ár ↑</option>
+            <option value="price_desc">Ár ↓</option>
+            <option value="az">A → Z</option>
+            <option value="za">Z → A</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid"></div>
+      <div class="pager"></div>
+    `;
+    const grid=sec.querySelector('.grid');
+
+    function priceNum(p){ if(!p)return NaN; return Number(String(p).replace(/[^\d.]/g,"")); }
+    function filteredSorted(){
+      let arr=[...items];
+      if(q){ const qq=q.toLowerCase(); arr=arr.filter(x=>String(x.title||"").toLowerCase().includes(qq)); }
+      if(sort==="price_asc") arr.sort((a,b)=>priceNum(a.price)-priceNum(b.price));
+      if(sort==="price_desc") arr.sort((a,b)=>priceNum(b.price)-priceNum(a.price));
+      if(sort==="az") arr.sort((a,b)=>String(a.title||"").localeCompare(String(b.title||""),"hu"));
+      if(sort==="za") arr.sort((a,b)=>String(b.title||"").localeCompare(String(a.title||""),"hu"));
+      return arr;
+    }
+    function apply(){
+      const base=filteredSorted();
+      const pages=Math.max(1, Math.ceil(base.length/FULL_PER_PAGE));
+      page=Math.min(Math.max(1,page),pages);
+      const st=(page-1)*FULL_PER_PAGE, sl=base.slice(st, st+FULL_PER_PAGE);
+      grid.innerHTML="";
+      sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+      hydrateSafeImages(sec);
+      sec.querySelector('.pager').innerHTML=pagerHTML(base.length,page,FULL_PER_PAGE);
+    }
+
+    sec.addEventListener('click', (e)=>{
+      const b=e.target.closest('.pager button'); if(b){ page=Number(b.dataset.page)||1; apply(); }
+      if(e.target.id==='btnHome'){ showCategory("all"); }
+      if(e.target.id==='btnBackCat'){ showCategory(backCat); }
+    });
+    sec.addEventListener('input', (e)=>{
+      if(e.target.id==='localQ'){ q=e.target.value.trim(); page=1; apply(); }
+    });
+    sec.addEventListener('change', (e)=>{
+      if(e.target.id==='localSort'){ sort=e.target.value; page=1; apply(); }
+    });
+
+    apply();
+    content.appendChild(sec);
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  /* ====== Főoldal szekciók ====== */
+  function computeDiscount(it){
+    if (typeof it.discount === 'number' && it.discount>0) return it.discount;
+    const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
+    if (m){ const d=parseInt(m[1],10); return Number.isFinite(d)?d:0; }
+    return 0;
+  }
+  function renderDiscountBuckets(allItems){
+    const b2549=[], b50=[];
+    for(const it of allItems){
+      const d=computeDiscount(it);
+      if(d>=25 && d<=49) b2549.push(it);
+      if(d>=50) b50.push(it);
+    }
+    if(b2549.length) renderBlock("📉 -25% – -49%", b2549);
+    if(b50.length)   renderBlock("🔥 -50% és több", b50);
+  }
+  function renderTopDeals(){
+    const top=[...ITEMS].sort((a,b)=>b.discount-a.discount);
+    renderBlock("🏆 A hét legjobb ajánlatai", top);
+  }
+
+  /* ====== Kategóriák ====== */
+  async function renderAll(){
+    content.innerHTML="";
+    renderTopDeals();
+
+    if(!TCHIBO_READY) await loadTchibo();
+    if(!JATSZIG_READY) await loadJatszig();
+
+    const BUCKET_SRC = [...ITEMS, ...KARCHER_ITEMS, ...EOPTIKA_ITEMS, ...JATEKNET_ITEMS, ...TCHIBO_ITEMS, ...JATSZIG_ITEMS];
+    renderDiscountBuckets(BUCKET_SRC);
+
+    renderBlock("🛒 Amazon – válogatás", ITEMS);
+    renderBlock("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
+
+    if(TCHIBO_ITEMS.length) renderBlock("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS, {openKey:"tchibo"});
+
+    renderBlock("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
+    renderBlock("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
+
+    /* Játéksziget blokk a főoldalon is */
+    if(JATSZIG_ITEMS.length) renderBlock("🧸 Játéksziget.hu – Játékok", JATSZIG_ITEMS, {openKey:"jateksziget"});
+  }
+
+  async function showCategory(cat){
+    document.querySelectorAll(".catbtn").forEach(b=>{
+      b.classList.toggle("active", b.dataset.cat===cat || (cat==="all" && b.dataset.cat==="all"));
+    });
+    content.innerHTML="";
+    if(cat==="all"){ await renderAll(); return; }
+
+    if(cat==="tech"){
+      renderBlock("💻 Amazon – Tech", ITEMS.filter(i=>i.category==="tech" && i.partner==="Amazon"));
+      return;
+    }
+    if(cat==="games"){
+      if(!JATSZIG_READY) await loadJatszig();
+      renderBlock("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
+      if(JATSZIG_ITEMS.length) renderBlock("🧸 Játéksziget – Játékok", JATSZIG_ITEMS, {openKey:"jateksziget"});
+      return;
+    }
+    if(cat==="vision"){ renderBlock("👓 eOptika.hu – Látás", EOPTIKA_ITEMS); return; }
+    if(cat==="travel"){
+      const s=document.createElement('section'); s.className='section';
+      s.innerHTML=`<h2>✈️ Utazás</h2><div style="padding:12px">Hamarosan...</div>`;
+      content.appendChild(s); return;
+    }
+    if(cat==="home"){
+      renderBlock("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
+      if(!TCHIBO_READY) await loadTchibo();
+      if(TCHIBO_ITEMS.length) renderBlock("🛍️ Tchibo.hu – Otthon", TCHIBO_ITEMS, {openKey:"tchibo"});
+      return;
+    }
+  }
+  document.querySelectorAll(".catbtn").forEach(btn=>btn.addEventListener("click",()=>showCategory(btn.dataset.cat)));
+
+  /* ====== Kereső (globális) ====== */
+  async function showSearch(val){
+    const v=val.toLowerCase();
+    content.innerHTML=`
+      <section class="section">
+        <div class="toolbar">
+          <div class="toolgrp">
+            <button class="toolbtn" id="btnBack">← Vissza</button>
+            <strong>Keresés: „${val}”</strong>
+          </div>
+          <div class="toolgrp">
+            <button class="toolbtn" id="btnHome">🏠 Főoldal</button>
+          </div>
+        </div>
+      </section>`;
+    document.getElementById('btnBack').onclick=()=>showCategory("all");
+    document.getElementById('btnHome').onclick=()=>showCategory("all");
+
+    if(!TCHIBO_READY) await loadTchibo();
+    if(!JATSZIG_READY) await loadJatszig();
+
+    const amazon = ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
+    const jatek  = JATEKNET_ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
+    const karch  = KARCHER_ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
+    const eopt   = EOPTIKA_ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
+    const tchibo = TCHIBO_ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
+    const jatszi = JATSZIG_ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
+
+    if(amazon.length) renderBlock(`Amazon – találatok „${val}”`, amazon);
+    if(jatek.length)  renderBlock(`JátékNet.hu – találatok „${val}”`, jatek);
+    if(karch.length)  renderBlock(`Kärcher.hu – találatok „${val}”`, karch);
+    if(eopt.length)   renderBlock(`eOptika.hu – találatok „${val}”`, eopt);
+    if(tchibo.length) renderBlock(`Tchibo.hu – találatok „${val}”`, tchibo, {openKey:"tchibo"});
+    if(jatszi.length) renderBlock(`Játéksziget – találatok „${val}”`, jatszi, {openKey:"jateksziget"});
+
+    if(!amazon.length && !jatek.length && !karch.length && !eopt.length && !tchibo.length && !jatszi.length){
+      const s=document.createElement('section');
+      s.className='section';
+      s.innerHTML=`<h2>Nincs találat</h2><div class="grid"></div>`;
+      content.appendChild(s);
+    }
+  }
+  document.getElementById('searchForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const val=document.getElementById('q').value.trim();
+    if(val) showSearch(val); else showCategory("all");
+  });
+
+  /* ====== Dísz / UI ====== */
+  (function snow(){
+    const wrap=document.querySelector('.snow');
+    const isMobile = matchMedia('(max-width: 640px)').matches;
+    const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const COUNT = prefersReduced ? 0 : (isMobile ? 14 : 28);
+    for(let i=0;i<COUNT;i++){
+      const f=document.createElement('div');
+      f.className='flake';
+      f.style.left = Math.random()*100 + 'vw';
+      const dur = (isMobile ? 10 : 8) + Math.random()*10;
+      f.style.animationDuration = dur + 's';
+      f.style.animationDelay = (Math.random()*-dur) + 's';
+      f.style.opacity = (0.45 + Math.random()*0.35).toFixed(2);
+      const size = (isMobile ? 1.5 : 2) + Math.random()*4;
+      f.style.width = f.style.height = size + 'px';
+      wrap.appendChild(f);
+    }
+  })();
+  (function(){
+    const btn = document.getElementById('toTop');
+    window.addEventListener('scroll', ()=>{ if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show'); });
+  })();
+
+  /* ====== Indítás ====== */
+  (async function init(){
+    const urlQ=new URLSearchParams(location.search).get('q');
+    if(urlQ){ document.getElementById('q').value=urlQ; await showSearch(urlQ); }
+    else { await showCategory("all"); }
+  })();
   </script>
 </body>
 </html>
