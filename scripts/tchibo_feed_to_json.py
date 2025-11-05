@@ -42,14 +42,29 @@ def clean_price(s: str) -> str:
     return m[0] if m else ""
 
 def ensure_https(u: str) -> str:
+    """Tchibo relatív és protokoll-relatív linkeket is normalizálunk teljes https URL-re."""
     if not u: return ""
     try:
         from urllib.parse import urlsplit, urlunsplit
-        sp = urlsplit(u.strip())
+        raw = u.strip()
+        sp = urlsplit(raw)
+
+        # /products/... -> https://www.tchibo.hu/products/...
+        if not sp.scheme and not sp.netloc and raw.startswith("/"):
+            return "https://www.tchibo.hu" + raw
+
+        # //www.tchibo.hu/... -> https://www.tchibo.hu/...
+        if not sp.scheme and raw.startswith("//"):
+            return "https:" + raw
+
+        # nincs séma -> https
         if not sp.scheme:
             sp = sp._replace(scheme="https")
+
+        # ha továbbra sincs host, dobjuk (nem tudjuk hova mutat)
         if not sp.netloc:
             return ""
+
         sp = sp._replace(fragment="")
         return urlunsplit(sp)
     except Exception:
@@ -76,6 +91,14 @@ def main():
             json.dump([], f)
         return
     root = strip_ns(root)
+
+    # DEBUG: mutassuk a leggyakoribb tag-neveket
+    from collections import Counter
+    tags = Counter()
+    for e in root.iter():
+        if isinstance(e.tag, str):
+            tags[e.tag] += 1
+    print("Top tagek:", ", ".join(t for t,_ in tags.most_common(20)))
 
     # 3) Klasszikus csomópontok
     nodes = root.findall(".//SHOPITEM") or root.findall(".//item") or root.findall(".//PRODUCT")
