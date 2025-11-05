@@ -10,8 +10,11 @@ def norm_https(u: str) -> str:
     if not u: return ""
     try:
         from urllib.parse import urlsplit, urlunsplit
-        s = u.strip().replace("]]", "")  # feed maradék lecsapása
+        s = u.strip().replace("]]", "")
         sp = urlsplit(s)
+        if not sp.scheme and s.startswith("//"):
+            s = "https:" + s
+            sp = urlsplit(s)
         if not sp.scheme:
             sp = sp._replace(scheme="https")
         if not sp.netloc and s.startswith("/"):
@@ -28,23 +31,17 @@ def first_url_from_text(txt: str) -> str:
 
 def clean_price(p: str) -> str:
     if not p: return ""
-    # elfogadja a "6 995,00" / "6995,00" formátumokat is
     x = re.findall(r"[\d\.,\s]+", p)
     if not x: return ""
-    v = x[0].replace(" ", "")
-    return v
+    return x[0].replace(" ", "")
 
 def lower_tag(t):
     if not isinstance(t, str): return ""
-    if t.startswith("{"):  # namespace lecsupaszítás
+    if t.startswith("{"):
         t = t.split("}", 1)[1]
     return t.lower()
 
 def product_to_record(node) -> dict:
-    """
-    Egy <product> csomópontból minden közvetlen gyerek TAG->TEXT mapet építünk,
-    és több lehetséges kulcsból válogatunk (PRODUCTNAME/PRODUCT/TITLE, stb.)
-    """
     fields = {}
     for ch in list(node):
         tag = lower_tag(ch.tag)
@@ -52,27 +49,27 @@ def product_to_record(node) -> dict:
         if val:
             fields[tag] = val
 
-    # Kép: IMGURL, IMGURL_ALTERNATIVE1/2..., PARAM_MAIN_IMAGE, vagy ISBN-ben URL
-    image = (
-        fields.get("imgurl")
-        or fields.get("param_main_image")
-        or fields.get("image_link")
-        or fields.get("main_image")
-        or first_url_from_text(fields.get("isbn", ""))
-        or ""
-    )
+    # --- KÉP: IMGURL, IMGURL_ALTERNATIVE*, PARAM_MAIN_IMAGE, IMAGE_LINK, MAIN_IMAGE, ISBN-ben első URL
+    image = fields.get("imgurl") or fields.get("param_main_image") or fields.get("image_link") or fields.get("main_image") or ""
+    if not image:
+        # összes alternatív kulcs összegyűjtése
+        for k, v in fields.items():
+            if k.startswith("imgurl_alternative") and v:
+                image = v
+                break
+    if not image:
+        image = first_url_from_text(fields.get("isbn", ""))
     image = norm_https(image)
 
-    # Ár: PRICE_VAT, különben PARAM_PRICE
-    price = clean_price(fields.get("price_vat") or fields.get("param_price") or "")
-    old_price = clean_price(fields.get("price_old") or fields.get("original_price") or "")
+    # --- ÁR: PRICE_VAT -> PARAM_PRICE -> üres
+    price     = clean_price(fields.get("price_vat") or fields.get("param_price") or "")
+    old_price = clean_price(fields.get("price_old") or fields.get("original_price") or fields.get("price_before") or "")
 
-    # Leírás
+    # --- LEÍRÁS
     desc = fields.get("description") or fields.get("param_description_short") or ""
 
-    # URL + article_id megtartása, sallangok levágása
-    raw_url = fields.get("url") or fields.get("product_url") or fields.get("link") or ""
-    raw_url = raw_url.replace("]]", "").strip()
+    # --- URL normalizálása + csak article_id meghagyása
+    raw_url = (fields.get("url") or fields.get("product_url") or fields.get("link") or "").replace("]]", "").strip()
     url = norm_https(raw_url)
     if url:
         try:
@@ -81,23 +78,14 @@ def product_to_record(node) -> dict:
             q = parse_qs(sp.query)
             new_q = {}
             if "article_id" in q and q["article_id"]:
-                aid = q["article_id"][0].replace("]", "")
-                new_q["article_id"] = aid
+                new_q["article_id"] = q["article_id"][0].replace("]", "")
             sp = sp._replace(netloc="www.tchibo.hu", query=urlencode(new_q, doseq=True), fragment="")
             url = urlunsplit(sp)
         except Exception:
             pass
 
-    # Cím
-    title = (
-        fields.get("productname")
-        or fields.get("product")
-        or fields.get("title")
-        or fields.get("name")
-        or ""
-    )
-
-    # Ha még mindig nincs cím, próbáljuk a URL-ből
+    # --- CÍM
+    title = fields.get("productname") or fields.get("product") or fields.get("title") or fields.get("name") or ""
     if not title and "/products/" in url:
         slug = url.split("/products/", 1)[-1]
         slug = re.split(r"[?&#]", slug)[0]
@@ -116,19 +104,18 @@ def product_to_record(node) -> dict:
     }
 
 def parse_feed(xml_bytes: bytes):
-    items = []
     try:
         root = ET.fromstring(xml_bytes)
     except ParseError:
-        return items
-
-    # products/product struktúra
+        return []
+    # ProductsUp: <products><product>...
     products = root.findall(".//product") or root.findall(".//PRODUCT") or []
+    out = []
     for p in products:
         rec = product_to_record(p)
         if rec:
-            items.append(rec)
-    return items
+            out.append(rec)
+    return out
 
 def main():
     headers = {
@@ -141,7 +128,6 @@ def main():
 
     items = parse_feed(r.content)
 
-    # Ha valamiért nem sikerül kinyerni, NE írjuk felül 0-val
     if not items:
         print("WARN: 0 tétel – a meglévő JSON érintetlen marad.")
         return
