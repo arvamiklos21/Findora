@@ -259,7 +259,7 @@
     {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
   ];
 
-  /* ====== SEGÉDEK: pager, kártya ====== */
+  /* ====== SEGÉDEK: kártya, képek ====== */
   function cardHTML(it){
     const primary = it.image ? it.image : keyImage(it.title);
     const imgTag =
@@ -292,6 +292,7 @@
     });
   }
 
+  /* ====== Pager (progresszív, nincs fix 15. oldal limit) ====== */
   function progressivePagerHTML(total, page, per, maxShownRef){
     const pages = Math.max(1, Math.ceil(total / per));
     const maxVisited = Math.max(1, maxShownRef.value || 1, page);
@@ -429,7 +430,7 @@
     return 0;
   }
 
-  /* ====== CF/Cache hibák ellen védett betöltő ====== */
+  /* ====== Cache/fallback ====== */
   function lsKey(url){ return "findora_cache_"+url; }
   function saveCache(url, rows){
     try{
@@ -457,12 +458,11 @@
         const d = await r.json();
         const rows = Array.isArray(d?.items) ? d.items : (Array.isArray(d) ? d : []);
         if (rows.length>0){ saveCache(url, rows); return rows; }
-        // ha üres jött, próbáljuk újra, majd cache
         lastErr = new Error("Empty feed");
       }catch(e){
         lastErr=e;
       }
-      await new Promise(res=>setTimeout(res, delay*Math.pow(2,i))); // backoff
+      await new Promise(res=>setTimeout(res, delay*Math.pow(2,i)));
     }
     const cached = loadCache(url);
     if (cached){ console.warn("[findora] fallback cache for", url, lastErr); return cached; }
@@ -470,9 +470,46 @@
     return [];
   }
 
+  /* ====== Közös normalizálók + duplikátumszűrés ====== */
+  function normalizeBase(url){
+    try{
+      const u=new URL(url);
+      u.searchParams.delete('article_id'); // variáns zaj szűrés
+      return u.origin + u.pathname;
+    }catch(_){ return String(url||"").split("?")[0]; }
+  }
+  function detectColor(title=""){
+    const t = title.toLowerCase();
+    const colors = ["fekete","fehér","feher","piros","kék","kek","zöld","zold","sárga","sarga","barna","szürke","szurke","bézs","bezs","lila","narancs","arany","ezüst","ezust","bordó","bordeaux","krém","krem","kékeszöld","türkiz","turkiz","rózsaszín","rozsaszin"];
+    for(const c of colors){ if(t.includes(c)) return c; }
+    return "";
+  }
+  function dedupeByBaseColor(items){
+    const map = new Map();
+    for(const x of items){
+      const base = normalizeBase(x.product_url || x.affiliate_url || x.url || "");
+      const color = detectColor(x.title||"");
+      const key = base + "|" + color;
+      const priceNum = Number.isFinite(x.price) ? x.price : (Number.isFinite(x.priceNum)?x.priceNum:null);
+      const disc = Number.isFinite(x.discount) ? x.discount : computeDiscount(x);
+      const cand = {
+        ...x,
+        priceNum,
+        discount: disc>0?disc:0
+      };
+      if(!map.has(key)) { map.set(key, cand); continue; }
+      const cur = map.get(key);
+      const better = (cur.priceNum==null) ? cand : (cand.priceNum==null) ? cur : (cand.priceNum < cur.priceNum ? cand : cur);
+      if (cand.discount > better.discount) better.discount = cand.discount;
+      if (!better.image && cand.image) better.image = cand.image;
+      map.set(key, better);
+    }
+    return Array.from(map.values());
+  }
+
   function mapGenericFeed(rows, partner, category){
     const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
-    return rows.map(x=>{
+    const mapped = rows.map(x=>{
       const price = Number.isFinite(x.price) ? x.price : null;
       const disc = Number.isFinite(x.discount) ? x.discount : 0;
       return {
@@ -487,25 +524,13 @@
         desc: (x.desc||x.description||"").slice(0,160)
       };
     }).filter(o=>o.title && o.url);
+    return dedupeByBaseColor(mapped);
   }
 
-  function normalizeBase(url){
-    try{
-      const u=new URL(url);
-      u.searchParams.delete('article_id'); // variáns zaj szűrés
-      return u.origin + u.pathname;
-    }catch(_){ return String(url||"").split("?")[0]; }
-  }
-  function detectColor(title=""){
-    const t = title.toLowerCase();
-    const colors = ["fekete","fehér","feher","piros","kék","kek","zöld","zold","sárga","sarga","barna","szürke","szurke","bézs","bezs","lila","narancs","arany","ezüst","ezust","bordó","bordeaux","krém","krem","kékeszöld","türkiz","turkiz","rózsaszín","rozsaszin"];
-    for(const c of colors){ if(t.includes(c)) return c; }
-    return "";
-  }
-
+  /* ====== Betöltők ====== */
   async function loadTchibo(limit=1000){
     const rows = await fetchJSONWithRetry(TCHIBO_API, {limit});
-    // duplikátum összevonás (méret összevon, szín külön)
+    // Tchibo: duplikátumszűrés már eleve erős, itt megtartjuk a saját logikát
     const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
     const map = new Map();
     for(const x of rows){
