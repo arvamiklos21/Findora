@@ -129,7 +129,6 @@
     #toTop{position:fixed; right:12px; bottom:70px; z-index:60; display:none; background:#ffffff; color:#0b1220; border:1px solid #e2e8f0; border-radius:999px; padding:8px 12px; font-weight:800; box-shadow:0 8px 22px rgba(2,6,23,.22); cursor:pointer}
     #toTop.show{display:block}
 
-    /* plusz: kattintható partner fejlécek */
     .section.partner h2 .plink{cursor:pointer;text-decoration:none;color:inherit}
     .section.partner h2 .plink:hover{opacity:.8}
     .tools-inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -175,13 +174,13 @@
 
   <script>
   /* ====== Oldal beállítás ====== */
-  const PER_PAGE_HOME = 4;     // #1 – HOME/ALL összesített lista
-  const PER_PAGE_PARTNER = 20; // #3 – partner nézetben 20/db
+  const PER_PAGE_HOME = 4;     // HOME/ALL összesített lista
+  const PER_PAGE_PARTNER = 20; // partner nézetben 20/db
 
-  /* ====== API végpontok (ha más az útvonalad, itt írd át) ====== */
+  /* ====== API végpontok ====== */
   const TCHIBO_API = "/api/tchibo";
-  const REGIO_API = "/api/regiojatek";
-  const JATEKSZIGET_API = "/api/jateksziget";
+  const REGIO_API = "/api/regiojatek";     // <- KÉRT VÁLTOZTATÁS
+  const JATEKSZIGET_API = "/api/jateksziget"; // <- KÉRT VÁLTOZTATÁS
 
   /* ====== PARTNER LINKEK ====== */
   const AMAZON_TAG = "findora30-20";
@@ -293,35 +292,27 @@
 
   const content=document.getElementById('content');
 
-  /* ====== Progresszív pager ======
-     Kezdet: 1..4 … last
-     Ha a felhasználó a legnagyobb eddig elért oldalt növeli, bővül a lista.
-  */
+  /* ====== Progresszív pager ====== */
   function progressivePagerHTML(total, page, per, maxShownRef){
     const pages = Math.max(1, Math.ceil(total / per));
     const maxVisited = Math.max(1, maxShownRef.value || 1, page);
-    // hányat mutatunk fixen az elejétől
     const baseWindow = Math.max(4, maxVisited);
     const upto = Math.min(pages, baseWindow);
     let html = `<div class="pager">`;
     const mkBtn = (p, lbl, active=false, disabled=false) => `<button data-page="${p}" ${disabled?'disabled':''} class="${active?'active':''}">${lbl}</button>`;
     const mkDots = () => `<span class="dots">…</span>`;
     html += mkBtn(Math.max(1,page-1), "«", false, page<=1);
-
-    // 1..upto
     for (let i=1;i<=upto;i++) html += mkBtn(i, i, i===page);
-
     if (upto < pages){
       html += mkDots();
       html += mkBtn(pages, pages, page===pages);
     }
-
     html += mkBtn(Math.min(pages,page+1), "»", false, page>=pages);
     html += `</div>`;
     return html;
   }
 
-  /* ====== Általános összesített rács (HOME/ALL) ====== */
+  /* ====== Összesített rács (HOME/ALL) ====== */
   function renderUnifiedList(title, items, perPage=PER_PAGE_HOME){
     if(!items || !items.length) return;
     const sec=document.createElement('section');
@@ -329,7 +320,7 @@
     sec.innerHTML=`<h2>${title}</h2><div class="grid"></div><div class="pager"></div>`;
     const grid=sec.querySelector('.grid');
     let page = 1;
-    const maxShown = { value: 4 }; // progresszív ablak kezdete
+    const maxShown = { value: 4 };
 
     function apply(){
       const pages = Math.max(1, Math.ceil(items.length/perPage));
@@ -349,13 +340,13 @@
     content.appendChild(sec);
   }
 
-  /* ====== Partner szekció fejléc kattintás → partner-nézet ====== */
+  /* ====== Partner fejléc katt → partner-nézet ====== */
   function partnerHeaderHTML(partnerName, subtitle=""){
     const sub = subtitle ? ` <small style="font-weight:600;color:#475569">– ${subtitle}</small>` : "";
     return `<span class="plink" data-partner-open="${partnerName}">${partnerName}</span>${sub}`;
   }
 
-  /* ====== Sima partnerblokk (kategória oldalakon), oldalszám nélkül ====== */
+  /* ====== Sima partnerblokk (kategória oldalak) ====== */
   function renderPartnerTableAll(title, partnerName, items){
     if(!items || !items.length) return;
     const sec=document.createElement('section');
@@ -364,14 +355,13 @@
     const grid=sec.querySelector('.grid');
     items.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
     hydrateSafeImages(sec);
-    // header katt
     sec.querySelector('[data-partner-open]').addEventListener('click', ()=>{
       openPartnerView(partnerName, items);
     });
     content.appendChild(sec);
   }
 
-  /* ====== Partner-nézet: 20/db, KERESŐ + RENDEZÉS ====== */
+  /* ====== Partner-nézet: 20/db, kereső + rendezés ====== */
   function openPartnerView(partnerName, itemsSource){
     content.innerHTML = `
       <section class="section">
@@ -487,7 +477,7 @@
     return 0;
   }
 
-  /* ====== Tchibo – duplakezelés, színelkülönítés (megmaradt) ====== */
+  /* ====== Tchibo betöltő ====== */
   function normalizeBase(url){
     try{
       const u=new URL(url);
@@ -598,7 +588,6 @@
 
   /* ====== Összesítés HOME-hoz ====== */
   function flattenAll(all){
-    // mindent összerakunk egy listába
     return all.flat().map(o=>({
       title:o.title, partner:o.partner, price:o.price, priceNum:o.priceNum,
       discount:o.discount||computeDiscount(o), url:o.url, image:o.image, category:o.category, desc:o.desc
@@ -610,13 +599,11 @@
 
   async function renderAllUnified(){
     content.innerHTML="";
-    // betöltés
     const [tch, regio, jatsz] = await Promise.all([loadTchiboLive(1000), loadRegio(1000), loadJateksziget(1000)]);
     const unified = flattenAll([
       ITEMS, KARCHER_ITEMS, EOPTIKA_ITEMS, JATEKNET_ITEMS,
       tch, regio, jatsz
     ]);
-
     renderUnifiedList("🧭 Összes termék", unified, PER_PAGE_HOME);
   }
 
@@ -644,7 +631,6 @@
       content.appendChild(s); return;
     }
     if(cat==="games"){
-      // Regio + Játéksziget + JátékNet együtt a kategória oldalon, külön táblák
       const [regio, jatsz] = await Promise.all([loadRegio(1000), loadJateksziget(1000)]);
       renderPartnerTableAll("Játékok", "RegioJáték", regio);
       renderPartnerTableAll("Játékok", "Játéksziget", jatsz);
@@ -652,7 +638,6 @@
       return;
     }
     if(cat==="home"){
-      // Kärcher + Tchibo külön táblák, és fölé kategória-kereső csak ezekre
       const topBar=document.createElement('section');
       topBar.className='section';
       topBar.innerHTML=`
@@ -666,12 +651,10 @@
       content.appendChild(topBar);
 
       const [tch] = await Promise.all([loadTchiboLive(1000)]);
-      // Táblák:
       const karchAll = KARCHER_ITEMS.slice();
       renderPartnerTableAll("Otthon", "Kärcher.hu", karchAll);
       renderPartnerTableAll("Otthon", "Tchibo.hu", tch);
 
-      // Kereső: csak az Otthon partnerekre szűrjük a már kirakott kártyákat
       const homeQ = topBar.querySelector('#homeQ');
       homeQ.addEventListener('input', ()=>{
         const v = homeQ.value.trim().toLowerCase();
@@ -688,7 +671,7 @@
   }
   document.querySelectorAll(".catbtn").forEach(btn=>btn.addEventListener("click",()=>showCategory(btn.dataset.cat)));
 
-  /* ====== Kereső (globális) – találatok több partnerből, de 4/db progresszív lapozással ====== */
+  /* ====== Globális kereső ====== */
   async function showSearch(val){
     const v=val.toLowerCase();
     content.innerHTML= `
