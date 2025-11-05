@@ -170,7 +170,7 @@
   /* ====== Oldal beállítás ====== */
   const PER_PAGE = 4;
 
-  /* ====== PARTNER LINKEK (aff kódokkal) ====== */
+  /* ====== PARTNER LINKEK ====== */
   const AMAZON_TAG = "findora30-20";
   const amazonBase = `https://www.amazon.com/?tag=${AMAZON_TAG}`;
 
@@ -182,7 +182,8 @@
     Amazon:"https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
     "JátékNet.hu":"https://upload.wikimedia.org/wikipedia/commons/8/8f/Puzzle.svg",
     "Kärcher.hu":"https://upload.wikimedia.org/wikipedia/commons/6/62/Karcher_logo.svg",
-    "eOptika.hu":"https://upload.wikimedia.org/wikipedia/commons/7/72/Glasses_icon.svg"
+    "eOptika.hu":"https://upload.wikimedia.org/wikipedia/commons/7/72/Glasses_icon.svg",
+    "Tchibo.hu":"https://upload.wikimedia.org/wikipedia/commons/0/0b/Tchibo_logo.svg"
   };
 
   (function(){ const img=document.getElementById('brandLogo'); let step=0; img.onerror=()=>{ step++; if(step===1) img.src=img.dataset.fallback1; else if(step===2) img.src=img.dataset.fallback2; }; })();
@@ -246,7 +247,7 @@
   function cardHTML(it){
     const primary = it.image ? it.image : keyImage(it.title);
     const imgTag =
-      `<img class="imgsafe" alt="${it.title.replace(/"/g,'&quot;')}"
+      `<img class="imgsafe" alt="${it.title}"
             loading="lazy" decoding="async" referrerpolicy="no-referrer"
             data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
     const logo = LOGO_URLS[it.partner] ? `<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">` : "";
@@ -309,6 +310,7 @@
     return html;
   }
 
+  // Általános partnerblokk (oldalazással)
   function renderPartnerTable(title, items){
     if(!items || !items.length) return;
     const sec=document.createElement('section');
@@ -330,6 +332,19 @@
       if(b){ page = Number(b.dataset.page)||1; apply(); }
     });
     apply();
+    content.appendChild(sec);
+  }
+
+  // Speciális partnerblokk – NINCS oldalszám (mindent megjelenít)
+  function renderPartnerTableAll(title, items){
+    if(!items || !items.length) return;
+    const sec=document.createElement('section');
+    sec.className='section partner';
+    sec.innerHTML=`<h2>${title}</h2><div class="grid"></div>`;
+    const grid=sec.querySelector('.grid');
+    grid.innerHTML="";
+    items.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+    hydrateSafeImages(sec);
     content.appendChild(sec);
   }
 
@@ -384,62 +399,49 @@
     if (b50.length) renderSection("🔥 -50% és több", b50);
   }
 
-  /* ====== Tchibo (élő Worker API) ====== */
-
-  // 1) méretvariánsok összevonása (szín marad)
-  function normalizeTitleForSize(t){
-    if(!t) return "";
-    let s = String(t).trim();
-
-    // (Méret: ...), (XS/S/M/L/XL), (36/38) a végén
-    s = s.replace(/\s*\((?:méret|meret|size)\s*[:\-]?\s*[a-z0-9\/\.\- ]+\)\s*$/i, "");
-    s = s.replace(/\s*\((?:XS|S|M|L|XL|XXL|XXXL|[0-9]{2}(?:\/[0-9]{2})?)\)\s*$/i, "");
-
-    // vessző/–/- után méret a végén: ", 36/38" vagy " - XL"
-    s = s.replace(/\s*[,–-]\s*(?:XS|S|M|L|XL|XXL|XXXL|[0-9]{2}(?:\/[0-9]{2})?)\s*$/i, "");
-
-    // „Méret:” szakasz bárhol
-    s = s.replace(/\b(méret|meret|size)\s*[:\-]?\s*[a-z0-9\/\.\- ]+/gi, "$1");
-
-    return s.replace(/\s{2,}/g," ").trim();
+  /* ====== Tchibo (élő Worker API) – duplikátumkezelés ====== */
+  function normalizeBase(url){
+    try{
+      const u=new URL(url);
+      u.searchParams.delete('article_id'); // méret / variáns id törlése
+      return u.origin + u.pathname;
+    }catch(_){ return String(url||"").split("?")[0]; }
   }
 
-  function squashSizes(items){
-    const map = new Map();
-    for(const it of items){
-      const base = normalizeTitleForSize(it.title || "");
-      // színt meghagyjuk: a base mellett a szín szavak benne maradnak a title-ben
-      const key = base.toLowerCase();
-      if(!map.has(key)){
-        map.set(key, it);
-      }else{
-        const cur = map.get(key);
-        // válasszuk a jobb (áras / nagyobb kedvezmény) változatot
-        const dA = Number(it.discount||0), dB = Number(cur.discount||0);
-        if (dA>dB || (!cur.price && it.price)) map.set(key, it);
-      }
+  function detectColor(title=""){
+    const t = title.toLowerCase();
+    const colors = ["fekete","fehér","feher","piros","kék","kek","zöld","zold","sárga","sarga","barna","szürke","szurke","bézs","bezs","lila","narancs","arany","ezüst","ezust","bordó","bordeaux","krém","krem","kékeszöld","türkiz","turkiz","rózsaszín","rozsaszin"];
+    for(const c of colors){ if(t.includes(c)) return c; }
+    return ""; // ha nincs szín a címben, egy kosárba kerül
     }
-    return Array.from(map.values());
-  }
 
   async function loadTchiboLive(limit=1000){
     try{
       const r = await fetch(`/api/tchibo?limit=${limit}`, { cache: "no-store" });
       if(!r.ok) throw new Error("Feed hiba: "+r.status);
       const data = await r.json();
-      const arr = Array.isArray(data.items) ? data.items : [];
+      const rows = Array.isArray(data.items) ? data.items : [];
 
+      // formázó
       const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
 
-      const items = arr.map(x=>{
+      // előkészítés + csoportosítás (méret összevon, szín külön)
+      const map = new Map(); // kulcs: baseURL + '|' + color
+      for(const x of rows){
         const price = Number.isFinite(x.price) ? x.price : null;
         const old   = Number.isFinite(x.old_price) ? x.old_price : null;
         const disc  = (Number.isFinite(price) && Number.isFinite(old) && old>0)
-          ? Math.round((1 - price/old)*100) : (Number.isFinite(x.discount) ? x.discount : 0);
+            ? Math.round((1 - price/old)*100)
+            : (Number.isFinite(x.discount) ? x.discount : 0);
 
-        return {
+        const base = normalizeBase(x.product_url || x.affiliate_url || "");
+        const color = detectColor(x.title||"");
+        const key = base + "|" + color;
+
+        const cand = {
           title: x.title || "",
           partner: "Tchibo.hu",
+          priceNum: price,
           price: fmt(price),
           discount: disc>0 ? disc : 0,
           url: x.affiliate_url || x.product_url || "",
@@ -447,11 +449,28 @@
           category: "home",
           desc: (x.desc||"").slice(0,160)
         };
-      }).filter(o=>o.title && o.url);
 
-      // méretvariánsok összevonása
-      return squashSizes(items);
+        if(!map.has(key)){
+          map.set(key, cand);
+        }else{
+          // már van ilyen termék (más méret): megtartjuk a kedvezőbbet / jobb képet
+          const cur = map.get(key);
+          // alacsonyabb ár előny
+          const better = (cur.priceNum==null) ? cand
+                        : (cand.priceNum==null) ? cur
+                        : (cand.priceNum < cur.priceNum ? cand : cur);
+          // nagyobb kedvezmény előny
+          if (cand.discount > better.discount) better.discount = cand.discount;
+          // kép fallback
+          if (!better.image && cand.image) better.image = cand.image;
+          map.set(key, better);
+        }
+      }
 
+      // kész lista
+      return Array.from(map.values())
+        .filter(o=>o.title && o.url)
+        .map(o=>({title:o.title, partner:o.partner, price:o.price, discount:o.discount, url:o.url, image:o.image, category:o.category, desc:o.desc}));
     }catch(e){
       console.warn("Tchibo feed nem elérhető:", e);
       return [];
@@ -463,20 +482,17 @@
     content.innerHTML="";
     renderTopDeals();
 
-    // Tchibo-t itt is betöltjük, hogy a kedvezmény-vödrökbe is bekerüljön
-    const tch = await loadTchiboLive(1000);
-
     const ALL_FOR_BUCKETS = [
-      ...ITEMS, ...KARCHER_ITEMS, ...EOPTIKA_ITEMS,
-      ...JATEKNET_ITEMS, ...tch
+      ...ITEMS, ...KARCHER_ITEMS, ...EOPTIKA_ITEMS, ...JATEKNET_ITEMS
     ];
     renderDiscountBuckets(ALL_FOR_BUCKETS);
 
     renderPartnerTable("🛒 Amazon – válogatás", ITEMS);
     renderPartnerTable("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
 
-    // Tchibo a HOME-on ugyanúgy táblázatban
-    if (tch.length) renderPartnerTable("🛍️ Tchibo.hu – Otthon", tch);
+    // Tchibo a HOME-on is, teljes tartalom (nincs oldalszám), duplák nélkül
+    const tch = await loadTchiboLive(1000);
+    if (tch.length) renderPartnerTableAll("🛍️ Tchibo.hu – Otthon", tch);
 
     renderPartnerTable("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
     renderPartnerTable("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
@@ -494,10 +510,7 @@
     if(cat==="tech"){
       renderPartnerTable("💻 Amazon – Tech", ITEMS.filter(i=>i.category==="tech" && i.partner==="Amazon")); return;
     }
-    if(cat==="games"){
-      renderPartnerTable("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
-      return;
-    }
+    if(cat==="games"){ renderPartnerTable("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS); return; }
     if(cat==="vision"){ renderPartnerTable("👓 eOptika.hu – Látás", EOPTIKA_ITEMS); return; }
     if(cat==="travel"){
       const s=document.createElement('section');
@@ -508,7 +521,7 @@
     if(cat==="home"){
       renderPartnerTable("🏠 Kärcher.hu – Otthon", KARCHER_ITEMS);
       const tch = await loadTchiboLive(1000);
-      if (tch.length) renderPartnerTable("🛍️ Tchibo.hu – Otthon", tch);
+      if (tch.length) renderPartnerTableAll("🛍️ Tchibo.hu – Otthon", tch);
       return;
     }
   }
@@ -533,18 +546,16 @@
     document.getElementById('btnHome').onclick=()=>showCategory("all");
 
     const amazon = ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
-    const jatek = JATEKNET_ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
-    const karch = KARCHER_ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
-    const eopt = EOPTIKA_ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
-    const tch  = (await loadTchiboLive(1000)).filter(i=>String(i.title).toLowerCase().includes(v));
+    const jatek  = JATEKNET_ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
+    const karch  = KARCHER_ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
+    const eopt   = EOPTIKA_ITEMS.filter(i=>String(i.title).toLowerCase().includes(v));
 
     if(amazon.length) renderPartnerTable(`Amazon – találatok „${val}”`, amazon);
-    if(jatek.length) renderPartnerTable(`JátékNet.hu – találatok „${val}”`, jatek);
-    if(karch.length) renderPartnerTable(`Kärcher.hu – találatok „${val}”`, karch);
-    if(eopt.length) renderPartnerTable(`eOptika.hu – találatok „${val}”`, eopt);
-    if(tch.length)   renderPartnerTable(`Tchibo.hu – találatok „${val}”`, tch);
+    if(jatek.length)  renderPartnerTable(`JátékNet.hu – találatok „${val}”`, jatek);
+    if(karch.length)  renderPartnerTable(`Kärcher.hu – találatok „${val}”`, karch);
+    if(eopt.length)   renderPartnerTable(`eOptika.hu – találatok „${val}”`, eopt);
 
-    if(!amazon.length && !jatek.length && !karch.length && !eopt.length && !tch.length){
+    if(!amazon.length && !jatek.length && !karch.length && !eopt.length){
       const s=document.createElement('section');
       s.className='section';
       s.innerHTML=`<h2>Nincs találat</h2><div class="grid"></div>`;
