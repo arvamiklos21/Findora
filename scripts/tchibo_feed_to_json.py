@@ -123,15 +123,13 @@ def parse_xml_to_items(xml_bytes):
 def regex_fallback_to_items(text_bytes):
     """Ha nem XML/üres a feed, REGEX-szel kinyerünk Tchibo termék URL-eket, és azokból építünk rekordot."""
     txt = text_bytes.decode("utf-8", errors="replace")
-    # keresünk products linkeket
+    # teljes, protokollrelatív és relatív products linkek
     urls = set(re.findall(r"https?://(?:www\.)?tchibo\.hu/[^\s\"'<>()]*?products/[^\s\"'<>()]+", txt))
-    # plusz protokollrelatív/relatív linkek
     urls |= set("https://www.tchibo.hu" + u for u in re.findall(r"(?<!https:)(?<!http:)//(?:www\.)?tchibo\.hu/[^\s\"'<>()]*?products/[^\s\"'<>()]+", txt))
     urls |= set("https://www.tchibo.hu" + u for u in re.findall(r"(?<![a-zA-Z:])(/products/[^\s\"'<>()]+)", txt))
 
     items = []
-    for u in list(urls)[:60]:  # ne szaladjon el
-        # cím a slugból
+    for u in list(urls)[:60]:  # limit
         slug = u.split("/products/", 1)[-1]
         slug = re.split(r"[?&#]", slug)[0]
         slug_words = re.split(r"[-_]", slug)
@@ -149,7 +147,7 @@ def regex_fallback_to_items(text_bytes):
     return items
 
 def main():
-    # Letöltés több fejléccel + mentés
+    # Letöltés + mentés
     headers = {
         "User-Agent": UA,
         "Accept": "application/xml,text/xml,application/xhtml+xml,text/html;q=0.9,*/*;q=0.8",
@@ -170,7 +168,7 @@ def main():
 
     # 2) Ha nincs semmi, regex fallback
     if not items:
-        print("XML kinyerés 0—indul a REGEX fallback…")
+        print("XML kinyerés 0 — indul a REGEX fallback…")
         items = regex_fallback_to_items(r.content)
 
     # 3) Végső: ha még mindig 0, NE írjuk felül a meglévő JSON-t (fail-safe)
