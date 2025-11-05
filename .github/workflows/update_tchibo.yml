@@ -1,61 +1,30 @@
-name: Update Tchibo feed and deploy Pages
+name: Update Tchibo JSON
 
 on:
   schedule:
-    - cron: "0 */6 * * *"   # 6 óránként fut
-  workflow_dispatch: {}      # kézzel is indítható
-  push:
-    paths:
-      - "scripts/tchibo_feed_to_json.py"
-      - "docs/**"
-      - ".github/workflows/update_tchibo.yml"
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
+    - cron: "15 */6 * * *"   # 6 óránként, egész óra +15 perckor
+  workflow_dispatch:
 
 jobs:
-  build:
+  run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.x"
 
       - name: Install deps
         run: pip install requests
 
-      # 1) Lekéri az XML-t és legyártja docs/tchibo.json-t
       - name: Build tchibo.json
         run: python scripts/tchibo_feed_to_json.py
 
-      # 2) Összecsomagolja a publikálandó oldalt (dist/)
-      - name: Collect site
+      - name: Commit & push tchibo.json
         run: |
-          rm -rf dist
-          mkdir -p dist
-          cp -r docs/* dist/
-          test -f docs/tchibo.json && cp docs/tchibo.json dist/tchibo.json
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/tchibo.json
+          git commit -m "Update Tchibo feed" || echo "No changes"
+          git push
