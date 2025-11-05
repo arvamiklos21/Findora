@@ -1,65 +1,105 @@
 # scripts/tchibo_feed_to_json.py
-import json, xml.etree.ElementTree as ET, requests, re
-from urllib.parse import urlparse
+import json, re, requests, xml.etree.ElementTree as ET
 
 FEED_URL = "https://transport.productsup.io/92670536fcbd28a5708a/channel/695671/HU_heureka.xml"
 OUT_PATH = "docs/tchibo.json"
 
+def strip_ns(elem):
+    """Eltávolítja az XML namespace-eket a fa egészéről."""
+    for e in elem.iter():
+        if isinstance(e.tag, str) and e.tag.startswith("{"):
+            e.tag = e.tag.split("}", 1)[1]
+    return elem
+
+def txt(node, names):
+    """Az első létező gyermek textjét adja vissza a 'names' listából."""
+    for name in names:
+        el = node.find(name)
+        if el is not None and (el.text or "").strip():
+            return el.text.strip()
+    return ""
+
 def clean_price(s: str) -> str:
     if not s: return ""
     s = s.strip()
-    # hagyjuk benne a számot és decimált, pontot vesszőt – frontenden formázzuk
     m = re.findall(r"[\d\.\,]+", s)
     return m[0] if m else ""
 
-def ensure_tchibo_host(u: str) -> str:
+def ensure_https(u: str) -> str:
+    if not u: return ""
     try:
         from urllib.parse import urlsplit, urlunsplit
         sp = urlsplit(u.strip())
-        if not sp.scheme:  # ha hiányzik
-            return "https://www.tchibo.hu/"
-        host = "www.tchibo.hu"
-        sp = sp._replace(scheme="https", netloc=host, fragment="")
+        if not sp.scheme:
+            sp = sp._replace(scheme="https")
+        if not sp.netloc:
+            return ""
+        # Biztos, hogy Tchibo domainre mutat? (ha nem, nem baj – a frontenden dt-wrap úgyis átvisz)
+        sp = sp._replace(fragment="")
         return urlunsplit(sp)
     except Exception:
-        return "https://www.tchibo.hu/"
+        return ""
 
 def main():
-    r = requests.get(FEED_URL, timeout=60)
+    print(f"Letöltés: {FEED_URL}")
+    r = requests.get(FEED_URL, timeout=90)
     r.raise_for_status()
     root = ET.fromstring(r.content)
+    root = strip_ns(root)
 
-    # Heureka/Google-stílusú feedekben gyakori a <SHOPITEM> vagy <item>
+    # Próbáljuk a legtipikusabb csomópontokat
+    items_nodes = root.findall(".//SHOPITEM")
+    if not items_nodes:
+        items_nodes = root.findall(".//item")
+    if not items_nodes:
+        items_nodes = root.findall(".//PRODUCT")
+    print(f"Talált csomópontok: {len(items_nodes)}")
+
     items = []
-    for it in root.findall(".//SHOPITEM") + root.findall(".//item"):
-        def txt(tag_names):
-            for tag in tag_names:
-                node = it.find(tag)
-                if node is not None and (node.text or "").strip():
-                    return node.text.strip()
-            return ""
+    dropped_no_title = 0
+    dropped_no_url = 0
 
-        title = txt(["PRODUCT", "PRODUCTNAME", "TITLE", "NAME"])
-        desc  = txt(["DESCRIPTION", "DESC"])
-        url   = txt(["URL", "LINK"])
-        img   = txt(["IMGURL", "IMAGE", "IMAGE_LINK", "IMGURL_ALTERNATIVE"])
+    for it in items_nodes:
+        title = txt(it, ["PRODUCTNAME","PRODUCT","TITLE","NAME"])
+        desc  = txt(it, ["DESCRIPTION","DESC","LONG_DESCRIPTION","FULL_DESCRIPTION","ANNOTATION"])
+        # URL sokféleképpen jöhet
+        url   = txt(it, ["URL","PRODUCT_URL","LINK","SHOPURL","DEEPLINK"])
+        img   = txt(it, ["IMGURL","IMGURL_ALTERNATIVE","IMAGE","IMAGE_LINK","IMG","MAIN_IMAGE"])
 
-        price = txt(["PRICE_VAT", "PRICE", "PRICE_NEW", "SELLING_PRICE"])
-        price_old = txt(["PRICE_OLD", "OLD_PRICE", "ORIGINAL_PRICE"])
+        price = txt(it, ["PRICE_VAT","PRICE","PRICE_NEW","SELLING_PRICE"])
+        price_old = txt(it, ["PRICE_OLD","OLD_PRICE","ORIGINAL_PRICE","PRICE_BEFORE"])
+
+        if not title:
+            dropped_no_title += 1
+            continue
+
+        url = ensure_https(url)
+        if not url:
+            # végső fallback: üresen hagyjuk – a frontend ettől még kirakja (csak nem lesz katt)
+            dropped_no_url += 1
+            continue
 
         rec = {
             "title": title,
             "desc":  desc,
-            "url":   ensure_tchibo_host(url),
+            "url":   url,
             "image": img,
             "price": clean_price(price),
             "old_price": clean_price(price_old),
         }
-        if rec["title"] and rec["url"]:
-            items.append(rec)
+        items.append(rec)
+
+    print(f"Kimenthető tételek: {len(items)}")
+    if dropped_no_title or dropped_no_url:
+        print(f"Elhagyva (nincs title): {dropped_no_title}, (nincs url): {dropped_no_url}")
 
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(items, f, ensure_ascii=False, indent=2)
+
+    # Log kedvéért mutatunk egy mintát
+    if items:
+        sample = {k: items[0].get(k) for k in ("title","url","price","old_price","image")}
+        print("Minta:", json.dumps(sample, ensure_ascii=False))
 
 if __name__ == "__main__":
     main()
