@@ -202,8 +202,8 @@
 
   <script>
   /* ====== Globális beállítás ====== */
-  const PER_PAGE = 4;        // minden táblában 4 kártya/oldal
-  const FULL_PER_PAGE = 20;  // teljes partner nézetben 20/oldal
+  const PER_PAGE = 4;
+  const FULL_PER_PAGE = 20;
 
   /* ====== PARTNER LINKEK ====== */
   const AMAZON_TAG = "findora30-20";
@@ -258,6 +258,19 @@
     return PLACEHOLDER;
   }
 
+  /* ====== Dognet deeplink wrapper (chid) – Tchibo + Játéksziget ====== */
+  const DOGNET_CHID = "P5FMC4cN"; // <-- ha változik, itt írd át!
+  function isDognet(u){
+    try{ return new URL(u).hostname.includes("go.dognet.com"); }catch(_){ return false; }
+  }
+  function wrapAffiliate(partner, absUrl){
+    if(!absUrl || isDognet(absUrl)) return absUrl;
+    if(partner === "Játéksziget.hu" || partner === "Tchibo.hu"){
+      return `https://go.dognet.com/?chid=${DOGNET_CHID}&url=${encodeURIComponent(absUrl)}`;
+    }
+    return absUrl;
+  }
+
   /* ====== DEMÓ fix listák ====== */
   const ITEMS=[
     {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech",  desc:"Belépő modellek gyors szállítással."},
@@ -289,18 +302,9 @@
     "Tchibo.hu": "https://www.tchibo.hu",
     "Játéksziget.hu": "https://www.jateksziget.hu"
   };
-  function unwrapDognet(u){
-    try{
-      const t=new URL(u);
-      if(t.hostname.includes("go.dognet.com")){
-        const inner=t.searchParams.get("url");
-        if(inner) return decodeURIComponent(inner);
-      }
-    }catch(_){}
-    return u;
-  }
+
   function ensureAbsolute(u, partner){
-    let href = unwrapDognet(String(u||"").trim());
+    let href = String(u||"").trim();
     if(!href) return "";
     if(/^https?:\/\//i.test(href)) return href;
     if(/^\/\//.test(href)) return "https:" + href;
@@ -315,7 +319,9 @@
     }
     return href;
   }
+
   function safeHref(partner, u){
+    if(isDognet(u)) return u; // meglévő Dognet marad
     const h = ensureAbsolute(u, partner);
     try{ new URL(h); return h; }catch(_){
       return PARTNER_BASE[partner] || "#";
@@ -347,6 +353,7 @@
     const seen=new Map();
     for(const x of (list||[])){
       const absUrl = ensureAbsolute(x.url, partner);
+      const affUrl = wrapAffiliate(partner, absUrl); // <-- Dognet (chid) csomagolás
       const keyBase = normUrl(absUrl)||"";
       const titleKey = stemSizeFromTitle(x.title||"");
       const key = (keyBase||titleKey)+"|"+titleKey;
@@ -357,7 +364,7 @@
         price: Number.isFinite(pn)? new Intl.NumberFormat('hu-HU').format(pn)+" Ft" : "",
         priceRaw: x.price,
         discount: 0,
-        url: absUrl || PARTNER_BASE[partner] || "#",
+        url: affUrl || PARTNER_BASE[partner] || "#",
         image: x.image||"",
         desc: ""
       };
@@ -393,7 +400,7 @@
   /* ====== Kártya, képek ====== */
   function cardHTML(it){
     const primary = it.image ? it.image : keyImage(it.title);
-    const href = safeHref(it.partner, it.url);
+    const href = safeHref(it.partner, it.url); // ha Dognet, úgy marad
     const imgTag = `<img class="imgsafe" alt="${it.title}" loading="lazy" decoding="async" referrerpolicy="no-referrer"
                       data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
     const logo = LOGO_URLS[it.partner]?`<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">`:"";
@@ -429,7 +436,7 @@
     else{
       if(page<=4){ for(let i=1;i<=4;i++) html+=btn(i,i,i===page); html+=dots()+btn(pages,pages,page===pages); }
       else if(page>=pages-3){ html+=btn(1,1,page===1)+dots(); for(let i=pages-3;i<=pages;i++) html+=btn(i,i,i===page); }
-      else{ html+=btn(1,1,false)+dots()+btn(page-1,page-1)+btn(page,page,true)+btn(page+1,page+1)+dots()+btn(pages,pages); }
+      else{ html+=btn(1,1,false)+dots()+btn(page-1,page-1)+btn(page,page>true)+btn(page+1,page+1)+dots()+btn(pages,pages); }
     }
     html+=btn(Math.min(pages,page+1),"»",false,page>=pages);
     html+=`</div>`;
@@ -441,7 +448,7 @@
 
   function renderBlock(title, items, opts={}){
     if(!items || !items.length) return;
-    const { openKey=null } = opts; // pl. "tchibo" vagy "jateksziget"
+    const { openKey=null } = opts;
     const sec=document.createElement('section');
     sec.className='section partner';
     const h2attr = openKey ? `data-open="${openKey}" title="Teljes kínálat megnyitása"` : "";
@@ -540,7 +547,7 @@
 
   /* ====== Főoldal szekciók ====== */
   function computeDiscount(it){
-    if (typeof it.discount === 'number' && it.discount>0) return it.discount; // <-- FIX
+    if (typeof it.discount === 'number' && it.discount>0) return it.discount;
     const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
     if (m){ const d=parseInt(m[1],10); return Number.isFinite(d)?d:0; }
     return 0;
@@ -579,7 +586,7 @@
     renderBlock("👓 eOptika.hu – Látás", EOPTIKA_ITEMS);
     renderBlock("🕹️ JátékNet.hu – Játékok", JATEKNET_ITEMS);
 
-    /* ÚJ: Játéksziget blokk a főoldalon is */
+    /* Játéksziget blokk a főoldalon is */
     if(JATSZIG_ITEMS.length) renderBlock("🧸 Játéksziget.hu – Játékok", JATSZIG_ITEMS, {openKey:"jateksziget"});
   }
 
