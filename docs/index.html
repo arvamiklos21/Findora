@@ -530,7 +530,7 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
   }
 
   /* ====== Betöltők ====== */
-  async function loadTchibo(limit=1000){
+  async function loadTchibo(limit=20000){
     const rows = await fetchJSONWithRetry(TCHIBO_API, {limit});
     // Tchibo: duplikátumszűrés már eleve erős, itt megtartjuk a saját logikát
     const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
@@ -567,11 +567,11 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
     return Array.from(map.values());
   }
 
-  async function loadRegio(limit=1000){
+  async function loadRegio(limit=20000){
     const rows = await fetchJSONWithRetry(REGIO_API, {limit});
     return mapGenericFeed(rows, "RegioJáték", "games");
   }
-  async function loadJateksziget(limit=1000){
+  async function loadJateksziget(limit=20000){
     const rows = await fetchJSONWithRetry(JATEKSZIGET_API, {limit});
     return mapGenericFeed(rows, "Játéksziget", "games");
   }
@@ -708,5 +708,6 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
   </script>
 </body>
 </html>
+
 
 
