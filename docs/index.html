@@ -180,7 +180,7 @@
   const PER_PAGE_PARTNER = 20; // Partner-nézet
 
   /* ====== API végpontok ====== */
-const API_BASE = "https://findora.hu";
+const API_BASE = window.location.origin;   // mindig a saját domain (www vagy nem-www)
 const TCHIBO_API = `${API_BASE}/api/tchibo`;
 const REGIO_API = `${API_BASE}/api/regiojatek`;
 const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
@@ -708,4 +708,5 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
   </script>
 </body>
 </html>
+
 
