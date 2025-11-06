@@ -66,7 +66,7 @@
       --border:#e2e8f0;
       --panel-blur: 12px;
 
-      /* karácsonyi kép + fenyősor (meglévő hangulat) */
+      /* karácsonyi háttér */
       --fireplace:url("https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=1600&q=80&auto=format&fit=crop");
       --pine-row:url("data:image/svg+xml;utf8,<?xml version='1.0'?><svg xmlns='http://www.w3.org/2000/svg' width='480' height='120' viewBox='0 0 480 120'><defs><linearGradient id='fog' x1='0' x2='0' y1='0' y2='1'><stop offset='0' stop-color='%230b1a33' stop-opacity='0.0'/><stop offset='1' stop-color='%230b1a33' stop-opacity='0.35'/></linearGradient></defs><rect width='480' height='120' fill='url(%23fog)'/><g fill='%23152a4a' opacity='0.75'><path d='M10,110 l20,-40 l20,40 z'/><path d='M60,110 l22,-44 l22,44 z'/><path d='M120,110 l18,-36 l18,36 z'/><path d='M170,110 l24,-48 l24,48 z'/><path d='M230,110 l20,-42 l20,42 z'/><path d='M290,110 l22,-44 l22,44 z'/><path d='M350,110 l18,-36 l18,36 z'/><path d='M400,110 l24,-48 l24,48 z'/></g></svg>");
     }
@@ -84,7 +84,6 @@
     }
     @media (max-width:640px){ body{ background-attachment: scroll,scroll,scroll,scroll; } }
 
-    /* ======= Hero ======= */
     .hero{
       position:relative; z-index:3; color:#0f172a; text-align:center; padding:58px 10px 22px;
       background:
@@ -100,7 +99,18 @@
     .dev-badge{position:absolute;left:12px;top:12px;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:13px;box-shadow:0 4px 14px rgba(0,119,255,.25)}
     .promo{margin:10px auto;background:#ffffffcc;color:#0f172a;padding:8px 12px;border-radius:14px;max-width:860px;font-weight:700;border:1px solid rgba(2,6,23,.06);backdrop-filter:saturate(140%) blur(6px)}
 
-    /* ======= NEW: dupla promó sáv (Xmas + BF) ======= */
+    /* ÚJ: 3D ajándékdobozok */
+    .gift-row{display:flex;gap:8px;justify-content:center;margin-top:10px}
+    .gift{width:26px;height:26px;position:relative;transform:translateZ(0) rotate(3deg);filter:drop-shadow(0 6px 10px rgba(0,0,0,.12))}
+    .gift:before,.gift:after{content:"";position:absolute;inset:0;border-radius:4px}
+    .gift:before{background:linear-gradient(145deg,#fff,#ddd)}
+    .gift:after{background:
+      linear-gradient(0deg,transparent 45%, rgba(0,0,0,.06) 46% 54%, transparent 55%),
+      linear-gradient(90deg,#e11d48,#e11d48);
+      mask-image:linear-gradient(#000,#000); border-radius:4px}
+    .gift .bow{position:absolute;top:-9px;left:50%;width:18px;height:10px;transform:translateX(-50%);border-radius:10px;background:radial-gradient(circle at 30% 40%, #ff7096, #e11d48)}
+
+    /* ÚJ: dupla promó sáv */
     .promo-banners{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:1100px;margin:10px auto 0;padding:0 10px}
     .pb-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;text-decoration:none;background:#fff;border:1px solid rgba(2,6,23,.06);box-shadow:0 6px 14px rgba(2,6,23,.08);transition:transform .15s ease, box-shadow .15s ease;color:#0f172a;position:relative;overflow:hidden}
     .pb-card:hover{transform:translateY(-2px); box-shadow:0 12px 24px rgba(2,6,23,.12)}
@@ -116,7 +126,7 @@
     .pb-card.bf .pb-count{font-variant-numeric:tabular-nums;font-weight:900;letter-spacing:.02em;background:#0a0a0a;border:1px solid #1f2937;padding:6px 8px;border-radius:8px}
     @media (max-width:760px){ .promo-banners{grid-template-columns:1fr} }
 
-    /* ======= Sticky topbar (meglévő) ======= */
+    /* Sticky topbar és minden más – változatlanul */
     .topbar-wrap{position:sticky; top:0; z-index:40; backdrop-filter: blur(var(--panel-blur)); background:rgba(255,255,255,.7); border-bottom:1px solid rgba(226,232,240,.8)}
     .topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:0 auto;max-width:1100px;padding:8px 6px}
     .categories{display:flex;gap:8px;justify-content:center;overflow-x:auto;padding:0 6px}
@@ -143,7 +153,7 @@
       contain-intrinsic-size: 1000px 800px;
     }
     .section h2{font-size:18px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:linear-gradient(90deg,#eef6ff,#fff)}
-    /* ======= NEW: ünnepi fejléc a kedvezmény-szekciókhoz ======= */
+    /* Ünnepi dísz a kedvezmény-szekciók fejlécén */
     .section.festive h2{
       background:
         url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="220" height="38"><g fill="%23e11d48"><circle cx="18" cy="12" r="3"/><rect x="12" y="17" width="12" height="8" rx="2"/></g><g fill="%2385cb96"><path d="M200 10 l6 6 l-6 6 l-6 -6 z"/></g></svg>') 12px center/auto 28px no-repeat,
@@ -177,7 +187,6 @@
 
     footer{text-align:center;padding:20px;background:#0b3a6a;color:#fff;margin-top:24px;font-size:14px;border-top:1px solid rgba(255,255,255,.15)}
 
-    /* hó + toTop + status (meglévő) */
     .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1}
     .flake{position:absolute;top:-10px;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.9);filter:blur(.5px);animation:fall linear infinite}
     @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
@@ -203,11 +212,19 @@
           <p>Irányt mutat a legjobb ajánlatokhoz</p>
         </div>
       </div>
+
+      <!-- ÚJ: 3D ajándékdobozok -->
+      <div class="gift-row" aria-hidden="true">
+        <div class="gift"><div class="bow"></div></div>
+        <div class="gift" style="transform:translateZ(0) rotate(-4deg)"><div class="bow"></div></div>
+        <div class="gift" style="transform:translateZ(0) rotate(2deg)"><div class="bow"></div></div>
+        <div class="gift" style="transform:translateZ(0) rotate(-6deg)"><div class="bow"></div></div>
+      </div>
+
       <div class="promo" role="note">🎄 Ünnepi hangulat, friss ajánlatokkal!</div>
 
-      <!-- NEW: dupla promó sáv (XMAS + BF) -->
+      <!-- ÚJ: Merry Christmas + Black Friday promó -->
       <div class="promo-banners" role="region" aria-label="Kiemelt akciók">
-        <!-- Merry Christmas -->
         <a class="pb-card xmas" href="#deal10_24" aria-label="Merry Christmas akciók">
           <div class="pb-left">
             <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 4.8 5.3.8-3.9 3.8.9 5.3L12 14.9 7.3 16.7l.9-5.3L4.3 7.6l5.3-.8L12 2z" fill="currentColor"/></svg>
@@ -216,7 +233,6 @@
           </div>
           <div class="pb-right"><span class="pb-cta">Ajándék-ötletek »</span></div>
         </a>
-        <!-- Black Friday -->
         <a class="pb-card bf" href="#deal10_24" aria-label="Black Friday akciók">
           <div class="pb-left">
             <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="12" rx="2" fill="currentColor"/><path d="M7 7V6a5 5 0 0 1 10 0v1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
@@ -229,10 +245,9 @@
           </div>
         </a>
       </div>
-      <!-- /promo-banners -->
     </div>
 
-    <!-- sticky glass topbar (meglévő) -->
+    <!-- sticky glass topbar (változatlan) -->
     <div class="topbar-wrap">
       <div class="topbar">
         <nav class="categories" aria-label="Kategóriák">
@@ -268,11 +283,11 @@
   </footer>
 
   <script>
-  /* ====== Oldal beállítás (meglévő) ====== */
-  const PER_PAGE_GRID = 4;          // Főoldali dobozok
-  const PER_PAGE_PARTNER = 60;      // Partner-nézet
+  /* ====== Oldal beállítás ====== */
+  const PER_PAGE_GRID = 4;
+  const PER_PAGE_PARTNER = 60;
 
-  /* ====== API végpontok (meglévő) ====== */
+  /* ====== API végpontok ====== */
   const API_BASE = (location.hostname.endsWith('findora.hu'))
   ? 'https://www.findora.hu'
   : location.origin;
@@ -280,13 +295,13 @@
   const REGIO_API = `${API_BASE}/api/regiojatek`;
   const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
 
-  /* ====== PARTNER LINKEK (meglévő) ====== */
+  /* ====== PARTNER LINKEK ====== */
   const AMAZON_TAG = "findora30-20";
   const amazonBase = `https://www.amazon.com/?tag=${AMAZON_TAG}`;
 
   const LINK_EOPTIKA = "https://www.kqzyfj.com/tf79mu2-u1HJIJNPRIIQHJMIMRRJK";
   const LINK_JATEKNET= "https://www.anrdoezrs.net/2t70r09608OQPQUWYPPXOQTTTXPQQ";
-  const LINK_KARCHER = "https://www.kqzyfj.com/pa117qgpmgo35459BD44C3587B77AD";
+  const LINK_KARCHER = "https://www.kqzyfj.com/pa117qgpmgo35459BD44C3587B77AD`;
 
   const LOGO_URLS={
     Amazon:"https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
@@ -300,7 +315,7 @@
 
   (function(){ const img=document.getElementById('brandLogo'); let step=0; img.onerror=()=>{ step++; if(step===1) img.src=img.dataset.fallback1; else if(step===2) img.src=img.dataset.fallback2; }; })();
 
-  /* ====== Kép-helyettesítés (meglévő) ====== */
+  /* ====== Kép-helyettesítés ====== */
   const IMG_KEY={
     laptop:"https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1200&q=80&auto=format&fit=crop",
     "gaming laptop":"https://images.unsplash.com/photo-1518779578993-ec3579fee39f?w=1200&q=80&auto=format&fit=crop",
@@ -326,7 +341,7 @@
     return PLACEHOLDER;
   }
 
-  /* ====== DEMÓ statikus kártyák (meglévő) ====== */
+  /* ====== DEMÓ kártyák ====== */
   const ITEMS=[
     {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech", desc:"Belépő modellek gyors szállítással."},
     {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazonBase, category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
@@ -355,7 +370,7 @@
     {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
   ];
 
-  /* ====== SEGÉDEK: kártya, képek (meglévő) ====== */
+  /* ====== Kártya render ====== */
   function cardHTML(it){
     const primary = it.image ? it.image : keyImage(it.title);
     const imgTag =
@@ -388,7 +403,7 @@
     });
   }
 
-  /* ====== Pager (meglévő: max 4 gomb + … + last) ====== */
+  /* ====== Pager (max 4 gomb + … + last) ====== */
   function progressivePagerHTML(total, page, per, maxShownRef){
     const pages = Math.max(1, Math.ceil(total / per));
     const maxVisited = Math.max(1, maxShownRef.value || 1, page);
@@ -405,9 +420,167 @@
     return html;
   }
 
+  /* ====== Segédek: kedvezmény számítás ====== */
+  function computeDiscount(it){
+    // 1) meglévő szám (ha van)
+    if (typeof it.discount === 'number' && it.discount>0) return it.discount;
+
+    // 2) ha van ár + régi ár mező
+    const p = Number.isFinite(it.priceNum) ? it.priceNum : null;
+    const op = Number.isFinite(it.oldPriceNum) ? it.oldPriceNum : null;
+    if (p!=null && op!=null && op>0 && p<op){
+      return Math.max(0, Math.min(100, Math.round((1 - (p/op)) * 100)));
+    }
+
+    // 3) címben -XX%
+    const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
+    if (m) {
+      const d=parseInt(m[1],10);
+      return Number.isFinite(d)?d:0;
+    }
+    return 0;
+  }
+
+  /* ====== Cache ====== */
+  function lsKey(url){ return "findora_cache_"+url; }
+  function saveCache(url, rows){ try{ localStorage.setItem(lsKey(url), JSON.stringify({ts:Date.now(), rows})); }catch(_){ } }
+  function loadCache(url, maxAgeMs=3600_000){
+    try{
+      const raw=localStorage.getItem(lsKey(url)); if(!raw) return null;
+      const obj=JSON.parse(raw);
+      if (obj && obj.ts && (Date.now()-obj.ts)<=maxAgeMs && Array.isArray(obj.rows)) return obj.rows;
+    }catch(_){}
+    return null;
+  }
+
+  async function fetchJSONWithRetry(url, {retries=3, delay=250, limit=20000}={}){
+    const full = `${url}?limit=${limit}`;
+    let lastErr = null;
+    for (let i = 0; i < retries; i++) {
+      try {
+        const r = await fetch(full, { cache: "force-cache", credentials: "omit" });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        const rows = Array.isArray(d?.items) ? d.items : (Array.isArray(d) ? d : []);
+        if (rows.length > 0) { saveCache(url, rows); return rows; }
+        lastErr = new Error("Empty feed");
+      } catch (e) { lastErr = e; }
+      await new Promise(res => setTimeout(res, delay * Math.pow(2, i)));
+    }
+    const cached = loadCache(url);
+    if (cached) { console.warn("[findora] fallback cache for", url, lastErr); return cached; }
+    console.warn("[findora] feed fail", url, lastErr);
+    return [];
+  }
+
+  /* ====== Deduplikálás ====== */
+  function normalizeBase(url){
+    try{ const u=new URL(url); u.searchParams.delete('article_id'); return u.origin + u.pathname; }
+    catch(_){ return String(url||"").split("?")[0]; }
+  }
+  function detectColor(title=""){
+    const t = title.toLowerCase();
+    const colors = ["fekete","fehér","feher","piros","kék","kek","zöld","zold","sárga","sarga","barna","szürke","szurke","bézs","bezs","lila","narancs","arany","ezüst","ezust","bordó","bordeaux","krém","krem","kékeszöld","türkiz","turkiz","rózsaszín","rozsaszin"];
+    for(const c of colors){ if(t.includes(c)) return c; }
+    return "";
+  }
+  function dedupe(items, mode='exact'){
+    if (mode==='none') return items.slice();
+    const map = new Map();
+    for(const x of items){
+      const base = (mode==='tchibo') ? (normalizeBase(x.product_url || x.affiliate_url || x.url || "") + "|" + detectColor(x.title||""))
+                                     : (x.product_url || x.affiliate_url || x.url || "");
+      const priceNum = Number.isFinite(x.price) ? x.price : (Number.isFinite(x.priceNum)?x.priceNum:null);
+      const disc = Number.isFinite(x.discount) ? x.discount : computeDiscount(x);
+      const cand = { ...x, priceNum, discount: disc>0?disc:0 };
+      if(!map.has(base)) { map.set(base, cand); continue; }
+      const cur = map.get(base);
+      const better = (cur.priceNum==null) ? cand : (cand.priceNum==null) ? cur : (cand.priceNum < cur.priceNum ? cand : cur);
+      if (cand.discount > better.discount) better.discount = cand.discount;
+      if (!better.image && cand.image) better.image = cand.image;
+      map.set(base, better);
+    }
+    return Array.from(map.values());
+  }
+
+  function parsePriceLike(x){
+    // elfogad „12345”, „12 345 Ft”, „12,345”, stb.
+    if (x==null) return null;
+    if (typeof x === 'number') return Number.isFinite(x) ? x : null;
+    if (typeof x === 'string'){
+      const n = Number(x.replace(/[^\d]/g,''));
+      return Number.isFinite(n) ? n : null;
+    }
+    return null;
+  }
+
+  function mapGenericFeed(rows, partner, category, dedupeMode='exact'){
+    const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
+    const mapped = rows.map(x=>{
+      // ár és régi ár különböző feed elnevezésekből
+      const priceNum    = parsePriceLike(x.price ?? x.current_price ?? x.sale_price);
+      const oldPriceNum = parsePriceLike(x.old_price ?? x.price_old ?? x.list_price ?? x.original_price);
+      const discInput   = Number.isFinite(x.discount) ? x.discount : null;
+
+      const obj = {
+        title: x.title || "",
+        partner,
+        priceNum,
+        oldPriceNum,
+        price: fmt(priceNum),
+        discount: discInput ?? 0, // computeDiscount még felülírhatja
+        url: x.affiliate_url || x.product_url || x.url || "",
+        product_url: x.product_url || x.url || "",
+        image: x.image || x.image_url || "",
+        category,
+        desc: (x.desc||x.description||"").slice(0,160)
+      };
+      // végső discount számítás
+      obj.discount = computeDiscount(obj);
+      return obj;
+    }).filter(o=>o.title && o.url);
+    return dedupe(mapped, dedupeMode);
+  }
+
+  /* ====== Betöltők ====== */
+  async function loadTchibo(limit=20000){
+    const rows = await fetchJSONWithRetry(TCHIBO_API, { limit });
+    return mapGenericFeed(rows, "Tchibo.hu", "home", 'tchibo');
+  }
+  async function loadRegio(limit=20000){
+    const rows = await fetchJSONWithRetry(REGIO_API, { limit });
+    return mapGenericFeed(rows, "RegioJáték", "games", 'none');
+  }
+  async function loadJateksziget(limit=20000){
+    const rows = await fetchJSONWithRetry(JATEKSZIGET_API, { limit });
+    return mapGenericFeed(rows, "Játéksziget", "games", 'none');
+  }
+
+  /* ====== Kategória motor + akció-bucketek ====== */
+  let currentCategory = "all";
+  window.minDiscountFilter = 0;
+
+  document.addEventListener('click', (e)=>{
+    const b = e.target.closest('.df-btn');
+    if(!b) return;
+    document.querySelectorAll('.df-btn').forEach(x=>x.classList.toggle('active', x===b));
+    window.minDiscountFilter = Number(b.dataset.disc||0);
+    showCategory(currentCategory||"all");
+  });
+
+  function buildDiscountBuckets(arr){
+    const items = arr.map(x => ({...x, discount: computeDiscount(x)})).filter(x=>x.discount>0);
+    const b10_24 = items.filter(x=>x.discount>=10 && x.discount<=24);
+    const b25_49 = items.filter(x=>x.discount>=25 && x.discount<=49);
+    const b50p   = items.filter(x=>x.discount>=50);
+    return { b10_24, b25_49, b50p };
+  }
+
   function renderPagedSection(title, partnerName, items, perPage=PER_PAGE_GRID, extra={}){
     if(!items || !items.length) return;
     const filtered = items.filter(i => (i.discount||0) >= (window.minDiscountFilter||0));
+    if (!filtered.length) return;
+
     const sec=document.createElement('section');
     sec.className='section partner'+(extra.festive?' festive':'');
     if (extra.id) sec.id = extra.id;
@@ -440,222 +613,11 @@
     content.appendChild(sec);
   }
 
-  /* ====== Partner-nézet (meglévő) ====== */
-  function openPartnerView(partnerName, itemsSource){
-    content.innerHTML = `
-      <section class="section">
-        <div class="toolbar">
-          <div class="tools-inline">
-            <button class="toolbtn" id="pvBack">← Vissza</button>
-            <strong>${partnerName} – termékek</strong>
-          </div>
-          <div class="tools-inline">
-            <input type="search" id="pvQ" placeholder="Keresés csak itt…" />
-            <select id="pvSort" class="toolsel" aria-label="Rendezés">
-              <option value="relevance">Rendezés: alap</option>
-              <option value="price_asc">Ár ↑</option>
-              <option value="price_desc">Ár ↓</option>
-              <option value="az">A → Z</option>
-              <option value="za">Z → A</option>
-            </select>
-          </div>
-        </div>
-        <div class="grid"></div>
-        <div class="pager"></div>
-      </section>
-    `;
-    const grid = content.querySelector('.grid');
-    const pager = content.querySelector('.pager');
-    const pvQ = content.querySelector('#pvQ');
-    const pvSort = content.querySelector('#pvSort');
-    content.querySelector('#pvBack').onclick=()=>showCategory(currentCategory||"all");
-
-    let page=1, q="", sort="relevance";
-    const maxShown = { value: 4 };
-
-    function normPriceNum(x){
-      if (typeof x === 'number') return x;
-      if (typeof x === 'string'){
-        const n = Number(x.replace(/\s|Ft|,/g,'').trim());
-        return Number.isFinite(n) ? n : null;
-      }
-      return null;
-    }
-
-    function getViewItems(){
-      let arr = itemsSource.slice();
-      if (q){
-        const v = q.toLowerCase();
-        arr = arr.filter(i => String(i.title||"").toLowerCase().includes(v) || String(i.desc||"").toLowerCase().includes(v));
-      }
-      if (sort==="az") arr.sort((a,b)=>String(a.title).localeCompare(String(b.title),'hu'));
-      if (sort==="za") arr.sort((a,b)=>String(b.title).localeCompare(String(a.title),'hu'));
-      if (sort==="price_asc") arr.sort((a,b)=>(normPriceNum(a.priceNum??a.price)||Infinity)-(normPriceNum(b.priceNum??b.price)||Infinity));
-      if (sort==="price_desc") arr.sort((a,b)=>(normPriceNum(b.priceNum??b.price)||-Infinity)-(normPriceNum(a.priceNum??a.price)||-Infinity));
-      return arr;
-    }
-
-    function apply(){
-      const src = getViewItems();
-      const total = src.length;
-      const pages = Math.max(1, Math.ceil(total/ PER_PAGE_PARTNER));
-      page = Math.min(Math.max(1,page), pages);
-      if (page > maxShown.value) maxShown.value = page;
-
-      const st=(page-1)*PER_PAGE_PARTNER, sl=src.slice(st, st+PER_PAGE_PARTNER);
-      grid.innerHTML="";
-      sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
-      hydrateSafeImages(content);
-      pager.innerHTML = progressivePagerHTML(total, page, PER_PAGE_PARTNER, maxShown);
-    }
-
-    pager.addEventListener('click', e=>{
-      const b = e.target.closest('.pager button');
-      if (b){ page = Number(b.dataset.page)||1; apply(); window.scrollTo({top:0,behavior:'smooth'}); }
-    });
-    pvQ.addEventListener('input', ()=>{ q = pvQ.value.trim(); page=1; apply(); });
-    pvSort.addEventListener('change', ()=>{ sort = pvSort.value; page=1; apply(); });
-
-    apply();
-  }
-
-  /* ====== Kedvezmény számoló (meglévő) ====== */
-  function computeDiscount(it){
-    if (typeof it.discount === 'number' && it.discount>0) return it.discount;
-    const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
-    if (m) {
-      const d=parseInt(m[1],10);
-      return Number.isFinite(d)?d:0;
-    }
-    return 0;
-  }
-
-  /* ====== Cache/fallback (meglévő) ====== */
-  function lsKey(url){ return "findora_cache_"+url; }
-  function saveCache(url, rows){
-    try{ localStorage.setItem(lsKey(url), JSON.stringify({ts:Date.now(), rows})); }catch(_){}
-  }
-  function loadCache(url, maxAgeMs=3600_000){
-    try{
-      const raw=localStorage.getItem(lsKey(url)); if(!raw) return null;
-      const obj=JSON.parse(raw);
-      if (obj && obj.ts && (Date.now()-obj.ts)<=maxAgeMs && Array.isArray(obj.rows)) return obj.rows;
-    }catch(_){}
-    return null;
-  }
-
-  async function fetchJSONWithRetry(url, {retries=3, delay=250, limit=20000}={}){
-    const full = `${url}?limit=${limit}`;
-    let lastErr = null;
-    for (let i = 0; i < retries; i++) {
-      try {
-        const r = await fetch(full, { cache: "force-cache", credentials: "omit" });
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        const d = await r.json();
-        const rows = Array.isArray(d?.items) ? d.items : (Array.isArray(d) ? d : []);
-        if (rows.length > 0) { saveCache(url, rows); return rows; }
-        lastErr = new Error("Empty feed");
-      } catch (e) { lastErr = e; }
-      await new Promise(res => setTimeout(res, delay * Math.pow(2, i)));
-    }
-    const cached = loadCache(url);
-    if (cached) { console.warn("[findora] fallback cache for", url, lastErr); return cached; }
-    console.warn("[findora] feed fail", url, lastErr);
-    return [];
-  }
-
-  /* ====== Deduplikálás (meglévő) ====== */
-  function normalizeBase(url){
-    try{ const u=new URL(url); u.searchParams.delete('article_id'); return u.origin + u.pathname; }
-    catch(_){ return String(url||"").split("?")[0]; }
-  }
-  function detectColor(title=""){
-    const t = title.toLowerCase();
-    const colors = ["fekete","fehér","feher","piros","kék","kek","zöld","zold","sárga","sarga","barna","szürke","szurke","bézs","bezs","lila","narancs","arany","ezüst","ezust","bordó","bordeaux","krém","krem","kékeszöld","türkiz","turkiz","rózsaszín","rozsaszin"];
-    for(const c of colors){ if(t.includes(c)) return c; }
-    return "";
-  }
-  function dedupe(items, mode='exact'){
-    if (mode==='none') return items.slice();
-    const map = new Map();
-    for(const x of items){
-      const base = (mode==='tchibo') ? (normalizeBase(x.product_url || x.affiliate_url || x.url || "") + "|" + detectColor(x.title||""))
-                                     : (x.product_url || x.affiliate_url || x.url || "");
-      const priceNum = Number.isFinite(x.price) ? x.price : (Number.isFinite(x.priceNum)?x.priceNum:null);
-      const disc = Number.isFinite(x.discount) ? x.discount : computeDiscount(x);
-      const cand = { ...x, priceNum, discount: disc>0?disc:0 };
-      if(!map.has(base)) { map.set(base, cand); continue; }
-      const cur = map.get(base);
-      const better = (cur.priceNum==null) ? cand : (cand.priceNum==null) ? cur : (cand.priceNum < cur.priceNum ? cand : cur);
-      if (cand.discount > better.discount) better.discount = cand.discount;
-      if (!better.image && cand.image) better.image = cand.image;
-      map.set(base, better);
-    }
-    return Array.from(map.values());
-  }
-
-  function mapGenericFeed(rows, partner, category, dedupeMode='exact'){
-    const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
-    const mapped = rows.map(x=>{
-      const price = Number.isFinite(x.price) ? x.price : null;
-      const disc = Number.isFinite(x.discount) ? x.discount : 0;
-      return {
-        title: x.title || "",
-        partner,
-        priceNum: price,
-        price: fmt(price),
-        discount: disc>0?disc:0,
-        url: x.affiliate_url || x.product_url || x.url || "",
-        product_url: x.product_url || x.url || "",
-        image: x.image || x.image_url || "",
-        category,
-        desc: (x.desc||x.description||"").slice(0,160)
-      };
-    }).filter(o=>o.title && o.url);
-    return dedupe(mapped, dedupeMode);
-  }
-
-  /* ====== Betöltők (meglévő) ====== */
-  async function loadTchibo(limit=20000){
-    const rows = await fetchJSONWithRetry(TCHIBO_API, { limit });
-    return mapGenericFeed(rows, "Tchibo.hu", "home", 'tchibo');
-  }
-  async function loadRegio(limit=20000){
-    const rows = await fetchJSONWithRetry(REGIO_API, { limit });
-    return mapGenericFeed(rows, "RegioJáték", "games", 'none');
-  }
-  async function loadJateksziget(limit=20000){
-    const rows = await fetchJSONWithRetry(JATEKSZIGET_API, { limit });
-    return mapGenericFeed(rows, "Játéksziget", "games", 'none');
-  }
-
-  /* ====== Kategória motor (meglévő + ÚJ akció-szekciók render) ====== */
-  let currentCategory = "all";
-  window.minDiscountFilter = 0; // 0 / 25 / 50 – globális gyorsszűrő
-
-  // Gyorsszűrő gombok (meglévő)
-  document.addEventListener('click', (e)=>{
-    const b = e.target.closest('.df-btn');
-    if(!b) return;
-    document.querySelectorAll('.df-btn').forEach(x=>x.classList.toggle('active', x===b));
-    window.minDiscountFilter = Number(b.dataset.disc||0);
-    showCategory(currentCategory||"all");
-  });
-
-  // NEW: közös akció-bucketek építése
-  function buildDiscountBuckets(arr){
-    const items = arr.map(x => ({...x, discount: computeDiscount(x)})).filter(x=>x.discount>0);
-    const b10_24 = items.filter(x=>x.discount>=10 && x.discount<=24);
-    const b25_49 = items.filter(x=>x.discount>=25 && x.discount<=49);
-    const b50p   = items.filter(x=>x.discount>=50);
-    return { b10_24, b25_49, b50p };
-  }
-
   async function renderHomeAll(){
     content.innerHTML="";
     const [tch, regio, jatsz] = await Promise.all([loadTchibo(20000), loadRegio(20000), loadJateksziget(20000)]);
 
-    // NEW: összesített lista (duplázás elkerülésére egyszerű exact dedupe)
+    // összes lista (duplázás csökkentése)
     const all = dedupe(
       [
         ...tch,
@@ -669,15 +631,15 @@
       'exact'
     );
 
-    // NEW: akció-bucketek
+    // akció-bucketek
     const { b10_24, b25_49, b50p } = buildDiscountBuckets(all);
 
-    // NEW: három ünnepi akció szekció a partner blokkok ELŐTT
+    // három ünnepi akció szekció legfelül
     if (b10_24.length) renderPagedSection("🎯 −10–24% akciók", "Összes partner", b10_24, PER_PAGE_GRID, { festive:true, id:"deal10_24" });
     if (b25_49.length) renderPagedSection("🔥 −25–49% akciók", "Összes partner", b25_49, PER_PAGE_GRID, { festive:true, id:"deal25_49" });
     if (b50p.length)   renderPagedSection("💥 −50%+ akciók",  "Összes partner", b50p,   PER_PAGE_GRID, { festive:true, id:"deal50plus" });
 
-    // Meglévő partner szekciók – eredeti sorrend
+    // eredeti partner szekciók változatlanul
     renderPagedSection("Otthon", "Tchibo.hu", tch, PER_PAGE_GRID);
     renderPagedSection("Játékok", "RegioJáték", regio, PER_PAGE_GRID);
     renderPagedSection("Játékok", "Játéksziget", jatsz, PER_PAGE_GRID);
@@ -720,7 +682,7 @@
   }
   document.querySelectorAll(".catbtn").forEach(btn=>btn.addEventListener("click",()=>showCategory(btn.dataset.cat)));
 
-  /* ====== Globális kereső (meglévő) ====== */
+  /* ====== Kereső ====== */
   async function showSearch(val){
     const v=val.toLowerCase();
     content.innerHTML= `
@@ -764,7 +726,7 @@
     if(val) showSearch(val); else showCategory("all");
   });
 
-  /* ====== Dísz / UI (meglévő) ====== */
+  /* ====== Hó és toTop (meglévő) ====== */
   (function snow(){
     const wrap=document.querySelector('.snow');
     const isMobile = matchMedia('(max-width: 640px)').matches;
@@ -791,7 +753,7 @@
     });
   })();
 
-  /* ====== NEW: BF visszaszámláló + automata kártya-sorrend ====== */
+  /* ====== Black Friday visszaszámláló + promó kártya-sorrend ====== */
   (function promoLogicTZ(){
     const now = new Date();
     const y = now.getFullYear();
@@ -817,7 +779,6 @@
       }
       tick();
     }
-    // sorrend: nov -> BF elöl; dec -> XMAS elöl
     const isNov = now.getMonth() === 10;
     const isDec = now.getMonth() === 11;
     const wrap = document.querySelector('.promo-banners');
@@ -829,7 +790,7 @@
     }
   })();
 
-  /* ====== Indítás (meglévő) ====== */
+  /* ====== Indítás ====== */
   (async function init(){
     const urlQ=new URLSearchParams(location.search).get('q');
     if(urlQ){
