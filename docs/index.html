@@ -275,7 +275,7 @@
     </div>
   </header>
 
-  <button class="floating-search" aria-label="Keresés megnyitása" onclick="document.getElementById('q').focus()">🔍</button>
+  <button class="floating-search" aria-label="Keresés megnyitása" onclick="document.getElementById('q').focus())">🔍</button>
   <button id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">▲</button>
 
   <main>
@@ -347,6 +347,10 @@
   const LINK_JATEKNET= "https://www.anrdoezrs.net/2t70r09608OQPQUWYPPXOQTTTXPQQ";
   const LINK_KARCHER = "https://www.kqzyfj.com/pa117qgpmgo35459BD44C3587B77AD";
 
+  // DOGNET – univerzális deep‑link wrapper a saját dt kódoddal
+  const DOGNET_DT = 'NGEc8ZwG';
+  const dognetWrap = (u) => u ? `https://go.dognet.com/?dt=${DOGNET_DT}&url=${encodeURIComponent(u)}` : '';
+
   const LOGO_URLS={
     Amazon:"https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
     "JátékNet.hu":"https://upload.wikimedia.org/wikipedia/commons/8/8f/Puzzle.svg",
@@ -415,23 +419,11 @@
   function cardHTML(it){
     const primary = it.image ? it.image : keyImage(it.title);
     const imgTag =
-      `<img class="imgsafe" alt="${it.title}"
-            loading="lazy" decoding="async" referrerpolicy="no-referrer"
-            data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
-    const logo = LOGO_URLS[it.partner] ? `<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">` : "";
-    const desc = it.desc ? `<div class="desc">${it.desc}</div>` : "";
+      `<img class=\"imgsafe\" alt=\"${it.title}\"\n            loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\"\n            data-src1=\"${primary}\" data-src2=\"${PLACEHOLDER}\" data-src3=\"${PLACEHOLDER}\" />`;
+    const logo = LOGO_URLS[it.partner] ? `<img src=\"${LOGO_URLS[it.partner]}\" alt=\"${it.partner} logó\" style=\"width:16px;height:16px;object-fit:contain\">` : "";
+    const desc = it.desc ? `<div class=\"desc\">${it.desc}</div>` : "";
     return `
-      <div class="card">
-        <div class="thumb">${imgTag}</div>
-        <div class="body">
-          <div class="title">${it.title}</div>
-          ${desc}
-          <div class="muted">${logo} ${it.partner}${it.discount?` • −${it.discount}%`:''}</div>
-          <div class="price">${it.price||""}</div>
-        </div>
-        <div class="cta"><a href="${it.url}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem az ajánlatot</a></div>
-      </div>
-    `;
+      <div class=\"card\">\n        <div class=\"thumb\">${imgTag}</div>\n        <div class=\"body\">\n          <div class=\"title\">${it.title}</div>\n          ${desc}\n          <div class=\"muted\">${logo} ${it.partner}${it.discount?\` • −${it.discount}%\`:''}</div>\n          <div class=\"price\">${it.price||\"\"}</div>\n        </div>\n        <div class=\"cta\"><a href=\"${it.url}\" target=\"_blank\" rel=\"nofollow sponsored noopener noreferrer\">Megnézem az ajánlatot</a></div>\n      </div>\n    `;
   }
 
   function hydrateSafeImages(ctx=document){
@@ -450,10 +442,13 @@
     if (x==null) return null;
     if (typeof x === 'number') return Number.isFinite(x) ? x : null;
     if (typeof x === 'string'){
-      // 12 990 Ft, 12.990 HUF → 12990
       const digits = x.replace(/[,\.](?=\d{3}\b)/g, '').replace(/[^\d]/g, '');
       const n = Number(digits);
       return Number.isFinite(n) ? n : null;
+    }
+    if (typeof x === 'object'){
+      const cand = [x.value, x.amount, x.price, x.gross, x.net].find(v=>Number.isFinite(v));
+      return Number.isFinite(cand) ? cand : null;
     }
     return null;
   }
@@ -466,36 +461,22 @@
     return fallback;
   }
 
-  /* ====== Pager (UI) – ablakos, középen az aktuális, kétoldali „…” ====== */
-  function progressivePagerHTML(total, page, per, maxShownRef){
+  /* ====== Pager (UI) ====== */
+  function progressivePagerHTML(total, page, per){
     const pages = Math.max(1, Math.ceil(total / per));
-    const windowRadius = 2; // (... 7 8 9 10 11 ...)
+    const windowRadius = 2;
     const first = 1, last = pages;
-
-    function btn(p, active=false, disabled=false){ return `<button data-page="${p}" ${disabled?'disabled':''} class="${active?'active':''}">${p}</button>`; }
-    const prev = `<button data-page="${Math.max(1,page-1)}" ${page<=1?'disabled':''}>«</button>`;
-    const next = `<button data-page="${Math.min(pages,page+1)}" ${page>=pages?'disabled':''}>»</button>`;
-
+    function btn(p, active=false, disabled=false){ return `<button data-page=\"${p}\" ${disabled?'disabled':''} class=\"${active?'active':''}\">${p}</button>`; }
+    const prev = `<button data-page=\"${Math.max(1,page-1)}\" ${page<=1?'disabled':''}>«</button>`;
+    const next = `<button data-page=\"${Math.min(pages,page+1)}\" ${page>=pages?'disabled':''}>»</button>`;
     const left = Math.max(first+1, page - windowRadius);
     const right = Math.min(last-1, page + windowRadius);
-
-    let html = `<div class="pager">` + prev;
-
-    // első oldal
+    let html = `<div class=\"pager\">` + prev;
     html += btn(first, page===first);
-    // bal három pont
-    if (left > first+1) html += `<span class="dots">…</span>`;
-
-    // középső ablak
-    for (let p = left; p <= right; p++){
-      html += btn(p, p===page);
-    }
-
-    // jobb három pont
-    if (right < last-1) html += `<span class="dots">…</span>`;
-    // utolsó oldal
+    if (left > first+1) html += `<span class=\"dots\">…</span>`;
+    for (let p = left; p <= right; p++) html += btn(p, p===page);
+    if (right < last-1) html += `<span class=\"dots\">…</span>`;
     if (last>first) html += btn(last, page===last);
-
     html += next + `</div>`;
     return html;
   }
@@ -546,6 +527,20 @@
     return Array.from(map.values());
   }
 
+  /* ====== Affiliate URL logika ====== */
+  function ensureAffiliateUrl({rawUrl, affiliateUrl}){
+    const url = affiliateUrl || rawUrl || '';
+    if (!url) return '';
+    try{
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./,'');
+      const needDognet = ['jateksziget.hu','regiojatek.hu','tchibo.hu'].includes(host);
+      return affiliateUrl || (needDognet ? dognetWrap(u.toString()) : u.toString());
+    }catch(_){
+      return affiliateUrl || dognetWrap(url);
+    }
+  }
+
   /* ====== Feed normalizálás – affiliate URL az első! ====== */
   function mapGenericFeed(rows, partner, category, dedupeMode='exact'){
     const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
@@ -553,13 +548,16 @@
     const mapped = rows.map(x=>{
       const priceNum = pickFirst(x, [
         'price','current_price','sale_price','price_value','price_min','min_price','gross_price',
-        'price_gross','price_with_vat','final_price','deal_price','prices.current','prices.sale'
+        'price_gross','price_with_vat','final_price','deal_price','prices.current','prices.sale',
+        'price.value','priceMin','pricing.value','pricing.amount'
       ]);
       const oldPriceNum = pickFirst(x, [
         'old_price','price_old','list_price','original_price','regular_price','price_before',
-        'prices.original','prices.list'
+        'prices.original','prices.list','old_price.value'
       ]);
-      const discInput = Number.isFinite(x.discount) ? x.discount : null;
+      const raw = x.product_url || x.url || '';
+      const aff = x.affiliate_url || '';
+      const urlFinal = ensureAffiliateUrl({rawUrl:raw, affiliateUrl:aff});
 
       const obj = {
         title: x.title || x.name || "",
@@ -567,9 +565,9 @@
         priceNum,
         oldPriceNum,
         price: fmt(priceNum),
-        discount: discInput ?? 0,
-        url: x.affiliate_url || x.product_url || x.url || "",
-        product_url: x.product_url || x.url || "",
+        discount: Number.isFinite(x.discount) ? x.discount : 0,
+        url: urlFinal,
+        product_url: raw,
         image: x.image || x.image_url || x.img || "",
         category,
         desc: (x.desc || x.description || x.short_description || "").slice(0,160)
@@ -581,7 +579,7 @@
     return dedupe(mapped, dedupeMode);
   }
 
-  /* ====== Oldalankénti lehúzó – addig megy, míg üres oldalt nem kap ====== */
+  /* ====== Oldalankénti lehúzó – robusztus 503 fallback ====== */
   async function fetchAllPages(baseUrl, {
     pageSize = 200,
     maxItems = 10000,
@@ -597,17 +595,18 @@
       url.searchParams.set('page', page);
       url.searchParams.set('page_size', pageSize);
 
-      let data = null, err = null;
+      let data = null, lastErr = null;
       for (let r=0; r<=retries; r++){
         try{
           const res = await fetch(url.toString(), { headers:{'Accept':'application/json'} });
+          if (res.status === 503) throw new Error('HTTP 503');
           if (!res.ok) throw new Error('HTTP '+res.status);
           data = await res.json();
           break;
-        }catch(e){ err = e; await new Promise(res=>setTimeout(res, delay*(r+1))); }
+        }catch(e){ lastErr = e; await new Promise(res=>setTimeout(res, delay*(r+1))); }
       }
       if (!data){
-        console.warn('[findora] oldal hiba', page, err);
+        console.warn('[findora] kihagyott oldal', page, lastErr);
         break;
       }
 
@@ -630,9 +629,8 @@
 
       if (newCount === 0) break;
 
-      // ha a szerver ad nextPage számot, követjük; ha nem, megyünk tovább (page+1)
       if (typeof data.nextPage === 'number' && data.nextPage !== page+1){
-        page = data.nextPage - 1; // a for ciklus miatt
+        page = data.nextPage - 1;
       }
     }
     return out;
@@ -655,7 +653,7 @@
   /* ====== Kategória motor + akció-bucketek ====== */
   let currentCategory = "all";
   window.minDiscountFilter = 0;
-  let currentSort = 'relevance'; // relevance | discount | price_asc | price_desc | random
+  let currentSort = 'relevance';
 
   document.addEventListener('click', (e)=>{
     const b = e.target.closest('.df-btn');
@@ -679,15 +677,10 @@
 
   function applySort(arr){
     const a = arr.slice();
-    if (currentSort === 'discount'){
-      a.sort((x,y)=>(y.discount||0)-(x.discount||0));
-    }else if (currentSort === 'price_asc'){
-      a.sort((x,y)=>(x.priceNum??Infinity)-(y.priceNum??Infinity));
-    }else if (currentSort === 'price_desc'){
-      a.sort((x,y)=>(y.priceNum??-1)-(x.priceNum??-1));
-    }else if (currentSort === 'random'){
-      for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
-    }
+    if (currentSort === 'discount')      a.sort((x,y)=>(y.discount||0)-(x.discount||0));
+    else if (currentSort === 'price_asc') a.sort((x,y)=>(x.priceNum??Infinity)-(y.priceNum??Infinity));
+    else if (currentSort === 'price_desc')a.sort((x,y)=>(y.priceNum??-1)-(x.priceNum??-1));
+    else if (currentSort === 'random')    for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
     return a;
   }
 
@@ -706,12 +699,10 @@
 
     const sec=document.createElement('section');
     sec.className='section partner'+(extra.festive?' festive':'');
-
-    // anchor-ok az oldalsáv gyorslinkekhez
     if (extra.anchorId) sec.id = extra.anchorId;
     if (extra.id) sec.id = extra.id;
 
-    sec.innerHTML=`<h2><span class="plink" data-partner-open="${partnerName}">${partnerName}</span> <small style="font-weight:600;color:#475569">– ${title}</small></h2><div class="status"></div><div class="grid"></div><div class="pager"></div>`;
+    sec.innerHTML=`<h2><span class=\"plink\" data-partner-open=\"${partnerName}\">${partnerName}</span> <small style=\"font-weight:600;color:#475569\">– ${title}</small></h2><div class=\"status\"></div><div class=\"grid\"></div><div class=\"pager\"></div>`;
     const grid=sec.querySelector('.grid');
     const status=sec.querySelector('.status');
     let page = 1;
@@ -722,7 +713,7 @@
       grid.innerHTML="";
       sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
-      sec.querySelector('.pager').innerHTML = progressivePagerHTML(filtered.length, page, perPage, {});
+      sec.querySelector('.pager').innerHTML = progressivePagerHTML(filtered.length, page, perPage);
       const df = (window.minDiscountFilter||0);
       status.textContent = `${filtered.length} találat • ${perPage}/oldal${df?` • Szűrés: −${df}%+`:''}${currentSort!=='relevance'?` • Rendezés: ${document.querySelector('#sortChips .chip.active')?.textContent||''}`:''}`;
     }
@@ -803,17 +794,7 @@
   async function showSearch(val){
     const v=val.toLowerCase();
     content.innerHTML= `
-      <section class="section">
-        <div class="toolbar">
-          <div class="group">
-            <button class="toolbtn" id="btnBack">← Vissza</button>
-            <strong>Keresés: „${val}”</strong>
-          </div>
-          <div class="group">
-            <button class="toolbtn" id="btnHome">🏠 Főoldal</button>
-          </div>
-        </div>
-      </section>`;
+      <section class=\"section\">\n        <div class=\"toolbar\">\n          <div class=\"group\">\n            <button class=\"toolbtn\" id=\"btnBack\">← Vissza</button>\n            <strong>Keresés: „${val}”</strong>\n          </div>\n          <div class=\"group\">\n            <button class=\"toolbtn\" id=\"btnHome\">🏠 Főoldal</button>\n          </div>\n        </div>\n      </section>`;
     document.getElementById('btnBack').onclick=()=>showCategory("all");
     document.getElementById('btnHome').onclick=()=>showCategory("all");
 
@@ -914,19 +895,7 @@
     const sec = document.createElement('section');
     sec.className = 'section';
     sec.innerHTML = `
-      <div class="toolbar">
-        <div class="group">
-          <button class="toolbtn" id="pvBack">← Vissza</button>
-          <strong>${name} – Teljes lista</strong>
-        </div>
-        <div class="group">
-          <button class="toolbtn" id="pvHome">🏠 Főoldal</button>
-        </div>
-      </div>
-      <div class="status"></div>
-      <div class="grid"></div>
-      <div class="pager"></div>
-    `;
+      <div class=\"toolbar\">\n        <div class=\"group\">\n          <button class=\"toolbtn\" id=\"pvBack\">← Vissza</button>\n          <strong>${name} – Teljes lista</strong>\n        </div>\n        <div class=\"group\">\n          <button class=\"toolbtn\" id=\"pvHome\">🏠 Főoldal</button>\n        </div>\n      </div>\n      <div class=\"status\"></div>\n      <div class=\"grid\"></div>\n      <div class=\"pager\"></div>\n    `;
     const grid = sec.querySelector('.grid');
     const status = sec.querySelector('.status');
     let page = 1;
@@ -938,7 +907,7 @@
       grid.innerHTML = '';
       sl.forEach(it => grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
-      sec.querySelector('.pager').innerHTML = progressivePagerHTML(items.length, page, per, {});
+      sec.querySelector('.pager').innerHTML = progressivePagerHTML(items.length, page, per);
       status.textContent = `${items.length} találat • ${per}/oldal${currentSort!=='relevance'?` • Rendezés: ${document.querySelector('#sortChips .chip.active')?.textContent||''}`:''}`;
     }
 
