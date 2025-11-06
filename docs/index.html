@@ -242,7 +242,10 @@
   const PER_PAGE_PARTNER = 60;      // Partner-nézet (nem nyúlok hozzá, így biztosan nem borul semmi)
 
   /* ====== API végpontok ====== */
-  const API_BASE = window.location.origin;
+  // Mindig a www-re szögezzük, ha findora.hu a domain (mobil host-keveredés ellen)
+  const API_BASE = (location.hostname.endsWith('findora.hu'))
+  ? 'https://www.findora.hu'
+  : location.origin;
   const TCHIBO_API = `${API_BASE}/api/tchibo`;
   const REGIO_API = `${API_BASE}/api/regiojatek`;
   const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
@@ -760,3 +763,4 @@
   </script>
 </body>
 </html>
+
