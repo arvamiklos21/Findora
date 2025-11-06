@@ -8,45 +8,43 @@
   <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, JátékNet, Kärcher, eOptika, Tchibo, RegioJáték, Játéksziget egy helyen." />
   <meta name="keywords" content="Findora, akció, kedvezmény, Amazon, JátékNet, Kärcher, eOptika, Tchibo, RegioJáték, Játéksziget" />
   <meta name="robots" content="index,follow,max-image-preview:large" />
+  <link rel="canonical" href="./" />
+  <link rel="alternate" href="./" hreflang="hu" />
+  <link rel="icon" href="assets/img/findora_mark.png" />
 
-  <!-- Abszolút canonical -->
-  <link rel="canonical" href="https://www.findora.hu/" />
-  <link rel="alternate" href="https://www.findora.hu/" hreflang="hu" />
-  <link rel="icon" href="https://www.findora.hu/assets/img/findora_mark.png" />
-
-  <!-- OG/Twitter abszolút URL-ekkel -->
+  <!-- OG/Twitter -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Findora" />
   <meta property="og:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
   <meta property="og:description" content="Válogatott akciók és ajánlatok magyar felhasználóknak. Amazon, JátékNet, Kärcher, eOptika, Tchibo, RegioJáték, Játéksziget." />
-  <meta property="og:url" content="https://www.findora.hu/" />
-  <meta property="og:image" content="https://www.findora.hu/assets/img/findora-header.png" />
+  <meta property="og:url" content="./" />
+  <meta property="og:image" content="assets/img/findora-header.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
   <meta name="twitter:description" content="A legjobb akciók és kuponok egy helyen. Nézd meg a Findora válogatásait!" />
-  <meta name="twitter:image" content="https://www.findora.hu/assets/img/findora-header.png" />
+  <meta name="twitter:image" content="assets/img/findora-header.png" />
 
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
     "@type":"WebSite",
     "name":"Findora",
-    "url":"https://www.findora.hu/",
+    "url":"./",
     "description":"Válogatott akciók és ajánlatok magyar felhasználóknak.",
     "potentialAction":{
       "@type":"SearchAction",
-      "target":"https://www.findora.hu/?q={search_term_string}",
+      "target":"./?q={search_term_string}",
       "query-input":"required name=search_term_string"
     },
     "publisher":{
       "@type":"Organization",
       "name":"Findora",
-      "logo":{"@type":"ImageObject","url":"https://www.findora.hu/assets/img/findora-header.png"}
+      "logo":{"@type":"ImageObject","url":"assets/img/findora-header.png"}
     }
   }
   </script>
 
-  <!-- Preconnect / DNS-prefetch az API-hoz (www és non-www) -->
+  <!-- Preconnect az API-hoz -->
   <link rel="preconnect" href="https://www.findora.hu" crossorigin>
   <link rel="dns-prefetch" href="https://www.findora.hu">
   <link rel="preconnect" href="https://findora.hu" crossorigin>
@@ -59,8 +57,6 @@
     :root{
       --brand:#0077FF; --brand2:#00BBFF; --bg:#f7f9fc; --text:#0f172a; --muted:#64748b;
       --card:#ffffff; --panel:#ffffffee; --border:#e2e8f0; --panel-blur: 12px;
-
-      /* karácsonyi háttér */
       --fireplace:url("https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=1600&q=80&auto=format&fit=crop");
       --pine-row:url("data:image/svg+xml;utf8,<?xml version='1.0'?><svg xmlns='http://www.w3.org/2000/svg' width='480' height='120' viewBox='0 0 480 120'><defs><linearGradient id='fog' x1='0' x2='0' y1='0' y2='1'><stop offset='0' stop-color='%230b1a33' stop-opacity='0.0'/><stop offset='1' stop-color='%230b1a33' stop-opacity='0.35'/></linearGradient></defs><rect width='480' height='120' fill='url(%23fog)'/><g fill='%23152a4a' opacity='0.75'><path d='M10,110 l20,-40 l20,40 z'/><path d='M60,110 l22,-44 l22,44 z'/><path d='M120,110 l18,-36 l18,36 z'/><path d='M170,110 l24,-48 l24,48 z'/><path d='M230,110 l20,-42 l20,42 z'/><path d='M290,110 l22,-44 l22,44 z'/><path d='M350,110 l18,-36 l18,36 z'/><path d='M400,110 l24,-48 l24,48 z'/></g></svg>");
     }
@@ -93,7 +89,6 @@
     .dev-badge{position:absolute;left:12px;top:12px;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:13px;box-shadow:0 4px 14px rgba(0,119,255,.25)}
     .promo{margin:10px auto;background:#ffffffcc;color:#0f172a;padding:8px 12px;border-radius:14px;max-width:860px;font-weight:700;border:1px solid rgba(2,6,23,.06);backdrop-filter:saturate(140%) blur(6px)}
 
-    /* 3D ajándékdobozok */
     .gift-row{display:flex;gap:8px;justify-content:center;margin-top:10px}
     .gift{width:26px;height:26px;position:relative;transform:translateZ(0) rotate(3deg);filter:drop-shadow(0 6px 10px rgba(0,0,0,.12))}
     .gift:before,.gift:after{content:"";position:absolute;inset:0;border-radius:4px}
@@ -105,7 +100,6 @@
       mask-image:linear-gradient(#000,#000); border-radius:4px}
     .gift .bow{position:absolute;top:-9px;left:50%;width:18px;height:10px;transform:translateX(-50%);border-radius:10px;background:radial-gradient(circle at 30% 40%, #ff7096, #e11d48)}
 
-    /* Promó sávok */
     .promo-banners{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:1100px;margin:10px auto 0;padding:0 10px}
     .pb-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;text-decoration:none;background:#fff;border:1px solid rgba(2,6,23,.06);box-shadow:0 6px 14px rgba(2,6,23,.08);transition:transform .15s ease, box-shadow .15s ease;color:#0f172a;position:relative;overflow:hidden}
     .pb-card:hover{transform:translateY(-2px); box-shadow:0 12px 24px rgba(2,6,23,.12)}
@@ -119,7 +113,6 @@
     .pb-card.bf .pb-count{font-variant-numeric:tabular-nums;font-weight:900;letter-spacing:.02em;background:#0a0a0a;border:1px solid #1f2937;padding:6px 8px;border-radius:8px}
     @media (max-width:760px){ .promo-banners{grid-template-columns:1fr} }
 
-    /* Sticky topbar */
     .topbar-wrap{position:sticky; top:0; z-index:40; backdrop-filter: blur(var(--panel-blur)); background:rgba(255,255,255,.7); border-bottom:1px solid rgba(226,232,240,.8)}
     .topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:0 auto;max-width:1100px;padding:8px 6px}
     .categories{display:flex;gap:8px;justify-content:center;overflow-x:auto;padding:0 6px}
@@ -139,7 +132,6 @@
       .floating-search{display:block;position:fixed; right:12px; bottom:12px; z-index:50; background:linear-gradient(90deg,var(--brand),var(--brand2)); color:#fff; font-weight:800; border-radius:999px; padding:10px 14px; box-shadow:0 10px 24px rgba(2,6,23,.22)}
     }
 
-    /* Layout: oldalsáv + tartalom */
     main{max-width:1200px;margin:22px auto;padding:0 12px; position:relative; z-index:2}
     .layout{display:grid; grid-template-columns:280px 1fr; gap:14px}
     @media (max-width:980px){ .layout{grid-template-columns:1fr} }
@@ -155,7 +147,6 @@
     .side-block{margin-bottom:14px}
     .side-note{font-size:12px; color:#64748b; margin-top:6px}
 
-    /* Kártyarács szekció */
     .section{
       background:var(--panel); border:1px solid rgba(226,232,240,.85); border-radius:18px; margin-bottom:24px; box-shadow:0 10px 24px rgba(2,6,23,.10); overflow:hidden;
       content-visibility:auto; contain-intrinsic-size: 1000px 800px;
@@ -185,7 +176,7 @@
     .cta{margin-top:auto;padding:10px;text-align:center}
     .cta a{display:inline-block;background:linear-gradient(90deg,var(--brand),var(--brand2));padding:8px 12px;border-radius:8px;color:#fff;font-weight:800;box-shadow:0 8px 18px rgba(0,119,255,.18)}
 
-    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5g9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
+    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
     .toolbtn, .toolsel{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px;cursor:pointer}
     .pager{display:flex;gap:8px;justify-content:center;align-items:center;padding:12px;flex-wrap:wrap}
     .pager button{border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
@@ -213,7 +204,7 @@
     <span class="dev-badge">Folyamatos fejlesztés</span>
     <div class="hero-inner">
       <div class="brand">
-        <img id="brandLogo" src="https://www.findora.hu/assets/img/findora-header.png" data-fallback1="https://www.findora.hu/assets/img/findora_mark.png" data-fallback2="https://upload.wikimedia.org/wikipedia/commons/3/3f/Compass_rose_simple.svg" alt="Findora logó" />
+        <img id="brandLogo" src="assets/img/findora-header.png" data-fallback1="assets/img/findora_mark.png" data-fallback2="https://upload.wikimedia.org/wikipedia/commons/3/3f/Compass_rose_simple.svg" alt="Findora logó" />
         <div>
           <h1>Findora</h1>
           <p>Irányt mutat a legjobb ajánlatokhoz</p>
@@ -282,7 +273,6 @@
 
   <main>
     <div class="layout">
-      <!-- OLDALSÁV -->
       <aside class="sidebar">
         <div class="side-block">
           <div class="side-title">Rendezés</div>
@@ -320,7 +310,6 @@
         </div>
       </aside>
 
-      <!-- TARTALOM -->
       <section id="content" style="min-height:400px;"></section>
     </div>
   </main>
@@ -330,7 +319,7 @@
   </footer>
 
   <script>
-  /* ====== Oldal beállítás ====== */
+  /* ====== Alap ====== */
   const PER_PAGE_GRID = 4;
 
   /* ====== API végpontok ====== */
@@ -341,17 +330,12 @@
   const REGIO_API = `${API_BASE}/api/regiojatek`;
   const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
 
-  /* ====== PARTNER LINKEK ====== */
+  /* ====== Statikus partner linkek (nem érintik a Worker feedeket) ====== */
   const AMAZON_TAG = "findora30-20";
   const amazonBase = `https://www.amazon.com/?tag=${AMAZON_TAG}`;
-
   const LINK_EOPTIKA = "https://www.kqzyfj.com/tf79mu2-u1HJIJNPRIIQHJMIMRRJK";
   const LINK_JATEKNET= "https://www.anrdoezrs.net/2t70r09608OQPQUWYPPXOQTTTXPQQ";
   const LINK_KARCHER = "https://www.kqzyfj.com/pa117qgpmgo35459BD44C3587B77AD";
-
-  // DOGNET – univerzális deep-link wrapper a saját dt kódoddal
-  const DOGNET_DT = 'NGEc8ZwG';
-  const dognetWrap = (u) => u ? `https://go.dognet.com/?dt=${DOGNET_DT}&url=${encodeURIComponent(u)}` : '';
 
   const LOGO_URLS={
     Amazon:"https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
@@ -391,7 +375,7 @@
     return PLACEHOLDER;
   }
 
-  /* ====== DEMÓ kártyák ====== */
+  /* ====== DEMÓ kártyák (statikus) ====== */
   const ITEMS=[
     {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech", desc:"Belépő modellek gyors szállítással."},
     {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazonBase, category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
@@ -426,14 +410,13 @@
             data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
     const logo = LOGO_URLS[it.partner] ? `<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">` : "";
     const desc = it.desc ? `<div class="desc">${it.desc}</div>` : "";
-    const discStr = it.discount ? (' • −' + it.discount + '%') : '';
     return `
       <div class="card">
         <div class="thumb">${imgTag}</div>
         <div class="body">
           <div class="title">${it.title}</div>
           ${desc}
-          <div class="muted">${logo} ${it.partner}${discStr}</div>
+          <div class="muted">${logo} ${it.partner}${it.discount?` • −${it.discount}%`:''}</div>
           <div class="price">${it.price||""}</div>
         </div>
         <div class="cta"><a href="${it.url}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem az ajánlatot</a></div>
@@ -452,7 +435,7 @@
     });
   }
 
-  /* ====== Ár-feldolgozás (robosztus) ====== */
+  /* ====== Ár-feldolgozás ====== */
   function parsePriceLike(x){
     if (x==null) return null;
     if (typeof x === 'number') return Number.isFinite(x) ? x : null;
@@ -476,7 +459,7 @@
     return fallback;
   }
 
-  /* ====== Pager (UI) ====== */
+  /* ====== Pager ====== */
   function progressivePagerHTML(total, page, per){
     const pages = Math.max(1, Math.ceil(total / per));
     const windowRadius = 2;
@@ -496,7 +479,7 @@
     return html;
   }
 
-  /* ====== Kedvezmény számítás ====== */
+  /* ====== Kedvezmény ====== */
   function computeDiscount(it){
     if (typeof it.discount === 'number' && it.discount>0) return it.discount;
     const p = Number.isFinite(it.priceNum) ? it.priceNum : null;
@@ -542,21 +525,14 @@
     return Array.from(map.values());
   }
 
-  /* ====== Affiliate URL logika ====== */
+  /* ====== Affiliate URL – csak az API-t követjük ====== */
   function ensureAffiliateUrl({rawUrl, affiliateUrl}){
-    const url = affiliateUrl || rawUrl || '';
-    if (!url) return '';
-    try{
-      const u = new URL(url);
-      const host = u.hostname.replace(/^www\./,'');
-      const needDognet = ['jateksziget.hu','regiojatek.hu','tchibo.hu'].includes(host);
-      return affiliateUrl || (needDognet ? dognetWrap(u.toString()) : u.toString());
-    }catch(_){
-      return affiliateUrl || dognetWrap(url);
-    }
+    if (affiliateUrl) return affiliateUrl;
+    if (rawUrl) return rawUrl;
+    return '';
   }
 
-  /* ====== Feed normalizálás – affiliate URL az első! ====== */
+  /* ====== Feed normalizálás ====== */
   function mapGenericFeed(rows, partner, category, dedupeMode='exact'){
     const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
 
@@ -570,8 +546,10 @@
         'old_price','price_old','list_price','original_price','regular_price','price_before',
         'prices.original','prices.list','old_price.value'
       ]);
-      const raw = x.product_url || x.url || '';
+
+      // URL-ek: affiliate_url -> url -> product_url
       const aff = x.affiliate_url || '';
+      const raw = x.url || x.product_url || '';
       const urlFinal = ensureAffiliateUrl({rawUrl:raw, affiliateUrl:aff});
 
       const obj = {
@@ -594,7 +572,7 @@
     return dedupe(mapped, dedupeMode);
   }
 
-  /* ====== Oldalankénti lehúzó – robusztus 503 fallback ====== */
+  /* ====== Oldalankénti lehúzó ====== */
   async function fetchAllPages(baseUrl, {
     pageSize = 200,
     maxItems = 10000,
@@ -634,7 +612,7 @@
 
       let newCount = 0;
       for (const it of items){
-        const key = it.url || it.affiliate_url || it.product_url || JSON.stringify(it).slice(0,256);
+        const key = it.affiliate_url || it.url || it.product_url || JSON.stringify(it).slice(0,256);
         if (seen.has(key)) continue;
         seen.add(key);
         out.push(it);
@@ -651,7 +629,7 @@
     return out;
   }
 
-  /* ====== Betöltők (lapozós) ====== */
+  /* ====== Betöltők ====== */
   async function loadTchibo(){
     const rows = await fetchAllPages(TCHIBO_API, { pageSize: 200, maxItems: 10000, maxPages: 200 });
     return mapGenericFeed(rows, "Tchibo.hu", "home", 'tchibo');
@@ -665,7 +643,7 @@
     return mapGenericFeed(rows, "Játéksziget", "games", 'none');
   }
 
-  /* ====== Kategória motor + akció-bucketek ====== */
+  /* ====== Kategória + bucketek ====== */
   let currentCategory = "all";
   window.minDiscountFilter = 0;
   let currentSort = 'relevance';
@@ -706,9 +684,6 @@
     const b50p   = items.filter(x=>x.discount>=50);
     return { b10_24, b25_49, b50p };
   }
-
-  // biztos ami biztos: explicit content elem
-  const content = document.getElementById('content');
 
   function renderPagedSection(title, partnerName, items, perPage=PER_PAGE_GRID, extra={}){
     if(!items || !items.length) return;
@@ -880,7 +855,7 @@
     });
   })();
 
-  /* ====== Black Friday visszaszámláló + promó kártya-sorrend ====== */
+  /* ====== Black Friday + promó kártyák ====== */
   (function promoLogicTZ(){
     const now = new Date();
     const y = now.getFullYear();
@@ -917,7 +892,7 @@
     }
   })();
 
-  /* ====== Partner teljes lista nézet (katt a fejléc névre) ====== */
+  /* ====== Partner teljes lista nézet ====== */
   function openPartnerView(name, items){
     const per = 20; // itt 20/oldal
     const sec = document.createElement('section');
