@@ -285,14 +285,15 @@
   <script>
   /* ====== Oldal beállítás ====== */
   const PER_PAGE_GRID = 4;
-  const PER_PAGE_PARTNER = 60;
 
   /* ====== API végpontok ====== */
-  // API végpontok
-const API_BASE = window.location.origin;   // ← EZ LEGYEN
-const TCHIBO_API = `${API_BASE}/api/tchibo`;
-const REGIO_API = `${API_BASE}/api/regiojatek`;
-const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
+  // Mindig a www-re szögezzük, ha findora.hu a domain (mobil host-keveredés ellen)
+  const API_BASE = (location.hostname.endsWith('findora.hu'))
+    ? 'https://www.findora.hu'
+    : location.origin;
+  const TCHIBO_API = `${API_BASE}/api/tchibo`;
+  const REGIO_API = `${API_BASE}/api/regiojatek`;
+  const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
 
   /* ====== PARTNER LINKEK ====== */
   const AMAZON_TAG = "findora30-20";
@@ -340,28 +341,25 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
     return PLACEHOLDER;
   }
 
-  /* ====== DEMÓ kártyák ====== */
+  /* ====== DEMÓ kártyák (marad) ====== */
   const ITEMS=[
     {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech", desc:"Belépő modellek gyors szállítással."},
     {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazonBase, category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
     {title:"Vezeték nélküli fülhallgató", partner:"Amazon", price:"17 990 Ft", discount:28, url:amazonBase, category:"tech"},
     {title:"Smart TV -55%", partner:"Amazon", price:"119 990 Ft", discount:55, url:amazonBase, category:"tech"}
   ];
-
   const EOPTIKA_ITEMS = [
     {title:"Divatos szemüvegkeret", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Klasszikus formák, prémium anyagok."},
     {title:"Polarizált napszemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"UV400 védelem, több színben."},
     {title:"Napi kontaktlencse csomag", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Kényelmes, higiénikus megoldás."},
     {title:"Kékfény-szűrős szemüveg", partner:"eOptika.hu", price:"", discount:0, url:LINK_EOPTIKA, category:"vision", desc:"Számítógépezéshez ideális."}
   ];
-
   const JATEKNET_ITEMS = [
     {title:"LEGO kreatív készlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Építsd meg, amit csak elképzelsz."},
     {title:"Családi társasjáték", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Garantált közös élmények."},
     {title:"Játékkonzol kontrollerek", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Extra irányítók többjátékos mókához."},
     {title:"Kreatív rajzkészlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Fejleszti a fantáziát és ügyességet."}
   ];
-
   const KARCHER_ITEMS = [
     {title:"Magasnyomású mosó", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Teraszok, autó gyors tisztítása."},
     {title:"Gőztisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Vegyszermentes, higiénikus tisztítás."},
@@ -402,7 +400,7 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
     });
   }
 
-  /* ====== Pager (max 4 gomb + … + last) ====== */
+  /* ====== Pager (UI) ====== */
   function progressivePagerHTML(total, page, per, maxShownRef){
     const pages = Math.max(1, Math.ceil(total / per));
     const maxVisited = Math.max(1, maxShownRef.value || 1, page);
@@ -421,55 +419,18 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
 
   /* ====== Segédek: kedvezmény számítás ====== */
   function computeDiscount(it){
-    // 1) meglévő szám (ha van)
     if (typeof it.discount === 'number' && it.discount>0) return it.discount;
-
-    // 2) ha van ár + régi ár mező
     const p = Number.isFinite(it.priceNum) ? it.priceNum : null;
     const op = Number.isFinite(it.oldPriceNum) ? it.oldPriceNum : null;
     if (p!=null && op!=null && op>0 && p<op){
       return Math.max(0, Math.min(100, Math.round((1 - (p/op)) * 100)));
     }
-
-    // 3) címben -XX%
     const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
     if (m) {
       const d=parseInt(m[1],10);
       return Number.isFinite(d)?d:0;
     }
     return 0;
-  }
-
-  /* ====== Cache ====== */
-  function lsKey(url){ return "findora_cache_"+url; }
-  function saveCache(url, rows){ try{ localStorage.setItem(lsKey(url), JSON.stringify({ts:Date.now(), rows})); }catch(_){ } }
-  function loadCache(url, maxAgeMs=3600_000){
-    try{
-      const raw=localStorage.getItem(lsKey(url)); if(!raw) return null;
-      const obj=JSON.parse(raw);
-      if (obj && obj.ts && (Date.now()-obj.ts)<=maxAgeMs && Array.isArray(obj.rows)) return obj.rows;
-    }catch(_){}
-    return null;
-  }
-
-  async function fetchJSONWithRetry(url, {retries=3, delay=250, limit=20000}={}){
-    const full = `${url}?limit=${limit}`;
-    let lastErr = null;
-    for (let i = 0; i < retries; i++) {
-      try {
-        const r = await fetch(full, { cache: "force-cache", credentials: "omit" });
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        const d = await r.json();
-        const rows = Array.isArray(d?.items) ? d.items : (Array.isArray(d) ? d : []);
-        if (rows.length > 0) { saveCache(url, rows); return rows; }
-        lastErr = new Error("Empty feed");
-      } catch (e) { lastErr = e; }
-      await new Promise(res => setTimeout(res, delay * Math.pow(2, i)));
-    }
-    const cached = loadCache(url);
-    if (cached) { console.warn("[findora] fallback cache for", url, lastErr); return cached; }
-    console.warn("[findora] feed fail", url, lastErr);
-    return [];
   }
 
   /* ====== Deduplikálás ====== */
@@ -503,7 +464,6 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
   }
 
   function parsePriceLike(x){
-    // elfogad „12345”, „12 345 Ft”, „12,345”, stb.
     if (x==null) return null;
     if (typeof x === 'number') return Number.isFinite(x) ? x : null;
     if (typeof x === 'string'){
@@ -516,7 +476,6 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
   function mapGenericFeed(rows, partner, category, dedupeMode='exact'){
     const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
     const mapped = rows.map(x=>{
-      // ár és régi ár különböző feed elnevezésekből
       const priceNum    = parsePriceLike(x.price ?? x.current_price ?? x.sale_price);
       const oldPriceNum = parsePriceLike(x.old_price ?? x.price_old ?? x.list_price ?? x.original_price);
       const discInput   = Number.isFinite(x.discount) ? x.discount : null;
@@ -527,31 +486,94 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
         priceNum,
         oldPriceNum,
         price: fmt(priceNum),
-        discount: discInput ?? 0, // computeDiscount még felülírhatja
+        discount: discInput ?? 0,
         url: x.affiliate_url || x.product_url || x.url || "",
         product_url: x.product_url || x.url || "",
         image: x.image || x.image_url || "",
         category,
         desc: (x.desc||x.description||"").slice(0,160)
       };
-      // végső discount számítás
       obj.discount = computeDiscount(obj);
       return obj;
     }).filter(o=>o.title && o.url);
     return dedupe(mapped, dedupeMode);
   }
 
-  /* ====== Betöltők ====== */
-  async function loadTchibo(limit=20000){
-    const rows = await fetchJSONWithRetry(TCHIBO_API, { limit });
+  /* ====== Oldalankénti lehúzó – NINCS több fix limit ====== */
+  async function fetchAllPages(baseUrl, {
+    pageSize = 500,
+    maxItems = 5000,
+    maxPages = 20,
+    retries = 2,
+    delay = 250
+  } = {}){
+    const out = [];
+    const seen = new Set();
+    let page = 1;
+    for (; page <= maxPages && out.length < maxItems; page++){
+      const url = new URL(baseUrl);
+      url.searchParams.set('page', page);
+      url.searchParams.set('page_size', pageSize);
+
+      let data = null, err = null;
+      for (let r=0; r<=retries; r++){
+        try{
+          const res = await fetch(url.toString(), { headers:{'Accept':'application/json'} });
+          if (!res.ok) throw new Error('HTTP '+res.status);
+          data = await res.json();
+          break;
+        }catch(e){ err = e; await new Promise(res=>setTimeout(res, delay*(r+1))); }
+      }
+      if (!data){
+        console.warn('[findora] oldal hiba', page, err);
+        break;
+      }
+
+      const items = Array.isArray(data.items) ? data.items
+                  : Array.isArray(data.results) ? data.results
+                  : Array.isArray(data) ? data
+                  : [];
+
+      // ha üres oldal jött: vége
+      if (!items.length) break;
+
+      // duplikáció-védelem (ha az upstream nem lapoz valójában)
+      let newCount = 0;
+      for (const it of items){
+        const key = it.affiliate_url || it.product_url || it.url || JSON.stringify(it).slice(0,256);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(it);
+        newCount++;
+        if (out.length >= maxItems) break;
+      }
+
+      // ha nem jött semmi új, ne pörögjünk tovább
+      if (newCount === 0) break;
+
+      // ha a szerver jelzi, hogy van következő oldal
+      if (data.nextPage === null) break;
+      if (typeof data.nextPage === 'number' && data.nextPage !== page+1){
+        page = data.nextPage - 1; // következő iterációban +1 lesz
+      }
+
+      // ha a kapott elemszám < pageSize, valószínűleg elfogyott
+      if (items.length < pageSize) break;
+    }
+    return out;
+  }
+
+  /* ====== Betöltők (lapozós) ====== */
+  async function loadTchibo(){
+    const rows = await fetchAllPages(TCHIBO_API, { pageSize: 500, maxItems: 5000, maxPages: 20 });
     return mapGenericFeed(rows, "Tchibo.hu", "home", 'tchibo');
   }
-  async function loadRegio(limit=20000){
-    const rows = await fetchJSONWithRetry(REGIO_API, { limit });
+  async function loadRegio(){
+    const rows = await fetchAllPages(REGIO_API, { pageSize: 500, maxItems: 5000, maxPages: 20 });
     return mapGenericFeed(rows, "RegioJáték", "games", 'none');
   }
-  async function loadJateksziget(limit=20000){
-    const rows = await fetchJSONWithRetry(JATEKSZIGET_API, { limit });
+  async function loadJateksziget(){
+    const rows = await fetchAllPages(JATEKSZIGET_API, { pageSize: 500, maxItems: 5000, maxPages: 20 });
     return mapGenericFeed(rows, "Játéksziget", "games", 'none');
   }
 
@@ -614,9 +636,8 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
 
   async function renderHomeAll(){
     content.innerHTML="";
-    const [tch, regio, jatsz] = await Promise.all([loadTchibo(20000), loadRegio(20000), loadJateksziget(20000)]);
+    const [tch, regio, jatsz] = await Promise.all([loadTchibo(), loadRegio(), loadJateksziget()]);
 
-    // összes lista (duplázás csökkentése)
     const all = dedupe(
       [
         ...tch,
@@ -630,15 +651,12 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
       'exact'
     );
 
-    // akció-bucketek
     const { b10_24, b25_49, b50p } = buildDiscountBuckets(all);
 
-    // három ünnepi akció szekció legfelül
     if (b10_24.length) renderPagedSection("🎯 −10–24% akciók", "Összes partner", b10_24, PER_PAGE_GRID, { festive:true, id:"deal10_24" });
     if (b25_49.length) renderPagedSection("🔥 −25–49% akciók", "Összes partner", b25_49, PER_PAGE_GRID, { festive:true, id:"deal25_49" });
     if (b50p.length)   renderPagedSection("💥 −50%+ akciók",  "Összes partner", b50p,   PER_PAGE_GRID, { festive:true, id:"deal50plus" });
 
-    // eredeti partner szekciók változatlanul
     renderPagedSection("Otthon", "Tchibo.hu", tch, PER_PAGE_GRID);
     renderPagedSection("Játékok", "RegioJáték", regio, PER_PAGE_GRID);
     renderPagedSection("Játékok", "Játéksziget", jatsz, PER_PAGE_GRID);
@@ -658,13 +676,13 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
 
     content.innerHTML="";
     if(cat==="home"){
-      const [tch] = await Promise.all([loadTchibo(20000)]);
+      const [tch] = await Promise.all([loadTchibo()]);
       renderPagedSection("Otthon", "Kärcher.hu", KARCHER_ITEMS, PER_PAGE_GRID);
       renderPagedSection("Otthon", "Tchibo.hu", tch, PER_PAGE_GRID);
       return;
     }
     if(cat==="games"){
-      const [regio, jatsz] = await Promise.all([loadRegio(20000), loadJateksziget(20000)]);
+      const [regio, jatsz] = await Promise.all([loadRegio(), loadJateksziget()]);
       renderPagedSection("Játékok", "RegioJáték", regio, PER_PAGE_GRID);
       renderPagedSection("Játékok", "Játéksziget", jatsz, PER_PAGE_GRID);
       renderPagedSection("Játékok", "JátékNet.hu", JATEKNET_ITEMS, PER_PAGE_GRID);
@@ -699,7 +717,7 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
     document.getElementById('btnBack').onclick=()=>showCategory("all");
     document.getElementById('btnHome').onclick=()=>showCategory("all");
 
-    const [tch, regio, jatsz] = await Promise.all([loadTchibo(20000), loadRegio(20000), loadJateksziget(20000)]);
+    const [tch, regio, jatsz] = await Promise.all([loadTchibo(), loadRegio(), loadJateksziget()]);
     const unify = (arr, name) => arr.map(i=>({...i, partner:name || i.partner}));
     const all = [
       ...unify(ITEMS,"Amazon"), ...unify(KARCHER_ITEMS,"Kärcher.hu"), ...unify(EOPTIKA_ITEMS,"eOptika.hu"), ...unify(JATEKNET_ITEMS,"JátékNet.hu"),
@@ -725,7 +743,7 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
     if(val) showSearch(val); else showCategory("all");
   });
 
-  /* ====== Hó és toTop (meglévő) ====== */
+  /* ====== Hó és toTop ====== */
   (function snow(){
     const wrap=document.querySelector('.snow');
     const isMobile = matchMedia('(max-width: 640px)').matches;
@@ -757,7 +775,7 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
     const now = new Date();
     const y = now.getFullYear();
     function lastFridayOfNovember(year){
-      const d = new Date(year, 10, 30); // nov 30.
+      const d = new Date(year, 10, 30);
       while(d.getDay() !== 5){ d.setDate(d.getDate()-1); }
       d.setHours(0,0,0,0);
       return d;
@@ -789,6 +807,53 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
     }
   })();
 
+  /* ====== Partner teljes lista nézet (katt a fejléc névre) ====== */
+  function openPartnerView(name, items){
+    const per = 20;
+    const sec = document.createElement('section');
+    sec.className = 'section';
+    sec.innerHTML = `
+      <div class="toolbar">
+        <div class="group">
+          <button class="toolbtn" id="pvBack">← Vissza</button>
+          <strong>${name} – Teljes lista</strong>
+        </div>
+        <div class="group">
+          <button class="toolbtn" id="pvHome">🏠 Főoldal</button>
+        </div>
+      </div>
+      <div class="status"></div>
+      <div class="grid"></div>
+      <div class="pager"></div>
+    `;
+    const grid = sec.querySelector('.grid');
+    const status = sec.querySelector('.status');
+    let page = 1;
+    const maxShown = { value: 5 };
+
+    function draw(){
+      const pages = Math.max(1, Math.ceil(items.length/per));
+      page = Math.min(Math.max(1,page), pages);
+      const st = (page-1)*per, sl = items.slice(st, st+per);
+      grid.innerHTML = '';
+      sl.forEach(it => grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+      hydrateSafeImages(sec);
+      sec.querySelector('.pager').innerHTML = progressivePagerHTML(items.length, page, per, maxShown);
+      status.textContent = `${items.length} találat • ${per}/oldal`;
+    }
+
+    sec.addEventListener('click', (e)=>{
+      const b = e.target.closest('.pager button');
+      if (b){ page = Number(b.dataset.page)||1; draw(); window.scrollTo({top:0,behavior:'smooth'}); }
+      if (e.target.id === 'pvBack') showCategory(currentCategory||'all');
+      if (e.target.id === 'pvHome') showCategory('all');
+    });
+
+    content.innerHTML = '';
+    content.appendChild(sec);
+    draw();
+  }
+
   /* ====== Indítás ====== */
   (async function init(){
     const urlQ=new URLSearchParams(location.search).get('q');
@@ -802,4 +867,3 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
   </script>
 </body>
 </html>
-
