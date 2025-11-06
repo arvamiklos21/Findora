@@ -288,12 +288,11 @@
   const PER_PAGE_PARTNER = 60;
 
   /* ====== API végpontok ====== */
-  const API_BASE = (location.hostname.endsWith('findora.hu'))
-  ? 'https://www.findora.hu'
-  : location.origin;
-  const TCHIBO_API = `${API_BASE}/api/tchibo`;
-  const REGIO_API = `${API_BASE}/api/regiojatek`;
-  const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
+  // API végpontok
+const API_BASE = window.location.origin;   // ← EZ LEGYEN
+const TCHIBO_API = `${API_BASE}/api/tchibo`;
+const REGIO_API = `${API_BASE}/api/regiojatek`;
+const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
 
   /* ====== PARTNER LINKEK ====== */
   const AMAZON_TAG = "findora30-20";
@@ -803,3 +802,4 @@
   </script>
 </body>
 </html>
+
