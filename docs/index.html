@@ -2,7 +2,6 @@
 <html lang="hu">
 <head>
   <meta charset="UTF-8" />
-  <!-- <meta http-equiv="Cache-Control" content="no-store" /> -->
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
   <title>Findora – Irányt mutat a legjobb ajánlatokhoz</title>
@@ -56,15 +55,8 @@
 
   <style>
     :root{
-      --brand:#0077FF;
-      --brand2:#00BBFF;
-      --bg:#f7f9fc;
-      --text:#0f172a;
-      --muted:#64748b;
-      --card:#ffffff;
-      --panel:#ffffffee;
-      --border:#e2e8f0;
-      --panel-blur: 12px;
+      --brand:#0077FF; --brand2:#00BBFF; --bg:#f7f9fc; --text:#0f172a; --muted:#64748b;
+      --card:#ffffff; --panel:#ffffffee; --border:#e2e8f0; --panel-blur: 12px;
 
       /* karácsonyi háttér */
       --fireplace:url("https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=1600&q=80&auto=format&fit=crop");
@@ -99,25 +91,24 @@
     .dev-badge{position:absolute;left:12px;top:12px;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:13px;box-shadow:0 4px 14px rgba(0,119,255,.25)}
     .promo{margin:10px auto;background:#ffffffcc;color:#0f172a;padding:8px 12px;border-radius:14px;max-width:860px;font-weight:700;border:1px solid rgba(2,6,23,.06);backdrop-filter:saturate(140%) blur(6px)}
 
-    /* ÚJ: 3D ajándékdobozok */
+    /* 3D ajándékdobozok */
     .gift-row{display:flex;gap:8px;justify-content:center;margin-top:10px}
     .gift{width:26px;height:26px;position:relative;transform:translateZ(0) rotate(3deg);filter:drop-shadow(0 6px 10px rgba(0,0,0,.12))}
     .gift:before,.gift:after{content:"";position:absolute;inset:0;border-radius:4px}
     .gift:before{background:linear-gradient(145deg,#fff,#ddd)}
-    .gift:after{background:
-      linear-gradient(0deg,transparent 45%, rgba(0,0,0,.06) 46% 54%, transparent 55%),
-      linear-gradient(90deg,#e11d48,#e11d48);
+    .gift:after{
+      background:
+        linear-gradient(0deg,transparent 45%, rgba(0,0,0,.06) 46% 54%, transparent 55%),
+        linear-gradient(90deg,#e11d48,#e11d48);
       mask-image:linear-gradient(#000,#000); border-radius:4px}
     .gift .bow{position:absolute;top:-9px;left:50%;width:18px;height:10px;transform:translateX(-50%);border-radius:10px;background:radial-gradient(circle at 30% 40%, #ff7096, #e11d48)}
 
-    /* ÚJ: dupla promó sáv */
+    /* Promó sávok */
     .promo-banners{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:1100px;margin:10px auto 0;padding:0 10px}
     .pb-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;text-decoration:none;background:#fff;border:1px solid rgba(2,6,23,.06);box-shadow:0 6px 14px rgba(2,6,23,.08);transition:transform .15s ease, box-shadow .15s ease;color:#0f172a;position:relative;overflow:hidden}
     .pb-card:hover{transform:translateY(-2px); box-shadow:0 12px 24px rgba(2,6,23,.12)}
-    .pb-left{display:flex;align-items:center;gap:10px}
     .pb-eyebrow{display:block;font-size:12px;letter-spacing:.06em;opacity:.85}
     .pb-title{display:block;font-weight:900;font-size:18px;line-height:1}
-    .pb-right{display:flex;align-items:center;gap:12px}
     .pb-cta{font-weight:800;font-size:13px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.9)}
     .pb-card.xmas{background:linear-gradient(90deg,#e11d48,#ef4444);color:#fff;border-color:transparent}
     .pb-card.xmas .pb-cta{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.25)}
@@ -126,7 +117,7 @@
     .pb-card.bf .pb-count{font-variant-numeric:tabular-nums;font-weight:900;letter-spacing:.02em;background:#0a0a0a;border:1px solid #1f2937;padding:6px 8px;border-radius:8px}
     @media (max-width:760px){ .promo-banners{grid-template-columns:1fr} }
 
-    /* Sticky topbar és minden más – változatlanul */
+    /* Sticky topbar */
     .topbar-wrap{position:sticky; top:0; z-index:40; backdrop-filter: blur(var(--panel-blur)); background:rgba(255,255,255,.7); border-bottom:1px solid rgba(226,232,240,.8)}
     .topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:0 auto;max-width:1100px;padding:8px 6px}
     .categories{display:flex;gap:8px;justify-content:center;overflow-x:auto;padding:0 6px}
@@ -146,14 +137,28 @@
       .floating-search{display:block;position:fixed; right:12px; bottom:12px; z-index:50; background:linear-gradient(90deg,var(--brand),var(--brand2)); color:#fff; font-weight:800; border-radius:999px; padding:10px 14px; box-shadow:0 10px 24px rgba(2,6,23,.22)}
     }
 
-    main{max-width:1100px;margin:22px auto;padding:0 12px; position:relative; z-index:2}
+    /* Layout: oldalsáv + tartalom */
+    main{max-width:1200px;margin:22px auto;padding:0 12px; position:relative; z-index:2}
+    .layout{display:grid; grid-template-columns:280px 1fr; gap:14px}
+    @media (max-width:980px){ .layout{grid-template-columns:1fr} }
+
+    aside.sidebar{
+      background:var(--panel); border:1px solid rgba(226,232,240,.85); border-radius:18px; box-shadow:0 10px 24px rgba(2,6,23,.10); overflow:hidden;
+      padding:12px;
+    }
+    .side-title{font-weight:900; font-size:15px; margin-bottom:8px}
+    .chip-row{display:flex; flex-wrap:wrap; gap:6px}
+    .chip{border:1px solid var(--border); background:#fff; border-radius:999px; padding:6px 10px; font-weight:700; font-size:12px; cursor:pointer}
+    .chip.active{background:#0f172a;color:#fff;border-color:#0f172a}
+    .side-block{margin-bottom:14px}
+    .side-note{font-size:12px; color:#64748b; margin-top:6px}
+
+    /* Kártyarács szekció */
     .section{
       background:var(--panel); border:1px solid rgba(226,232,240,.85); border-radius:18px; margin-bottom:24px; box-shadow:0 10px 24px rgba(2,6,23,.10); overflow:hidden;
-      content-visibility:auto;
-      contain-intrinsic-size: 1000px 800px;
+      content-visibility:auto; contain-intrinsic-size: 1000px 800px;
     }
     .section h2{font-size:18px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:linear-gradient(90deg,#eef6ff,#fff)}
-    /* Ünnepi dísz a kedvezmény-szekciók fejlécén */
     .section.festive h2{
       background:
         url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="220" height="38"><g fill="%23e11d48"><circle cx="18" cy="12" r="3"/><rect x="12" y="17" width="12" height="8" rx="2"/></g><g fill="%2385cb96"><path d="M200 10 l6 6 l-6 6 l-6 -6 z"/></g></svg>') 12px center/auto 28px no-repeat,
@@ -213,7 +218,6 @@
         </div>
       </div>
 
-      <!-- ÚJ: 3D ajándékdobozok -->
       <div class="gift-row" aria-hidden="true">
         <div class="gift"><div class="bow"></div></div>
         <div class="gift" style="transform:translateZ(0) rotate(-4deg)"><div class="bow"></div></div>
@@ -223,7 +227,6 @@
 
       <div class="promo" role="note">🎄 Ünnepi hangulat, friss ajánlatokkal!</div>
 
-      <!-- ÚJ: Merry Christmas + Black Friday promó -->
       <div class="promo-banners" role="region" aria-label="Kiemelt akciók">
         <a class="pb-card xmas" href="#deal10_24" aria-label="Merry Christmas akciók">
           <div class="pb-left">
@@ -247,7 +250,6 @@
       </div>
     </div>
 
-    <!-- sticky glass topbar -->
     <div class="topbar-wrap">
       <div class="topbar">
         <nav class="categories" aria-label="Kategóriák">
@@ -276,7 +278,50 @@
   <button class="floating-search" aria-label="Keresés megnyitása" onclick="document.getElementById('q').focus()">🔍</button>
   <button id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">▲</button>
 
-  <main id="content"></main>
+  <main>
+    <div class="layout">
+      <!-- OLDALSÁV -->
+      <aside class="sidebar">
+        <div class="side-block">
+          <div class="side-title">Rendezés</div>
+          <div class="chip-row" id="sortChips">
+            <button class="chip active" data-sort="relevance">Alap (relevancia)</button>
+            <button class="chip" data-sort="discount">Legnagyobb kedvezmény</button>
+            <button class="chip" data-sort="price_asc">Legalacsonyabb ár</button>
+            <button class="chip" data-sort="price_desc">Legmagasabb ár</button>
+            <button class="chip" data-sort="random">Véletlen</button>
+          </div>
+          <div class="side-note">A rendezés a látható szekció(k) kártyáira érvényes.</div>
+        </div>
+
+        <div class="side-block">
+          <div class="side-title">Gyorsszűrők</div>
+          <div class="chip-row" id="quickFilters">
+            <button class="chip" data-q="lego">LEGO</button>
+            <button class="chip" data-q="tv">TV</button>
+            <button class="chip" data-q="okosóra">Okosóra</button>
+            <button class="chip" data-q="szemüveg">Szemüveg</button>
+            <button class="chip" data-q="porszívó">Porszívó</button>
+          </div>
+        </div>
+
+        <div class="side-block">
+          <div class="side-title">Partnerek</div>
+          <div class="chip-row">
+            <a class="chip" href="#partner-tchibo">Tchibo.hu</a>
+            <a class="chip" href="#partner-regio">RegioJáték</a>
+            <a class="chip" href="#partner-jateksziget">Játéksziget</a>
+            <a class="chip" href="#partner-jateknet">JátékNet.hu</a>
+            <a class="chip" href="#partner-karcher">Kärcher.hu</a>
+            <a class="chip" href="#partner-eoptika">eOptika.hu</a>
+          </div>
+        </div>
+      </aside>
+
+      <!-- TARTALOM -->
+      <section id="content" style="min-height:400px;"></section>
+    </div>
+  </main>
 
   <footer>
     © 2025 Findora • Az oldalon affiliate linkek lehetnek. Partnerek: Amazon, JátékNet.hu, Kärcher.hu, eOptika.hu, Tchibo.hu, RegioJáték, Játéksziget.
@@ -391,36 +436,71 @@
 
   function hydrateSafeImages(ctx=document){
     ctx.querySelectorAll("img.imgsafe").forEach(img=>{
-      const chain=[img.dataset.src1, img.dataset.src2, img.dataset.src3].filter(u => !!u);
-      if (chain.length === 0) return;
+      const chain=[img.dataset.src1, img.dataset.src2, img.dataset.src3].filter(Boolean);
+      if (!chain.length) return;
       let i=0;
-      const set = () => { if (chain[i]) img.src = chain[i]; };
+      const set = () => { img.src = chain[i]; };
       img.onerror = () => { i = Math.min(i+1, chain.length-1); if (img.src !== chain[i]) set(); };
       set();
     });
   }
 
-  /* ====== Pager (UI) ====== */
-  function progressivePagerHTML(total, page, per, maxShownRef){
-    if (!maxShownRef || typeof maxShownRef.value !== 'number' || maxShownRef.value < 1) {
-      maxShownRef = { value: 1 };
+  /* ====== Ár-feldolgozás (robosztus) ====== */
+  function parsePriceLike(x){
+    if (x==null) return null;
+    if (typeof x === 'number') return Number.isFinite(x) ? x : null;
+    if (typeof x === 'string'){
+      // 12 990 Ft, 12.990 HUF → 12990
+      const digits = x.replace(/[,\.](?=\d{3}\b)/g, '').replace(/[^\d]/g, '');
+      const n = Number(digits);
+      return Number.isFinite(n) ? n : null;
     }
+    return null;
+  }
+  function pickFirst(obj, keys, fallback=null){
+    for (const k of keys){
+      const v = k.includes('.') ? k.split('.').reduce((a,kk)=>a?.[kk], obj) : obj?.[k];
+      const n = parsePriceLike(v);
+      if (n!=null) return n;
+    }
+    return fallback;
+  }
+
+  /* ====== Pager (UI) – ablakos, középen az aktuális, kétoldali „…” ====== */
+  function progressivePagerHTML(total, page, per, maxShownRef){
     const pages = Math.max(1, Math.ceil(total / per));
-    const maxVisited = Math.max(1, maxShownRef.value || 1, page);
-    const baseWindow = Math.max(4, maxVisited);
-    const upto = Math.min(pages, baseWindow);
-    let html = `<div class="pager">`;
-    const mkBtn = (p, lbl, active=false, disabled=false) => `<button data-page="${p}" ${disabled?'disabled':''} class="${active?'active':''}">${lbl}</button>`;
-    const mkDots = () => `<span class="dots">…</span>`;
-    html += mkBtn(Math.max(1,page-1), "«", false, page<=1);
-    for (let i=1;i<=upto;i++) html += mkBtn(i, i, i===page);
-    if (upto < pages){ html += mkDots(); html += mkBtn(pages, pages, page===pages); }
-    html += mkBtn(Math.min(pages,page+1), "»", false, page>=pages);
-    html += `</div>`;
+    const windowRadius = 2; // (... 7 8 9 10 11 ...)
+    const first = 1, last = pages;
+
+    function btn(p, active=false, disabled=false){ return `<button data-page="${p}" ${disabled?'disabled':''} class="${active?'active':''}">${p}</button>`; }
+    const prev = `<button data-page="${Math.max(1,page-1)}" ${page<=1?'disabled':''}>«</button>`;
+    const next = `<button data-page="${Math.min(pages,page+1)}" ${page>=pages?'disabled':''}>»</button>`;
+
+    const left = Math.max(first+1, page - windowRadius);
+    const right = Math.min(last-1, page + windowRadius);
+
+    let html = `<div class="pager">` + prev;
+
+    // első oldal
+    html += btn(first, page===first);
+    // bal három pont
+    if (left > first+1) html += `<span class="dots">…</span>`;
+
+    // középső ablak
+    for (let p = left; p <= right; p++){
+      html += btn(p, p===page);
+    }
+
+    // jobb három pont
+    if (right < last-1) html += `<span class="dots">…</span>`;
+    // utolsó oldal
+    if (last>first) html += btn(last, page===last);
+
+    html += next + `</div>`;
     return html;
   }
 
-  /* ====== Segédek: kedvezmény számítás ====== */
+  /* ====== Kedvezmény számítás ====== */
   function computeDiscount(it){
     if (typeof it.discount === 'number' && it.discount>0) return it.discount;
     const p = Number.isFinite(it.priceNum) ? it.priceNum : null;
@@ -466,44 +546,42 @@
     return Array.from(map.values());
   }
 
-  function parsePriceLike(x){
-    if (x==null) return null;
-    if (typeof x === 'number') return Number.isFinite(x) ? x : null;
-    if (typeof x === 'string'){
-      const n = Number(x.replace(/[^\d]/g,''));
-      return Number.isFinite(n) ? n : null;
-    }
-    return null;
-  }
-
+  /* ====== Feed normalizálás – affiliate URL az első! ====== */
   function mapGenericFeed(rows, partner, category, dedupeMode='exact'){
     const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
+
     const mapped = rows.map(x=>{
-      const priceNum    = parsePriceLike(x.price ?? x.current_price ?? x.sale_price);
-      const oldPriceNum = parsePriceLike(x.old_price ?? x.price_old ?? x.list_price ?? x.original_price);
-      const discInput   = Number.isFinite(x.discount) ? x.discount : null;
+      const priceNum = pickFirst(x, [
+        'price','current_price','sale_price','price_value','price_min','min_price','gross_price',
+        'price_gross','price_with_vat','final_price','deal_price','prices.current','prices.sale'
+      ]);
+      const oldPriceNum = pickFirst(x, [
+        'old_price','price_old','list_price','original_price','regular_price','price_before',
+        'prices.original','prices.list'
+      ]);
+      const discInput = Number.isFinite(x.discount) ? x.discount : null;
 
       const obj = {
-        title: x.title || "",
+        title: x.title || x.name || "",
         partner,
         priceNum,
         oldPriceNum,
         price: fmt(priceNum),
         discount: discInput ?? 0,
-        /* FONTOS: affiliate első! */
-        url: x.url || x.affiliate_url || x.product_url || "",
+        url: x.affiliate_url || x.product_url || x.url || "",
         product_url: x.product_url || x.url || "",
-        image: x.image || x.image_url || "",
+        image: x.image || x.image_url || x.img || "",
         category,
-        desc: (x.desc||x.description||"").slice(0,160)
+        desc: (x.desc || x.description || x.short_description || "").slice(0,160)
       };
       obj.discount = computeDiscount(obj);
       return obj;
     }).filter(o=>o.title && o.url);
+
     return dedupe(mapped, dedupeMode);
   }
 
-  /* ====== Oldalankénti lehúzó – NINCS több fix limit ====== */
+  /* ====== Oldalankénti lehúzó – addig megy, míg üres oldalt nem kap ====== */
   async function fetchAllPages(baseUrl, {
     pageSize = 200,
     maxItems = 10000,
@@ -552,9 +630,9 @@
 
       if (newCount === 0) break;
 
-      if (data.nextPage == null) break;
+      // ha a szerver ad nextPage számot, követjük; ha nem, megyünk tovább (page+1)
       if (typeof data.nextPage === 'number' && data.nextPage !== page+1){
-        page = data.nextPage - 1;
+        page = data.nextPage - 1; // a for ciklus miatt
       }
     }
     return out;
@@ -577,14 +655,41 @@
   /* ====== Kategória motor + akció-bucketek ====== */
   let currentCategory = "all";
   window.minDiscountFilter = 0;
+  let currentSort = 'relevance'; // relevance | discount | price_asc | price_desc | random
 
   document.addEventListener('click', (e)=>{
     const b = e.target.closest('.df-btn');
-    if(!b) return;
-    document.querySelectorAll('.df-btn').forEach(x=>x.classList.toggle('active', x===b));
-    window.minDiscountFilter = Number(b.dataset.disc||0);
-    showCategory(currentCategory||"all");
+    if(b){
+      document.querySelectorAll('.df-btn').forEach(x=>x.classList.toggle('active', x===b));
+      window.minDiscountFilter = Number(b.dataset.disc||0);
+      showCategory(currentCategory||"all");
+    }
+    const sc = e.target.closest('#sortChips .chip');
+    if(sc){
+      document.querySelectorAll('#sortChips .chip').forEach(x=>x.classList.toggle('active', x===sc));
+      currentSort = sc.dataset.sort || 'relevance';
+      showCategory(currentCategory||"all");
+    }
+    const qf = e.target.closest('#quickFilters .chip');
+    if(qf){
+      const term = qf.dataset.q || '';
+      if(term){ document.getElementById('q').value = term; showSearch(term); }
+    }
   });
+
+  function applySort(arr){
+    const a = arr.slice();
+    if (currentSort === 'discount'){
+      a.sort((x,y)=>(y.discount||0)-(x.discount||0));
+    }else if (currentSort === 'price_asc'){
+      a.sort((x,y)=>(x.priceNum??Infinity)-(y.priceNum??Infinity));
+    }else if (currentSort === 'price_desc'){
+      a.sort((x,y)=>(y.priceNum??-1)-(x.priceNum??-1));
+    }else if (currentSort === 'random'){
+      for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+    }
+    return a;
+  }
 
   function buildDiscountBuckets(arr){
     const items = arr.map(x => ({...x, discount: computeDiscount(x)})).filter(x=>x.discount>0);
@@ -596,30 +701,30 @@
 
   function renderPagedSection(title, partnerName, items, perPage=PER_PAGE_GRID, extra={}){
     if(!items || !items.length) return;
-    const filtered = items.filter(i => (i.discount||0) >= (window.minDiscountFilter||0));
+    const filtered = applySort(items.filter(i => (i.discount||0) >= (window.minDiscountFilter||0)));
     if (!filtered.length) return;
 
     const sec=document.createElement('section');
     sec.className='section partner'+(extra.festive?' festive':'');
+
+    // anchor-ok az oldalsáv gyorslinkekhez
+    if (extra.anchorId) sec.id = extra.anchorId;
     if (extra.id) sec.id = extra.id;
 
     sec.innerHTML=`<h2><span class="plink" data-partner-open="${partnerName}">${partnerName}</span> <small style="font-weight:600;color:#475569">– ${title}</small></h2><div class="status"></div><div class="grid"></div><div class="pager"></div>`;
     const grid=sec.querySelector('.grid');
     const status=sec.querySelector('.status');
     let page = 1;
-    const maxShown = { value: 4 };
-
     function apply(){
       const pages = Math.max(1, Math.ceil(filtered.length/perPage));
       page = Math.min(Math.max(1,page), pages);
-      if (page > maxShown.value) maxShown.value = page;
       const st=(page-1)*perPage, sl=filtered.slice(st, st+perPage);
       grid.innerHTML="";
       sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
-      sec.querySelector('.pager').innerHTML = progressivePagerHTML(filtered.length, page, perPage, maxShown);
+      sec.querySelector('.pager').innerHTML = progressivePagerHTML(filtered.length, page, perPage, {});
       const df = (window.minDiscountFilter||0);
-      status.textContent = `${filtered.length} találat • ${perPage}/oldal${df?` • Szűrés: −${df}%+`:''}`;
+      status.textContent = `${filtered.length} találat • ${perPage}/oldal${df?` • Szűrés: −${df}%+`:''}${currentSort!=='relevance'?` • Rendezés: ${document.querySelector('#sortChips .chip.active')?.textContent||''}`:''}`;
     }
     sec.addEventListener('click', (e)=>{
       const b = e.target.closest('.pager button');
@@ -637,9 +742,7 @@
 
     const all = dedupe(
       [
-        ...tch,
-        ...regio,
-        ...jatsz,
+        ...tch, ...regio, ...jatsz,
         ...ITEMS.map(i=>({ ...i, partner:"Amazon" })),
         ...KARCHER_ITEMS.map(i=>({ ...i, partner:"Kärcher.hu" })),
         ...EOPTIKA_ITEMS.map(i=>({ ...i, partner:"eOptika.hu" })),
@@ -654,14 +757,14 @@
     if (b25_49.length) renderPagedSection("🔥 −25–49% akciók", "Összes partner", b25_49, PER_PAGE_GRID, { festive:true, id:"deal25_49" });
     if (b50p.length)   renderPagedSection("💥 −50%+ akciók",  "Összes partner", b50p,   PER_PAGE_GRID, { festive:true, id:"deal50plus" });
 
-    renderPagedSection("Otthon", "Tchibo.hu", tch, PER_PAGE_GRID);
-    renderPagedSection("Játékok", "RegioJáték", regio, PER_PAGE_GRID);
-    renderPagedSection("Játékok", "Játéksziget", jatsz, PER_PAGE_GRID);
+    renderPagedSection("Otthon",  "Tchibo.hu",     tch,   PER_PAGE_GRID, {anchorId:"partner-tchibo"});
+    renderPagedSection("Játékok", "RegioJáték",    regio, PER_PAGE_GRID, {anchorId:"partner-regio"});
+    renderPagedSection("Játékok", "Játéksziget",   jatsz, PER_PAGE_GRID, {anchorId:"partner-jateksziget"});
 
-    renderPagedSection("Játékok", "JátékNet.hu", JATEKNET_ITEMS, PER_PAGE_GRID);
-    renderPagedSection("Otthon", "Kärcher.hu", KARCHER_ITEMS, PER_PAGE_GRID);
-    renderPagedSection("Látás", "eOptika.hu", EOPTIKA_ITEMS, PER_PAGE_GRID);
-    renderPagedSection("Tech", "Amazon", ITEMS, PER_PAGE_GRID);
+    renderPagedSection("Játékok", "JátékNet.hu",   JATEKNET_ITEMS, PER_PAGE_GRID, {anchorId:"partner-jateknet"});
+    renderPagedSection("Otthon",  "Kärcher.hu",    KARCHER_ITEMS,  PER_PAGE_GRID, {anchorId:"partner-karcher"});
+    renderPagedSection("Látás",   "eOptika.hu",    EOPTIKA_ITEMS,  PER_PAGE_GRID, {anchorId:"partner-eoptika"});
+    renderPagedSection("Tech",    "Amazon",        ITEMS,          PER_PAGE_GRID);
   }
 
   async function showCategory(cat){
@@ -674,19 +777,19 @@
     content.innerHTML="";
     if(cat==="home"){
       const [tch] = await Promise.all([loadTchibo()]);
-      renderPagedSection("Otthon", "Kärcher.hu", KARCHER_ITEMS, PER_PAGE_GRID);
-      renderPagedSection("Otthon", "Tchibo.hu", tch, PER_PAGE_GRID);
+      renderPagedSection("Otthon", "Kärcher.hu", KARCHER_ITEMS, PER_PAGE_GRID, {anchorId:"partner-karcher"});
+      renderPagedSection("Otthon", "Tchibo.hu",  tch,           PER_PAGE_GRID, {anchorId:"partner-tchibo"});
       return;
     }
     if(cat==="games"){
       const [regio, jatsz] = await Promise.all([loadRegio(), loadJateksziget()]);
-      renderPagedSection("Játékok", "RegioJáték", regio, PER_PAGE_GRID);
-      renderPagedSection("Játékok", "Játéksziget", jatsz, PER_PAGE_GRID);
-      renderPagedSection("Játékok", "JátékNet.hu", JATEKNET_ITEMS, PER_PAGE_GRID);
+      renderPagedSection("Játékok", "RegioJáték",  regio, PER_PAGE_GRID, {anchorId:"partner-regio"});
+      renderPagedSection("Játékok", "Játéksziget", jatsz,  PER_PAGE_GRID, {anchorId:"partner-jateksziget"});
+      renderPagedSection("Játékok", "JátékNet.hu", JATEKNET_ITEMS, PER_PAGE_GRID, {anchorId:"partner-jateknet"});
       return;
     }
     if(cat==="tech"){ renderPagedSection("Tech", "Amazon", ITEMS, PER_PAGE_GRID); return; }
-    if(cat==="vision"){ renderPagedSection("Látás", "eOptika.hu", EOPTIKA_ITEMS, PER_PAGE_GRID); return; }
+    if(cat==="vision"){ renderPagedSection("Látás", "eOptika.hu", EOPTIKA_ITEMS, PER_PAGE_GRID, {anchorId:"partner-eoptika"}); return; }
     if(cat==="travel"){
       const s=document.createElement('section');
       s.className='section';
@@ -720,16 +823,17 @@
       ...unify(ITEMS,"Amazon"), ...unify(KARCHER_ITEMS,"Kärcher.hu"), ...unify(EOPTIKA_ITEMS,"eOptika.hu"), ...unify(JATEKNET_ITEMS,"JátékNet.hu"),
       ...unify(tch,"Tchibo.hu"), ...unify(regio,"RegioJáték"), ...unify(jatsz,"Játéksziget")
     ];
-    const filtered = all
-      .filter(i => (i.discount||0) >= (window.minDiscountFilter||0))
-      .filter(i => String(i.title).toLowerCase().includes(v) || String(i.desc||"").toLowerCase().includes(v));
+    const filtered = applySort(
+      all.filter(i => (i.discount||0) >= (window.minDiscountFilter||0))
+         .filter(i => String(i.title).toLowerCase().includes(v) || String(i.desc||"").toLowerCase().includes(v))
+    );
 
     if(filtered.length){
       renderPagedSection("Keresési találatok", "Összes partner", filtered, PER_PAGE_GRID);
     }else{
       const s=document.createElement('section');
       s.className='section';
-      s.innerHTML=`<h2>Nincs találat</h2><div class="grid"></div>`;
+      s.innerHTML=`<h2>Nincs találat</h2><div class="grid" style="padding:12px">Próbálj másik kulcsszót.</div>`;
       content.appendChild(s);
     }
   }
@@ -806,7 +910,7 @@
 
   /* ====== Partner teljes lista nézet (katt a fejléc névre) ====== */
   function openPartnerView(name, items){
-    const per = 20;
+    const per = 20; // itt 20/oldal
     const sec = document.createElement('section');
     sec.className = 'section';
     sec.innerHTML = `
@@ -826,7 +930,6 @@
     const grid = sec.querySelector('.grid');
     const status = sec.querySelector('.status');
     let page = 1;
-    const maxShown = { value: 5 };
 
     function draw(){
       const pages = Math.max(1, Math.ceil(items.length/per));
@@ -835,8 +938,8 @@
       grid.innerHTML = '';
       sl.forEach(it => grid.insertAdjacentHTML('beforeend', cardHTML(it)));
       hydrateSafeImages(sec);
-      sec.querySelector('.pager').innerHTML = progressivePagerHTML(items.length, page, per, maxShown);
-      status.textContent = `${items.length} találat • ${per}/oldal`;
+      sec.querySelector('.pager').innerHTML = progressivePagerHTML(items.length, page, per, {});
+      status.textContent = `${items.length} találat • ${per}/oldal${currentSort!=='relevance'?` • Rendezés: ${document.querySelector('#sortChips .chip.active')?.textContent||''}`:''}`;
     }
 
     sec.addEventListener('click', (e)=>{
