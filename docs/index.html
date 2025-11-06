@@ -603,7 +603,7 @@
   async function renderHomeAll(){
     content.innerHTML="";
     // Kezdéskor kisebb limittel (gyorsabb TTFB/LCP)
-    const [tch, regio, jatsz] = await Promise.all([loadTchibo(300), loadRegio(300), loadJateksziget(300)]);
+    const [tch, regio, jatsz] = await Promise.all([loadTchibo(20000), loadRegio(20000), loadJateksziget(20000)]);
 
     renderPagedSection("Otthon", "Tchibo.hu", tch, PER_PAGE_GRID);
     renderPagedSection("Játékok", "RegioJáték", regio, PER_PAGE_GRID);
@@ -624,13 +624,13 @@
 
     content.innerHTML="";
     if(cat==="home"){
-      const [tch] = await Promise.all([loadTchibo(300)]);
+      const [tch] = await Promise.all([loadTchibo(20000)]);
       renderPagedSection("Otthon", "Kärcher.hu", KARCHER_ITEMS, PER_PAGE_GRID);
       renderPagedSection("Otthon", "Tchibo.hu", tch, PER_PAGE_GRID);
       return;
     }
     if(cat==="games"){
-      const [regio, jatsz] = await Promise.all([loadRegio(300), loadJateksziget(300)]);
+      const [regio, jatsz] = await Promise.all([loadRegio(300), loadJateksziget(20000)]);
       renderPagedSection("Játékok", "RegioJáték", regio, PER_PAGE_GRID);
       renderPagedSection("Játékok", "Játéksziget", jatsz, PER_PAGE_GRID);
       renderPagedSection("Játékok", "JátékNet.hu", JATEKNET_ITEMS, PER_PAGE_GRID);
@@ -729,4 +729,5 @@
   </script>
 </body>
 </html>
+
 
