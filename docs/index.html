@@ -8,38 +8,40 @@
   <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat: Amazon, JátékNet, Kärcher, eOptika, Tchibo, RegioJáték, Játéksziget egy helyen." />
   <meta name="keywords" content="Findora, akció, kedvezmény, Amazon, JátékNet, Kärcher, eOptika, Tchibo, RegioJáték, Játéksziget" />
   <meta name="robots" content="index,follow,max-image-preview:large" />
-  <link rel="canonical" href="./" />
-  <link rel="alternate" href="./" hreflang="hu" />
-  <link rel="icon" href="assets/img/findora_mark.png" />
 
-  <!-- OG/Twitter -->
+  <!-- Abszolút canonical -->
+  <link rel="canonical" href="https://www.findora.hu/" />
+  <link rel="alternate" href="https://www.findora.hu/" hreflang="hu" />
+  <link rel="icon" href="https://www.findora.hu/assets/img/findora_mark.png" />
+
+  <!-- OG/Twitter abszolút URL-ekkel -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Findora" />
   <meta property="og:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
   <meta property="og:description" content="Válogatott akciók és ajánlatok magyar felhasználóknak. Amazon, JátékNet, Kärcher, eOptika, Tchibo, RegioJáték, Játéksziget." />
-  <meta property="og:url" content="./" />
-  <meta property="og:image" content="assets/img/findora-header.png" />
+  <meta property="og:url" content="https://www.findora.hu/" />
+  <meta property="og:image" content="https://www.findora.hu/assets/img/findora-header.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
   <meta name="twitter:description" content="A legjobb akciók és kuponok egy helyen. Nézd meg a Findora válogatásait!" />
-  <meta name="twitter:image" content="assets/img/findora-header.png" />
+  <meta name="twitter:image" content="https://www.findora.hu/assets/img/findora-header.png" />
 
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
     "@type":"WebSite",
     "name":"Findora",
-    "url":"./",
+    "url":"https://www.findora.hu/",
     "description":"Válogatott akciók és ajánlatok magyar felhasználóknak.",
     "potentialAction":{
       "@type":"SearchAction",
-      "target":"./?q={search_term_string}",
+      "target":"https://www.findora.hu/?q={search_term_string}",
       "query-input":"required name=search_term_string"
     },
     "publisher":{
       "@type":"Organization",
       "name":"Findora",
-      "logo":{"@type":"ImageObject","url":"assets/img/findora-header.png"}
+      "logo":{"@type":"ImageObject","url":"https://www.findora.hu/assets/img/findora-header.png"}
     }
   }
   </script>
@@ -183,7 +185,7 @@
     .cta{margin-top:auto;padding:10px;text-align:center}
     .cta a{display:inline-block;background:linear-gradient(90deg,var(--brand),var(--brand2));padding:8px 12px;border-radius:8px;color:#fff;font-weight:800;box-shadow:0 8px 18px rgba(0,119,255,.18)}
 
-    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
+    .toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 16px;background:#f1f5g9;border-bottom:1px solid #e2e8f0;border-radius:16px 16px 0 0}
     .toolbtn, .toolsel{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px;cursor:pointer}
     .pager{display:flex;gap:8px;justify-content:center;align-items:center;padding:12px;flex-wrap:wrap}
     .pager button{border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
@@ -211,7 +213,7 @@
     <span class="dev-badge">Folyamatos fejlesztés</span>
     <div class="hero-inner">
       <div class="brand">
-        <img id="brandLogo" src="assets/img/findora-header.png" data-fallback1="assets/img/findora_mark.png" data-fallback2="https://upload.wikimedia.org/wikipedia/commons/3/3f/Compass_rose_simple.svg" alt="Findora logó" />
+        <img id="brandLogo" src="https://www.findora.hu/assets/img/findora-header.png" data-fallback1="https://www.findora.hu/assets/img/findora_mark.png" data-fallback2="https://upload.wikimedia.org/wikipedia/commons/3/3f/Compass_rose_simple.svg" alt="Findora logó" />
         <div>
           <h1>Findora</h1>
           <p>Irányt mutat a legjobb ajánlatokhoz</p>
@@ -275,8 +277,7 @@
     </div>
   </header>
 
-  <button class="floating-search" aria-label="Keresés megnyitása"
-        onclick="document.getElementById('q').focus()">🔍</button>
+  <button class="floating-search" aria-label="Keresés megnyitása" onclick="document.getElementById('q').focus()">🔍</button>
   <button id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">▲</button>
 
   <main>
@@ -348,7 +349,7 @@
   const LINK_JATEKNET= "https://www.anrdoezrs.net/2t70r09608OQPQUWYPPXOQTTTXPQQ";
   const LINK_KARCHER = "https://www.kqzyfj.com/pa117qgpmgo35459BD44C3587B77AD";
 
-  // DOGNET – univerzális deep‑link wrapper a saját dt kódoddal
+  // DOGNET – univerzális deep-link wrapper a saját dt kódoddal
   const DOGNET_DT = 'NGEc8ZwG';
   const dognetWrap = (u) => u ? `https://go.dognet.com/?dt=${DOGNET_DT}&url=${encodeURIComponent(u)}` : '';
 
@@ -420,11 +421,24 @@
   function cardHTML(it){
     const primary = it.image ? it.image : keyImage(it.title);
     const imgTag =
-      `<img class=\"imgsafe\" alt=\"${it.title}\"\n            loading=\"lazy\" decoding=\"async\" referrerpolicy=\"no-referrer\"\n            data-src1=\"${primary}\" data-src2=\"${PLACEHOLDER}\" data-src3=\"${PLACEHOLDER}\" />`;
-    const logo = LOGO_URLS[it.partner] ? `<img src=\"${LOGO_URLS[it.partner]}\" alt=\"${it.partner} logó\" style=\"width:16px;height:16px;object-fit:contain\">` : "";
-    const desc = it.desc ? `<div class=\"desc\">${it.desc}</div>` : "";
+      `<img class="imgsafe" alt="${it.title}"
+            loading="lazy" decoding="async" referrerpolicy="no-referrer"
+            data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
+    const logo = LOGO_URLS[it.partner] ? `<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">` : "";
+    const desc = it.desc ? `<div class="desc">${it.desc}</div>` : "";
+    const discStr = it.discount ? (' • −' + it.discount + '%') : '';
     return `
-      <div class=\"card\">\n        <div class=\"thumb\">${imgTag}</div>\n        <div class=\"body\">\n          <div class=\"title\">${it.title}</div>\n          ${desc}\n          <div class=\"muted\">${logo} ${it.partner}${it.discount?\` • −${it.discount}%\`:''}</div>\n          <div class=\"price\">${it.price||\"\"}</div>\n        </div>\n        <div class=\"cta\"><a href=\"${it.url}\" target=\"_blank\" rel=\"nofollow sponsored noopener noreferrer\">Megnézem az ajánlatot</a></div>\n      </div>\n    `;
+      <div class="card">
+        <div class="thumb">${imgTag}</div>
+        <div class="body">
+          <div class="title">${it.title}</div>
+          ${desc}
+          <div class="muted">${logo} ${it.partner}${discStr}</div>
+          <div class="price">${it.price||""}</div>
+        </div>
+        <div class="cta"><a href="${it.url}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem az ajánlatot</a></div>
+      </div>
+    `;
   }
 
   function hydrateSafeImages(ctx=document){
@@ -467,16 +481,16 @@
     const pages = Math.max(1, Math.ceil(total / per));
     const windowRadius = 2;
     const first = 1, last = pages;
-    function btn(p, active=false, disabled=false){ return `<button data-page=\"${p}\" ${disabled?'disabled':''} class=\"${active?'active':''}\">${p}</button>`; }
-    const prev = `<button data-page=\"${Math.max(1,page-1)}\" ${page<=1?'disabled':''}>«</button>`;
-    const next = `<button data-page=\"${Math.min(pages,page+1)}\" ${page>=pages?'disabled':''}>»</button>`;
+    function btn(p, active=false, disabled=false){ return `<button data-page="${p}" ${disabled?'disabled':''} class="${active?'active':''}">${p}</button>`; }
+    const prev = `<button data-page="${Math.max(1,page-1)}" ${page<=1?'disabled':''}>«</button>`;
+    const next = `<button data-page="${Math.min(pages,page+1)}" ${page>=pages?'disabled':''}>»</button>`;
     const left = Math.max(first+1, page - windowRadius);
     const right = Math.min(last-1, page + windowRadius);
-    let html = `<div class=\"pager\">` + prev;
+    let html = `<div class="pager">` + prev;
     html += btn(first, page===first);
-    if (left > first+1) html += `<span class=\"dots\">…</span>`;
+    if (left > first+1) html += `<span class="dots">…</span>`;
     for (let p = left; p <= right; p++) html += btn(p, p===page);
-    if (right < last-1) html += `<span class=\"dots\">…</span>`;
+    if (right < last-1) html += `<span class="dots">…</span>`;
     if (last>first) html += btn(last, page===last);
     html += next + `</div>`;
     return html;
@@ -693,6 +707,9 @@
     return { b10_24, b25_49, b50p };
   }
 
+  // biztos ami biztos: explicit content elem
+  const content = document.getElementById('content');
+
   function renderPagedSection(title, partnerName, items, perPage=PER_PAGE_GRID, extra={}){
     if(!items || !items.length) return;
     const filtered = applySort(items.filter(i => (i.discount||0) >= (window.minDiscountFilter||0)));
@@ -703,7 +720,7 @@
     if (extra.anchorId) sec.id = extra.anchorId;
     if (extra.id) sec.id = extra.id;
 
-    sec.innerHTML=`<h2><span class=\"plink\" data-partner-open=\"${partnerName}\">${partnerName}</span> <small style=\"font-weight:600;color:#475569\">– ${title}</small></h2><div class=\"status\"></div><div class=\"grid\"></div><div class=\"pager\"></div>`;
+    sec.innerHTML=`<h2><span class="plink" data-partner-open="${partnerName}">${partnerName}</span> <small style="font-weight:600;color:#475569">– ${title}</small></h2><div class="status"></div><div class="grid"></div><div class="pager"></div>`;
     const grid=sec.querySelector('.grid');
     const status=sec.querySelector('.status');
     let page = 1;
@@ -795,7 +812,17 @@
   async function showSearch(val){
     const v=val.toLowerCase();
     content.innerHTML= `
-      <section class=\"section\">\n        <div class=\"toolbar\">\n          <div class=\"group\">\n            <button class=\"toolbtn\" id=\"btnBack\">← Vissza</button>\n            <strong>Keresés: „${val}”</strong>\n          </div>\n          <div class=\"group\">\n            <button class=\"toolbtn\" id=\"btnHome\">🏠 Főoldal</button>\n          </div>\n        </div>\n      </section>`;
+      <section class="section">
+        <div class="toolbar">
+          <div class="group">
+            <button class="toolbtn" id="btnBack">← Vissza</button>
+            <strong>Keresés: „${val}”</strong>
+          </div>
+          <div class="group">
+            <button class="toolbtn" id="btnHome">🏠 Főoldal</button>
+          </div>
+        </div>
+      </section>`;
     document.getElementById('btnBack').onclick=()=>showCategory("all");
     document.getElementById('btnHome').onclick=()=>showCategory("all");
 
@@ -896,7 +923,19 @@
     const sec = document.createElement('section');
     sec.className = 'section';
     sec.innerHTML = `
-      <div class=\"toolbar\">\n        <div class=\"group\">\n          <button class=\"toolbtn\" id=\"pvBack\">← Vissza</button>\n          <strong>${name} – Teljes lista</strong>\n        </div>\n        <div class=\"group\">\n          <button class=\"toolbtn\" id=\"pvHome\">🏠 Főoldal</button>\n        </div>\n      </div>\n      <div class=\"status\"></div>\n      <div class=\"grid\"></div>\n      <div class=\"pager\"></div>\n    `;
+      <div class="toolbar">
+        <div class="group">
+          <button class="toolbtn" id="pvBack">← Vissza</button>
+          <strong>${name} – Teljes lista</strong>
+        </div>
+        <div class="group">
+          <button class="toolbtn" id="pvHome">🏠 Főoldal</button>
+        </div>
+      </div>
+      <div class="status"></div>
+      <div class="grid"></div>
+      <div class="pager"></div>
+    `;
     const grid = sec.querySelector('.grid');
     const status = sec.querySelector('.status');
     let page = 1;
