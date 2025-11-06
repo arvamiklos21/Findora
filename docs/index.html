@@ -275,7 +275,8 @@
     </div>
   </header>
 
-  <button class="floating-search" aria-label="Keresés megnyitása" onclick="document.getElementById('q').focus())">🔍</button>
+  <button class="floating-search" aria-label="Keresés megnyitása"
+        onclick="document.getElementById('q').focus()">🔍</button>
   <button id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">▲</button>
 
   <main>
@@ -423,23 +424,8 @@
     const logo = LOGO_URLS[it.partner] ? `<img src=\"${LOGO_URLS[it.partner]}\" alt=\"${it.partner} logó\" style=\"width:16px;height:16px;object-fit:contain\">` : "";
     const desc = it.desc ? `<div class=\"desc\">${it.desc}</div>` : "";
     return `
-   const cardHTML = `
-  <div class="card">
-    <div class="thumb">${imgTag}</div>
-    <div class="body">
-      <div class="title">${it.title}</div>
-      ${desc}
-      <div class="muted">${logo} ${it.partner}${it.discount ? ` • −${it.discount}%` : ''}</div>
-      <div class="price">${it.price || ""}</div>
-    </div>
-    <div class="cta">
-      <a href="${it.url}" target="_blank" rel="nofollow sponsored noopener noreferrer">
-        Megnézem az ajánlatot
-      </a>
-    </div>
-  </div>
-`;
-
+      <div class=\"card\">\n        <div class=\"thumb\">${imgTag}</div>\n        <div class=\"body\">\n          <div class=\"title\">${it.title}</div>\n          ${desc}\n          <div class=\"muted\">${logo} ${it.partner}${it.discount?\` • −${it.discount}%\`:''}</div>\n          <div class=\"price\">${it.price||\"\"}</div>\n        </div>\n        <div class=\"cta\"><a href=\"${it.url}\" target=\"_blank\" rel=\"nofollow sponsored noopener noreferrer\">Megnézem az ajánlatot</a></div>\n      </div>\n    `;
+  }
 
   function hydrateSafeImages(ctx=document){
     ctx.querySelectorAll("img.imgsafe").forEach(img=>{
@@ -951,4 +937,3 @@
   </script>
 </body>
 </html>
-
