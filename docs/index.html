@@ -247,7 +247,7 @@
       </div>
     </div>
 
-    <!-- sticky glass topbar (változatlan) -->
+    <!-- sticky glass topbar -->
     <div class="topbar-wrap">
       <div class="topbar">
         <nav class="categories" aria-label="Kategóriák">
@@ -340,7 +340,7 @@
     return PLACEHOLDER;
   }
 
-  /* ====== DEMÓ kártyák (marad) ====== */
+  /* ====== DEMÓ kártyák ====== */
   const ITEMS=[
     {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech", desc:"Belépő modellek gyors szállítással."},
     {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazonBase, category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
@@ -384,16 +384,17 @@
           <div class="muted">${logo} ${it.partner}${it.discount?` • −${it.discount}%`:''}</div>
           <div class="price">${it.price||""}</div>
         </div>
-        <div class="cta"><a href="${it.url}" target="_blank" rel="nofollow sponsored noopener">Megnézem az ajánlatot</a></div>
+        <div class="cta"><a href="${it.url}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem az ajánlatot</a></div>
       </div>
     `;
   }
 
   function hydrateSafeImages(ctx=document){
     ctx.querySelectorAll("img.imgsafe").forEach(img=>{
-      const chain=[img.dataset.src1, img.dataset.src2, img.dataset.src3].filter(Boolean);
+      const chain=[img.dataset.src1, img.dataset.src2, img.dataset.src3].filter(u => !!u);
+      if (chain.length === 0) return;
       let i=0;
-      const set = () => { img.src = chain[i]; };
+      const set = () => { if (chain[i]) img.src = chain[i]; };
       img.onerror = () => { i = Math.min(i+1, chain.length-1); if (img.src !== chain[i]) set(); };
       set();
     });
@@ -401,6 +402,9 @@
 
   /* ====== Pager (UI) ====== */
   function progressivePagerHTML(total, page, per, maxShownRef){
+    if (!maxShownRef || typeof maxShownRef.value !== 'number' || maxShownRef.value < 1) {
+      maxShownRef = { value: 1 };
+    }
     const pages = Math.max(1, Math.ceil(total / per));
     const maxVisited = Math.max(1, maxShownRef.value || 1, page);
     const baseWindow = Math.max(4, maxVisited);
@@ -486,7 +490,8 @@
         oldPriceNum,
         price: fmt(priceNum),
         discount: discInput ?? 0,
-        url: x.affiliate_url || x.product_url || x.url || "",
+        /* FONTOS: affiliate első! */
+        url: x.url || x.affiliate_url || x.product_url || "",
         product_url: x.product_url || x.url || "",
         image: x.image || x.image_url || "",
         category,
@@ -499,82 +504,75 @@
   }
 
   /* ====== Oldalankénti lehúzó – NINCS több fix limit ====== */
- async function fetchAllPages(baseUrl, {
-  pageSize = 200,          // <-- API max 200: erre állítjuk
-  maxItems = 10000,        // növeltem, hogy biztosan beférjen minden
-  maxPages = 200,          // biztos ami biztos
-  retries = 2,
-  delay = 250
-} = {}){
-  const out = [];
-  const seen = new Set();
-  let page = 1;
-  for (; page <= maxPages && out.length < maxItems; page++){
-    const url = new URL(baseUrl);
-    url.searchParams.set('page', page);
-    url.searchParams.set('page_size', pageSize);
+  async function fetchAllPages(baseUrl, {
+    pageSize = 200,
+    maxItems = 10000,
+    maxPages = 200,
+    retries = 2,
+    delay = 250
+  } = {}){
+    const out = [];
+    const seen = new Set();
+    let page = 1;
+    for (; page <= maxPages && out.length < maxItems; page++){
+      const url = new URL(baseUrl);
+      url.searchParams.set('page', page);
+      url.searchParams.set('page_size', pageSize);
 
-    let data = null, err = null;
-    for (let r=0; r<=retries; r++){
-      try{
-        const res = await fetch(url.toString(), { headers:{'Accept':'application/json'} });
-        if (!res.ok) throw new Error('HTTP '+res.status);
-        data = await res.json();
+      let data = null, err = null;
+      for (let r=0; r<=retries; r++){
+        try{
+          const res = await fetch(url.toString(), { headers:{'Accept':'application/json'} });
+          if (!res.ok) throw new Error('HTTP '+res.status);
+          data = await res.json();
+          break;
+        }catch(e){ err = e; await new Promise(res=>setTimeout(res, delay*(r+1))); }
+      }
+      if (!data){
+        console.warn('[findora] oldal hiba', page, err);
         break;
-      }catch(e){ err = e; await new Promise(res=>setTimeout(res, delay*(r+1))); }
+      }
+
+      const items = Array.isArray(data.items) ? data.items
+                  : Array.isArray(data.results) ? data.results
+                  : Array.isArray(data) ? data
+                  : [];
+
+      if (!items.length) break;
+
+      let newCount = 0;
+      for (const it of items){
+        const key = it.url || it.affiliate_url || it.product_url || JSON.stringify(it).slice(0,256);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(it);
+        newCount++;
+        if (out.length >= maxItems) break;
+      }
+
+      if (newCount === 0) break;
+
+      if (data.nextPage == null) break;
+      if (typeof data.nextPage === 'number' && data.nextPage !== page+1){
+        page = data.nextPage - 1;
+      }
     }
-    if (!data){
-      console.warn('[findora] oldal hiba', page, err);
-      break;
-    }
-
-    const items = Array.isArray(data.items) ? data.items
-                : Array.isArray(data.results) ? data.results
-                : Array.isArray(data) ? data
-                : [];
-
-    // üres oldal → vége
-    if (!items.length) break;
-
-    // duplikáció-védelem
-    let newCount = 0;
-    for (const it of items){
-      const key = it.url || it.affiliate_url || it.product_url || JSON.stringify(it).slice(0,256);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(it);
-      newCount++;
-      if (out.length >= maxItems) break;
-    }
-
-    // ha semmi új nem jött, állj meg
-    if (newCount === 0) break;
-
-    // CSAK a szerver nextPage jelzésére hagyatkozunk
-    if (data.nextPage == null) break;
-    if (typeof data.nextPage === 'number' && data.nextPage !== page+1){
-      page = data.nextPage - 1; // következő iterációban +1 lesz
-    }
-
-    // !!! NINCS több "if (items.length < pageSize) break;" !!!
-  }
-  return out;
+    return out;
   }
 
   /* ====== Betöltők (lapozós) ====== */
   async function loadTchibo(){
-  const rows = await fetchAllPages(TCHIBO_API, { pageSize: 200, maxItems: 10000, maxPages: 200 });
-  return mapGenericFeed(rows, "Tchibo.hu", "home", 'tchibo');
-}
-async function loadRegio(){
-  const rows = await fetchAllPages(REGIO_API, { pageSize: 200, maxItems: 10000, maxPages: 200 });
-  return mapGenericFeed(rows, "RegioJáték", "games", 'none');
-}
-async function loadJateksziget(){
-  const rows = await fetchAllPages(JATEKSZIGET_API, { pageSize: 200, maxItems: 10000, maxPages: 200 });
-  return mapGenericFeed(rows, "Játéksziget", "games", 'none');
-}
-
+    const rows = await fetchAllPages(TCHIBO_API, { pageSize: 200, maxItems: 10000, maxPages: 200 });
+    return mapGenericFeed(rows, "Tchibo.hu", "home", 'tchibo');
+  }
+  async function loadRegio(){
+    const rows = await fetchAllPages(REGIO_API, { pageSize: 200, maxItems: 10000, maxPages: 200 });
+    return mapGenericFeed(rows, "RegioJáték", "games", 'none');
+  }
+  async function loadJateksziget(){
+    const rows = await fetchAllPages(JATEKSZIGET_API, { pageSize: 200, maxItems: 10000, maxPages: 200 });
+    return mapGenericFeed(rows, "Játéksziget", "games", 'none');
+  }
 
   /* ====== Kategória motor + akció-bucketek ====== */
   let currentCategory = "all";
@@ -625,7 +623,7 @@ async function loadJateksziget(){
     }
     sec.addEventListener('click', (e)=>{
       const b = e.target.closest('.pager button');
-      if(b){ page = Number(b.dataset.page)||1; apply(); window.scrollTo({top:0,behavior:'smooth'});}
+      if(b){ page = Number(b.dataset.page)||1; apply(); window.scrollTo({top:0,behavior:'smooth'}); }
       const h = e.target.closest('[data-partner-open]');
       if(h){ openPartnerView(partnerName, filtered.length?filtered:items); }
     });
@@ -866,4 +864,3 @@ async function loadJateksziget(){
   </script>
 </body>
 </html>
-
