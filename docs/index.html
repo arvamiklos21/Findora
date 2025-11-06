@@ -287,7 +287,6 @@
   const PER_PAGE_GRID = 4;
 
   /* ====== API végpontok ====== */
-  // Mindig a www-re szögezzük, ha findora.hu a domain (mobil host-keveredés ellen)
   const API_BASE = (location.hostname.endsWith('findora.hu'))
     ? 'https://www.findora.hu'
     : location.origin;
@@ -534,10 +533,8 @@
                   : Array.isArray(data) ? data
                   : [];
 
-      // ha üres oldal jött: vége
       if (!items.length) break;
 
-      // duplikáció-védelem (ha az upstream nem lapoz valójában)
       let newCount = 0;
       for (const it of items){
         const key = it.affiliate_url || it.product_url || it.url || JSON.stringify(it).slice(0,256);
@@ -548,16 +545,13 @@
         if (out.length >= maxItems) break;
       }
 
-      // ha nem jött semmi új, ne pörögjünk tovább
       if (newCount === 0) break;
 
-      // ha a szerver jelzi, hogy van következő oldal
       if (data.nextPage === null) break;
       if (typeof data.nextPage === 'number' && data.nextPage !== page+1){
-        page = data.nextPage - 1; // következő iterációban +1 lesz
+        page = data.nextPage - 1;
       }
 
-      // ha a kapott elemszám < pageSize, valószínűleg elfogyott
       if (items.length < pageSize) break;
     }
     return out;
