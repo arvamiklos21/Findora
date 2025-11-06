@@ -2,7 +2,8 @@
 <html lang="hu">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Cache-Control" content="no-store" />
+  <!-- (GYORSÍTÁS) kivéve a no-store-t, hogy működjön a cache -->
+  <!-- <meta http-equiv="Cache-Control" content="no-store" /> -->
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
   <title>Findora – Irányt mutat a legjobb ajánlatokhoz</title>
@@ -44,6 +45,12 @@
     }
   }
   </script>
+
+  <!-- Preconnect / DNS-prefetch az API-hoz (www és non-www) -->
+  <link rel="preconnect" href="https://www.findora.hu" crossorigin>
+  <link rel="dns-prefetch" href="https://www.findora.hu">
+  <link rel="preconnect" href="https://findora.hu" crossorigin>
+  <link rel="dns-prefetch" href="https://findora.hu">
 
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Montserrat+Alternates:wght@700&display=swap" rel="stylesheet">
@@ -100,7 +107,12 @@
       .floating-search{display:block;position:fixed; right:12px; bottom:12px; z-index:50; background:linear-gradient(90deg,#4cc9f0,#ffd166); color:#0b1220; font-weight:800; border-radius:999px; padding:10px 14px; box-shadow:0 10px 24px rgba(2,6,23,.22)}
     }
     main{max-width:1100px;margin:22px auto;padding:0 12px; position:relative; z-index:2}
-    .section{background:var(--panel); border:1px solid rgba(226,232,240,.75); border-radius:18px; margin-bottom:24px; box-shadow:0 8px 20px rgba(2,6,23,.18); overflow:hidden;}
+    .section{
+      background:var(--panel); border:1px solid rgba(226,232,240,.75); border-radius:18px; margin-bottom:24px; box-shadow:0 8px 20px rgba(2,6,23,.18); overflow:hidden;
+      /* (GYORSÍTÁS) csak viewport közelében rendereljen */
+      content-visibility:auto;
+      contain-intrinsic-size: 1000px 800px;
+    }
     .section h2{font-size:18px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:linear-gradient(90deg,#e0f2fe,#fff)}
     .grid{display:flex; flex-wrap:wrap; gap:12px; padding:12px}
     .grid .card{min-width:220px; flex:1 1 calc(25% - 12px); max-width:calc(25% - 12px)}
@@ -180,11 +192,10 @@
   const PER_PAGE_PARTNER = 20; // Partner-nézet
 
   /* ====== API végpontok ====== */
-const API_BASE = window.location.origin;   // mindig a saját domain (www vagy nem-www)
-const TCHIBO_API = `${API_BASE}/api/tchibo`;
-const REGIO_API = `${API_BASE}/api/regiojatek`;
-const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
-
+  const API_BASE = window.location.origin;   // mindig a saját domain (www vagy nem-www)
+  const TCHIBO_API = `${API_BASE}/api/tchibo`;
+  const REGIO_API = `${API_BASE}/api/regiojatek`;
+  const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
 
   /* ====== PARTNER LINKEK ====== */
   const AMAZON_TAG = "findora30-20";
@@ -449,13 +460,13 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
     return null;
   }
 
+  // (GYORSÍTÁS) cacheBust + no-store ELDOBVA, hogy kihasználjuk a böngésző/CF cache-t
   async function fetchJSONWithRetry(url, {retries=3, delay=250, limit=1000}={}){
-    const cacheBust = Date.now();
-    const full = `${url}?limit=${limit}&cacheBust=${cacheBust}`;
+    const full = `${url}?limit=${limit}`;
     let lastErr=null;
     for(let i=0;i<retries;i++){
       try{
-        const r = await fetch(full, {cache:"no-store", mode:"cors"});
+        const r = await fetch(full, { credentials: "omit" });
         if(!r.ok) throw new Error("HTTP "+r.status);
         const d = await r.json();
         const rows = Array.isArray(d?.items) ? d.items : (Array.isArray(d) ? d : []);
@@ -581,8 +592,8 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
 
   async function renderHomeAll(){
     content.innerHTML="";
-    // minden bolt külön táblázat, 4/db
-    const [tch, regio, jatsz] = await Promise.all([loadTchibo(1000), loadRegio(1000), loadJateksziget(1000)]);
+    // Kezdéskor kisebb limittel (gyorsabb TTFB/LCP)
+    const [tch, regio, jatsz] = await Promise.all([loadTchibo(300), loadRegio(300), loadJateksziget(300)]);
 
     renderPagedSection("Otthon", "Tchibo.hu", tch, PER_PAGE_GRID);
     renderPagedSection("Játékok", "RegioJáték", regio, PER_PAGE_GRID);
@@ -603,13 +614,13 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
 
     content.innerHTML="";
     if(cat==="home"){
-      const [tch] = await Promise.all([loadTchibo(1000)]);
+      const [tch] = await Promise.all([loadTchibo(300)]);
       renderPagedSection("Otthon", "Kärcher.hu", KARCHER_ITEMS, PER_PAGE_GRID);
       renderPagedSection("Otthon", "Tchibo.hu", tch, PER_PAGE_GRID);
       return;
     }
     if(cat==="games"){
-      const [regio, jatsz] = await Promise.all([loadRegio(1000), loadJateksziget(1000)]);
+      const [regio, jatsz] = await Promise.all([loadRegio(300), loadJateksziget(300)]);
       renderPagedSection("Játékok", "RegioJáték", regio, PER_PAGE_GRID);
       renderPagedSection("Játékok", "Játéksziget", jatsz, PER_PAGE_GRID);
       renderPagedSection("Játékok", "JátékNet.hu", JATEKNET_ITEMS, PER_PAGE_GRID);
@@ -644,7 +655,7 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
     document.getElementById('btnBack').onclick=()=>showCategory("all");
     document.getElementById('btnHome').onclick=()=>showCategory("all");
 
-    const [tch, regio, jatsz] = await Promise.all([loadTchibo(1000), loadRegio(1000), loadJateksziget(1000)]);
+    const [tch, regio, jatsz] = await Promise.all([loadTchibo(300), loadRegio(300), loadJateksziget(300)]);
     const unify = (arr, name) => arr.map(i=>({...i, partner:name || i.partner}));
     const all = [
       ...unify(ITEMS,"Amazon"), ...unify(KARCHER_ITEMS,"Kärcher.hu"), ...unify(EOPTIKA_ITEMS,"eOptika.hu"), ...unify(JATEKNET_ITEMS,"JátékNet.hu"),
@@ -708,6 +719,3 @@ const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
   </script>
 </body>
 </html>
-
-
-
