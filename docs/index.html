@@ -2,7 +2,6 @@
 <html lang="hu">
 <head>
   <meta charset="UTF-8" />
-  <!-- Gyorsítás: engedjük a cache-t -->
   <!-- <meta http-equiv="Cache-Control" content="no-store" /> -->
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
@@ -46,7 +45,7 @@
   }
   </script>
 
-  <!-- Preconnect az API-hoz (www és non-www) -->
+  <!-- Preconnect / DNS-prefetch az API-hoz (www és non-www) -->
   <link rel="preconnect" href="https://www.findora.hu" crossorigin>
   <link rel="dns-prefetch" href="https://www.findora.hu">
   <link rel="preconnect" href="https://findora.hu" crossorigin>
@@ -64,7 +63,7 @@
       --card:rgba(255,255,255,0.9);
       --panel:#ffffffee;
       --border:#e2e8f0;
-      --fireplace:url("https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=1200&q=70&auto=format&fit=crop");
+      --fireplace:url("https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=1600&q=80&auto=format&fit=crop");
       --pine-row:url("data:image/svg+xml;utf8,<?xml version='1.0'?><svg xmlns='http://www.w3.org/2000/svg' width='480' height='120' viewBox='0 0 480 120'><defs><linearGradient id='fog' x1='0' x2='0' y1='0' y2='1'><stop offset='0' stop-color='%230b1a33' stop-opacity='0.0'/><stop offset='1' stop-color='%230b1a33' stop-opacity='0.35'/></linearGradient></defs><rect width='480' height='120' fill='url(%23fog)'/><g fill='%23152a4a' opacity='0.75'><path d='M10,110 l20,-40 l20,40 z'/><path d='M60,110 l22,-44 l22,44 z'/><path d='M120,110 l18,-36 l18,36 z'/><path d='M170,110 l24,-48 l24,48 z'/><path d='M230,110 l20,-42 l20,42 z'/><path d='M290,110 l22,-44 l22,44 z'/><path d='M350,110 l18,-36 l18,36 z'/><path d='M400,110 l24,-48 l24,48 z'/></g></svg>");
     }
     *{box-sizing:border-box;margin:0;padding:0}
@@ -186,22 +185,9 @@
   </footer>
 
   <script>
-  /* ====== Oldal beállítás / teljesítmény profil ====== */
-  const PERF = (()=>{
-    const cn = navigator.connection || {};
-    const slowNet = ['slow-2g','2g'].includes(cn.effectiveType);
-    const saveData = !!cn.saveData;
-    const lowMem = (navigator.deviceMemory && navigator.deviceMemory <= 2);
-    return { slowNet, saveData, lowMem, mobile: matchMedia('(max-width: 640px)').matches };
-  })();
-
-  // Főoldal: csak kicsi limit (gyors TTFB), partner-nézet: nagy limitre vált
-  const HOME_LIMIT   = PERF.slowNet || PERF.saveData ? 40  : 80;
-  const SEARCH_LIMIT = PERF.slowNet || PERF.saveData ? 100 : 200;
-  const BIG_LIMIT    = 20000; // partner-nézetben refetch
-
-  const PER_PAGE_GRID = 4;     // Főoldali rács
-  const PER_PAGE_PARTNER = 20; // Partner-nézet
+  /* ====== Oldal beállítás ====== */
+  const PER_PAGE_GRID = 4;          // Főoldali dobozok
+  const PER_PAGE_PARTNER = 60;      // Partner-nézet
 
   /* ====== API végpontok ====== */
   const API_BASE = window.location.origin;
@@ -231,23 +217,23 @@
 
   /* ====== Kép-helyettesítés ====== */
   const IMG_KEY={
-    laptop:"https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900&q=60&auto=format&fit=crop",
-    "gaming laptop":"https://images.unsplash.com/photo-1518779578993-ec3579fee39f?w=900&q=60&auto=format&fit=crop",
-    tv:"https://images.unsplash.com/photo-1512445239393-63e626ac6b86?w=900&q=60&auto=format&fit=crop",
-    "smart tv":"https://images.unsplash.com/photo-1527443154391-507e9dc6c5cc?w=900&q=60&auto=format&fit=crop",
-    okosóra:"https://images.unsplash.com/photo-1517433456452-f9633a875f6f?w=900&q=60&auto=format&fit=crop",
-    fülhallgató:"https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=900&q=60&auto=format&fit=crop",
-    lego:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=900&q=60&auto=format&fit=crop",
-    "társasjáték":"https://images.unsplash.com/photo-1542990253-a781e04c0083?w=900&q=60&auto=format&fit=crop",
-    "játékkonzol":"https://images.unsplash.com/photo-1605901309584-818e25960a8b?w=900&q=60&auto=format&fit=crop",
-    "magasnyomású mosó":"https://images.unsplash.com/photo-1593955982181-b123dc5b5fba?w=900&q=60&auto=format&fit=crop",
-    gőztisztító:"https://images.unsplash.com/photo-1598514982516-4e64d96d86d4?w=900&q=60&auto=format&fit=crop",
-    porszívó:"https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=900&q=60&auto=format&fit=crop",
-    szemüveg:"https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=900&q=60&auto=format&fit=crop",
-    "napszemüveg":"https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=900&q=60&auto=format&fit=crop",
-    kontaktlencse:"https://images.unsplash.com/photo-1612198182713-6cfa7d3c1240?w=900&q=60&auto=format&fit=crop"
+    laptop:"https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1200&q=80&auto=format&fit=crop",
+    "gaming laptop":"https://images.unsplash.com/photo-1518779578993-ec3579fee39f?w=1200&q=80&auto=format&fit=crop",
+    tv:"https://images.unsplash.com/photo-1512445239393-63e626ac6b86?w=1200&q=80&auto=format&fit=crop",
+    "smart tv":"https://images.unsplash.com/photo-1527443154391-507e9dc6c5cc?w=1200&q=80&auto=format&fit=crop",
+    okosóra:"https://images.unsplash.com/photo-1517433456452-f9633a875f6f?w=1200&q=80&auto=format&fit=crop",
+    fülhallgató:"https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=1200&q=80&auto=format&fit=crop",
+    lego:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=1200&q=80&auto=format&fit=crop",
+    "társasjáték":"https://images.unsplash.com/photo-1542990253-a781e04c0083?w=1200&q=80&auto=format&fit=crop",
+    "játékkonzol":"https://images.unsplash.com/photo-1605901309584-818e25960a8b?w=1200&q=80&auto=format&fit=crop",
+    "magasnyomású mosó":"https://images.unsplash.com/photo-1593955982181-b123dc5b5fba?w=1200&q=80&auto=format&fit=crop",
+    gőztisztító:"https://images.unsplash.com/photo-1598514982516-4e64d96d86d4?w=1200&q=80&auto=format&fit=crop",
+    porszívó:"https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1200&q=80&auto=format&fit=crop",
+    szemüveg:"https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=1200&q=80&auto=format&fit=crop",
+    "napszemüveg":"https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=1200&q=80&auto=format&fit=crop",
+    kontaktlencse:"https://images.unsplash.com/photo-1612198182713-6cfa7d3c1240?w=1200&q=80&auto=format&fit=crop"
   };
-  const PLACEHOLDER = 'data:image/svg+xml;utf8,'+encodeURIComponent("<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 600 400\'><defs><linearGradient id=\'g\' x1=\'0\' x2=\'1\'><stop stop-color=\'#eee\'/><stop offset=\'1\' stop-color=\'#ddd\'/></linearGradient></defs><rect fill=\'url(#g)\' width=\'600\' height=\'400\'/><g fill=\'#999\' font-family=\'Inter, Arial, Helvetica, sans-serif\' font-size=\'22\'><text x=\'50%\' y=\'50%\' text-anchor=\'middle\'>Kép előkészítés alatt…</text></g></svg>");
+  const PLACEHOLDER = 'data:image/svg+xml;utf8,'+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400'><defs><linearGradient id='g' x1='0' x2='1'><stop stop-color='#eee'/><stop offset='1' stop-color='#ddd'/></linearGradient></defs><rect fill='url(#g)' width='600' height='400'/><g fill='#999' font-family='Inter, Arial, Helvetica, sans-serif' font-size='22'><text x='50%' y='50%' text-anchor='middle'>Kép előkészítés alatt…</text></g></svg>");
 
   function keyImage(title){
     const t=String(title||"").toLowerCase();
@@ -277,13 +263,19 @@
     {title:"Kreatív rajzkészlet", partner:"JátékNet.hu", price:"", discount:0, url:LINK_JATEKNET, category:"games", desc:"Fejleszti a fantáziát és ügyességet."}
   ];
 
+  const KARCHER_ITEMS = [
+    {title:"Magasnyomású mosó", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Teraszok, autó gyors tisztítása."},
+    {title:"Gőztisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Vegyszermentes, higiénikus tisztítás."},
+    {title:"Porszívó kiegészítők", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Szűrők, zsákok, tartozékok."},
+    {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
+  ];
+
   /* ====== SEGÉDEK: kártya, képek ====== */
   function cardHTML(it){
     const primary = it.image ? it.image : keyImage(it.title);
     const imgTag =
       `<img class="imgsafe" alt="${it.title}"
             loading="lazy" decoding="async" referrerpolicy="no-referrer"
-            width="600" height="400"
             data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
     const logo = LOGO_URLS[it.partner] ? `<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">` : "";
     const desc = it.desc ? `<div class="desc">${it.desc}</div>` : "";
@@ -311,7 +303,7 @@
     });
   }
 
-  /* ====== Pager (progresszív) ====== */
+  /* ====== Pager ====== */
   function progressivePagerHTML(total, page, per, maxShownRef){
     const pages = Math.max(1, Math.ceil(total / per));
     const maxVisited = Math.max(1, maxShownRef.value || 1, page);
@@ -359,8 +351,8 @@
     content.appendChild(sec);
   }
 
-  /* ====== Partner-nézet (20/db) ====== */
-  async function openPartnerView(partnerName, itemsSource){
+  /* ====== Partner-nézet ====== */
+  function openPartnerView(partnerName, itemsSource){
     content.innerHTML = `
       <section class="section">
         <div class="toolbar">
@@ -379,7 +371,6 @@
             </select>
           </div>
         </div>
-        <div class="status" id="pvStatus" style="padding:8px 16px;color:#64748b"></div>
         <div class="grid"></div>
         <div class="pager"></div>
       </section>
@@ -388,37 +379,10 @@
     const pager = content.querySelector('.pager');
     const pvQ = content.querySelector('#pvQ');
     const pvSort = content.querySelector('#pvSort');
-    const pvStatus = content.querySelector('#pvStatus');
     content.querySelector('#pvBack').onclick=()=>showCategory(currentCategory||"all");
 
     let page=1, q="", sort="relevance";
     const maxShown = { value: 4 };
-    let items = itemsSource.slice();
-    let boosted = false;
-
-    // Partner -> nagy limitű refetch (egyszer)
-    async function ensureBoosted(){
-      if (boosted) return;
-      boosted = true;
-      pvStatus.textContent = "Teljes lista betöltése…";
-      let url = null;
-      if (partnerName.includes("Tchibo")) url = TCHIBO_API;
-      else if (partnerName.includes("Regio")) url = REGIO_API;
-      else if (partnerName.includes("Játéksziget")) url = JATEKSZIGET_API;
-      if (!url) { pvStatus.textContent = ""; return; }
-      const rows = await fetchJSONWithRetry(url, { limit: BIG_LIMIT, retries: 3, delay: 250 });
-      if (rows && rows.length > items.length){
-        if (partnerName.includes("Tchibo")) items = mapGenericFeed(rows, "Tchibo.hu", "home");
-        else if (partnerName.includes("Regio")) items = mapGenericFeed(rows, "RegioJáték", "games");
-        else if (partnerName.includes("Játéksziget")) items = mapGenericFeed(rows, "Játéksziget", "games");
-        apply();
-        pvStatus.textContent = `Teljes lista betöltve • ${items.length} tétel`;
-      }else{
-        pvStatus.textContent = "";
-      }
-    }
-    // Indítsuk el idle-ben (ne blokkolja az első render-t)
-    if ('requestIdleCallback' in window) requestIdleCallback(ensureBoosted); else setTimeout(ensureBoosted, 200);
 
     function normPriceNum(x){
       if (typeof x === 'number') return x;
@@ -430,7 +394,7 @@
     }
 
     function getViewItems(){
-      let arr = items.slice();
+      let arr = itemsSource.slice();
       if (q){
         const v = q.toLowerCase();
         arr = arr.filter(i => String(i.title||"").toLowerCase().includes(v) || String(i.desc||"").toLowerCase().includes(v));
@@ -468,7 +432,7 @@
 
   /* ====== Kedvezmény számoló ====== */
   function computeDiscount(it){
-    if (typeof it.discount === 'number' && it.discount>0) return it;
+    if (typeof it.discount === 'number' && it.discount>0) return it.discount;
     const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
     if (m) {
       const d=parseInt(m[1],10);
@@ -494,7 +458,7 @@
     return null;
   }
 
-  async function fetchJSONWithRetry(url, {retries=3, delay=250, limit=HOME_LIMIT}={}){
+  async function fetchJSONWithRetry(url, {retries=3, delay=250, limit=20000}={}){
     const full = `${url}?limit=${limit}`;
     let lastErr = null;
 
@@ -524,7 +488,7 @@
     return [];
   }
 
-  /* ====== Normalizálók + duplikátumszűrés ====== */
+  /* ====== Deduplikálás módok ====== */
   function normalizeBase(url){
     try{
       const u=new URL(url);
@@ -532,36 +496,35 @@
       return u.origin + u.pathname;
     }catch(_){ return String(url||"").split("?")[0]; }
   }
+
   function detectColor(title=""){
     const t = title.toLowerCase();
     const colors = ["fekete","fehér","feher","piros","kék","kek","zöld","zold","sárga","sarga","barna","szürke","szurke","bézs","bezs","lila","narancs","arany","ezüst","ezust","bordó","bordeaux","krém","krem","kékeszöld","türkiz","turkiz","rózsaszín","rozsaszin"];
     for(const c of colors){ if(t.includes(c)) return c; }
     return "";
   }
-  function dedupeByBaseColor(items){
+
+  // mode: 'tchibo' -> base+szín; 'exact' -> pontos URL; 'none' -> nincs dedupe
+  function dedupe(items, mode='exact'){
+    if (mode==='none') return items.slice();
     const map = new Map();
     for(const x of items){
-      const base = normalizeBase(x.product_url || x.affiliate_url || x.url || "");
-      const color = detectColor(x.title||"");
-      const key = base + "|" + color;
+      const base = (mode==='tchibo') ? (normalizeBase(x.product_url || x.affiliate_url || x.url || "") + "|" + detectColor(x.title||""))
+                                     : (x.product_url || x.affiliate_url || x.url || "");
       const priceNum = Number.isFinite(x.price) ? x.price : (Number.isFinite(x.priceNum)?x.priceNum:null);
       const disc = Number.isFinite(x.discount) ? x.discount : computeDiscount(x);
-      const cand = {
-        ...x,
-        priceNum,
-        discount: disc>0?disc:0
-      };
-      if(!map.has(key)) { map.set(key, cand); continue; }
-      const cur = map.get(key);
+      const cand = { ...x, priceNum, discount: disc>0?disc:0 };
+      if(!map.has(base)) { map.set(base, cand); continue; }
+      const cur = map.get(base);
       const better = (cur.priceNum==null) ? cand : (cand.priceNum==null) ? cur : (cand.priceNum < cur.priceNum ? cand : cur);
       if (cand.discount > better.discount) better.discount = cand.discount;
       if (!better.image && cand.image) better.image = cand.image;
-      map.set(key, better);
+      map.set(base, better);
     }
     return Array.from(map.values());
   }
 
-  function mapGenericFeed(rows, partner, category){
+  function mapGenericFeed(rows, partner, category, dedupeMode='exact'){
     const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
     const mapped = rows.map(x=>{
       const price = Number.isFinite(x.price) ? x.price : null;
@@ -573,26 +536,27 @@
         price: fmt(price),
         discount: disc>0?disc:0,
         url: x.affiliate_url || x.product_url || x.url || "",
+        product_url: x.product_url || x.url || "",
         image: x.image || x.image_url || "",
         category,
         desc: (x.desc||x.description||"").slice(0,160)
       };
     }).filter(o=>o.title && o.url);
-    return dedupeByBaseColor(mapped);
+    return dedupe(mapped, dedupeMode);
   }
 
-  /* ====== Betöltők (alapból kis limit – gyors) ====== */
-  async function loadTchibo(limit=HOME_LIMIT){
+  /* ====== Betöltők ====== */
+  async function loadTchibo(limit=20000){
     const rows = await fetchJSONWithRetry(TCHIBO_API, { limit });
-    return mapGenericFeed(rows, "Tchibo.hu", "home");
+    return mapGenericFeed(rows, "Tchibo.hu", "home", 'tchibo');
   }
-  async function loadRegio(limit=HOME_LIMIT){
+  async function loadRegio(limit=20000){
     const rows = await fetchJSONWithRetry(REGIO_API, { limit });
-    return mapGenericFeed(rows, "RegioJáték", "games");
+    return mapGenericFeed(rows, "RegioJáték", "games", 'none');  // NINCS dedupe
   }
-  async function loadJateksziget(limit=HOME_LIMIT){
+  async function loadJateksziget(limit=20000){
     const rows = await fetchJSONWithRetry(JATEKSZIGET_API, { limit });
-    return mapGenericFeed(rows, "Játéksziget", "games");
+    return mapGenericFeed(rows, "Játéksziget", "games", 'none'); // NINCS dedupe
   }
 
   /* ====== Kategória motor ====== */
@@ -600,17 +564,16 @@
 
   async function renderHomeAll(){
     content.innerHTML="";
-    // Főoldal: gyors kis letöltések
-    const [tch, regio, jatsz] = await Promise.all([loadTchibo(HOME_LIMIT), loadRegio(HOME_LIMIT), loadJateksziget(HOME_LIMIT)]);
+    const [tch, regio, jatsz] = await Promise.all([loadTchibo(20000), loadRegio(20000), loadJateksziget(20000)]);
 
     renderPagedSection("Otthon", "Tchibo.hu", tch, PER_PAGE_GRID);
     renderPagedSection("Játékok", "RegioJáték", regio, PER_PAGE_GRID);
     renderPagedSection("Játékok", "Játéksziget", jatsz, PER_PAGE_GRID);
 
     renderPagedSection("Játékok", "JátékNet.hu", JATEKNET_ITEMS, PER_PAGE_GRID);
+    renderPagedSection("Otthon", "Kärcher.hu", KARCHER_ITEMS, PER_PAGE_GRID);
     renderPagedSection("Látás", "eOptika.hu", EOPTIKA_ITEMS, PER_PAGE_GRID);
     renderPagedSection("Tech", "Amazon", ITEMS, PER_PAGE_GRID);
-    // Kärcher maradhat az Otthon menüben külön
   }
 
   async function showCategory(cat){
@@ -622,18 +585,13 @@
 
     content.innerHTML="";
     if(cat==="home"){
-      const [tch] = await Promise.all([loadTchibo(HOME_LIMIT)]);
+      const [tch] = await Promise.all([loadTchibo(20000)]);
+      renderPagedSection("Otthon", "Kärcher.hu", KARCHER_ITEMS, PER_PAGE_GRID);
       renderPagedSection("Otthon", "Tchibo.hu", tch, PER_PAGE_GRID);
-      renderPagedSection("Otthon", "Kärcher.hu", [
-        {title:"Magasnyomású mosó", partner:"Kärcher.hu", price:"", url:LINK_KARCHER, category:"home", desc:"Terasz, autó gyors tisztítása."},
-        {title:"Gőztisztító", partner:"Kärcher.hu", price:"", url:LINK_KARCHER, category:"home", desc:"Vegyszermentes, higiénikus."},
-        {title:"Porszívó kiegészítők", partner:"Kärcher.hu", price:"", url:LINK_KARCHER, category:"home"},
-        {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", url:LINK_KARCHER, category:"home"}
-      ], PER_PAGE_GRID);
       return;
     }
     if(cat==="games"){
-      const [regio, jatsz] = await Promise.all([loadRegio(HOME_LIMIT), loadJateksziget(HOME_LIMIT)]);
+      const [regio, jatsz] = await Promise.all([loadRegio(20000), loadJateksziget(20000)]);
       renderPagedSection("Játékok", "RegioJáték", regio, PER_PAGE_GRID);
       renderPagedSection("Játékok", "Játéksziget", jatsz, PER_PAGE_GRID);
       renderPagedSection("Játékok", "JátékNet.hu", JATEKNET_ITEMS, PER_PAGE_GRID);
@@ -650,7 +608,7 @@
   }
   document.querySelectorAll(".catbtn").forEach(btn=>btn.addEventListener("click",()=>showCategory(btn.dataset.cat)));
 
-  /* ====== Globális kereső – gyorsított ====== */
+  /* ====== Globális kereső ====== */
   async function showSearch(val){
     const v=val.toLowerCase();
     content.innerHTML= `
@@ -668,15 +626,11 @@
     document.getElementById('btnBack').onclick=()=>showCategory("all");
     document.getElementById('btnHome').onclick=()=>showCategory("all");
 
-    const [tch, regio, jatsz] = await Promise.all([fetchJSONWithRetry(TCHIBO_API,{limit:SEARCH_LIMIT}), fetchJSONWithRetry(REGIO_API,{limit:SEARCH_LIMIT}), fetchJSONWithRetry(JATEKSZIGET_API,{limit:SEARCH_LIMIT})]);
-    const unify = (arr, name) => mapGenericFeed(arr, name, name==="Tchibo.hu"?"home":"games");
+    const [tch, regio, jatsz] = await Promise.all([loadTchibo(20000), loadRegio(20000), loadJateksziget(20000)]);
+    const unify = (arr, name) => arr.map(i=>({...i, partner:name || i.partner}));
     const all = [
-      ...ITEMS.map(i=>({...i, partner:"Amazon"})),
-      ...EOPTIKA_ITEMS.map(i=>({...i, partner:"eOptika.hu"})),
-      ...JATEKNET_ITEMS.map(i=>({...i, partner:"JátékNet.hu"})),
-      ...unify(tch,"Tchibo.hu"),
-      ...unify(regio,"RegioJáték"),
-      ...unify(jatsz,"Játéksziget")
+      ...unify(ITEMS,"Amazon"), ...unify(KARCHER_ITEMS,"Kärcher.hu"), ...unify(EOPTIKA_ITEMS,"eOptika.hu"), ...unify(JATEKNET_ITEMS,"JátékNet.hu"),
+      ...unify(tch,"Tchibo.hu"), ...unify(regio,"RegioJáték"), ...unify(jatsz,"Játéksziget")
     ];
     const filtered = all.filter(i => String(i.title).toLowerCase().includes(v) || String(i.desc||"").toLowerCase().includes(v));
 
@@ -696,20 +650,21 @@
     if(val) showSearch(val); else showCategory("all");
   });
 
-  /* ====== Dísz / UI (kímélő mód) ====== */
+  /* ====== Dísz / UI ====== */
   (function snow(){
     const wrap=document.querySelector('.snow');
+    const isMobile = matchMedia('(max-width: 640px)').matches;
     const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const COUNT = prefersReduced || PERF.saveData || PERF.slowNet || PERF.lowMem ? 0 : (PERF.mobile ? 10 : 20);
+    const COUNT = prefersReduced ? 0 : (isMobile ? 14 : 28);
     for(let i=0;i<COUNT;i++){
       const f=document.createElement('div');
       f.className='flake';
       f.style.left = Math.random()*100 + 'vw';
-      const dur = (PERF.mobile ? 10 : 8) + Math.random()*10;
+      const dur = (isMobile ? 10 : 8) + Math.random()*10;
       f.style.animationDuration = dur + 's';
       f.style.animationDelay = (Math.random()*-dur) + 's';
       f.style.opacity = (0.45 + Math.random()*0.35).toFixed(2);
-      const size = (PERF.mobile ? 1.5 : 2) + Math.random()*3;
+      const size = (isMobile ? 1.5 : 2) + Math.random()*4;
       f.style.width = f.style.height = size + 'px';
       wrap.appendChild(f);
     }
