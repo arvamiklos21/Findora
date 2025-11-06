@@ -2,7 +2,6 @@
 <html lang="hu">
 <head>
   <meta charset="UTF-8" />
-  <!-- (GYORSÍTÁS) kivéve a no-store-t, hogy működjön a cache -->
   <!-- <meta http-equiv="Cache-Control" content="no-store" /> -->
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 
@@ -109,7 +108,6 @@
     main{max-width:1100px;margin:22px auto;padding:0 12px; position:relative; z-index:2}
     .section{
       background:var(--panel); border:1px solid rgba(226,232,240,.75); border-radius:18px; margin-bottom:24px; box-shadow:0 8px 20px rgba(2,6,23,.18); overflow:hidden;
-      /* (GYORSÍTÁS) csak viewport közelében rendereljen */
       content-visibility:auto;
       contain-intrinsic-size: 1000px 800px;
     }
@@ -188,11 +186,11 @@
 
   <script>
   /* ====== Oldal beállítás ====== */
-  const PER_PAGE_GRID = 4;     // Összes / menük táblák
-  const PER_PAGE_PARTNER = 20; // Partner-nézet
+  const PER_PAGE_GRID = 4;          // Főoldali dobozok
+  const PER_PAGE_PARTNER = 60;      // Partner-nézet
 
   /* ====== API végpontok ====== */
-  const API_BASE = window.location.origin;   // mindig a saját domain (www vagy nem-www)
+  const API_BASE = window.location.origin;
   const TCHIBO_API = `${API_BASE}/api/tchibo`;
   const REGIO_API = `${API_BASE}/api/regiojatek`;
   const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
@@ -305,7 +303,7 @@
     });
   }
 
-  /* ====== Pager (progresszív, nincs fix 15. oldal limit) ====== */
+  /* ====== Pager ====== */
   function progressivePagerHTML(total, page, per, maxShownRef){
     const pages = Math.max(1, Math.ceil(total / per));
     const maxVisited = Math.max(1, maxShownRef.value || 1, page);
@@ -353,7 +351,7 @@
     content.appendChild(sec);
   }
 
-  /* ====== Partner-nézet (20/db) ====== */
+  /* ====== Partner-nézet ====== */
   function openPartnerView(partnerName, itemsSource){
     content.innerHTML = `
       <section class="section">
@@ -460,7 +458,6 @@
     return null;
   }
 
-  // (GYORSÍTÁS) cacheBust + no-store ELDOBVA, hogy kihasználjuk a böngésző/CF cache-t
   async function fetchJSONWithRetry(url, {retries=3, delay=250, limit=20000}={}){
     const full = `${url}?limit=${limit}`;
     let lastErr = null;
@@ -491,44 +488,43 @@
     return [];
   }
 
-  /* ====== Közös normalizálók + duplikátumszűrés ====== */
+  /* ====== Deduplikálás módok ====== */
   function normalizeBase(url){
     try{
       const u=new URL(url);
-      u.searchParams.delete('article_id'); // variáns zaj szűrés
+      u.searchParams.delete('article_id');
       return u.origin + u.pathname;
     }catch(_){ return String(url||"").split("?")[0]; }
   }
+
   function detectColor(title=""){
     const t = title.toLowerCase();
     const colors = ["fekete","fehér","feher","piros","kék","kek","zöld","zold","sárga","sarga","barna","szürke","szurke","bézs","bezs","lila","narancs","arany","ezüst","ezust","bordó","bordeaux","krém","krem","kékeszöld","türkiz","turkiz","rózsaszín","rozsaszin"];
     for(const c of colors){ if(t.includes(c)) return c; }
     return "";
   }
-  function dedupeByBaseColor(items){
+
+  // mode: 'tchibo' -> base+szín; 'exact' -> pontos URL; 'none' -> nincs dedupe
+  function dedupe(items, mode='exact'){
+    if (mode==='none') return items.slice();
     const map = new Map();
     for(const x of items){
-      const base = normalizeBase(x.product_url || x.affiliate_url || x.url || "");
-      const color = detectColor(x.title||"");
-      const key = base + "|" + color;
+      const base = (mode==='tchibo') ? (normalizeBase(x.product_url || x.affiliate_url || x.url || "") + "|" + detectColor(x.title||""))
+                                     : (x.product_url || x.affiliate_url || x.url || "");
       const priceNum = Number.isFinite(x.price) ? x.price : (Number.isFinite(x.priceNum)?x.priceNum:null);
       const disc = Number.isFinite(x.discount) ? x.discount : computeDiscount(x);
-      const cand = {
-        ...x,
-        priceNum,
-        discount: disc>0?disc:0
-      };
-      if(!map.has(key)) { map.set(key, cand); continue; }
-      const cur = map.get(key);
+      const cand = { ...x, priceNum, discount: disc>0?disc:0 };
+      if(!map.has(base)) { map.set(base, cand); continue; }
+      const cur = map.get(base);
       const better = (cur.priceNum==null) ? cand : (cand.priceNum==null) ? cur : (cand.priceNum < cur.priceNum ? cand : cur);
       if (cand.discount > better.discount) better.discount = cand.discount;
       if (!better.image && cand.image) better.image = cand.image;
-      map.set(key, better);
+      map.set(base, better);
     }
     return Array.from(map.values());
   }
 
-  function mapGenericFeed(rows, partner, category){
+  function mapGenericFeed(rows, partner, category, dedupeMode='exact'){
     const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
     const mapped = rows.map(x=>{
       const price = Number.isFinite(x.price) ? x.price : null;
@@ -540,26 +536,27 @@
         price: fmt(price),
         discount: disc>0?disc:0,
         url: x.affiliate_url || x.product_url || x.url || "",
+        product_url: x.product_url || x.url || "",
         image: x.image || x.image_url || "",
         category,
         desc: (x.desc||x.description||"").slice(0,160)
       };
     }).filter(o=>o.title && o.url);
-    return dedupeByBaseColor(mapped);
+    return dedupe(mapped, dedupeMode);
   }
 
   /* ====== Betöltők ====== */
   async function loadTchibo(limit=20000){
     const rows = await fetchJSONWithRetry(TCHIBO_API, { limit });
-    return mapGenericFeed(rows, "Tchibo.hu", "home");
+    return mapGenericFeed(rows, "Tchibo.hu", "home", 'tchibo');
   }
   async function loadRegio(limit=20000){
     const rows = await fetchJSONWithRetry(REGIO_API, { limit });
-    return mapGenericFeed(rows, "RegioJáték", "games");
+    return mapGenericFeed(rows, "RegioJáték", "games", 'none');  // NINCS dedupe
   }
   async function loadJateksziget(limit=20000){
     const rows = await fetchJSONWithRetry(JATEKSZIGET_API, { limit });
-    return mapGenericFeed(rows, "Játéksziget", "games");
+    return mapGenericFeed(rows, "Játéksziget", "games", 'none'); // NINCS dedupe
   }
 
   /* ====== Kategória motor ====== */
@@ -611,7 +608,7 @@
   }
   document.querySelectorAll(".catbtn").forEach(btn=>btn.addEventListener("click",()=>showCategory(btn.dataset.cat)));
 
-  /* ====== Globális kereső – minden bolt együtt listázva 4/db ====== */
+  /* ====== Globális kereső ====== */
   async function showSearch(val){
     const v=val.toLowerCase();
     content.innerHTML= `
