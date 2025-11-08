@@ -1,0 +1,38 @@
+name: Ingest Tchibo → docs/feeds
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"   # 2 óránként (UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Build pages
+        env:
+          FEED_TCHIBO_URL: ${{ secrets.FEED_TCHIBO_URL }}
+        run: python scripts/build_tchibo.py
+
+      - name: Commit & push JSON
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/feeds/tchibo
+          git commit -m "tchibo: update feed pages" || echo "No changes"
+          git push
