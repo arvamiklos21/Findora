@@ -1,9 +1,9 @@
-name: Ingest Tchibo → docs/feeds (debug)
+name: Ingest Tchibo → docs/feeds
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: "0 */2 * * *"   # 2 óránként (UTC)
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,7 +20,7 @@ jobs:
 
       - name: Show repo state (before)
         run: |
-          echo "Branch:" $(git rev-parse --abbrev-ref HEAD)
+          echo "Branch: $(git rev-parse --abbrev-ref HEAD)"
           pwd
           ls -la
           ls -la docs || true
@@ -36,7 +36,7 @@ jobs:
       - name: Install deps
         run: pip install requests
 
-      - name: Verify secret & feed reachability
+      - name: Verify secret & reachability
         env:
           FEED_TCHIBO_URL: ${{ secrets.FEED_TCHIBO_URL }}
         run: |
@@ -44,7 +44,7 @@ jobs:
             echo "❌ FEED_TCHIBO_URL secret hiányzik!"
             exit 1
           fi
-          echo "✅ FEED_TCHIBO_URL length:" ${#FEED_TCHIBO_URL}
+          echo "✅ FEED_TCHIBO_URL length: ${#FEED_TCHIBO_URL}"
           curl -I -L "$FEED_TCHIBO_URL" || true
 
       - name: Ensure folder exists
@@ -55,8 +55,7 @@ jobs:
       - name: Run builder
         env:
           FEED_TCHIBO_URL: ${{ secrets.FEED_TCHIBO_URL }}
-        run: |
-          python scripts/build_tchibo.py || exit 1
+        run: python scripts/build_tchibo.py
 
       - name: List generated files
         run: |
@@ -67,18 +66,6 @@ jobs:
           echo
           echo "----- page-0001 (head) -----"
           head -c 500 docs/feeds/tchibo/page-0001.json || true
-
-      - name: Sanity: create TEST file if no pages
-        run: |
-          if ! ls docs/feeds/tchibo/page-*.json 1> /dev/null 2>&1; then
-            echo "No pages found, dropping TEST marker."
-            echo "TEST $(date -u)" > docs/feeds/tchibo/TEST.txt
-          fi
-
-      - name: Git status
-        run: |
-          git status
-          git diff --name-only
 
       - name: Commit & push
         run: |
