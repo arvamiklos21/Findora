@@ -630,18 +630,22 @@
   }
 
   /* ====== Betöltők ====== */
-  async function loadTchibo(){
-    const rows = await fetchAllPages(TCHIBO_API, { pageSize: 200, maxItems: 10000, maxPages: 200 });
-    return mapGenericFeed(rows, "Tchibo.hu", "home", 'tchibo');
+  // --- ÚJ: könnyű, 1. oldalnyi betöltés a fő/kategória nézethez
+  async function loadPartnerPage(partner, page=1, pageSize=24, q="", minDiscount=0) {
+    const API_BASE = (location.hostname.endsWith('findora.hu')) ? 'https://www.findora.hu' : location.origin;
+    const u = new URL(`${API_BASE}/api/${partner}`);
+    u.searchParams.set("page", page);
+    u.searchParams.set("limit", pageSize);
+    if (q) u.searchParams.set("q", q);
+    if (minDiscount) u.searchParams.set("minDiscount", minDiscount);
+    const r = await fetch(u.toString(), { cache: "no-store" });
+    if (!r.ok) throw new Error(`API error ${r.status}`);
+    return await r.json(); // {items, nextPage, total}
   }
-  async function loadRegio(){
-    const rows = await fetchAllPages(REGIO_API, { pageSize: 200, maxItems: 10000, maxPages: 200 });
-    return mapGenericFeed(rows, "RegioJáték", "games", 'none');
-  }
-  async function loadJateksziget(){
-    const rows = await fetchAllPages(JATEKSZIGET_API, { pageSize: 200, maxItems: 10000, maxPages: 200 });
-    return mapGenericFeed(rows, "Játéksziget", "games", 'none');
-  }
+
+  async function loadTchibo(){       const d = await loadPartnerPage('tchibo',      1, 24); return d.items || []; }
+  async function loadRegio(){        const d = await loadPartnerPage('regiojatek',  1, 24); return d.items || []; }
+  async function loadJateksziget(){  const d = await loadPartnerPage('jateksziget', 1, 24); return d.items || []; }
 
   /* ====== Kategória + bucketek ====== */
   let currentCategory = "all";
@@ -892,9 +896,19 @@
     }
   })();
 
-  /* ====== Partner teljes lista nézet ====== */
-  function openPartnerView(name, items){
-    const per = 20; // itt 20/oldal
+  /* ====== Partner teljes lista nézet – VÉGTELEN GÖRGETÉS ====== */
+  function openPartnerView(name, _items_ignored) {
+    const partnerSlug = name === "Tchibo.hu" ? "tchibo"
+                     : name === "RegioJáték" ? "regiojatek"
+                     : name === "Játéksziget" ? "jateksziget"
+                     : null;
+    if (!partnerSlug) return;
+
+    const per = 20;
+    let page = 1;
+    let loading = false;
+    let hasNext = true;
+
     const sec = document.createElement('section');
     sec.className = 'section';
     sec.innerHTML = `
@@ -909,33 +923,57 @@
       </div>
       <div class="status"></div>
       <div class="grid"></div>
-      <div class="pager"></div>
+      <div id="pvSentinel" style="height:1px"></div>
     `;
     const grid = sec.querySelector('.grid');
     const status = sec.querySelector('.status');
-    let page = 1;
+    const sentinel = sec.querySelector('#pvSentinel');
 
-    function draw(){
-      const pages = Math.max(1, Math.ceil(items.length/per));
-      page = Math.min(Math.max(1,page), pages);
-      const st = (page-1)*per, sl = items.slice(st, st+per);
-      grid.innerHTML = '';
-      sl.forEach(it => grid.insertAdjacentHTML('beforeend', cardHTML(it)));
-      hydrateSafeImages(sec);
-      sec.querySelector('.pager').innerHTML = progressivePagerHTML(items.length, page, per);
-      status.textContent = `${items.length} találat • ${per}/oldal${currentSort!=='relevance'?` • Rendezés: ${document.querySelector('#sortChips .chip.active')?.textContent||''}`:''}`;
+    function updateStatus(totalSoFar){
+      status.textContent = `${totalSoFar} találat betöltve… görgess tovább`;
     }
 
+    async function loadNext() {
+      if (loading || !hasNext) return;
+      loading = true;
+      try {
+        const data = await loadPartnerPage(partnerSlug, page, per);
+        const items = data.items || [];
+        items.forEach(it => grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+        hydrateSafeImages(sec);
+        if (data.nextPage) {
+          page = data.nextPage;
+          hasNext = true;
+        } else {
+          hasNext = false;
+        }
+        updateStatus(grid.children.length);
+      } catch (e) {
+        console.error(e);
+        hasNext = false;
+        status.textContent = 'Hiba történt a betöltés során.';
+      } finally {
+        loading = false;
+      }
+    }
+
+    const io = new IntersectionObserver((entries) => {
+      for (const ent of entries) {
+        if (ent.isIntersecting) loadNext();
+      }
+    }, { rootMargin: '800px 0px' });
+
+    io.observe(sentinel);
+
     sec.addEventListener('click', (e)=>{
-      const b = e.target.closest('.pager button');
-      if (b){ page = Number(b.dataset.page)||1; draw(); window.scrollTo({top:0,behavior:'smooth'}); }
       if (e.target.id === 'pvBack') showCategory(currentCategory||'all');
       if (e.target.id === 'pvHome') showCategory('all');
     });
 
     content.innerHTML = '';
     content.appendChild(sec);
-    draw();
+
+    loadNext();
   }
 
   /* ====== Indítás ====== */
