@@ -1,9 +1,9 @@
-name: Ingest Tchibo → docs/feeds
+name: Ingest Tchibo → docs/feeds (debug)
 
 on:
-  schedule:
-    - cron: "0 */2 * * *"   # 2 óránként (UTC)
   workflow_dispatch:
+  schedule:
+    - cron: "0 */2 * * *"
 
 permissions:
   contents: write
@@ -12,9 +12,20 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Show repo tree (before)
+        run: |
+          pwd
+          git rev-parse --abbrev-ref HEAD
+          ls -la
+          ls -la docs || true
+          ls -la docs/feeds || true
+          ls -la docs/feeds/tchibo || true
+          ls -la scripts || true
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -24,10 +35,36 @@ jobs:
       - name: Install deps
         run: pip install requests
 
-      - name: Build pages
+      - name: Verify FEED_TCHIBO_URL
         env:
           FEED_TCHIBO_URL: ${{ secrets.FEED_TCHIBO_URL }}
-        run: python scripts/build_tchibo.py
+        run: |
+          if [ -z "$FEED_TCHIBO_URL" ]; then
+            echo "❌ FEED_TCHIBO_URL secret üres vagy nincs beállítva!"
+            exit 1
+          fi
+          echo "✅ FEED_TCHIBO_URL megvan: ${#FEED_TCHIBO_URL} karakter"
+
+      - name: Run builder
+        env:
+          FEED_TCHIBO_URL: ${{ secrets.FEED_TCHIBO_URL }}
+        run: |
+          python scripts/build_tchibo.py
+
+      - name: List generated files
+        run: |
+          echo "--- files after build ---"
+          ls -la docs/feeds/tchibo
+          echo "----- head of meta.json -----"
+          head -c 500 docs/feeds/tchibo/meta.json || true
+          echo
+          echo "----- one page -----"
+          head -c 500 docs/feeds/tchibo/page-0001.json || true
+
+      - name: Git status
+        run: |
+          git status
+          git diff --name-only
 
       - name: Commit & push JSON
         run: |
