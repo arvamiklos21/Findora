@@ -55,24 +55,21 @@ jobs:
           echo "$(date -u) — build started" > docs/feeds/tchibo/BUILD_LOG.txt
           python scripts/build_tchibo.py
           echo "--- generated files ---"
-          ls -la docs/feeds/tchibo
+          ls -la docs/feeds/tchibo || true
           head -c 400 docs/feeds/tchibo/meta.json || true
           echo
           head -c 400 docs/feeds/tchibo/page-0001.json || true
 
-      - name: Commit changes
-        run: |
-          set -e
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b bot/update-tchibo || git checkout bot/update-tchibo
-          git add docs/feeds/tchibo
-          git commit -m "tchibo: update feed pages" || echo "No changes"
-
+      # NINCS kézi git commit/push!
+      # A PR action maga commitál ÚJ branchre és nyit PR-t a main-re.
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
           title: "tchibo: update feed pages"
+          commit-message: "tchibo: update feed pages"
           body: "Automatikus frissítés: docs/feeds/tchibo/*"
-          branch: bot/update-tchibo
+          base: main
+          branch: bot/update-tchibo-${{ github.run_number }}
           delete-branch: true
+          add-paths: |
+            docs/feeds/tchibo/**
