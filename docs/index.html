@@ -330,7 +330,7 @@
   const REGIO_API = `${API_BASE}/api/regiojatek`;
   const JATEKSZIGET_API = `${API_BASE}/api/jateksziget`;
 
-  /* ====== Statikus partner linkek (nem érintik a Worker feedeket) ====== */
+  /* ====== Statikus partner linkek ====== */
   const AMAZON_TAG = "findora30-20";
   const amazonBase = `https://www.amazon.com/?tag=${AMAZON_TAG}`;
   const LINK_EOPTIKA = "https://www.kqzyfj.com/tf79mu2-u1HJIJNPRIIQHJMIMRRJK";
@@ -459,7 +459,7 @@
     return fallback;
   }
 
-  /* ====== Pager ====== */
+  /* ====== Pager (grid belső) ====== */
   function progressivePagerHTML(total, page, per){
     const pages = Math.max(1, Math.ceil(total / per));
     const windowRadius = 2;
@@ -547,7 +547,6 @@
         'prices.original','prices.list','old_price.value'
       ]);
 
-      // URL-ek: affiliate_url -> url -> product_url
       const aff = x.affiliate_url || '';
       const raw = x.url || x.product_url || '';
       const urlFinal = ensureAffiliateUrl({rawUrl:raw, affiliateUrl:aff});
@@ -572,67 +571,21 @@
     return dedupe(mapped, dedupeMode);
   }
 
-  /* ====== Oldalankénti lehúzó ====== */
-  async function fetchAllPages(baseUrl, {
-    pageSize = 200,
-    maxItems = 10000,
-    maxPages = 200,
-    retries = 2,
-    delay = 250
-  } = {}){
-    const out = [];
-    const seen = new Set();
-    let page = 1;
-    for (; page <= maxPages && out.length < maxItems; page++){
-      const url = new URL(baseUrl);
-      url.searchParams.set('page', page);
-      url.searchParams.set('page_size', pageSize);
-
-      let data = null, lastErr = null;
-      for (let r=0; r<=retries; r++){
-        try{
-          const res = await fetch(url.toString(), { headers:{'Accept':'application/json'} });
-          if (res.status === 503) throw new Error('HTTP 503');
-          if (!res.ok) throw new Error('HTTP '+res.status);
-          data = await res.json();
-          break;
-        }catch(e){ lastErr = e; await new Promise(res=>setTimeout(res, delay*(r+1))); }
-      }
-      if (!data){
-        console.warn('[findora] kihagyott oldal', page, lastErr);
-        break;
-      }
-
-      const items = Array.isArray(data.items) ? data.items
-                  : Array.isArray(data.results) ? data.results
-                  : Array.isArray(data) ? data
-                  : [];
-
-      if (!items.length) break;
-
-      let newCount = 0;
-      for (const it of items){
-        const key = it.affiliate_url || it.url || it.product_url || JSON.stringify(it).slice(0,256);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(it);
-        newCount++;
-        if (out.length >= maxItems) break;
-      }
-
-      if (newCount === 0) break;
-
-      if (typeof data.nextPage === 'number' && data.nextPage !== page+1){
-        page = data.nextPage - 1;
-      }
-    }
-    return out;
+  /* ====== Oldalankénti lehúzó (visszafelé kompatibilis) ====== */
+  async function loadPartnerChunk(partner, {cursor=null, limit=50, q="", minDiscount=0}={}){
+    const u = new URL(`${API_BASE}/api/${partner}`);
+    if (cursor) u.searchParams.set("cursor", cursor);
+    else u.searchParams.set("page", "1");
+    u.searchParams.set("limit", String(limit));
+    if (q) u.searchParams.set("q", q);
+    if (minDiscount) u.searchParams.set("minDiscount", String(minDiscount));
+    const r = await fetch(u.toString(), { cache: "no-store" });
+    if (!r.ok) throw new Error(`API error ${r.status}`);
+    return await r.json(); // {items, nextCursor?, nextPage?, total?}
   }
 
-  /* ====== Betöltők ====== */
-  // --- ÚJ: könnyű, 1. oldalnyi betöltés a fő/kategória nézethez
+  // A fő/kategória nézethez marad az 1. oldal gyors lekérés
   async function loadPartnerPage(partner, page=1, pageSize=24, q="", minDiscount=0) {
-    const API_BASE = (location.hostname.endsWith('findora.hu')) ? 'https://www.findora.hu' : location.origin;
     const u = new URL(`${API_BASE}/api/${partner}`);
     u.searchParams.set("page", page);
     u.searchParams.set("limit", pageSize);
@@ -896,7 +849,7 @@
     }
   })();
 
-  /* ====== Partner teljes lista nézet – VÉGTELEN GÖRGETÉS ====== */
+  /* ====== Partner teljes lista nézet – Cursoros végtelen görgetés ====== */
   function openPartnerView(name, _items_ignored) {
     const partnerSlug = name === "Tchibo.hu" ? "tchibo"
                      : name === "RegioJáték" ? "regiojatek"
@@ -905,7 +858,7 @@
     if (!partnerSlug) return;
 
     const per = 20;
-    let page = 1;
+    let cursor = null;
     let loading = false;
     let hasNext = true;
 
@@ -937,12 +890,16 @@
       if (loading || !hasNext) return;
       loading = true;
       try {
-        const data = await loadPartnerPage(partnerSlug, page, per);
+        const data = await loadPartnerChunk(partnerSlug, { cursor, limit: per });
         const items = data.items || [];
         items.forEach(it => grid.insertAdjacentHTML('beforeend', cardHTML(it)));
         hydrateSafeImages(sec);
-        if (data.nextPage) {
-          page = data.nextPage;
+        if (data.nextCursor) {
+          cursor = data.nextCursor;
+          hasNext = true;
+        } else if (typeof data.nextPage === 'number') {
+          // visszafelé kompatibilitás (ha mégis pages jönne)
+          cursor = null;
           hasNext = true;
         } else {
           hasNext = false;
