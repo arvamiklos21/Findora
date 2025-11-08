@@ -320,6 +320,8 @@
   <script>
   /* ====== Alap ====== */
   const PER_PAGE_GRID = 4;
+  // >>> NÉLKÜLE ÜRES A FŐOLDAL:
+  const content = document.getElementById('content');
 
   /* ====== API végpontok ====== */
   const API_BASE = (location.hostname.endsWith('findora.hu'))
@@ -423,8 +425,17 @@
         const arr = Array.isArray(d.items)? d.items : [];
         arr.forEach(x=>{
           x.discount = computeDiscount(x);
+          // ha van ár számként, de a string hiányzik, töltsük ki HU formátumban
+          if (!x.price && Number.isFinite(x.priceNum)) {
+            x.price = new Intl.NumberFormat('hu-HU').format(x.priceNum) + ' Ft';
+          }
+          // ha nincs priceNum, de a price szövegből kiolvasható szám, mentsük
           if (!Number.isFinite(x.priceNum) && x.price) {
-            const digits = String(x.price).replace(/[^\d]/g,''); const n = Number(digits); if (Number.isFinite(n)) x.priceNum = n;
+            const digits = String(x.price).replace(/[^\d]/g,''); const n = Number(digits);
+            if (Number.isFinite(n)) {
+              x.priceNum = n;
+              if (!x.price) x.price = new Intl.NumberFormat('hu-HU').format(n) + ' Ft';
+            }
           }
         });
         this.items.push(...arr);
@@ -492,7 +503,7 @@
     if (currentSort === 'discount')      a.sort((x,y)=>(y.discount||0)-(x.discount||0));
     else if (currentSort === 'price_asc') a.sort((x,y)=>(x.priceNum??Infinity)-(y.priceNum??Infinity));
     else if (currentSort === 'price_desc')a.sort((x,y)=>(y.priceNum??-1)-(x.priceNum??-1));
-    else if (currentSort === 'random')    for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[i],a[j]]; }
+    else if (currentSort === 'random')    for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
     return a;
   }
 
@@ -581,7 +592,7 @@
 
     sec.addEventListener('click', async (e)=>{
       const b = e.target.closest('.pager button');
-      if(b){ page = Math.max(1, parseInt(b.dataset.page,10)||1); await draw(); window.scrollTo({top:sec.offsetTop-70,behavior:'smooth'}); }
+      if(b){ page = Math.max(1, parseInt(b.dataset.page,10)||1); await draw(); /* NEM GÖRGETÜNK FEL */ }
       const h = e.target.closest('[data-partner-open]');
       if(h){ openPartnerView(partnerName, feed); }
     });
@@ -885,7 +896,7 @@
     const status=sec.querySelector('.status');
     const pager=sec.querySelector('.pager');
 
-    const per = 20; // teljes nézetben 20/lap (kértük korábban)
+    const per = 20; // teljes nézetben 20/lap
     let page = 1, known=0, hasMore=true;
 
     async function draw(){
