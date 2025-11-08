@@ -7,21 +7,20 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
-  run:
+  ingest:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
 
-      - name: Show repo state (before)
+      - name: Show tree
         run: |
           echo "Branch: $(git rev-parse --abbrev-ref HEAD)"
-          pwd
           ls -la
           ls -la docs || true
           ls -la docs/feeds || true
@@ -41,36 +40,39 @@ jobs:
           FEED_TCHIBO_URL: ${{ secrets.FEED_TCHIBO_URL }}
         run: |
           if [ -z "$FEED_TCHIBO_URL" ]; then
-            echo "❌ FEED_TCHIBO_URL secret hiányzik!"
+            echo "❌ FEED_TCHIBO_URL hiányzik a repo Secrets-ben."
             exit 1
           fi
           echo "✅ FEED_TCHIBO_URL length: ${#FEED_TCHIBO_URL}"
-          curl -I -L "$FEED_TCHIBO_URL" || true
+          curl -sSLI "$FEED_TCHIBO_URL" || true
 
-      - name: Ensure folder exists
-        run: |
-          mkdir -p docs/feeds/tchibo
-          echo "$(date -u) — build started" > docs/feeds/tchibo/BUILD_LOG.txt
-
-      - name: Run builder
+      - name: Build pages
         env:
           FEED_TCHIBO_URL: ${{ secrets.FEED_TCHIBO_URL }}
-        run: python scripts/build_tchibo.py
-
-      - name: List generated files
         run: |
-          echo "--- files after build ---"
-          ls -la docs/feeds/tchibo || true
-          echo "----- meta (head) -----"
-          head -c 500 docs/feeds/tchibo/meta.json || true
+          set -e
+          mkdir -p docs/feeds/tchibo
+          echo "$(date -u) — build started" > docs/feeds/tchibo/BUILD_LOG.txt
+          python scripts/build_tchibo.py
+          echo "--- generated files ---"
+          ls -la docs/feeds/tchibo
+          head -c 400 docs/feeds/tchibo/meta.json || true
           echo
-          echo "----- page-0001 (head) -----"
-          head -c 500 docs/feeds/tchibo/page-0001.json || true
+          head -c 400 docs/feeds/tchibo/page-0001.json || true
 
-      - name: Commit & push
+      - name: Commit changes
         run: |
+          set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b bot/update-tchibo || git checkout bot/update-tchibo
           git add docs/feeds/tchibo
           git commit -m "tchibo: update feed pages" || echo "No changes"
-          git push
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "tchibo: update feed pages"
+          body: "Automatikus frissítés: docs/feeds/tchibo/*"
+          branch: bot/update-tchibo
+          delete-branch: true
