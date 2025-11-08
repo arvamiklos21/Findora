@@ -3,7 +3,7 @@ name: Ingest Tchibo → docs/feeds (debug)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */2 * * *"
+    - cron: "0 */2 * * *"   # 2 óránként (UTC)
 
 permissions:
   contents: write
@@ -16,11 +16,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
 
-      - name: Show repo tree (before)
+      - name: Show repo state (before)
         run: |
+          echo "Branch:" $(git rev-parse --abbrev-ref HEAD)
           pwd
-          git rev-parse --abbrev-ref HEAD
           ls -la
           ls -la docs || true
           ls -la docs/feeds || true
@@ -35,38 +36,51 @@ jobs:
       - name: Install deps
         run: pip install requests
 
-      - name: Verify FEED_TCHIBO_URL
+      - name: Verify secret & feed reachability
         env:
           FEED_TCHIBO_URL: ${{ secrets.FEED_TCHIBO_URL }}
         run: |
           if [ -z "$FEED_TCHIBO_URL" ]; then
-            echo "❌ FEED_TCHIBO_URL secret üres vagy nincs beállítva!"
+            echo "❌ FEED_TCHIBO_URL secret hiányzik!"
             exit 1
           fi
-          echo "✅ FEED_TCHIBO_URL megvan: ${#FEED_TCHIBO_URL} karakter"
+          echo "✅ FEED_TCHIBO_URL length:" ${#FEED_TCHIBO_URL}
+          curl -I -L "$FEED_TCHIBO_URL" || true
+
+      - name: Ensure folder exists
+        run: |
+          mkdir -p docs/feeds/tchibo
+          echo "$(date -u) — build started" > docs/feeds/tchibo/BUILD_LOG.txt
 
       - name: Run builder
         env:
           FEED_TCHIBO_URL: ${{ secrets.FEED_TCHIBO_URL }}
         run: |
-          python scripts/build_tchibo.py
+          python scripts/build_tchibo.py || exit 1
 
       - name: List generated files
         run: |
           echo "--- files after build ---"
-          ls -la docs/feeds/tchibo
-          echo "----- head of meta.json -----"
+          ls -la docs/feeds/tchibo || true
+          echo "----- meta (head) -----"
           head -c 500 docs/feeds/tchibo/meta.json || true
           echo
-          echo "----- one page -----"
+          echo "----- page-0001 (head) -----"
           head -c 500 docs/feeds/tchibo/page-0001.json || true
+
+      - name: Sanity: create TEST file if no pages
+        run: |
+          if ! ls docs/feeds/tchibo/page-*.json 1> /dev/null 2>&1; then
+            echo "No pages found, dropping TEST marker."
+            echo "TEST $(date -u)" > docs/feeds/tchibo/TEST.txt
+          fi
 
       - name: Git status
         run: |
           git status
           git diff --name-only
 
-      - name: Commit & push JSON
+      - name: Commit & push
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
