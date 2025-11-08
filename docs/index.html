@@ -107,7 +107,6 @@
     .pb-title{display:block;font-weight:900;font-size:18px;line-height:1}
     .pb-cta{font-weight:800;font-size:13px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.9)}
     .pb-card.xmas{background:linear-gradient(90deg,#e11d48,#ef4444);color:#fff;border-color:transparent}
-    .pb-card.xmas .pb-cta{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.25)}
     .pb-card.bf{background:radial-gradient(120% 120% at 0% 0%, #111 0%, #000 60%);color:#e5e7eb;border-color:#111}
     .pb-card.bf .pb-cta{background:#111;color:#fff;border:1px solid #222}
     .pb-card.bf .pb-count{font-variant-numeric:tabular-nums;font-weight:900;letter-spacing:.02em;background:#0a0a0a;border:1px solid #1f2937;padding:6px 8px;border-radius:8px}
@@ -182,6 +181,7 @@
     .pager button{border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer}
     .pager .active{background:#0b3a6a;color:#fff;border-color:#0b3a6a}
     .pager .dots{padding:0 4px;color:#64748b}
+    .status{font-size:12px;color:#64748b;padding:0 12px 8px}
 
     footer{text-align:center;padding:20px;background:#0b3a6a;color:#fff;margin-top:24px;font-size:14px;border-top:1px solid rgba(255,255,255,.15)}
 
@@ -194,7 +194,6 @@
     .section.partner h2 .plink:hover{opacity:.85}
     .tools-inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .tools-inline input{padding:8px;border:1px solid #e2e8f0;border-radius:8px}
-    .status{font-size:12px;color:#64748b;padding:0 12px 8px}
   </style>
 </head>
 <body>
@@ -349,33 +348,342 @@
 
   (function(){ const img=document.getElementById('brandLogo'); let step=0; img.onerror=()=>{ step++; if(step===1) img.src=img.dataset.fallback1; else if(step===2) img.src=img.dataset.fallback2; }; })();
 
-  /* ====== Kép-helyettesítés ====== */
-  const IMG_KEY={
-    laptop:"https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1200&q=80&auto=format&fit=crop",
-    "gaming laptop":"https://images.unsplash.com/photo-1518779578993-ec3579fee39f?w=1200&q=80&auto=format&fit=crop",
-    tv:"https://images.unsplash.com/photo-1512445239393-63e626ac6b86?w=1200&q=80&auto=format&fit=crop",
-    "smart tv":"https://images.unsplash.com/photo-1527443154391-507e9dc6c5cc?w=1200&q=80&auto=format&fit=crop",
-    okosóra:"https://images.unsplash.com/photo-1517433456452-f9633a875f6f?w=1200&q=80&auto=format&fit=crop",
-    fülhallgató:"https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=1200&q=80&auto=format&fit=crop",
-    lego:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=1200&q=80&auto=format&fit=crop",
-    "társasjáték":"https://images.unsplash.com/photo-1542990253-a781e04c0083?w=1200&q=80&auto=format&fit=crop",
-    "játékkonzol":"https://images.unsplash.com/photo-1605901309584-818e25960a8b?w=1200&q=80&auto=format&fit=crop",
-    "magasnyomású mosó":"https://images.unsplash.com/photo-1593955982181-b123dc5b5fba?w=1200&q=80&auto=format&fit=crop",
-    gőztisztító:"https://images.unsplash.com/photo-1598514982516-4e64d96d86d4?w=1200&q=80&auto=format&fit=crop",
-    porszívó:"https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1200&q=80&auto=format&fit=crop",
-    szemüveg:"https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=1200&q=80&auto=format&fit=crop",
-    "napszemüveg":"https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=1200&q=80&auto=format&fit=crop",
-    kontaktlencse:"https://images.unsplash.com/photo-1612198182713-6cfa7d3c1240?w=1200&q=80&auto=format&fit=crop"
-  };
+  /* ====== Placeholder/kulcsképek ====== */
+  const IMG_KEY={ lego:"https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=1200&q=80&auto=format&fit=crop" };
   const PLACEHOLDER = 'data:image/svg+xml;utf8,'+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400'><defs><linearGradient id='g' x1='0' x2='1'><stop stop-color='#eee'/><stop offset='1' stop-color='#ddd'/></linearGradient></defs><rect fill='url(#g)' width='600' height='400'/><g fill='#999' font-family='Inter, Arial, Helvetica, sans-serif' font-size='22'><text x='50%' y='50%' text-anchor='middle'>Kép előkészítés alatt…</text></g></svg>");
+  function keyImage(title){ const t=String(title||"").toLowerCase(); for(const k of Object.keys(IMG_KEY)){ if(t.includes(k)) return IMG_KEY[k]; } return PLACEHOLDER; }
 
-  function keyImage(title){
-    const t=String(title||"").toLowerCase();
-    for(const k of Object.keys(IMG_KEY)){ if(t.includes(k)) return IMG_KEY[k]; }
-    return PLACEHOLDER;
+  /* ====== Kártya render ====== */
+  function cardHTML(it){
+    const primary = it.image ? it.image : keyImage(it.title);
+    const imgTag =
+      `<img class="imgsafe" alt="${it.title}"
+            loading="lazy" decoding="async" referrerpolicy="no-referrer"
+            data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
+    const logo = LOGO_URLS[it.partner] ? `<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">` : "";
+    const desc = it.desc ? `<div class="desc">${it.desc}</div>` : "";
+    return `
+      <div class="card">
+        <div class="thumb">${imgTag}</div>
+        <div class="body">
+          <div class="title">${it.title}</div>
+          ${desc}
+          <div class="muted">${logo} ${it.partner}${it.discount?` • −${it.discount}%`:''}</div>
+          <div class="price">${it.price||""}</div>
+        </div>
+        <div class="cta"><a href="${it.url}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem az ajánlatot</a></div>
+      </div>
+    `;
+  }
+  function hydrateSafeImages(ctx=document){
+    ctx.querySelectorAll("img.imgsafe").forEach(img=>{
+      const chain=[img.dataset.src1, img.dataset.src2, img.dataset.src3].filter(Boolean);
+      if (!chain.length) return;
+      let i=0; const set=()=>{ img.src=chain[i]; };
+      img.onerror=()=>{ i=Math.min(i+1,chain.length-1); if(img.src!==chain[i]) set(); };
+      set();
+    });
   }
 
-  /* ====== DEMÓ kártyák (statikus) ====== */
+  /* ====== Ár segéd ====== */
+  function computeDiscount(it){
+    if (typeof it.discount === 'number' && it.discount>0) return it.discount;
+    const p = Number.isFinite(it.priceNum) ? it.priceNum : null;
+    const op = Number.isFinite(it.oldPriceNum) ? it.oldPriceNum : null;
+    if (p!=null && op!=null && op>0 && p<op){
+      return Math.max(0, Math.min(100, Math.round((1 - (p/op)) * 100)));
+    }
+    const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
+    if (m) { const d=parseInt(m[1],10); return Number.isFinite(d)?d:0; }
+    return 0;
+  }
+
+  /* ====== Cursor-feedek ====== */
+  class CursorFeed {
+    constructor(baseUrl, pageSize=50){
+      this.baseUrl = baseUrl;
+      this.pageSize = pageSize;
+      this.items = [];
+      this.nextCursor = null;
+      this.loading = false;
+      this.exhausted = false;
+    }
+    async loadMore(minDiscount=0, q=""){
+      if (this.loading || this.exhausted) return;
+      this.loading = true;
+      try {
+        const u = new URL(this.baseUrl);
+        u.searchParams.set("page_size", this.pageSize);
+        if (this.nextCursor) u.searchParams.set("cursor", this.nextCursor);
+        if (minDiscount) u.searchParams.set("minDiscount", String(minDiscount));
+        if (q) u.searchParams.set("q", q);
+        const r = await fetch(u.toString(), { cache: "no-store" });
+        if (!r.ok) throw new Error("API "+r.status);
+        const d = await r.json(); // {items, nextCursor}
+        const arr = Array.isArray(d.items)? d.items : [];
+        arr.forEach(x=>{
+          x.discount = computeDiscount(x);
+          if (!Number.isFinite(x.priceNum) && x.price) {
+            const digits = String(x.price).replace(/[^\d]/g,''); const n = Number(digits); if (Number.isFinite(n)) x.priceNum = n;
+          }
+        });
+        this.items.push(...arr);
+        this.nextCursor = d.nextCursor || null;
+        this.exhausted = !this.nextCursor;
+      } finally {
+        this.loading = false;
+      }
+    }
+    async ensure(count, opts={}) {
+      while (this.items.length < count && !this.exhausted) {
+        await this.loadMore(opts.minDiscount||0, opts.q||"");
+      }
+      return this.items.slice(0, count);
+    }
+  }
+
+  // Összetett feed: több partnerből kombinál, round-robin töltés
+  class CombinedFeed {
+    constructor(feeds){
+      this.feeds = feeds; // {name, feed}
+      this.pool = [];     // összes eddig betöltött elem
+      this.ptrs = new Map(feeds.map(f=>[f.name,0]));
+      this.loading = false;
+    }
+    // feltétel: pl. kedvezmény-tartomány
+    filterFn(it){ return true; }
+    setFilter(fn){ this.filterFn = fn || (x=>true); }
+    async ensure(n, opts={}){
+      const filtered = () => this.pool.filter(this.filterFn);
+      // ha már elég van, visszaadjuk
+      if (filtered().length >= n) return filtered().slice(0,n);
+
+      // round-robin: mindig a legrövidebb feedből kérünk még
+      let watchdog = 0;
+      while (filtered().length < n) {
+        watchdog++; if (watchdog>200) break;
+        // válassz feedet, amelyiknél még van potenciál
+        let picked = null;
+        for (const f of this.feeds) {
+          if (!f.feed.exhausted) { picked = f; break; }
+        }
+        if (!picked) break;
+        await picked.feed.loadMore(opts.minDiscount||0, opts.q||"");
+        // új elemeket beemelni a poolba
+        const fresh = picked.feed.items.slice(this.ptrs.get(picked.name));
+        this.ptrs.set(picked.name, picked.feed.items.length);
+        this.pool.push(...fresh);
+      }
+      return filtered().slice(0, n);
+    }
+  }
+
+  // Singleton feedek
+  const FEEDS = {
+    tchibo:      new CursorFeed(TCHIBO_API, 50),
+    regio:       new CursorFeed(REGIO_API, 50),
+    jateksziget: new CursorFeed(JATEKSZIGET_API, 50)
+  };
+
+  /* ====== Rendezés ====== */
+  let currentSort = 'relevance';
+  function applySort(arr){
+    const a = arr.slice();
+    if (currentSort === 'discount')      a.sort((x,y)=>(y.discount||0)-(x.discount||0));
+    else if (currentSort === 'price_asc') a.sort((x,y)=>(x.priceNum??Infinity)-(y.priceNum??Infinity));
+    else if (currentSort === 'price_desc')a.sort((x,y)=>(y.priceNum??-1)-(x.priceNum??-1));
+    else if (currentSort === 'random')    for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[i],a[j]]; }
+    return a;
+  }
+
+  /* ====== Pager HTML ====== */
+  function progressivePagerHTML(knownCount, page, per, hasMore){
+    // ha hasMore igaz, nem mutatjuk a „végét”, csak következő/előző + néhány szám
+    const totalPagesKnown = Math.ceil(knownCount / per) || 1;
+    const btn = (p, act=false, dis=false, label=null)=>`<button data-page="${p}" ${dis?'disabled':''} class="${act?'active':''}">${label||p}</button>`;
+    let html = `<div class="pager">`;
+    html += btn(Math.max(1,page-1), false, page<=1, '«');
+    const windowRadius = 2;
+    const first = 1, last = hasMore ? Math.max(first, page+windowRadius) : totalPagesKnown;
+    const left = Math.max(first+1, page - windowRadius);
+    const right = Math.min(last-1, page + windowRadius);
+    html += btn(first, page===first);
+    if (left > first+1) html += `<span class="dots">…</span>`;
+    for (let p = left; p <= right; p++) html += btn(p, p===page);
+    if (!hasMore && right < last-1) html += `<span class="dots">…</span>`;
+    if (!hasMore && last>first) html += btn(last, page===last);
+    html += btn(page+1, false, hasMore?false:(page>=totalPagesKnown), '»');
+    html += `</div>`;
+    return html;
+  }
+
+  /* ====== UI állapot ====== */
+  let currentCategory = "all";
+  window.minDiscountFilter = 0;
+
+  document.addEventListener('click', (e)=>{
+    const b = e.target.closest('.df-btn');
+    if(b){
+      document.querySelectorAll('.df-btn').forEach(x=>x.classList.toggle('active', x===b));
+      window.minDiscountFilter = Number(b.dataset.disc||0);
+      showCategory(currentCategory||"all");
+    }
+    const sc = e.target.closest('#sortChips .chip');
+    if(sc){
+      document.querySelectorAll('#sortChips .chip').forEach(x=>x.classList.toggle('active', x===sc));
+      currentSort = sc.dataset.sort || 'relevance';
+      showCategory(currentCategory||"all");
+    }
+    const qf = e.target.closest('#quickFilters .chip');
+    if(qf){
+      const term = qf.dataset.q || '';
+      if(term){ document.getElementById('q').value = term; showSearch(term); }
+    }
+  });
+
+  /* ====== Szekció render cursor-támogatással (4/lap) ====== */
+  function renderCursorSection({title, partnerName, feed, anchorId, festive=false, q=""}){
+    const sec=document.createElement('section');
+    sec.className='section partner'+(festive?' festive':'');
+    if (anchorId) sec.id = anchorId;
+
+    sec.innerHTML=`<h2><span class="plink" data-partner-open="${partnerName}">${partnerName}</span> <small style="font-weight:600;color:#475569">– ${title}</small></h2><div class="status"></div><div class="grid"></div><div class="pager"></div>`;
+    const grid=sec.querySelector('.grid');
+    const status=sec.querySelector('.status');
+    const pager=sec.querySelector('.pager');
+
+    const per = PER_PAGE_GRID;
+    let page = 1;
+    let hasMore = true;
+    let known = 0;
+
+    async function draw(){
+      // biztosítsuk, hogy legyen elég elem a kért oldalig
+      const need = page*per;
+      await feed.ensure(need, {minDiscount: window.minDiscountFilter||0, q});
+      const slice = applySort(feed.items.filter(i => (i.discount||0) >= (window.minDiscountFilter||0)));
+      known = slice.length;
+      hasMore = !feed.exhausted; // ha nincs kimerülve, lehet több is
+      const pagesNow = Math.max(1, Math.ceil(Math.max(known, (hasMore? page*per : known)) / per));
+      if (page>pagesNow) page = pagesNow;
+
+      const st = (page-1)*per;
+      const show = slice.slice(st, st+per);
+
+      grid.innerHTML = '';
+      show.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+      hydrateSafeImages(sec);
+
+      pager.innerHTML = progressivePagerHTML(known, page, per, hasMore);
+      const df = (window.minDiscountFilter||0);
+      status.textContent = `${known}${hasMore?' +':''} találat • ${per}/oldal${df?` • Szűrés: −${df}%+`:''}${currentSort!=='relevance'?` • Rendezés: ${document.querySelector('#sortChips .chip.active')?.textContent||''}`:''}`;
+    }
+
+    sec.addEventListener('click', async (e)=>{
+      const b = e.target.closest('.pager button');
+      if(b){ page = Math.max(1, parseInt(b.dataset.page,10)||1); await draw(); window.scrollTo({top:sec.offsetTop-70,behavior:'smooth'}); }
+      const h = e.target.closest('[data-partner-open]');
+      if(h){ openPartnerView(partnerName, feed); }
+    });
+
+    (async ()=>{ await draw(); })();
+
+    content.appendChild(sec);
+  }
+
+  /* ====== Kombinált (Összes partner) szekció a 10–24 / 25–49 / 50%+ buckettekhez ====== */
+  async function renderCombinedBuckets(){
+    const combined = new CombinedFeed([
+      {name:'tchibo', feed:FEEDS.tchibo},
+      {name:'regio', feed:FEEDS.regio},
+      {name:'jateksziget', feed:FEEDS.jateksziget},
+    ]);
+
+    // 10–24%
+    const s1=document.createElement('section'); s1.className='section festive'; s1.id="deal10_24";
+    s1.innerHTML=`<h2>Összes partner – 🎯 −10–24% akciók</h2><div class="status"></div><div class="grid"></div><div class="pager"></div>`;
+    content.appendChild(s1);
+
+    // 25–49%
+    const s2=document.createElement('section'); s2.className='section festive'; s2.id="deal25_49";
+    s2.innerHTML=`<h2>Összes partner – 🔥 −25–49% akciók</h2><div class="status"></div><div class="grid"></div><div class="pager"></div>`;
+    content.appendChild(s2);
+
+    // 50%+
+    const s3=document.createElement('section'); s3.className='section festive'; s3.id="deal50plus";
+    s3.innerHTML=`<h2>Összes partner – 💥 −50%+</h2><div class="status"></div><div class="grid"></div><div class="pager"></div>`;
+    content.appendChild(s3);
+
+    const setups = [
+      {node:s1, min:10, max:24},
+      {node:s2, min:25, max:49},
+      {node:s3, min:50, max:1000}
+    ];
+
+    for (const st of setups){
+      let page=1, per=PER_PAGE_GRID, known=0, hasMore=true;
+
+      const draw = async ()=>{
+        combined.setFilter(it=>{
+          const d = computeDiscount(it);
+          return d>=st.min && d<=st.max && (it.discount = d, true);
+        });
+
+        // a kért oldal kijelzéséhez biztosítsunk elegendő anyagot
+        const need = page*per;
+        await combined.ensure(need, {minDiscount:0, q:""}); // kombinált, nincs extra query
+
+        // szűrt + rendezett
+        const arr = applySort(combined.pool.filter(combined.filterFn));
+        known = arr.length;
+        hasMore = combined.feeds.some(f=>!f.feed.exhausted);
+
+        const stIdx=(page-1)*per;
+        const show = arr.slice(stIdx, stIdx+per);
+
+        const grid=st.node.querySelector('.grid');
+        grid.innerHTML=''; show.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+        hydrateSafeImages(st.node);
+
+        const pager=st.node.querySelector('.pager');
+        pager.innerHTML = progressivePagerHTML(known, page, per, hasMore);
+        const status=st.node.querySelector('.status');
+        status.textContent = `${known}${hasMore?' +':''} találat • ${per}/oldal${currentSort!=='relevance'?` • Rendezés: ${document.querySelector('#sortChips .chip.active')?.textContent||''}`:''}`;
+      };
+
+      st.node.addEventListener('click', async (e)=>{
+        const b = e.target.closest('.pager button');
+        if(b){ page = Math.max(1, parseInt(b.dataset.page,10)||1); await draw(); }
+      });
+
+      await draw();
+    }
+  }
+
+  /* ====== Főoldal ====== */
+  async function renderHomeAll(){
+    content.innerHTML="";
+
+    await Promise.all([
+      FEEDS.tchibo.ensure(12, {minDiscount:window.minDiscountFilter||0}),
+      FEEDS.regio.ensure(12, {minDiscount:window.minDiscountFilter||0}),
+      FEEDS.jateksziget.ensure(12, {minDiscount:window.minDiscountFilter||0}),
+    ]);
+
+    await renderCombinedBuckets();
+
+    renderCursorSection({title:"Otthon",  partnerName:"Tchibo.hu",    feed:FEEDS.tchibo,      anchorId:"partner-tchibo"});
+    renderCursorSection({title:"Játékok", partnerName:"RegioJáték",   feed:FEEDS.regio,       anchorId:"partner-regio"});
+    renderCursorSection({title:"Játékok", partnerName:"Játéksziget",  feed:FEEDS.jateksziget, anchorId:"partner-jateksziget"});
+
+    // Statikus partnerek 4/lap fix
+    renderStaticSection("Játékok","JátékNet.hu", JATEKNET_ITEMS, "partner-jateknet");
+    renderStaticSection("Otthon","Kärcher.hu", KARCHER_ITEMS, "partner-karcher");
+    renderStaticSection("Látás","eOptika.hu", EOPTIKA_ITEMS, "partner-eoptika");
+    renderStaticSection("Tech","Amazon", ITEMS);
+  }
+
+  /* ====== Statikus szekció helper ====== */
   const ITEMS=[
     {title:"Olcsó laptop", partner:"Amazon", price:"129 990 Ft", discount:25, url:amazonBase, category:"tech", desc:"Belépő modellek gyors szállítással."},
     {title:"Gaming laptop", partner:"Amazon", price:"299 990 Ft", discount:35, url:amazonBase, category:"tech", desc:"RTX/AMD grafika, nagy képfrissítés."},
@@ -401,313 +709,21 @@
     {title:"Ablaktisztító", partner:"Kärcher.hu", price:"", discount:0, url:LINK_KARCHER, category:"home", desc:"Csíkmentes, gyors ablaktisztítás."}
   ];
 
-  /* ====== Kártya render ====== */
-  function cardHTML(it){
-    const primary = it.image ? it.image : keyImage(it.title);
-    const imgTag =
-      `<img class="imgsafe" alt="${it.title}"
-            loading="lazy" decoding="async" referrerpolicy="no-referrer"
-            data-src1="${primary}" data-src2="${PLACEHOLDER}" data-src3="${PLACEHOLDER}" />`;
-    const logo = LOGO_URLS[it.partner] ? `<img src="${LOGO_URLS[it.partner]}" alt="${it.partner} logó" style="width:16px;height:16px;object-fit:contain">` : "";
-    const desc = it.desc ? `<div class="desc">${it.desc}</div>` : "";
-    return `
-      <div class="card">
-        <div class="thumb">${imgTag}</div>
-        <div class="body">
-          <div class="title">${it.title}</div>
-          ${desc}
-          <div class="muted">${logo} ${it.partner}${it.discount?` • −${it.discount}%`:''}</div>
-          <div class="price">${it.price||""}</div>
-        </div>
-        <div class="cta"><a href="${it.url}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem az ajánlatot</a></div>
-      </div>
-    `;
-  }
-
-  function hydrateSafeImages(ctx=document){
-    ctx.querySelectorAll("img.imgsafe").forEach(img=>{
-      const chain=[img.dataset.src1, img.dataset.src2, img.dataset.src3].filter(Boolean);
-      if (!chain.length) return;
-      let i=0;
-      const set = () => { img.src = chain[i]; };
-      img.onerror = () => { i = Math.min(i+1, chain.length-1); if (img.src !== chain[i]) set(); };
-      set();
-    });
-  }
-
-  /* ====== Ár-feldolgozás ====== */
-  function parsePriceLike(x){
-    if (x==null) return null;
-    if (typeof x === 'number') return Number.isFinite(x) ? x : null;
-    if (typeof x === 'string'){
-      const digits = x.replace(/[,\.](?=\d{3}\b)/g, '').replace(/[^\d]/g, '');
-      const n = Number(digits);
-      return Number.isFinite(n) ? n : null;
-    }
-    if (typeof x === 'object'){
-      const cand = [x.value, x.amount, x.price, x.gross, x.net].find(v=>Number.isFinite(v));
-      return Number.isFinite(cand) ? cand : null;
-    }
-    return null;
-  }
-  function pickFirst(obj, keys, fallback=null){
-    for (const k of keys){
-      const v = k.includes('.') ? k.split('.').reduce((a,kk)=>a?.[kk], obj) : obj?.[k];
-      const n = parsePriceLike(v);
-      if (n!=null) return n;
-    }
-    return fallback;
-  }
-
-  /* ====== Pager (grid belső) ====== */
-  function progressivePagerHTML(total, page, per){
-    const pages = Math.max(1, Math.ceil(total / per));
-    const windowRadius = 2;
-    const first = 1, last = pages;
-    function btn(p, active=false, disabled=false){ return `<button data-page="${p}" ${disabled?'disabled':''} class="${active?'active':''}">${p}</button>`; }
-    const prev = `<button data-page="${Math.max(1,page-1)}" ${page<=1?'disabled':''}>«</button>`;
-    const next = `<button data-page="${Math.min(pages,page+1)}" ${page>=pages?'disabled':''}>»</button>`;
-    const left = Math.max(first+1, page - windowRadius);
-    const right = Math.min(last-1, page + windowRadius);
-    let html = `<div class="pager">` + prev;
-    html += btn(first, page===first);
-    if (left > first+1) html += `<span class="dots">…</span>`;
-    for (let p = left; p <= right; p++) html += btn(p, p===page);
-    if (right < last-1) html += `<span class="dots">…</span>`;
-    if (last>first) html += btn(last, page===last);
-    html += next + `</div>`;
-    return html;
-  }
-
-  /* ====== Kedvezmény ====== */
-  function computeDiscount(it){
-    if (typeof it.discount === 'number' && it.discount>0) return it.discount;
-    const p = Number.isFinite(it.priceNum) ? it.priceNum : null;
-    const op = Number.isFinite(it.oldPriceNum) ? it.oldPriceNum : null;
-    if (p!=null && op!=null && op>0 && p<op){
-      return Math.max(0, Math.min(100, Math.round((1 - (p/op)) * 100)));
-    }
-    const m = (String(it.title||"").match(/-?\s*(\d{1,3})\s*%/));
-    if (m) {
-      const d=parseInt(m[1],10);
-      return Number.isFinite(d)?d:0;
-    }
-    return 0;
-  }
-
-  /* ====== Deduplikálás ====== */
-  function normalizeBase(url){
-    try{ const u=new URL(url); u.searchParams.delete('article_id'); return u.origin + u.pathname; }
-    catch(_){ return String(url||"").split("?")[0]; }
-  }
-  function detectColor(title=""){
-    const t = title.toLowerCase();
-    const colors = ["fekete","fehér","feher","piros","kék","kek","zöld","zold","sárga","sarga","barna","szürke","szurke","bézs","bezs","lila","narancs","arany","ezüst","ezust","bordó","bordeaux","krém","krem","kékeszöld","türkiz","turkiz","rózsaszín","rozsaszin"];
-    for(const c of colors){ if(t.includes(c)) return c; }
-    return "";
-  }
-  function dedupe(items, mode='exact'){
-    if (mode==='none') return items.slice();
-    const map = new Map();
-    for(const x of items){
-      const base = (mode==='tchibo') ? (normalizeBase(x.product_url || x.affiliate_url || x.url || "") + "|" + detectColor(x.title||""))
-                                     : (x.product_url || x.affiliate_url || x.url || "");
-      const priceNum = Number.isFinite(x.price) ? x.price : (Number.isFinite(x.priceNum)?x.priceNum:null);
-      const disc = Number.isFinite(x.discount) ? x.discount : computeDiscount(x);
-      const cand = { ...x, priceNum, discount: disc>0?disc:0 };
-      if(!map.has(base)) { map.set(base, cand); continue; }
-      const cur = map.get(base);
-      const better = (cur.priceNum==null) ? cand : (cand.priceNum==null) ? cur : (cand.priceNum < cur.priceNum ? cand : cur);
-      if (cand.discount > better.discount) better.discount = cand.discount;
-      if (!better.image && cand.image) better.image = cand.image;
-      map.set(base, better);
-    }
-    return Array.from(map.values());
-  }
-
-  /* ====== Affiliate URL – csak az API-t követjük ====== */
-  function ensureAffiliateUrl({rawUrl, affiliateUrl}){
-    if (affiliateUrl) return affiliateUrl;
-    if (rawUrl) return rawUrl;
-    return '';
-  }
-
-  /* ====== Feed normalizálás ====== */
-  function mapGenericFeed(rows, partner, category, dedupeMode='exact'){
-    const fmt = (n) => Number.isFinite(n) ? new Intl.NumberFormat('hu-HU').format(n) + " Ft" : "";
-
-    const mapped = rows.map(x=>{
-      const priceNum = pickFirst(x, [
-        'price','current_price','sale_price','price_value','price_min','min_price','gross_price',
-        'price_gross','price_with_vat','final_price','deal_price','prices.current','prices.sale',
-        'price.value','priceMin','pricing.value','pricing.amount'
-      ]);
-      const oldPriceNum = pickFirst(x, [
-        'old_price','price_old','list_price','original_price','regular_price','price_before',
-        'prices.original','prices.list','old_price.value'
-      ]);
-
-      const aff = x.affiliate_url || '';
-      const raw = x.url || x.product_url || '';
-      const urlFinal = ensureAffiliateUrl({rawUrl:raw, affiliateUrl:aff});
-
-      const obj = {
-        title: x.title || x.name || "",
-        partner,
-        priceNum,
-        oldPriceNum,
-        price: fmt(priceNum),
-        discount: Number.isFinite(x.discount) ? x.discount : 0,
-        url: urlFinal,
-        product_url: raw,
-        image: x.image || x.image_url || x.img || "",
-        category,
-        desc: (x.desc || x.description || x.short_description || "").slice(0,160)
-      };
-      obj.discount = computeDiscount(obj);
-      return obj;
-    }).filter(o=>o.title && o.url);
-
-    return dedupe(mapped, dedupeMode);
-  }
-
-  /* ====== Oldalankénti lehúzó (visszafelé kompatibilis) ====== */
-  async function loadPartnerChunk(partner, {cursor=null, limit=50, q="", minDiscount=0}={}){
-    const u = new URL(`${API_BASE}/api/${partner}`);
-    if (cursor) u.searchParams.set("cursor", cursor);
-    else u.searchParams.set("page", "1");
-    u.searchParams.set("limit", String(limit));
-    if (q) u.searchParams.set("q", q);
-    if (minDiscount) u.searchParams.set("minDiscount", String(minDiscount));
-    const r = await fetch(u.toString(), { cache: "no-store" });
-    if (!r.ok) throw new Error(`API error ${r.status}`);
-    return await r.json(); // {items, nextCursor?, nextPage?, total?}
-  }
-
-  // A fő/kategória nézethez marad az 1. oldal gyors lekérés
-  async function loadPartnerPage(partner, page=1, pageSize=24, q="", minDiscount=0) {
-    const u = new URL(`${API_BASE}/api/${partner}`);
-    u.searchParams.set("page", page);
-    u.searchParams.set("limit", pageSize);
-    if (q) u.searchParams.set("q", q);
-    if (minDiscount) u.searchParams.set("minDiscount", minDiscount);
-    const r = await fetch(u.toString(), { cache: "no-store" });
-    if (!r.ok) throw new Error(`API error ${r.status}`);
-    return await r.json(); // {items, nextPage, total}
-  }
-
-  async function loadTchibo(){       const d = await loadPartnerPage('tchibo',      1, 24); return d.items || []; }
-  async function loadRegio(){        const d = await loadPartnerPage('regiojatek',  1, 24); return d.items || []; }
-  async function loadJateksziget(){  const d = await loadPartnerPage('jateksziget', 1, 24); return d.items || []; }
-
-  /* ====== Kategória + bucketek ====== */
-  let currentCategory = "all";
-  window.minDiscountFilter = 0;
-  let currentSort = 'relevance';
-
-  document.addEventListener('click', (e)=>{
-    const b = e.target.closest('.df-btn');
-    if(b){
-      document.querySelectorAll('.df-btn').forEach(x=>x.classList.toggle('active', x===b));
-      window.minDiscountFilter = Number(b.dataset.disc||0);
-      showCategory(currentCategory||"all");
-    }
-    const sc = e.target.closest('#sortChips .chip');
-    if(sc){
-      document.querySelectorAll('#sortChips .chip').forEach(x=>x.classList.toggle('active', x===sc));
-      currentSort = sc.dataset.sort || 'relevance';
-      showCategory(currentCategory||"all");
-    }
-    const qf = e.target.closest('#quickFilters .chip');
-    if(qf){
-      const term = qf.dataset.q || '';
-      if(term){ document.getElementById('q').value = term; showSearch(term); }
-    }
-  });
-
-  function applySort(arr){
-    const a = arr.slice();
-    if (currentSort === 'discount')      a.sort((x,y)=>(y.discount||0)-(x.discount||0));
-    else if (currentSort === 'price_asc') a.sort((x,y)=>(x.priceNum??Infinity)-(y.priceNum??Infinity));
-    else if (currentSort === 'price_desc')a.sort((x,y)=>(y.priceNum??-1)-(x.priceNum??-1));
-    else if (currentSort === 'random')    for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
-    return a;
-  }
-
-  function buildDiscountBuckets(arr){
-    const items = arr.map(x => ({...x, discount: computeDiscount(x)})).filter(x=>x.discount>0);
-    const b10_24 = items.filter(x=>x.discount>=10 && x.discount<=24);
-    const b25_49 = items.filter(x=>x.discount>=25 && x.discount<=49);
-    const b50p   = items.filter(x=>x.discount>=50);
-    return { b10_24, b25_49, b50p };
-  }
-
-  function renderPagedSection(title, partnerName, items, perPage=PER_PAGE_GRID, extra={}){
-    if(!items || !items.length) return;
-    const filtered = applySort(items.filter(i => (i.discount||0) >= (window.minDiscountFilter||0)));
-    if (!filtered.length) return;
-
+  function renderStaticSection(title, partnerName, items, anchorId){
     const sec=document.createElement('section');
-    sec.className='section partner'+(extra.festive?' festive':'');
-    if (extra.anchorId) sec.id = extra.anchorId;
-    if (extra.id) sec.id = extra.id;
+    sec.className='section partner';
+    if (anchorId) sec.id = anchorId;
 
-    sec.innerHTML=`<h2><span class="plink" data-partner-open="${partnerName}">${partnerName}</span> <small style="font-weight:600;color:#475569">– ${title}</small></h2><div class="status"></div><div class="grid"></div><div class="pager"></div>`;
+    const filtered = items.map(x=>({ ...x, priceNum: null, oldPriceNum:null }));
+    sec.innerHTML=`<h2>${partnerName} <small style="font-weight:600;color:#475569">– ${title}</small></h2><div class="status"></div><div class="grid"></div>`;
     const grid=sec.querySelector('.grid');
-    const status=sec.querySelector('.status');
-    let page = 1;
-    function apply(){
-      const pages = Math.max(1, Math.ceil(filtered.length/perPage));
-      page = Math.min(Math.max(1,page), pages);
-      const st=(page-1)*perPage, sl=filtered.slice(st, st+perPage);
-      grid.innerHTML="";
-      sl.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
-      hydrateSafeImages(sec);
-      sec.querySelector('.pager').innerHTML = progressivePagerHTML(filtered.length, page, perPage);
-      const df = (window.minDiscountFilter||0);
-      status.textContent = `${filtered.length} találat • ${perPage}/oldal${df?` • Szűrés: −${df}%+`:''}${currentSort!=='relevance'?` • Rendezés: ${document.querySelector('#sortChips .chip.active')?.textContent||''}`:''}`;
-    }
-    sec.addEventListener('click', (e)=>{
-      const b = e.target.closest('.pager button');
-      if(b){ page = Number(b.dataset.page)||1; apply(); window.scrollTo({top:0,behavior:'smooth'}); }
-      const h = e.target.closest('[data-partner-open]');
-      if(h){ openPartnerView(partnerName, filtered.length?filtered:items); }
-    });
-    apply();
+    filtered.slice(0, PER_PAGE_GRID).forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+    hydrateSafeImages(sec);
+    const status=sec.querySelector('.status'); status.textContent = `${filtered.length} ajánlatból válogatás • ${PER_PAGE_GRID}/oldal`;
     content.appendChild(sec);
   }
 
-  async function renderHomeAll(){
-    content.innerHTML="";
-    const [tch, regio, jatsz] = await Promise.all([loadTchibo(), loadRegio(), loadJateksziget()]);
-
-    const all = dedupe(
-      [
-        ...tch, ...regio, ...jatsz,
-        ...ITEMS.map(i=>({ ...i, partner:"Amazon" })),
-        ...KARCHER_ITEMS.map(i=>({ ...i, partner:"Kärcher.hu" })),
-        ...EOPTIKA_ITEMS.map(i=>({ ...i, partner:"eOptika.hu" })),
-        ...JATEKNET_ITEMS.map(i=>({ ...i, partner:"JátékNet.hu" }))
-      ],
-      'exact'
-    );
-
-    const { b10_24, b25_49, b50p } = buildDiscountBuckets(all);
-
-    if (b10_24.length) renderPagedSection("🎯 −10–24% akciók", "Összes partner", b10_24, PER_PAGE_GRID, { festive:true, id:"deal10_24" });
-    if (b25_49.length) renderPagedSection("🔥 −25–49% akciók", "Összes partner", b25_49, PER_PAGE_GRID, { festive:true, id:"deal25_49" });
-    if (b50p.length)   renderPagedSection("💥 −50%+ akciók",  "Összes partner", b50p,   PER_PAGE_GRID, { festive:true, id:"deal50plus" });
-
-    renderPagedSection("Otthon",  "Tchibo.hu",     tch,   PER_PAGE_GRID, {anchorId:"partner-tchibo"});
-    renderPagedSection("Játékok", "RegioJáték",    regio, PER_PAGE_GRID, {anchorId:"partner-regio"});
-    renderPagedSection("Játékok", "Játéksziget",   jatsz, PER_PAGE_GRID, {anchorId:"partner-jateksziget"});
-
-    renderPagedSection("Játékok", "JátékNet.hu",   JATEKNET_ITEMS, PER_PAGE_GRID, {anchorId:"partner-jateknet"});
-    renderPagedSection("Otthon",  "Kärcher.hu",    KARCHER_ITEMS,  PER_PAGE_GRID, {anchorId:"partner-karcher"});
-    renderPagedSection("Látás",   "eOptika.hu",    EOPTIKA_ITEMS,  PER_PAGE_GRID, {anchorId:"partner-eoptika"});
-    renderPagedSection("Tech",    "Amazon",        ITEMS,          PER_PAGE_GRID);
-  }
-
+  /* ====== Kategória-nézetek ====== */
   async function showCategory(cat){
     currentCategory = cat;
     document.querySelectorAll(".catbtn").forEach(b=>{
@@ -717,24 +733,21 @@
 
     content.innerHTML="";
     if(cat==="home"){
-      const [tch] = await Promise.all([loadTchibo()]);
-      renderPagedSection("Otthon", "Kärcher.hu", KARCHER_ITEMS, PER_PAGE_GRID, {anchorId:"partner-karcher"});
-      renderPagedSection("Otthon", "Tchibo.hu",  tch,           PER_PAGE_GRID, {anchorId:"partner-tchibo"});
+      renderCursorSection({title:"Otthon", partnerName:"Kärcher.hu", feed:{items:KARCHER_ITEMS, ensure:async()=>KARCHER_ITEMS}, anchorId:"partner-karcher"});
+      renderCursorSection({title:"Otthon", partnerName:"Tchibo.hu",  feed:FEEDS.tchibo, anchorId:"partner-tchibo"});
       return;
     }
     if(cat==="games"){
-      const [regio, jatsz] = await Promise.all([loadRegio(), loadJateksziget()]);
-      renderPagedSection("Játékok", "RegioJáték",  regio, PER_PAGE_GRID, {anchorId:"partner-regio"});
-      renderPagedSection("Játékok", "Játéksziget", jatsz,  PER_PAGE_GRID, {anchorId:"partner-jateksziget"});
-      renderPagedSection("Játékok", "JátékNet.hu", JATEKNET_ITEMS, PER_PAGE_GRID, {anchorId:"partner-jateknet"});
+      renderCursorSection({title:"Játékok", partnerName:"RegioJáték",  feed:FEEDS.regio, anchorId:"partner-regio"});
+      renderCursorSection({title:"Játékok", partnerName:"Játéksziget", feed:FEEDS.jateksziget, anchorId:"partner-jateksziget"});
+      renderStaticSection("Játékok","JátékNet.hu", JATEKNET_ITEMS, "partner-jateknet");
       return;
     }
-    if(cat==="tech"){ renderPagedSection("Tech", "Amazon", ITEMS, PER_PAGE_GRID); return; }
-    if(cat==="vision"){ renderPagedSection("Látás", "eOptika.hu", EOPTIKA_ITEMS, PER_PAGE_GRID, {anchorId:"partner-eoptika"}); return; }
+    if(cat==="tech"){ renderStaticSection("Tech", "Amazon", ITEMS); return; }
+    if(cat==="vision"){ renderStaticSection("Látás", "eOptika.hu", EOPTIKA_ITEMS, "partner-eoptika"); return; }
     if(cat==="travel"){
       const s=document.createElement('section');
-      s.className='section';
-      s.innerHTML=`<h2>✈️ Utazás</h2><div style="padding:12px">Hamarosan...</div>`;
+      s.className='section'; s.innerHTML=`<h2>✈️ Utazás</h2><div style="padding:12px">Hamarosan...</div>`;
       content.appendChild(s); return;
     }
   }
@@ -758,34 +771,51 @@
     document.getElementById('btnBack').onclick=()=>showCategory("all");
     document.getElementById('btnHome').onclick=()=>showCategory("all");
 
-    const [tch, regio, jatsz] = await Promise.all([loadTchibo(), loadRegio(), loadJateksziget()]);
-    const unify = (arr, name) => arr.map(i=>({...i, partner:name || i.partner}));
-    const all = [
-      ...unify(ITEMS,"Amazon"), ...unify(KARCHER_ITEMS,"Kärcher.hu"), ...unify(EOPTIKA_ITEMS,"eOptika.hu"), ...unify(JATEKNET_ITEMS,"JátékNet.hu"),
-      ...unify(tch,"Tchibo.hu"), ...unify(regio,"RegioJáték"), ...unify(jatsz,"Játéksziget")
-    ];
-    const filtered = applySort(
-      all.filter(i => (i.discount||0) >= (window.minDiscountFilter||0))
-         .filter(i => String(i.title).toLowerCase().includes(v) || String(i.desc||"").toLowerCase().includes(v))
-    );
+    // kombinált feed a kereséshez: a három partnerből
+    const comb = new CombinedFeed([
+      {name:'tchibo', feed:FEEDS.tchibo},
+      {name:'regio', feed:FEEDS.regio},
+      {name:'jateksziget', feed:FEEDS.jateksziget},
+    ]);
+    comb.setFilter(it=>{
+      const dfOk = (it.discount||0) >= (window.minDiscountFilter||0);
+      const txt = (String(it.title).toLowerCase()+" "+String(it.desc||"").toLowerCase());
+      return dfOk && txt.includes(v);
+    });
 
-    if(filtered.length){
-      renderPagedSection("Keresési találatok", "Összes partner", filtered, PER_PAGE_GRID);
-    }else{
-      const s=document.createElement('section');
-      s.className='section';
-      s.innerHTML=`<h2>Nincs találat</h2><div class="grid" style="padding:12px">Próbálj másik kulcsszót.</div>`;
-      content.appendChild(s);
+    // szekció, ami a comb feedből lapoz 4/lap
+    const s=document.createElement('section');
+    s.className='section partner';
+    s.innerHTML=`<h2>Összes partner – Keresési találatok</h2><div class="status"></div><div class="grid"></div><div class="pager"></div>`;
+    content.appendChild(s);
+
+    const grid=s.querySelector('.grid'); const pager=s.querySelector('.pager'); const status=s.querySelector('.status');
+    let page=1, per=PER_PAGE_GRID, known=0, hasMore=true;
+
+    async function draw(){
+      const need = page*per;
+      await comb.ensure(need, {minDiscount:window.minDiscountFilter||0, q: v});
+      const arr = applySort(comb.pool.filter(comb.filterFn));
+      known = arr.length;
+      hasMore = comb.feeds.some(f=>!f.feed.exhausted);
+
+      const st=(page-1)*per; const show=arr.slice(st, st+per);
+      grid.innerHTML=''; show.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+      hydrateSafeImages(s);
+      pager.innerHTML = progressivePagerHTML(known, page, per, hasMore);
+      const df = (window.minDiscountFilter||0);
+      status.textContent = `${known}${hasMore?' +':''} találat • ${per}/oldal${df?` • Szűrés: −${df}%+`:''}${currentSort!=='relevance'?` • Rendezés: ${document.querySelector('#sortChips .chip.active')?.textContent||''}`:''}`;
     }
+    s.addEventListener('click', async (e)=>{ const b=e.target.closest('.pager button'); if(b){ page=Math.max(1,parseInt(b.dataset.page,10)||1); await draw(); } });
+    await draw();
   }
-
   document.getElementById('searchForm').addEventListener('submit',e=>{
     e.preventDefault();
     const val=document.getElementById('q').value.trim();
     if(val) showSearch(val); else showCategory("all");
   });
 
-  /* ====== Hó és toTop ====== */
+  /* ====== Hó + toTop + Promó ====== */
   (function snow(){
     const wrap=document.querySelector('.snow');
     const isMobile = matchMedia('(max-width: 640px)').matches;
@@ -804,15 +834,8 @@
       wrap.appendChild(f);
     }
   })();
+  (function(){ const btn = document.getElementById('toTop'); window.addEventListener('scroll', ()=>{ if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show'); }); })();
 
-  (function(){
-    const btn = document.getElementById('toTop');
-    window.addEventListener('scroll', ()=>{
-      if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show');
-    });
-  })();
-
-  /* ====== Black Friday + promó kártyák ====== */
   (function promoLogicTZ(){
     const now = new Date();
     const y = now.getFullYear();
@@ -838,30 +861,10 @@
       }
       tick();
     }
-    const isNov = now.getMonth() === 10;
-    const isDec = now.getMonth() === 11;
-    const wrap = document.querySelector('.promo-banners');
-    const cardX = document.querySelector('.pb-card.xmas');
-    const cardB = document.querySelector('.pb-card.bf');
-    if(wrap && cardX && cardB){
-      if(isNov){ wrap.prepend(cardB); }
-      else if(isDec){ wrap.prepend(cardX); }
-    }
   })();
 
-  /* ====== Partner teljes lista nézet – Cursoros végtelen görgetés ====== */
-  function openPartnerView(name, _items_ignored) {
-    const partnerSlug = name === "Tchibo.hu" ? "tchibo"
-                     : name === "RegioJáték" ? "regiojatek"
-                     : name === "Játéksziget" ? "jateksziget"
-                     : null;
-    if (!partnerSlug) return;
-
-    const per = 20;
-    let cursor = null;
-    let loading = false;
-    let hasNext = true;
-
+  /* ====== Partner teljes lista (külön teljes nézet) ====== */
+  function openPartnerView(name, feed) {
     const sec = document.createElement('section');
     sec.className = 'section';
     sec.innerHTML = `
@@ -876,61 +879,39 @@
       </div>
       <div class="status"></div>
       <div class="grid"></div>
-      <div id="pvSentinel" style="height:1px"></div>
+      <div class="pager"></div>
     `;
-    const grid = sec.querySelector('.grid');
-    const status = sec.querySelector('.status');
-    const sentinel = sec.querySelector('#pvSentinel');
+    const grid=sec.querySelector('.grid');
+    const status=sec.querySelector('.status');
+    const pager=sec.querySelector('.pager');
 
-    function updateStatus(totalSoFar){
-      status.textContent = `${totalSoFar} találat betöltve… görgess tovább`;
+    const per = 20; // teljes nézetben 20/lap (kértük korábban)
+    let page = 1, known=0, hasMore=true;
+
+    async function draw(){
+      const need = page*per;
+      await feed.ensure(need, {minDiscount: window.minDiscountFilter||0});
+      const arr = applySort(feed.items.filter(i => (i.discount||0) >= (window.minDiscountFilter||0)));
+      known = arr.length;
+      hasMore = !feed.exhausted;
+
+      const st=(page-1)*per; const show=arr.slice(st, st+per);
+      grid.innerHTML=''; show.forEach(it=>grid.insertAdjacentHTML('beforeend', cardHTML(it)));
+      hydrateSafeImages(sec);
+      pager.innerHTML = progressivePagerHTML(known, page, per, hasMore);
+      const df=(window.minDiscountFilter||0);
+      status.textContent = `${known}${hasMore?' +':''} találat • ${per}/oldal${df?` • Szűrés: −${df}%+`:''}${currentSort!=='relevance'?` • Rendezés: ${document.querySelector('#sortChips .chip.active')?.textContent||''}`:''}`;
     }
 
-    async function loadNext() {
-      if (loading || !hasNext) return;
-      loading = true;
-      try {
-        const data = await loadPartnerChunk(partnerSlug, { cursor, limit: per });
-        const items = data.items || [];
-        items.forEach(it => grid.insertAdjacentHTML('beforeend', cardHTML(it)));
-        hydrateSafeImages(sec);
-        if (data.nextCursor) {
-          cursor = data.nextCursor;
-          hasNext = true;
-        } else if (typeof data.nextPage === 'number') {
-          // visszafelé kompatibilitás (ha mégis pages jönne)
-          cursor = null;
-          hasNext = true;
-        } else {
-          hasNext = false;
-        }
-        updateStatus(grid.children.length);
-      } catch (e) {
-        console.error(e);
-        hasNext = false;
-        status.textContent = 'Hiba történt a betöltés során.';
-      } finally {
-        loading = false;
-      }
-    }
-
-    const io = new IntersectionObserver((entries) => {
-      for (const ent of entries) {
-        if (ent.isIntersecting) loadNext();
-      }
-    }, { rootMargin: '800px 0px' });
-
-    io.observe(sentinel);
-
-    sec.addEventListener('click', (e)=>{
+    sec.addEventListener('click', async (e)=>{
       if (e.target.id === 'pvBack') showCategory(currentCategory||'all');
       if (e.target.id === 'pvHome') showCategory('all');
+      const b=e.target.closest('.pager button'); if(b){ page=Math.max(1,parseInt(b.dataset.page,10)||1); await draw(); }
     });
 
     content.innerHTML = '';
     content.appendChild(sec);
-
-    loadNext();
+    (async ()=>{ await draw(); })();
   }
 
   /* ====== Indítás ====== */
