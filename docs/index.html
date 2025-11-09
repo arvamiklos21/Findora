@@ -167,7 +167,7 @@
         <nav class="categories" aria-label="Kategóriák">
           <button class="catbtn active" data-cat="all">Főoldal</button>
           <button class="catbtn" data-cat="home">🏠 Otthon</button>
-          <!-- A többi gomb maradhat, de a szekciójuk rejtve -->
+          <!-- a többi gomb maradhat, a szekciójuk rejtve -->
           <button class="catbtn" data-cat="games">🕹️ Játékok</button>
           <button class="catbtn" data-cat="tech">💻 Tech</button>
           <button class="catbtn" data-cat="vision">👓 Látás</button>
@@ -191,7 +191,7 @@
 
   <main>
 
-    <!-- ========= AKCIÓS BLOKKOK – LEGFELÜL, CSAK TCHIBO ALAPJÁN ========= -->
+    <!-- ========= AKCIÓS BLOKKOK – CSAK TCHIBO ALAPJÁN ========= -->
     <section class="section" id="akciok">
       <h2>Akciók</h2>
 
@@ -220,9 +220,10 @@
       </div>
     </section>
 
-    <!-- ========= FŐOLDAL – TCHIBO (6/lap, fejléc katt → 20/lap) ========= -->
+    <!-- ========= FŐOLDAL – TCHIBO (6/lap, fejléc-katt → 20/lap) ========= -->
     <section class="section" id="osszes">
-      <h2>Főoldal – <a href="#tchibo-full" id="tchibo-head-link" style="text-decoration:underline;font-weight:900;">Tchibo</a></h2>
+      <!-- VÁLTOZTATÁS: előtag elhagyva -->
+      <h2><a href="#tchibo-full" id="tchibo-head-link" style="text-decoration:underline;font-weight:900;">Tchibo</a></h2>
       <div class="grid" id="tchibo-overview-list">
         <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
       </div>
@@ -241,14 +242,15 @@
 
     <!-- ========= OTTHON – Tchibo 6/lap (akció nélkül) ========= -->
     <section class="section" id="otthon">
-      <h2>Otthon – Tchibo</h2>
+      <!-- VÁLTOZTATÁS: előtag elhagyva -->
+      <h2>Tchibo</h2>
       <div class="grid" id="tchibo-home-list">
         <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
       </div>
       <div id="tchibo-home-nav" class="grid" style="padding-top:0"></div>
     </section>
 
-    <!-- A többi kategória SZEKCIÓJA most REJTETT, hogy ne legyen üres keret -->
+    <!-- A többi kategória szekció most rejtett, hogy ne legyen üres keret -->
     <section class="section" id="games" style="display:none"></section>
     <section class="section" id="tech" style="display:none"></section>
     <section class="section" id="vision" style="display:none"></section>
