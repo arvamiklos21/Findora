@@ -5,38 +5,45 @@ FEED_URL  = os.environ.get("FEED_TCHIBO_URL")
 OUT_DIR   = "docs/feeds/tchibo"
 PAGE_SIZE = 300
 
+# ---------- helpers ----------
 def norm_price(v):
     if v is None: return None
     s = re.sub(r"[^\d.,-]", "", str(v)).replace(" ", "")
     if not s or s in ("-", ""): return None
-    try: return int(round(float(s.replace(",", "."))))
-    except: return None
+    try:
+        # pl. "12 990 Ft", "12990 HUF", "12990.00"
+        return int(round(float(s.replace(",", "."))))
+    except:
+        # fallback: csak számjegyek
+        digits = re.sub(r"[^\d]", "", str(v))
+        return int(digits) if digits else None
 
 def short_desc(t, maxlen=180):
     if not t: return None
-    t = re.sub(r"\s+", " ", str(t).strip())
+    t = re.sub(r"<[^>]+>", " ", str(t))
+    t = re.sub(r"\s+", " ", t).strip()
     return (t[:maxlen-1] + "…") if len(t) > maxlen else t
 
 def strip_ns(tag):  # '{ns}price' vagy 'g:price' -> 'price'
-    return tag.split("}")[-1].split(":")[-1]
-
-def first(d, keys):
-    for k in keys:
-        v = d.get(k)
-        if isinstance(v, str) and v.strip(): return v.strip()
-        if v not in (None, "", []): return v
-    return None
+    return tag.split("}")[-1].split(":")[-1].lower()
 
 def collect_node(n):
+    """Lapít mindent egy dict-be: azonos kulcs felülír, ismétlődő képek listába mennek"""
     m = {}
     txt = (n.text or "").strip()
-    if txt: m[strip_ns(n.tag)] = txt
-    for ak, av in n.attrib.items():
-        m[strip_ns(ak)] = av
+    k0 = strip_ns(n.tag)
+    if txt:
+        m.setdefault(k0, txt)
+
+    # attribútumok
+    for ak, av in (n.attrib or {}).items():
+        m.setdefault(strip_ns(ak), av)
+
+    # gyerekek
     for c in list(n):
         k = strip_ns(c.tag)
         v = (c.text or "").strip()
-        if k in ("additional_image_link", "additional_image_url", "images"):
+        if k in ("imgurl_alternative","additional_image_link","additional_image_url","images","image2","image3"):
             m.setdefault(k, [])
             if v: m[k].append(v)
         else:
@@ -48,34 +55,81 @@ def collect_node(n):
                     m.setdefault(sk, sv)
     return m
 
+def first(d, keys):
+    for raw in keys:
+        k = raw.lower()
+        v = d.get(k)
+        if isinstance(v, list) and v:
+            return v[0]
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+        if v not in (None, "", []):
+            return v
+    return None
+
+# kulcslisták (Heureka/Productsup + Google feed + általános)
+TITLE_KEYS = ("productname","title","g:title","name","product_name")
+LINK_KEYS  = ("url","link","g:link","product_url","product_link","deeplink")
+IMG_KEYS   = ("imgurl","image_link","image","image_url","g:image_link","image1","main_image_url")
+IMG_ALT_KEYS = ("imgurl_alternative","additional_image_link","additional_image_url","images","image2","image3")
+DESC_KEYS  = ("description","g:description","long_description","short_description","desc","popis")
+
+NEW_PRICE_KEYS = (
+    "price_vat","price_with_vat","price_final","price_huf",
+    "g:sale_price","sale_price","g:price","price","price_amount","current_price","amount"
+)
+OLD_PRICE_KEYS = (
+    "old_price","price_before","was_price","list_price","regular_price","g:price","price"
+)
+
 def parse_items(xml_text):
     root = ET.fromstring(xml_text)
+
+    # Lehetséges item utak (Heureka: SHOPITEM, klasszikus RSS: channel/item, Google: entry/product stb.)
     candidates = []
-    for path in (".//channel/item", ".//item", ".//products/product", ".//product", ".//entry"):
+    for path in (".//channel/item", ".//item",
+                 ".//products/product", ".//product",
+                 ".//SHOPITEM", ".//shopitem",
+                 ".//entry"):
         nodes = root.findall(path)
         if nodes:
             candidates = nodes
             break
-    if not candidates:
-        candidates = [n for n in root.iter() if strip_ns(n.tag) in ("item","product","entry")]
+
+    if not candidates:  # utolsó mentsvár: minden node, aminek a neve item|product|shopitem|entry
+        candidates = [n for n in root.iter()
+                      if strip_ns(n.tag) in ("item","product","shopitem","entry")]
 
     items = []
     for n in candidates:
         m = collect_node(n)
-        pid   = first(m, ("id","g:id","item_id","sku","product_id"))
-        title = first(m, ("title","g:title","name","product_name")) or "Ismeretlen termék"
-        link  = first(m, ("link","g:link","url","product_url","product_link"))
-        img   = first(m, ("image_link","image","image_url","g:image_link")) \
-                or (m.get("additional_image_link",[None])[0] if isinstance(m.get("additional_image_link"),list) else None)
-        desc  = short_desc(first(m, ("description","g:description","long_description","short_description")))
 
+        # egységesítsünk: kulcsokat lower-case-szel érjük el a 'first' függvényben
+        m = { (k.lower() if isinstance(k, str) else k): v for k, v in m.items() }
+
+        pid   = first(m, ("g:id","id","item_id","sku","product_id","itemid"))
+        title = first(m, TITLE_KEYS) or "Ismeretlen termék"
+        link  = first(m, LINK_KEYS)
+
+        # kép elsődleges + alternatív listák
+        img = first(m, IMG_KEYS)
+        if not img:
+            alt = first(m, IMG_ALT_KEYS)
+            if isinstance(alt, list) and alt:
+                img = alt[0]
+            elif isinstance(alt, str):
+                img = alt
+
+        desc  = short_desc(first(m, DESC_KEYS))
+
+        # árak
         price_new = None
-        for k in ("g:sale_price","sale_price","g:price","price","price_amount","current_price"):
+        for k in NEW_PRICE_KEYS:
             price_new = norm_price(m.get(k))
             if price_new: break
 
         old = None
-        for k in ("g:price","price","old_price","list_price","regular_price"):
+        for k in OLD_PRICE_KEYS:
             old = norm_price(m.get(k))
             if old: break
 
@@ -95,9 +149,11 @@ def parse_items(xml_text):
 def main():
     assert FEED_URL, "FEED_TCHIBO_URL hiányzik (repo Secrets)."
     os.makedirs(OUT_DIR, exist_ok=True)
+
     r = requests.get(FEED_URL, headers={"User-Agent":"Mozilla/5.0","Accept":"application/xml"}, timeout=120)
     r.raise_for_status()
     items = parse_items(r.text)
+
     if not items:
         items = [{"id":"DEBUG-NO-ITEMS","title":"Nem találtam terméket az XML-ben","img":"","desc":"Parser finomítás kell.","price":None,"discount":None,"url":""}]
 
@@ -107,9 +163,17 @@ def main():
         with open(os.path.join(OUT_DIR, f"page-{str(i+1).zfill(4)}.json"), "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False)
 
-    meta = {"partner":"tchibo","pageSize":PAGE_SIZE,"total":len(items),"pages":pages,"lastUpdated":datetime.utcnow().isoformat()+"Z","source":"productsup"}
+    meta = {
+        "partner":"tchibo",
+        "pageSize":PAGE_SIZE,
+        "total":len(items),
+        "pages":pages,
+        "lastUpdated":datetime.utcnow().isoformat()+"Z",
+        "source":"productsup"
+    }
     with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False)
+
     print(f"✅ {len(items)} termék, {pages} oldal → {OUT_DIR}")
 
 if __name__ == "__main__":
