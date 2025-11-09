@@ -1,141 +1,150 @@
-<script>
-  // ===== TCHIBO FEED – statikus JSON + deeplink Worker =====
-  const API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
-  const tchiboDl = u => `${API_BASE}/api/dl?u=${encodeURIComponent(u)}&p=tchibo`;
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-  const TCH_META_URL = '/feeds/tchibo/meta.json';
-  const TCH_PAGE_URL = (n) => `/feeds/tchibo/page-${String(n).padStart(4,'0')}.json`;
+  <title>Findora – Irányt mutat a legjobb ajánlatokhoz</title>
+  <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat." />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <link rel="icon" href="assets/img/findora_mark.png" />
 
-  let TCH_META = null;     // {pageSize, pages, total}
-  const TCH_CACHE = new Map(); // 'page-0001' -> {items:[...]}
+  <!-- OG/Twitter -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Findora" />
+  <meta property="og:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
+  <meta property="og:description" content="Válogatott akciók és ajánlatok." />
+  <meta property="og:image" content="assets/img/findora-header.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
+  <meta name="twitter:description" content="A legjobb akciók és kuponok egy helyen." />
+  <meta name="twitter:image" content="assets/img/findora-header.png" />
 
-  async function getMeta(){
-    if (TCH_META) return TCH_META;
-    TCH_META = await fetch(TCH_META_URL, {cache:'no-cache'}).then(r=>r.json());
-    return TCH_META;
-  }
-  async function getPage(n){
-    const key = `page-${String(n).padStart(4,'0')}`;
-    if (TCH_CACHE.has(key)) return TCH_CACHE.get(key);
-    const data = await fetch(TCH_PAGE_URL(n), {cache:'no-cache'}).then(r=>r.json());
-    TCH_CACHE.set(key, data);
-    return data;
-  }
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-  // Globális (0-bázisú) offset + limit → összeválogatja a megfelelő JSON-oldalakról
-  async function fetchItems(offset, limit){
-    const meta = await getMeta();
-    const srcPageSize = meta.pageSize || 300;
-    const total = meta.total ?? (meta.pages * srcPageSize);
-
-    const out = [];
-    let i = offset;
-    while (out.length < limit && i < total){
-      const pageNum = Math.floor(i / srcPageSize) + 1;
-      const innerIdx = i % srcPageSize;
-      const page = await getPage(pageNum);
-      const arr = page?.items || [];
-      if (innerIdx < arr.length){
-        out.push(arr[innerIdx]);
-      }
-      i++;
-      if (arr.length === 0) break;
+  <style>
+    :root{
+      --brand:#0077FF; --brand2:#00BBFF; --bg:#f7f9fc; --text:#0f172a; --muted:#64748b;
+      --card:#ffffff; --panel:#ffffffee; --border:#e2e8f0;
     }
-    return out;
-  }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,system-ui,sans-serif;color:var(--text);background:var(--bg)}
+    .hero{text-align:center;padding:40px 10px;background:#fff;border-bottom:1px solid #e2e8f0}
+    .hero h1{font-size:28px;font-weight:800;margin-bottom:6px}
+    .catbtn{border:1px solid #dbeafe;background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer;font-weight:700;font-size:14px;margin:4px}
+    .catbtn.active{background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff}
+    main{max-width:1200px;margin:22px auto;padding:0 12px}
+    .grid{display:flex;flex-wrap:wrap;gap:12px;padding:12px;justify-content:center}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;width:240px;transition:transform .18s ease}
+    .card:hover{transform:translateY(-3px)}
+    .thumb{height:150px;background:#f1f5f9;display:flex;align-items:center;justify-content:center}
+    .thumb img{max-width:100%;max-height:100%}
+    .title{font-weight:700;font-size:14px;margin:8px;text-align:center}
+    .desc{font-size:12px;color:#64748b;margin:0 8px 8px;text-align:center}
+    .muted{font-size:12px;color:#94a3b8;text-align:center}
+    .price{font-weight:900;text-align:center;margin:6px 0}
+    .cta{display:inline-block;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;text-decoration:none;padding:6px 12px;border-radius:8px;font-weight:700;margin:10px auto}
+  </style>
+</head>
 
-  // Kártya render
-  function renderCards(root, items){
-    root.innerHTML = items.map(it => `
-      <div class="card">
-        <div class="thumb">
-          ${it.img ? `<img src="${it.img}" alt="" loading="lazy" style="max-width:100%;max-height:100%">` : '🛍️'}
-        </div>
-        <div class="title">${it.title || ''}</div>
-        ${it.desc ? `<div class="desc">${it.desc}</div>` : ''}
-        <div class="muted">Tchibo${Number.isFinite(it.discount)?` • −${it.discount}%`:''}</div>
-        <div class="price">${Number.isFinite(it.price) ? (it.price.toLocaleString('hu-HU') + ' Ft') : (it.price||'')}</div>
-        ${it.url ? `<a class="cta" href="${tchiboDl(it.url)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
+<body>
+  <header class="hero">
+    <h1>Findora</h1>
+    <p>Irányt mutat a legjobb ajánlatokhoz</p>
+    <div>
+      <button class="catbtn active" data-cat="all">Összes</button>
+      <button class="catbtn" data-cat="home">🏠 Otthon</button>
+      <button class="catbtn" data-cat="games">🕹️ Játékok</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="section" id="otthon">
+      <h2>Otthon – <a href="#tchibo-full" id="tchibo-head-link" style="text-decoration:underline;font-weight:900;">Tchibo</a> ajánlatok</h2>
+      <!-- Áttekintő (6/lap) -->
+      <div class="grid" id="tchibo-overview-list">
+        <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
       </div>
-    `).join('');
-  }
+      <div id="tchibo-overview-nav" class="grid" style="padding-top:0"></div>
 
-  // ----- 6/lap (áttekintő) -----
-  const OVERVIEW_SIZE = 6;
-  let overviewPage = 1;
+      <!-- Teljes nézet (20/lap) – alapból rejtve -->
+      <div class="grid" id="tchibo-full-list" style="display:none"></div>
+      <div id="tchibo-full-nav" class="grid" style="padding-top:0;display:none"></div>
+    </section>
+  </main>
 
-  async function loadTchiboOverview(page=1){
-    const meta = await getMeta();
-    const total = meta.total ?? (meta.pages * (meta.pageSize||300));
-    const offset = (page-1) * OVERVIEW_SIZE;
-    const items = await fetchItems(offset, OVERVIEW_SIZE);
+  <footer style="text-align:center;padding:20px;background:#0b3a6a;color:#fff;margin-top:24px;">
+    © 2025 Findora • Az oldalon affiliate linkek lehetnek.
+  </footer>
 
-    const root = document.getElementById('tchibo-overview-list');
-    renderCards(root, items);
+  <script>
+    const API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
+    const tchiboDl = u => `${API_BASE}/api/dl?u=${encodeURIComponent(u)}&p=tchibo`;
 
-    const nav = document.getElementById('tchibo-overview-nav');
-    const totalPages = Math.max(1, Math.ceil(total / OVERVIEW_SIZE));
-    nav.innerHTML = `
-      <button class="chip" ${page<=1?'disabled':''} onclick="loadTchiboOverview(${page-1})">Előző</button>
-      <span class="chip" aria-disabled="true">Oldal ${page} / ${totalPages}</span>
-      <button class="chip" ${page>=totalPages?'disabled':''} onclick="loadTchiboOverview(${page+1})">Következő</button>
-    `;
-    overviewPage = page;
-  }
+    const TCH_META_URL = '/feeds/tchibo/meta.json';
+    const TCH_PAGE_URL = n => `/feeds/tchibo/page-${String(n).padStart(4,'0')}.json`;
+    let TCH_META = null, TCH_CACHE = new Map();
 
-  // ----- 20/lap (Tchibo-nézet) -----
-  const FULL_SIZE = 20;
-  let fullPage = 1;
+    async function getMeta(){ if(TCH_META) return TCH_META; TCH_META = await fetch(TCH_META_URL).then(r=>r.json()); return TCH_META; }
+    async function getPage(n){ const key=`page-${String(n).padStart(4,'0')}`; if(TCH_CACHE.has(key)) return TCH_CACHE.get(key); const d=await fetch(TCH_PAGE_URL(n)).then(r=>r.json()); TCH_CACHE.set(key,d); return d; }
 
-  async function loadTchiboFull(page=1){
-    const meta = await getMeta();
-    const total = meta.total ?? (meta.pages * (meta.pageSize||300));
-    const offset = (page-1) * FULL_SIZE;
-    const items = await fetchItems(offset, FULL_SIZE);
-
-    const root = document.getElementById('tchibo-full-list');
-    renderCards(root, items);
-
-    const nav = document.getElementById('tchibo-full-nav');
-    const totalPages = Math.max(1, Math.ceil(total / FULL_SIZE));
-    nav.innerHTML = `
-      <button class="chip" ${page<=1?'disabled':''} onclick="loadTchiboFull(${page-1})">Előző</button>
-      <span class="chip" aria-disabled="true">Oldal ${page} / ${totalPages}</span>
-      <button class="chip" ${page>=totalPages?'disabled':''} onclick="loadTchiboFull(${page+1})">Következő</button>
-    `;
-    fullPage = page;
-  }
-
-  // Nézetváltás ugyanazon az oldalon
-  function showOverview(){
-    document.getElementById('tchibo-overview-list').style.display = '';
-    document.getElementById('tchibo-overview-nav').style.display = '';
-    document.getElementById('tchibo-full-list').style.display = 'none';
-    document.getElementById('tchibo-full-nav').style.display = 'none';
-  }
-  function showFull(){
-    document.getElementById('tchibo-overview-list').style.display = 'none';
-    document.getElementById('tchibo-overview-nav').style.display = 'none';
-    document.getElementById('tchibo-full-list').style.display = '';
-    document.getElementById('tchibo-full-nav').style.display = '';
-  }
-
-  // Fejlécre kattintva 20/lap nézet
-  document.addEventListener('DOMContentLoaded', ()=>{
-    const tHead = document.getElementById('tchibo-head-link');
-    if (tHead){
-      tHead.addEventListener('click', (e)=>{
-        e.preventDefault();
-        showFull();
-        loadTchiboFull(1);
-        document.getElementById('otthon').scrollIntoView({behavior:'smooth'});
-      });
+    async function fetchItems(offset,limit){
+      const meta=await getMeta(); const srcPageSize=meta.pageSize||300; const total=meta.total??(meta.pages*srcPageSize);
+      const out=[]; let i=offset;
+      while(out.length<limit && i<total){
+        const pageNum=Math.floor(i/srcPageSize)+1; const innerIdx=i%srcPageSize;
+        const page=await getPage(pageNum); const arr=page?.items||[];
+        if(innerIdx<arr.length) out.push(arr[innerIdx]);
+        i++; if(arr.length===0) break;
+      }
+      return out;
     }
 
-    // induláskor: 6/lap áttekintő
-    showOverview();
-    document.getElementById('tchibo-overview-list').innerHTML =
-      '<div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>';
-    loadTchiboOverview(1);
-  });
-</script>
+    function renderCards(root,items){
+      root.innerHTML = items.map(it => `
+        <div class="card">
+          <div class="thumb">${it.img?`<img src="${it.img}" alt="">`:'🛍️'}</div>
+          <div class="title">${it.title||''}</div>
+          ${it.desc?`<div class="desc">${it.desc}</div>`:''}
+          <div class="muted">Tchibo${Number.isFinite(it.discount)?` • −${it.discount}%`:''}</div>
+          <div class="price">${Number.isFinite(it.price)?(it.price.toLocaleString('hu-HU')+' Ft'):(it.price||'')}</div>
+          ${it.url?`<a class="cta" href="${tchiboDl(it.url)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>`:''}
+        </div>`).join('');
+    }
+
+    const OVERVIEW_SIZE=6, FULL_SIZE=20;
+    async function loadTchiboOverview(page=1){
+      const meta=await getMeta(), total=meta.total??(meta.pages*(meta.pageSize||300)), offset=(page-1)*OVERVIEW_SIZE;
+      const items=await fetchItems(offset,OVERVIEW_SIZE);
+      renderCards(document.getElementById('tchibo-overview-list'),items);
+      const totalPages=Math.ceil(total/OVERVIEW_SIZE);
+      document.getElementById('tchibo-overview-nav').innerHTML=`
+        <button class="catbtn" ${page<=1?'disabled':''} onclick="loadTchiboOverview(${page-1})">Előző</button>
+        <span class="catbtn">${page}/${totalPages}</span>
+        <button class="catbtn" ${page>=totalPages?'disabled':''} onclick="loadTchiboOverview(${page+1})">Következő</button>`;
+    }
+
+    async function loadTchiboFull(page=1){
+      const meta=await getMeta(), total=meta.total??(meta.pages*(meta.pageSize||300)), offset=(page-1)*FULL_SIZE;
+      const items=await fetchItems(offset,FULL_SIZE);
+      renderCards(document.getElementById('tchibo-full-list'),items);
+      const totalPages=Math.ceil(total/FULL_SIZE);
+      document.getElementById('tchibo-full-nav').innerHTML=`
+        <button class="catbtn" ${page<=1?'disabled':''} onclick="loadTchiboFull(${page-1})">Előző</button>
+        <span class="catbtn">${page}/${totalPages}</span>
+        <button class="catbtn" ${page>=totalPages?'disabled':''} onclick="loadTchiboFull(${page+1})">Következő</button>`;
+    }
+
+    function showOverview(){document.getElementById('tchibo-overview-list').style.display='';document.getElementById('tchibo-overview-nav').style.display='';document.getElementById('tchibo-full-list').style.display='none';document.getElementById('tchibo-full-nav').style.display='none';}
+    function showFull(){document.getElementById('tchibo-overview-list').style.display='none';document.getElementById('tchibo-overview-nav').style.display='none';document.getElementById('tchibo-full-list').style.display='';document.getElementById('tchibo-full-nav').style.display='';}
+
+    document.addEventListener('DOMContentLoaded',()=>{
+      document.getElementById('tchibo-head-link').addEventListener('click',e=>{
+        e.preventDefault(); showFull(); loadTchiboFull(1);
+      });
+      showOverview(); loadTchiboOverview(1);
+    });
+  </script>
+</body>
+</html>
