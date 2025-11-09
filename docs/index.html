@@ -312,7 +312,7 @@
 
     // ===== helpers & state =====
     const API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
-    const partnersUrl = 'docs/feeds/partners.json';
+    const partnersUrl = '/feeds/partners.json';  // ABSZOLÚT útvonal!
 
     const PARTNERS = new Map();        // partnerId -> config (meta, pagePattern, placements...)
     const META     = new Map();        // partnerId -> meta.json
@@ -659,6 +659,7 @@
   </script>
 </body>
 </html>
+
 
 
 
