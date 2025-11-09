@@ -143,9 +143,9 @@
 
       <div class="gift-row" aria-hidden="true">
         <div class="gift"><div class="bow"></div></div>
-        <div class="gift" style="transform:rotate(-4deg)"><div class="bow"></div></div>
-        <div class="gift" style="transform:rotate(2deg)"><div class="bow"></div></div>
-        <div class="gift" style="transform:rotate(-6deg)"><div class="bow"></div></div>
+        <div class="gift style1" style="transform:rotate(-4deg)"><div class="bow"></div></div>
+        <div class="gift style2" style="transform:rotate(2deg)"><div class="bow"></div></div>
+        <div class="gift style3" style="transform:rotate(-6deg)"><div class="bow"></div></div>
       </div>
 
       <div class="promo" role="note">🎄 Ünnepi hangulat, friss ajánlatokkal! – A partnerek statikus feedről töltenek, gyors betöltéssel.</div>
@@ -167,7 +167,6 @@
         <nav class="categories" aria-label="Kategóriák">
           <button class="catbtn active" data-cat="all">Főoldal</button>
           <button class="catbtn" data-cat="home">🏠 Otthon</button>
-          <!-- a többi gomb maradhat, a szekciójuk rejtve -->
           <button class="catbtn" data-cat="games">🕹️ Játékok</button>
           <button class="catbtn" data-cat="tech">💻 Tech</button>
           <button class="catbtn" data-cat="vision">👓 Látás</button>
@@ -219,7 +218,7 @@
       </div>
     </section>
 
-    <!-- ========= FŐOLDAL – PARTNER-SZEKCIÓK (partners.json alapján) ========= -->
+    <!-- ========= FŐOLDAL – PARTNER-SZEKCIÓ ========= -->
     <section class="section" id="osszes">
       <h2 id="home-partner-head">Ajánlatok</h2>
       <div class="grid" id="home-partner-list">
@@ -312,12 +311,15 @@
 
     // ===== helpers & state =====
     const API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
-    const partnersUrl = '/feeds/partners.json';  // ABSZOLÚT útvonal!
+    const partnersUrl = '/feeds/partners.json'; // ABSZOLÚT útvonal (docs/feeds/partners.json -> /feeds/partners.json a weben)
 
-    const PARTNERS = new Map();        // partnerId -> config (meta, pagePattern, placements...)
-    const META     = new Map();        // partnerId -> meta.json
-    const PAGES    = new Map();        // partnerId -> Map(pageKey -> items[])
+    const PARTNERS = new Map();  // partnerId -> config
+    const META     = new Map();  // partnerId -> meta.json tartalma
+    const PAGES    = new Map();  // partnerId -> Map(pageKey -> items[])
     const DL = (partner, raw) => `${API_BASE}/api/dl?u=${encodeURIComponent(raw)}&p=${partner}`;
+
+    // Az „Otthon” aktuális partnere (teljes nézethez is ezt használjuk)
+    let CURRENT_OTTHON_PARTNER = null;
 
     // elérési út segéd
     const pageUrl = (partnerCfg, n) => partnerCfg.pagePattern.replace('{NNNN}', String(n).padStart(4,'0'));
@@ -456,12 +458,12 @@
       document.querySelectorAll('.catbtn').forEach(b=>b.classList.remove('active'));
     }
     function showHomeOverviewInOtthon(){
-      document.getElementById('home-cat-list').parentElement.style.display='';
+      document.getElementById('home-cat-list').style.display='';
       document.getElementById('home-cat-nav').style.display='';
       document.getElementById('partner-full-wrap').style.display='none';
     }
     function showHomeFullInOtthon(){
-      document.getElementById('home-cat-list').parentElement.style.display='none';
+      document.getElementById('home-cat-list').style.display='none';
       document.getElementById('home-cat-nav').style.display='none';
       document.getElementById('partner-full-wrap').style.display='';
     }
@@ -474,8 +476,7 @@
       if(!r.ok) throw new Error('partners.json nem elérhető');
       const arr = await r.json();
       for(const p of arr) PARTNERS.set(p.id, p);
-      // első olyan partner, akinek van home placementje, legyen a default
-      DEFAULT_PARTNER = arr.find(p=>p.placements?.home?.enabled) ?.id || arr[0]?.id || null;
+      DEFAULT_PARTNER = arr.find(p=>p.placements?.home?.enabled)?.id || arr[0]?.id || null;
     }
 
     // ===== Rajzolók (home 6/lap, otthon 6/lap, teljes 20/lap) =====
@@ -502,14 +503,23 @@
     async function drawOtthonOverview(page=1){
       const partner = Array.from(PARTNERS.values()).find(p=>p.group==='otthon' && p.placements?.otthon?.enabled);
       if(!partner) return;
+
+      CURRENT_OTTHON_PARTNER = partner; // fontos: ezt fogjuk használni a teljes nézethez
+
       const PAGE = partner.placements?.otthon?.pageSize || 6;
       try{
         const {items, total} = await fetchItems(partner.id, (page-1)*PAGE, PAGE);
-        // „Otthon” dobozban a partner neve legyen kattintható fejléc a teljes nézethez:
+
+        // Fejléc kattinthatóság beállítás
         const headLink = document.getElementById('home-cat-head-link');
         headLink.textContent = partner.name;
+        const canFull = !!partner.placements?.otthon?.full?.enabled;
+        headLink.style.pointerEvents = canFull ? '' : 'none';
+        headLink.style.textDecoration = canFull ? 'underline' : 'none';
+
         document.getElementById('home-cat-list').innerHTML =
           renderCards(partner.id, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
+
         const totalPages = Math.max(1, Math.ceil(total/PAGE));
         document.getElementById('home-cat-nav').innerHTML = `
           <button class="cta" ${page<=1?'disabled':''} onclick="drawOtthonOverview(${page-1})">Előző</button>
@@ -523,11 +533,13 @@
 
     let PARTNER_FILTER = '';
     async function drawPartnerFull(page=1){
-      const partner = Array.from(PARTNERS.values()).find(p=>p.group==='otthon' && p.placements?.otthon?.full?.enabled);
+      const partner = CURRENT_OTTHON_PARTNER && CURRENT_OTTHON_PARTNER.placements?.otthon?.full?.enabled
+        ? CURRENT_OTTHON_PARTNER
+        : null;
       if(!partner) return;
+
       const PAGE = partner.placements?.otthon?.full?.pageSize || 20;
       try{
-        // lapozás a nyers feeden
         const meta = await getMeta(partner.id);
         const offset = (page-1)*PAGE;
         const srcPageSize = meta.pageSize || 300;
@@ -636,7 +648,11 @@
 
     // ===== események =====
     document.getElementById('home-cat-head-link').addEventListener('click', (e)=>{
-      e.preventDefault(); showHomeFullInOtthon(); drawPartnerFull(1);
+      const canFull = !!CURRENT_OTTHON_PARTNER?.placements?.otthon?.full?.enabled;
+      if(!canFull){ e.preventDefault(); return; }
+      e.preventDefault();
+      showHomeFullInOtthon();
+      drawPartnerFull(1);
     });
     document.getElementById('searchFormAll').addEventListener('submit', (e)=>{
       e.preventDefault(); runSearchOnDefaultPartner(document.getElementById('qAll').value||'');
@@ -647,21 +663,10 @@
 
     // ===== indulás =====
     (async function init(){
-      // betöltjük a partnereket
-      await loadPartners();
-
-      // akciók a default partnerből (pl. Tchibo)
-      if(DEFAULT_PARTNER) await buildSaleBlocks(DEFAULT_PARTNER);
-
-      // alap nézet: Főoldal
-      await switchTab('all');
+      await loadPartners();                       // partnerek betöltése
+      if(DEFAULT_PARTNER) await buildSaleBlocks(DEFAULT_PARTNER); // akció blokkok
+      await switchTab('all');                     // alap nézet: Főoldal
     })();
   </script>
 </body>
 </html>
-
-
-
-
-
-
