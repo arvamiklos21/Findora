@@ -497,11 +497,19 @@
       }
     }
 
-    async function drawOtthonOverview(page=1){
-      const partner = Array.from(PARTNERS.values()).find(p=>p.group==='otthon' && p.placements?.otthon?.enabled);
-      if(!partner) return;
+   async function drawOtthonOverview(page=1){
+  const partner = Array.from(PARTNERS.values())
+    .find(p => p.group === 'otthon' && p.placements?.otthon?.enabled);
 
-      CURRENT_OTTHON_PARTNER = partner;
+  if(!partner){
+    document.getElementById('home-cat-list').innerHTML =
+      '<div class="empty">Nincs „Otthon” partner konfigurálva a partners.json-ban.</div>';
+    document.getElementById('home-cat-nav').innerHTML = '';
+    return;
+  }
+
+  CURRENT_OTTHON_PARTNER = partner; // fontos // ... (a többi marad változatlan)
+}
 
       const PAGE = partner.placements?.otthon?.pageSize || 6;
       try{
@@ -671,3 +679,4 @@
   </script>
 </body>
 </html>
+
