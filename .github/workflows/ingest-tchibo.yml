@@ -5,8 +5,10 @@ on:
   schedule:
     - cron: "0 */2 * * *"
 
+# Kell a PR-hoz is!
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   ingest:
@@ -25,15 +27,22 @@ jobs:
       - name: Install deps
         run: pip install requests
 
-      - name: Build pages
+      - name: Build Tchibo feed pages
         env:
           FEED_TCHIBO_URL: ${{ secrets.FEED_TCHIBO_URL }}
         run: |
           set -e
+          if [ -z "$FEED_TCHIBO_URL" ]; then
+            echo "::error title=Missing secret::FEED_TCHIBO_URL nincs beállítva (Settings → Secrets → Actions)."; exit 1
+          fi
           mkdir -p docs/feeds/tchibo
           python scripts/build_tchibo.py
-          echo "Sanity check:"
-          jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/tchibo/page-0001.json || true
+          echo "Sanity check (first item):"
+          if command -v jq >/dev/null 2>&1; then
+            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/tchibo/page-0001.json || true
+          else
+            head -c 600 docs/feeds/tchibo/page-0001.json || true
+          fi
           ls -la docs/feeds/tchibo
 
       - name: Commit changes
