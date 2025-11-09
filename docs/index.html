@@ -116,6 +116,9 @@
     .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1}
     .flake{position:absolute;top:-10px;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.9);filter:blur(.5px);animation:fall linear infinite}
     @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
+
+    /* keresés progress */
+    #searchProgress{display:none; margin:6px auto 0; font-size:12px; color:#334155; background:#fff; border:1px solid var(--border); border-radius:10px; padding:6px 10px; width:max-content}
   </style>
 </head>
 <body>
@@ -177,6 +180,7 @@
           <input id="qAll" name="q" type="search" placeholder="Keresés az Összes termék között…" aria-label="Keresés (Összes)" />
           <button type="submit" aria-label="Keresés indítása">Keresés</button>
         </form>
+        <div id="searchProgress">Keresés…</div>
       </div>
     </div>
   </header>
@@ -188,11 +192,11 @@
   </div>
 
   <main>
-    <!-- ========= ÖSSZES – TCHIBO (6/lap, fejléc katt → 20/lap nézet + partner-kereső) ========= -->
+    <!-- ========= FŐOLDAL / ÖSSZES – TCHIBO (6/lap, fejléc katt → 20/lap nézet + partner-kereső) ========= -->
     <section class="section" id="osszes">
       <h2>Összes – <a href="#tchibo-full" id="tchibo-head-link" style="text-decoration:underline;font-weight:900;">Tchibo</a></h2>
 
-      <!-- 6/lap áttekintő -->
+      <!-- 6/lap áttekintő (Főoldal) -->
       <div class="grid" id="tchibo-overview-list">
         <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
       </div>
@@ -209,7 +213,16 @@
       </div>
     </section>
 
-    <!-- ========= AKCIÓS BLOKKOK ========= -->
+    <!-- ========= OTTHON – Tchibo 6/lap ========= -->
+    <section class="section" id="otthon">
+      <h2>Otthon – Tchibo</h2>
+      <div class="grid" id="tchibo-home-list">
+        <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
+      </div>
+      <div id="tchibo-home-nav" class="grid" style="padding-top:0"></div>
+    </section>
+
+    <!-- ========= AKCIÓS BLOKKOK – CSAK A FŐOLDALON ========= -->
     <section class="section" id="akciok">
       <h2>Akciók</h2>
 
@@ -236,6 +249,24 @@
         <div class="grid" id="xmas-list"></div>
         <div class="grid" id="xmas-nav" style="padding-top:0"></div>
       </div>
+    </section>
+
+    <!-- ========= ÜRES/HELYŐRZŐ KATEGÓRIÁK ========= -->
+    <section class="section" id="games">
+      <h2>Játékok</h2>
+      <div class="grid"><div class="empty">Hamarosan…</div></div>
+    </section>
+    <section class="section" id="tech">
+      <h2>Tech</h2>
+      <div class="grid"><div class="empty">Hamarosan…</div></div>
+    </section>
+    <section class="section" id="vision">
+      <h2>Látás</h2>
+      <div class="grid"><div class="empty">Hamarosan…</div></div>
+    </section>
+    <section class="section" id="travel">
+      <h2>Utazás</h2>
+      <div class="grid"><div class="empty">Hamarosan…</div></div>
     </section>
   </main>
 
@@ -294,18 +325,6 @@
       }
     })();
 
-    // Kategória gombok – „Otthon” most az akciókhoz gördül
-    document.querySelectorAll(".catbtn").forEach(btn=>{
-      btn.addEventListener("click",()=>{
-        document.querySelectorAll(".catbtn").forEach(b=>b.classList.toggle("active", b===btn));
-        const id = btn.dataset.cat;
-        if(id==="all") { const t=document.getElementById('osszes'); if(t){ t.scrollIntoView({behavior:'smooth'}); } return; }
-        if(id==="home"){ const t=document.getElementById('akciok'); if(t){ t.scrollIntoView({behavior:'smooth'}); } return; }
-        const target = document.getElementById(id==='games'?'akciok':(id==='tech'?'akciok':(id==='vision'?'akciok':(id==='travel'?'akciok':''))));
-        if(target) target.scrollIntoView({behavior:'smooth'});
-      });
-    });
-
     // ====== közös util ======
     const API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
     const hasDl = true; // ha nincs /api/dl, állítsd false-ra
@@ -316,7 +335,7 @@
 
     let TCH_META = null;
     const TCH_CACHE = new Map();     // page cache
-    let ALL_INDEX = [];              // akció- és főkereső-index (tchibo only most)
+    let ALL_INDEX = [];              // akció- és gyorskereső-index (csak a főoldali gyorsításra)
 
     function priceText(v){
       if (Number.isFinite(v)) return v.toLocaleString('hu-HU') + ' Ft';
@@ -330,9 +349,7 @@
       try{ const x = new URL(u); return x.origin + x.pathname; }catch(_){}
       return String(u||'').split('#')[0].split('?')[0];
     }
-    function imgPath(u){
-      return String(u||'').split('#')[0].split('?')[0];
-    }
+    function imgPath(u){ return String(u||'').split('#')[0].split('?')[0]; }
     function dedupeBySizeKeepColor(items){
       const seen = new Set();
       const out = [];
@@ -395,7 +412,7 @@
       return out;
     }
 
-    // ===== ÖSSZES – 6/lap =====
+    // ===== FŐOLDAL – 6/lap =====
     const OVERVIEW_SIZE = 6;
     async function loadTchiboOverview(page=1){
       try{
@@ -414,6 +431,27 @@
         console.error(e);
         document.getElementById('tchibo-overview-list').innerHTML =
           '<div class="empty">Nem sikerült betölteni (áttekintő).</div>';
+      }
+    }
+
+    // ===== OTTHON – 6/lap =====
+    async function loadTchiboHome(page=1){
+      try{
+        const meta = await getMeta();
+        const totalItems = meta.total ?? (meta.pages * (meta.pageSize||300));
+        const offset = (page-1)*OVERVIEW_SIZE;
+        const items = await fetchItems(offset, OVERVIEW_SIZE);
+        document.getElementById('tchibo-home-list').innerHTML =
+          renderCardsSimple(items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
+        const totalPages = Math.max(1, Math.ceil(totalItems/OVERVIEW_SIZE));
+        document.getElementById('tchibo-home-nav').innerHTML = `
+          <button class="cta" ${page<=1?'disabled':''} onclick="loadTchiboHome(${page-1})">Előző</button>
+          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
+          <button class="cta" ${page>=totalPages?'disabled':''} onclick="loadTchiboHome(${page+1})">Következő</button>`;
+      }catch(e){
+        console.error(e);
+        document.getElementById('tchibo-home-list').innerHTML =
+          '<div class="empty">Nem sikerült betölteni (Otthon).</div>';
       }
     }
 
@@ -468,79 +506,7 @@
       document.getElementById('tchibo-full-wrap').style.display = '';
     }
 
-    // ===== FŐ KERESŐ (ÖSSZES) – TELJES FEEDEN végigmegy =====
-    // (meghagyjuk az ensureAllIndex()-et az akcióblokkoknak)
-    let SEARCH_SEQ = 0;
-    function makeKey(it){
-      const raw = firstUrl(it);
-      return basePath(raw) + '|' + imgPath(it?.img||'');
-    }
-    function renderSearchResultsPaged(results){
-      const PAGE = 6;
-      const pages = [];
-      for (let i=0; i<results.length; i+=PAGE) pages.push(results.slice(i, i+PAGE));
-      const list = document.getElementById('tchibo-overview-list');
-      const nav  = document.getElementById('tchibo-overview-nav');
-      if (!pages.length){
-        list.innerHTML = '<div class="empty">Nincs találat az Összes között.</div>';
-        nav.innerHTML  = '';
-        return;
-      }
-      let cur = 1;
-      const fnName = 'all_search_pager';
-      function draw(){
-        list.innerHTML = renderCardsSimple(pages[cur-1]);
-        nav.innerHTML = `
-          <button class="cta" ${cur<=1?'disabled':''} onclick="(${fnName}).go(${cur-1})">Előző</button>
-          <span class="cta" style="pointer-events:none">${cur}/${pages.length}</span>
-          <button class="cta" ${cur>=pages.length?'disabled':''} onclick="(${fnName}).go(${cur+1})">Következő</button>
-        `;
-      }
-      window[fnName] = { go:(n)=>{ cur=n; draw(); } };
-      draw();
-    }
-    async function runAllSearchFull(q){
-      const needle = (q||'').trim().toLowerCase();
-      const listEl = document.getElementById('tchibo-overview-list');
-      const navEl  = document.getElementById('tchibo-overview-nav');
-      if (!needle){ await loadTchiboOverview(1); return; }
-
-      const mySeq = ++SEARCH_SEQ;
-      listEl.innerHTML = '<div class="empty">Keresés… (0 találat)</div>';
-      navEl.innerHTML  = '';
-
-      const meta = await getMeta();
-      const totalPages = meta.pages || 1;
-
-      const results = [];
-      const seen = new Set();
-      const match = (it)=>{
-        const t = (it?.title||'').toLowerCase();
-        const d = (it?.desc ||'').toLowerCase();
-        return t.includes(needle) || d.includes(needle);
-      };
-
-      for (let p=1; p<=totalPages; p++){
-        if (mySeq !== SEARCH_SEQ) return;
-        const pg  = await getPage(p);
-        const arr = Array.isArray(pg?.items) ? pg.items : [];
-        for (const it of arr){
-          if (!match(it)) continue;
-          const k = makeKey(it);
-          if (seen.has(k)) continue;
-          seen.add(k);
-          results.push(it);
-        }
-        if (p % 2 === 0){
-          listEl.innerHTML = results.length
-            ? renderCardsSimple(results.slice(0, 24))
-            : `<div class="empty">Keresés… (${p}/${totalPages} oldal feldolgozva, 0 találat)</div>`;
-        }
-      }
-      renderSearchResultsPaged(results);
-    }
-
-    // ===== GYORS INDEX az akcióblokkokhoz =====
+    // ===== GYORS INDEX az akciókhoz (változatlan) =====
     async function ensureAllIndex(){
       if (ALL_INDEX.length) return;
       try{
@@ -551,7 +517,77 @@
       }catch(e){ console.warn('AllIndex skip:', e); }
     }
 
-    // ===== AKCIÓ BLOKKOK =====
+    // ===== TELJES FEED KERESÉS (új – minden page-*.json átfésülése) =====
+    let SEARCH_RUN_ID = 0;
+    const MAX_RESULTS = 240; // biztonsági limit, hogy ne terheld túl a DOM-ot
+    function matchesNeedle(it, needle){
+      const t = (it?.title||'').toLowerCase();
+      const d = (it?.desc||'').toLowerCase();
+      return t.includes(needle) || d.includes(needle);
+    }
+    async function runAllSearch_FullFeed(q){
+      const needle = (q||'').trim().toLowerCase();
+      const listEl = document.getElementById('tchibo-overview-list');
+      const navEl  = document.getElementById('tchibo-overview-nav');
+      const progEl = document.getElementById('searchProgress');
+
+      if (!needle){
+        progEl.style.display = 'none';
+        await loadTchiboOverview(1);
+        return;
+      }
+
+      const myRun = ++SEARCH_RUN_ID; // leállítjuk a korábbi futást, ha új keresés indul
+      listEl.innerHTML = '<div class="card"><div class="thumb">🔎</div><div class="title">Keresés a teljes Tchibo feedben…</div></div>';
+      navEl.innerHTML = '';
+
+      try{
+        const meta = await getMeta();
+        const totalPages = meta.pages || Math.ceil((meta.total||0)/(meta.pageSize||300));
+        const seen = new Set();
+        const results = [];
+
+        progEl.style.display = 'inline-block';
+        progEl.textContent = `Keresés: 0/${totalPages} oldal…`;
+
+        for (let p=1; p<=totalPages; p++){
+          // ha közben új keresés indult, ezt megszakítjuk
+          if (myRun !== SEARCH_RUN_ID) return;
+
+          const page = await getPage(p);
+          const items = page?.items || [];
+
+          for (const it of items){
+            if (myRun !== SEARCH_RUN_ID) return;
+            if (!needle || matchesNeedle(it, needle)){
+              const key = basePath(firstUrl(it)) + '|' + imgPath(it?.img||'');
+              if (!seen.has(key)){
+                seen.add(key);
+                results.push(it);
+                if (results.length >= MAX_RESULTS) break;
+              }
+            }
+          }
+
+          progEl.textContent = `Keresés: ${p}/${totalPages} oldal… (${results.length} találat)`;
+          if (results.length >= MAX_RESULTS) break;
+        }
+
+        if (myRun !== SEARCH_RUN_ID) return;
+        progEl.style.display = 'none';
+
+        listEl.innerHTML = results.length
+          ? renderCardsSimple(results)
+          : '<div class="empty">Nincs találat az Összes között.</div>';
+        navEl.innerHTML = '';
+      }catch(e){
+        console.error(e);
+        progEl.style.display = 'none';
+        listEl.innerHTML = '<div class="empty">Hiba történt a teljes keresés közben.</div>';
+      }
+    }
+
+    // ===== AKCIÓ BLOKKOK (gyors indexről) =====
     function getDiscountNumber(it){
       if (Number.isFinite(it?.discount)) return it.discount;
       const txt = ((it?.title||'')+' '+(it?.desc||'')).toLowerCase();
@@ -611,15 +647,32 @@
       }
     }
 
+    // ===== Kategória gombok – saját szekcióra görget =====
+    document.querySelectorAll(".catbtn").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        document.querySelectorAll(".catbtn").forEach(b=>b.classList.toggle("active", b===btn));
+        const id = btn.dataset.cat;
+        const map = {
+          all: 'osszes',
+          home: 'otthon',
+          games: 'games',
+          tech: 'tech',
+          vision: 'vision',
+          travel: 'travel'
+        };
+        const targetId = map[id] || 'osszes';
+        const t = document.getElementById(targetId);
+        if(t){ t.scrollIntoView({behavior:'smooth'}); }
+      });
+    });
+
     // ===== események, indulás =====
     document.getElementById('tchibo-head-link').addEventListener('click', (e)=>{
       e.preventDefault(); showFull(); loadTchiboFull(1);
     });
 
-    // FŐ kereső → TELJES-FEED keresés
     document.getElementById('searchFormAll').addEventListener('submit', (e)=>{
-      e.preventDefault();
-      runAllSearchFull(document.getElementById('qAll').value||'');
+      e.preventDefault(); runAllSearch_FullFeed(document.getElementById('qAll').value||'');
     });
     document.getElementById('searchFormTch').addEventListener('submit', (e)=>{
       e.preventDefault(); TCH_FILTER = document.getElementById('qTch').value||''; loadTchiboFull(1);
@@ -627,8 +680,9 @@
 
     // induló töltések
     (async function init(){
-      await loadTchiboOverview(1);
-      await buildSaleBlocks();
+      await loadTchiboOverview(1); // főoldali Tchibo 6/lap
+      await loadTchiboHome(1);     // Otthon Tchibo 6/lap
+      await buildSaleBlocks();      // akciók csak főoldalon
     })();
   </script>
 </body>
