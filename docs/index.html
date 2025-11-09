@@ -125,9 +125,6 @@
     @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
 
     #searchProgress{display:none; margin:6px auto 0; font-size:12px; color:#334155; background:#fff; border:1px solid var(--border); border-radius:10px; padding:6px 10px; width:max-content}
-
-    /* Otthon alapból rejtve, hogy a Főoldalon ne duplázzon a Tchibo */
-    #otthon { display: none; }
   </style>
 </head>
 <body>
@@ -193,7 +190,6 @@
   </div>
 
   <main>
-
     <!-- ========= AKCIÓS BLOKKOK – CSAK FŐOLDALON ========= -->
     <section class="section" id="akciok">
       <h2>Akciók</h2>
@@ -223,7 +219,7 @@
       </div>
     </section>
 
-    <!-- ========= FŐOLDAL – TCHIBO (6/lap, NINCS link a 20/laphoz) ========= -->
+    <!-- ========= FŐOLDAL – TCHIBO (6/lap) ========= -->
     <section class="section" id="osszes">
       <h2>Tchibo</h2>
       <div class="grid" id="tchibo-overview-list">
@@ -548,8 +544,8 @@
       }
     }
 
-    /* ===== TAB VÁLTÁS – Főoldal <-> Otthon (fix: Otthon 'block') ===== */
-    function switchTab(tab){
+    /* ===== TAB VÁLTÁS – Főoldal <-> Otthon (async, Otthon azonnal tölt) ===== */
+    async function switchTab(tab){
       const sections = {
         akciok: document.getElementById('akciok'),
         osszes: document.getElementById('osszes'),
@@ -572,9 +568,10 @@
         document.querySelector('.catbtn[data-cat="all"]')?.classList.add('active');
         showHomeOverview();
       } else if (tab === 'home') {
-        if (sections.otthon) sections.otthon.style.display = 'block'; // << fontos: felülírja a CSS-t
+        if (sections.otthon) sections.otthon.style.display = 'block';
         document.querySelector('.catbtn[data-cat="home"]')?.classList.add('active');
         showHomeOverview();
+        await loadTchiboHome(1); // << itt garantáltan betölt
       } else {
         if (sections[tab]) sections[tab].style.display = 'block';
         document.querySelector(`.catbtn[data-cat="${tab}"]`)?.classList.add('active');
@@ -667,10 +664,10 @@
 
     // ===== indulás =====
     (async function init(){
-      switchTab('all');            // Főoldal: Akciók + Tchibo 6/lap
+      await switchTab('all');      // Főoldal: Akciók + Tchibo 6/lap
       await loadTchiboOverview(1); // Főoldal 6/lap
-      await loadTchiboHome(1);     // Otthon 6/lap (előre betöltve)
       await buildSaleBlocks();     // Akciók
+      // (Otthon tartalom akkor tölt, amikor rákattintanak)
     })();
   </script>
 </body>
