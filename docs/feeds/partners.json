@@ -2,7 +2,7 @@
   {
     "id": "tchibo",
     "name": "Tchibo",
-    "group": "otthon",
+    "group": "Otthon",
     "meta": "/feeds/tchibo/meta.json",
     "pagePattern": "/feeds/tchibo/page-{NNNN}.json",
     "deeplinkPartner": "tchibo",
