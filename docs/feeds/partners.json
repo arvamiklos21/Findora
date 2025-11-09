@@ -1,13 +1,24 @@
 {
-  "tchibo": {
-    "name": "Tchibo.hu",
-    "feed": "/feeds/tchibo/",
-    "category": "home",
-    "per_page_home": 6,
-    "per_page_full": 20,
-    "deeplink_param": "tchibo",
-    "active": true
-  },
+  "partners": [
+    {
+      "id": "tchibo",
+      "name": "Tchibo",
+      "feeds": {
+        "meta": "/feeds/tchibo/meta.json",
+        "pagePattern": "/feeds/tchibo/page-${NUM}.json",
+        "srcPageSize": 300
+      },
+      "deeplink": {
+        "partner": "tchibo" 
+      },
+      "placements": {
+        "home_overview": { "enabled": true, "page_size": 6 },
+        "otthon_overview": { "enabled": true, "page_size": 6 },
+        "otthon_full": { "enabled": true, "page_size": 20 }
+      }
+    }
+  ]
+},
   "jateksziget": {
     "name": "Játéksziget.hu",
     "feed": "/feeds/jateksziget/",
