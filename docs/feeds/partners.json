@@ -8,7 +8,7 @@
     "deeplinkPartner": "tchibo",
     "placements": {
       "home":   { "enabled": true, "pageSize": 6 },
-      "otthon": { "enabled": true, "pageSize": 6, "full": { "enabled": true, "pageSize": 20 } }
+      "Otthon": { "enabled": true, "pageSize": 6, "full": { "enabled": true, "pageSize": 20 } }
     }
   }
 ]
