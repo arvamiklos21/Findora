@@ -325,8 +325,31 @@
     }
     function firstUrl(it){ return it?.url || it?.link || it?.deeplink || ''; }
 
+    // === DEDUP: méretvariánsok összevonása, színek maradnak ===
+    function basePath(u){
+      try{ const x = new URL(u); return x.origin + x.pathname; }catch(_){}
+      return String(u||'').split('#')[0].split('?')[0];
+    }
+    function imgPath(u){
+      return String(u||'').split('#')[0].split('?')[0];
+    }
+    function dedupeBySizeKeepColor(items){
+      const seen = new Set();
+      const out = [];
+      for (const it of (items||[])){
+        const raw = firstUrl(it);
+        const key = basePath(raw) + '|' + imgPath(it?.img||'');
+        if (key && !seen.has(key)){
+          seen.add(key);
+          out.push(it);
+        }
+      }
+      return out;
+    }
+
     function renderCardsSimple(items){
-      return (items||[]).map(it=>{
+      const deduped = dedupeBySizeKeepColor(items);
+      return (deduped||[]).map(it=>{
         const raw = firstUrl(it);
         return `
           <div class="card">
@@ -413,7 +436,6 @@
             const desc = (it?.desc||'').toLowerCase();
             return name.includes(q) || desc.includes(q);
           };
-          // ha a 20-as lap nem elég a találathoz, töltsünk még kicsit
           if (!items.some(filterFn)){
             const extra = await fetchItems(0, FULL_SIZE*5);
             items = extra.filter(filterFn).slice(0, FULL_SIZE);
@@ -451,9 +473,9 @@
       if (ALL_INDEX.length) return;
       try{
         const meta = await getMeta();
-        const want = Math.min((meta.total||0), (meta.pageSize||300)*4); // kb. 4 oldalnyi gyors index
+        const want = Math.min((meta.total||0), (meta.pageSize||300)*4);
         const arr = await fetchItems(0, want || 600);
-        ALL_INDEX = arr;
+        ALL_INDEX = dedupeBySizeKeepColor(arr); // <— itt is dedup
       }catch(e){ console.warn('AllIndex skip:', e); }
     }
     async function runAllSearch(q){
@@ -464,7 +486,7 @@
         const t = (it?.title||'').toLowerCase();
         const d = (it?.desc||'').toLowerCase();
         return t.includes(needle) || d.includes(needle);
-      }).slice(0, 24); // mutassunk max 24-et
+      }).slice(0, 24);
       document.getElementById('tchibo-overview-list').innerHTML =
         res.length ? renderCardsSimple(res) : '<div class="empty">Nincs találat az Összes között.</div>';
       document.getElementById('tchibo-overview-nav').innerHTML = '';
@@ -481,7 +503,7 @@
       }
       return null;
     }
-    function paginate(arr, size){ // egyszerű kliens pager 6/lap
+    function paginate(arr, size){
       const pages = [];
       for (let i=0;i<arr.length;i+=size) pages.push(arr.slice(i,i+size));
       return pages.length ? pages : [[]];
@@ -500,7 +522,6 @@
           <button class="cta" ${cur>=pages.length?'disabled':''} onclick="(${fnName}).go(${cur+1})">Következő</button>
         `;
       }
-      // trükk: registráljuk window-ra, hogy onclick stringből is menjen
       const fnName = listElId.replace(/-/g,'_')+'_pager';
       window[fnName] = { go:(n)=>{ cur=n; draw(); } };
       draw();
