@@ -17,3 +17,22 @@
     }
   }
 ]
+{
+    "id": "regiojatek",
+    "name": "RegioJáték",
+    "group": "jatek",
+    "meta": "/feeds/regiojatek/meta.json",
+    "pagePattern": "/feeds/regiojatek/page-{NNNN}.json",
+    "deeplinkPartner": "regiojatek",
+    "placements": { "home": { "enabled": false }, "otthon": { "enabled": false } }
+  },
+  {
+    "id": "jateksziget",
+    "name": "Játéksziget",
+    "group": "jatek",
+    "meta": "/feeds/jateksziget/meta.json",
+    "pagePattern": "/feeds/jateksziget/page-{NNNN}.json",
+    "deeplinkPartner": "jateksziget",
+    "placements": { "home": { "enabled": false }, "otthon": { "enabled": false } }
+  }
+]
