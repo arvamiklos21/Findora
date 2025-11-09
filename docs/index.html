@@ -544,7 +544,7 @@
       }
     }
 
-    /* ===== TAB VÁLTÁS – Főoldal <-> Otthon (async, Otthon azonnal tölt) ===== */
+    /* ===== TAB VÁLTÁS – Főoldal <-> Otthon ===== */
     async function switchTab(tab){
       const sections = {
         akciok: document.getElementById('akciok'),
@@ -566,12 +566,13 @@
         if (sections.akciok) sections.akciok.style.display = 'block';
         if (sections.osszes) sections.osszes.style.display = 'block';
         document.querySelector('.catbtn[data-cat="all"]')?.classList.add('active');
-        showHomeOverview();
+        showHomeOverview();            // Otthon teljes nézet biztosan rejtve marad
+        await loadTchiboOverview(1);   // <<< FŐOLDAL TCHIBO 6/lap GARANTÁLTAN BETÖLT
       } else if (tab === 'home') {
         if (sections.otthon) sections.otthon.style.display = 'block';
         document.querySelector('.catbtn[data-cat="home"]')?.classList.add('active');
-        showHomeOverview();
-        await loadTchiboHome(1); // << itt garantáltan betölt
+        showHomeOverview();            // Otthonon belül áttekintő indul
+        await loadTchiboHome(1);       // Otthon Tchibo 6/lap betölt
       } else {
         if (sections[tab]) sections[tab].style.display = 'block';
         document.querySelector(`.catbtn[data-cat="${tab}"]`)?.classList.add('active');
@@ -664,10 +665,9 @@
 
     // ===== indulás =====
     (async function init(){
-      await switchTab('all');      // Főoldal: Akciók + Tchibo 6/lap
-      await loadTchiboOverview(1); // Főoldal 6/lap
+      await switchTab('all');      // Főoldal: Akciók + Tchibo 6/lap (itt már meghívjuk a loadTchiboOverview-et is)
       await buildSaleBlocks();     // Akciók
-      // (Otthon tartalom akkor tölt, amikor rákattintanak)
+      // Otthon tartalom akkor tölt, amikor rákattintanak
     })();
   </script>
 </body>
