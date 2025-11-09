@@ -125,9 +125,6 @@
     @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
 
     #searchProgress{display:none; margin:6px auto 0; font-size:12px; color:#334155; background:#fff; border:1px solid var(--border); border-radius:10px; padding:6px 10px; width:max-content}
-
-    /* Otthon alapból rejtve, hogy a Főoldalon ne duplázzon a Tchibo */
-    #otthon { display: none; }
   </style>
 </head>
 <body>
@@ -193,7 +190,6 @@
   </div>
 
   <main>
-
     <!-- ========= AKCIÓS BLOKKOK – CSAK FŐOLDALON ========= -->
     <section class="section" id="akciok">
       <h2>Akciók</h2>
@@ -223,31 +219,32 @@
       </div>
     </section>
 
-    <!-- ========= FŐOLDAL – TCHIBO (6/lap, NINCS link a 20/laphoz) ========= -->
+    <!-- ========= FŐOLDAL – PARTNER-SZEKCIÓK (partners.json alapján) ========= -->
     <section class="section" id="osszes">
-      <h2>Tchibo</h2>
-      <div class="grid" id="tchibo-overview-list">
+      <h2 id="home-partner-head">Ajánlatok</h2>
+      <div class="grid" id="home-partner-list">
         <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
       </div>
-      <div id="tchibo-overview-nav" class="grid" style="padding-top:0"></div>
+      <div id="home-partner-nav" class="grid" style="padding-top:0"></div>
     </section>
 
-    <!-- ========= OTTHON – Tchibo 6/lap (fejléc-katt → 20/lap + kereső) ========= -->
+    <!-- ========= OTTHON – PARTNER 6/lap (fejléc-katt → 20/lap + kereső) ========= -->
     <section class="section" id="otthon">
-      <h2><a href="#tchibo-full" id="tchibo-home-head-link" style="text-decoration:underline;font-weight:900;">Tchibo</a></h2>
-      <div class="grid" id="tchibo-home-list">
+      <h2><a href="#partner-full" id="home-cat-head-link" style="text-decoration:underline;font-weight:900;">Otthon</a></h2>
+
+      <div class="grid" id="home-cat-list">
         <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
       </div>
-      <div id="tchibo-home-nav" class="grid" style="padding-top:0"></div>
+      <div id="home-cat-nav" class="grid" style="padding-top:0"></div>
 
       <!-- 20/lap teljes – partner keresővel (OTTHON alatt) -->
-      <div id="tchibo-full-wrap" style="display:none; padding:12px;">
-        <form id="searchFormTch" class="searchbar" role="search" action="" style="margin:0 0 8px">
-          <input id="qTch" name="qTch" type="search" placeholder="Keresés a Tchibo termékei között…" aria-label="Keresés (Tchibo)" />
+      <div id="partner-full-wrap" style="display:none; padding:12px;">
+        <form id="searchFormPartner" class="searchbar" role="search" action="" style="margin:0 0 8px">
+          <input id="qPartner" name="qPartner" type="search" placeholder="Keresés a termékek között…" aria-label="Keresés (Partner)" />
           <button type="submit" aria-label="Keresés indítása">Keresés</button>
         </form>
-        <div class="grid" id="tchibo-full-list"></div>
-        <div id="tchibo-full-nav" class="grid" style="padding-top:0"></div>
+        <div class="grid" id="partner-full-list"></div>
+        <div id="partner-full-nav" class="grid" style="padding-top:0"></div>
       </div>
     </section>
 
@@ -313,37 +310,33 @@
       }
     })();
 
-    // ====== util ======
+    // ===== helpers & state =====
     const API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
-    const hasDl = true;
-    const tchiboDl = (u) => hasDl ? `${API_BASE}/api/dl?u=${encodeURIComponent(u)}&p=tchibo` : u;
+    const partnersUrl = '/partners.json';
 
-    const TCH_META_URL = '/feeds/tchibo/meta.json';
-    const TCH_PAGE_URL = n => `/feeds/tchibo/page-${String(n).padStart(4,'0')}.json`;
+    const PARTNERS = new Map();        // partnerId -> config (meta, pagePattern, placements...)
+    const META     = new Map();        // partnerId -> meta.json
+    const PAGES    = new Map();        // partnerId -> Map(pageKey -> items[])
+    const DL = (partner, raw) => `${API_BASE}/api/dl?u=${encodeURIComponent(raw)}&p=${partner}`;
 
-    let TCH_META=null;
-    const TCH_CACHE=new Map();
-    let ALL_INDEX = [];
-
-    function priceText(v){
-      if (Number.isFinite(v)) return v.toLocaleString('hu-HU') + ' Ft';
-      if (typeof v === 'string' && v.trim()) return v;
-      return '—';
-    }
-    function firstUrl(it){ return it?.url || it?.link || it?.deeplink || ''; }
-    function basePath(u){ try{ const x=new URL(u); return x.origin + x.pathname; }catch(_){ return String(u||'').split('#')[0].split('?')[0]; } }
-    function imgPath(u){ return String(u||'').split('#')[0].split('?')[0]; }
+    // elérési út segéd
+    const pageUrl = (partnerCfg, n) => partnerCfg.pagePattern.replace('{NNNN}', String(n).padStart(4,'0'));
+    const priceText = (v) => Number.isFinite(v) ? (v.toLocaleString('hu-HU') + ' Ft') : (typeof v==='string' && v.trim() ? v : '—');
+    const firstUrl  = (it) => it?.url || it?.link || it?.deeplink || '';
+    const basePath  = (u)=>{ try{ const x=new URL(u); return x.origin + x.pathname; }catch(_){ return String(u||'').split('#')[0].split('?')[0]; } };
+    const imgPath   = (u)=> String(u||'').split('#')[0].split('?')[0];
     function dedupeBySizeKeepColor(items){
-      const seen = new Set(), out=[];
-      for (const it of (items||[])){
+      const seen=new Set(), out=[];
+      for(const it of (items||[])){
         const key = basePath(firstUrl(it)) + '|' + imgPath(it?.img||'');
-        if (key && !seen.has(key)){ seen.add(key); out.push(it); }
+        if(key && !seen.has(key)){ seen.add(key); out.push(it); }
       }
       return out;
     }
-    const renderCardsSimple = (items)=>{
+    const renderCards = (partnerId, items)=>{
+      const cfg = PARTNERS.get(partnerId);
       const deduped = dedupeBySizeKeepColor(items);
-      return (deduped||[]).map(it=>{
+      return deduped.map(it=>{
         const raw = firstUrl(it);
         return `
           <div class="card">
@@ -352,181 +345,87 @@
             </div>
             <div class="title">${it?.title || ''}</div>
             <div class="price">${priceText(it?.price)}</div>
-            ${raw ? `<a class="cta" href="${tchiboDl(raw)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
+            ${raw ? `<a class="cta" href="${DL(cfg.deeplinkPartner, raw)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
           </div>`;
       }).join('');
     };
 
-    async function getMeta(){
-      if (TCH_META) return TCH_META;
-      const r = await fetch(TCH_META_URL, {cache:'no-cache'});
-      if(!r.ok) throw new Error('meta.json nem elérhető');
-      TCH_META = await r.json();
-      return TCH_META;
+    async function getMeta(partnerId){
+      if(META.has(partnerId)) return META.get(partnerId);
+      const cfg = PARTNERS.get(partnerId);
+      const r = await fetch(cfg.meta, {cache:'no-cache'});
+      if(!r.ok) throw new Error(`${partnerId} meta.json nem elérhető`);
+      const m = await r.json();
+      META.set(partnerId, m);
+      return m;
     }
-    async function getPage(n){
-      const key = `page-${String(n).padStart(4,'0')}`;
-      if (TCH_CACHE.has(key)) return TCH_CACHE.get(key);
-      const r = await fetch(TCH_PAGE_URL(n), {cache:'no-cache'});
-      if(!r.ok) throw new Error(`page ${key} nem elérhető`);
+    async function getPageItems(partnerId, pageNum){
+      if(!PAGES.has(partnerId)) PAGES.set(partnerId, new Map());
+      const store = PAGES.get(partnerId);
+      const key = `page-${String(pageNum).padStart(4,'0')}`;
+      if(store.has(key)) return store.get(key);
+      const cfg = PARTNERS.get(partnerId);
+      const r = await fetch(pageUrl(cfg, pageNum), {cache:'no-cache'});
+      if(!r.ok) throw new Error(`${partnerId} ${key} nem elérhető`);
       const d = await r.json();
-      TCH_CACHE.set(key, d);
-      return d;
+      const arr = d?.items || [];
+      store.set(key, arr);
+      return arr;
     }
-    async function fetchItems(offset, limit){
-      const meta = await getMeta();
+    async function fetchItems(partnerId, offset, limit){
+      const meta = await getMeta(partnerId);
       const srcPageSize = meta.pageSize || 300;
       const total = meta.total ?? (meta.pages * srcPageSize);
-      const out = [];
-      for (let i=offset; out.length<limit && i<total; i++){
+      const out=[];
+      for(let i=offset; out.length<limit && i<total; i++){
         const pageNum = Math.floor(i/srcPageSize) + 1;
         const innerIdx = i % srcPageSize;
-        const page = await getPage(pageNum);
-        const arr = page?.items || [];
-        if (innerIdx < arr.length) out.push(arr[innerIdx]);
-        if (arr.length === 0) break;
+        const arr = await getPageItems(partnerId, pageNum);
+        if(innerIdx < arr.length) out.push(arr[innerIdx]);
+        if(arr.length===0) break;
       }
       return { items: out, total };
     }
 
-    // ===== Főoldal – 6/lap =====
-    const OVERVIEW_SIZE = 6;
-    async function loadTchiboOverview(page=1){
-      try{
-        const {items, total} = await fetchItems((page-1)*OVERVIEW_SIZE, OVERVIEW_SIZE);
-        document.getElementById('tchibo-overview-list').innerHTML =
-          renderCardsSimple(items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-        const totalPages = Math.max(1, Math.ceil(total/OVERVIEW_SIZE));
-        document.getElementById('tchibo-overview-nav').innerHTML = `
-          <button class="cta" ${page<=1?'disabled':''} onclick="loadTchiboOverview(${page-1})">Előző</button>
-          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
-          <button class="cta" ${page>=totalPages?'disabled':''} onclick="loadTchiboOverview(${page+1})">Következő</button>`;
-      }catch(e){
-        console.error(e);
-        document.getElementById('tchibo-overview-list').innerHTML = '<div class="empty">Nem sikerült betölteni (áttekintő).</div>';
-      }
-    }
-
-    // ===== Otthon – 6/lap =====
-    async function loadTchiboHome(page=1){
-      try{
-        const {items, total} = await fetchItems((page-1)*OVERVIEW_SIZE, OVERVIEW_SIZE);
-        document.getElementById('tchibo-home-list').innerHTML =
-          renderCardsSimple(items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-        const totalPages = Math.max(1, Math.ceil(total/OVERVIEW_SIZE));
-        document.getElementById('tchibo-home-nav').innerHTML = `
-          <button class="cta" ${page<=1?'disabled':''} onclick="loadTchiboHome(${page-1})">Előző</button>
-          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
-          <button class="cta" ${page>=totalPages?'disabled':''} onclick="loadTchiboHome(${page+1})">Következő</button>`;
-      }catch(e){
-        console.error(e);
-        document.getElementById('tchibo-home-list').innerHTML = '<div class="empty">Nem sikerült betölteni (Otthon).</div>';
-      }
-    }
-
-    // ===== Teljes – 20/lap + partner-kereső (csak Otthon alatt) =====
-    const FULL_SIZE = 20;
-    let TCH_FILTER = '';
-    async function loadTchiboFull(page=1){
-      try{
-        const {items:chunk, total} = await (async()=>{
-          const meta = await getMeta();
-          const offset = (page-1)*FULL_SIZE;
-          const srcPageSize = meta.pageSize || 300;
-          const total = meta.total ?? (meta.pages * srcPageSize);
-          const out = [];
-          for (let i=offset; out.length<FULL_SIZE && i<total; i++){
-            const pageNum = Math.floor(i/srcPageSize) + 1;
-            const innerIdx = i % srcPageSize;
-            const pg = await getPage(pageNum);
-            const arr = pg?.items || [];
-            if (innerIdx < arr.length) out.push(arr[innerIdx]);
-            if (arr.length === 0) break;
-          }
-          return {items: out, total};
-        })();
-
-        let items = chunk;
-        if (TCH_FILTER){
-          const q = TCH_FILTER.toLowerCase();
-          const filterFn = it=>((it?.title||'')+(it?.desc||'')).toLowerCase().includes(q);
-          if (!items.some(filterFn)){
-            const {items:extra} = await fetchItems(0, FULL_SIZE*5);
-            items = extra.filter(filterFn).slice(0, FULL_SIZE);
-          }else{
-            items = items.filter(filterFn);
-          }
-        }
-        document.getElementById('tchibo-full-list').innerHTML =
-          renderCardsSimple(items) || '<div class="empty">Nincs találat.</div>';
-
-        const totalPages = Math.max(1, Math.ceil(total/FULL_SIZE));
-        document.getElementById('tchibo-full-nav').innerHTML = `
-          <button class="cta" ${page<=1?'disabled':''} onclick="loadTchiboFull(${page-1})">Előző</button>
-          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
-          <button class="cta" ${page>=totalPages?'disabled':''} onclick="loadTchiboFull(${page+1})">Következő</button>`;
-      }catch(e){
-        console.error(e);
-        document.getElementById('tchibo-full-list').innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
-      }
-    }
-
-    // ===== Otthon nézet váltásai (itt van a teljes nézet) =====
-    function showHomeOverview(){
-      document.getElementById('tchibo-home-list').parentElement.style.display = '';
-      document.getElementById('tchibo-home-nav').style.display = '';
-      document.getElementById('tchibo-full-wrap').style.display = 'none';
-    }
-    function showHomeFull(){
-      document.getElementById('tchibo-home-list').parentElement.style.display = 'none';
-      document.getElementById('tchibo-home-nav').style.display = 'none';
-      document.getElementById('tchibo-full-wrap').style.display = '';
-    }
-
-    // ===== Gyors index akciókhoz =====
-    async function ensureAllIndex(){
-      if (ALL_INDEX.length) return;
-      try{
-        const meta = await getMeta();
-        const want = Math.min((meta.total||0), (meta.pageSize||300)*4);
-        const out = [];
-        for (let i=0;i<want;i++){
-          const pageNum = Math.floor(i/(meta.pageSize||300))+1;
-          const innerIdx = i % (meta.pageSize||300);
-          const pg = await getPage(pageNum);
-          const arr = pg?.items || [];
-          if (innerIdx < arr.length) out.push(arr[innerIdx]);
-        }
-        ALL_INDEX = dedupeBySizeKeepColor(out);
-      }catch(e){ console.warn('AllIndex skip:', e); }
-    }
+    // ===== Akció blokkok (első partner feedjéből) =====
+    let ALL_INDEX = [];
     function getDiscountNumber(it){
-      if (Number.isFinite(it?.discount)) return it.discount;
+      if(Number.isFinite(it?.discount)) return it.discount;
       const txt = ((it?.title||'')+' '+(it?.desc||'')).toLowerCase();
       const m = txt.match(/-?\s?(\d{1,3})\s?%/);
       return m ? parseInt(m[1],10) : null;
     }
     function paginate(arr, size){ const pages=[]; for(let i=0;i<arr.length;i+=size) pages.push(arr.slice(i,i+size)); return pages.length?pages:[[]]; }
-    function renderPagedBlock(items, listElId, navElId){
+    function renderPagedBlock(partnerId, items, listElId, navElId){
       const PAGE=6;
       const pages = paginate(items, PAGE);
-      let cur = 1;
+      let cur=1;
       function draw(){
-        const list = document.getElementById(listElId);
-        const nav  = document.getElementById(navElId);
-        list.innerHTML = pages[cur-1].length ? renderCardsSimple(pages[cur-1]) : '<div class="empty">Sajnos nincsennek Akciók !! :(</div>';
+        const list=document.getElementById(listElId);
+        const nav =document.getElementById(navElId);
+        list.innerHTML = pages[cur-1].length ? renderCards(partnerId, pages[cur-1]) : '<div class="empty">Sajnos nincsennek Akciók !! :(</div>';
+        const fnName = listElId.replace(/-/g,'_')+'_pager';
         nav.innerHTML = `
           <button class="cta" ${cur<=1?'disabled':''} onclick="(${fnName}).go(${cur-1})">Előző</button>
           <span class="cta" style="pointer-events:none">${cur}/${pages.length}</span>
           <button class="cta" ${cur>=pages.length?'disabled':''} onclick="(${fnName}).go(${cur+1})">Következő</button>`;
+        window[fnName] = { go:(n)=>{ cur=n; draw(); } };
       }
-      const fnName = listElId.replace(/-/g,'_')+'_pager';
-      window[fnName] = { go:(n)=>{ cur=n; draw(); } };
       draw();
     }
-    async function buildSaleBlocks(){
+    async function buildSaleBlocks(defaultPartnerId){
       try{
-        await ensureAllIndex();
+        const meta = await getMeta(defaultPartnerId);
+        const want = Math.min((meta.total||0), (meta.pageSize||300)*4);
+        const out=[];
+        for(let i=0;i<want;i++){
+          const pageNum = Math.floor(i/(meta.pageSize||300))+1;
+          const innerIdx = i % (meta.pageSize||300);
+          const arr = await getPageItems(defaultPartnerId, pageNum);
+          if(innerIdx < arr.length) out.push(arr[innerIdx]);
+        }
+        ALL_INDEX = dedupeBySizeKeepColor(out);
+
         const items = ALL_INDEX;
         const in10 = items.filter(it=>{ const d=getDiscountNumber(it); return d!==null && d>=10 && d<=24; });
         const in25 = items.filter(it=>{ const d=getDiscountNumber(it); return d!==null && d>=25 && d<=49; });
@@ -535,10 +434,11 @@
           const txt=((it?.title||'')+' '+(it?.desc||'')).toLowerCase();
           return /karácsony|xmas|ünnepi|ajándék/.test(txt);
         });
-        renderPagedBlock(xmas, 'xmas-list','xmas-nav');
-        renderPagedBlock(in10, 'sale10-list','sale10-nav');
-        renderPagedBlock(in25, 'sale25-list','sale25-nav');
-        renderPagedBlock(in50, 'sale50-list','sale50-nav');
+
+        renderPagedBlock(defaultPartnerId, xmas, 'xmas-list','xmas-nav');
+        renderPagedBlock(defaultPartnerId, in10, 'sale10-list','sale10-nav');
+        renderPagedBlock(defaultPartnerId, in25, 'sale25-list','sale25-nav');
+        renderPagedBlock(defaultPartnerId, in50, 'sale50-list','sale50-nav');
       }catch(e){
         console.warn('Akció blokkok hiba', e);
         ['xmas-list','sale10-list','sale25-list','sale50-list'].forEach(id=>{
@@ -548,129 +448,213 @@
       }
     }
 
-    /* ===== TAB VÁLTÁS – Főoldal <-> Otthon (fix: Otthon 'block') ===== */
-    function switchTab(tab){
-      const sections = {
-        akciok: document.getElementById('akciok'),
-        osszes: document.getElementById('osszes'),
-        otthon: document.getElementById('otthon'),
-        games:  document.getElementById('games'),
-        tech:   document.getElementById('tech'),
-        vision: document.getElementById('vision'),
-        travel: document.getElementById('travel'),
-      };
+    // ===== UI vezérlés (tabok + elrejtés/megnyitás) =====
+    function hideAllSections(){
+      ['akciok','osszes','otthon','games','tech','vision','travel'].forEach(id=>{
+        const s=document.getElementById(id); if(s) s.style.display='none';
+      });
+      document.querySelectorAll('.catbtn').forEach(b=>b.classList.remove('active'));
+    }
+    function showHomeOverviewInOtthon(){
+      document.getElementById('home-cat-list').parentElement.style.display='';
+      document.getElementById('home-cat-nav').style.display='';
+      document.getElementById('partner-full-wrap').style.display='none';
+    }
+    function showHomeFullInOtthon(){
+      document.getElementById('home-cat-list').parentElement.style.display='none';
+      document.getElementById('home-cat-nav').style.display='none';
+      document.getElementById('partner-full-wrap').style.display='';
+    }
 
-      // mindent rejtünk
-      Object.values(sections).forEach(s => { if(s) s.style.display = 'none'; });
+    // ===== Dinamikus betöltés partners.json alapján =====
+    let DEFAULT_PARTNER = null; // akit a főoldal és az akciók is használnak (Tchibo)
 
-      // gombok aktív állapota
-      document.querySelectorAll('.catbtn').forEach(b => b.classList.remove('active'));
+    async function loadPartners(){
+      const r = await fetch(partnersUrl, {cache:'no-cache'});
+      if(!r.ok) throw new Error('partners.json nem elérhető');
+      const arr = await r.json();
+      for(const p of arr) PARTNERS.set(p.id, p);
+      // első olyan partner, akinek van home placementje, legyen a default
+      DEFAULT_PARTNER = arr.find(p=>p.placements?.home?.enabled) ?.id || arr[0]?.id || null;
+    }
 
-      if (tab === 'all') {
-        if (sections.akciok) sections.akciok.style.display = 'block';
-        if (sections.osszes) sections.osszes.style.display = 'block';
-        document.querySelector('.catbtn[data-cat="all"]')?.classList.add('active');
-        showHomeOverview();
-      } else if (tab === 'home') {
-        if (sections.otthon) sections.otthon.style.display = 'block'; // << fontos: felülírja a CSS-t
-        document.querySelector('.catbtn[data-cat="home"]')?.classList.add('active');
-        showHomeOverview();
-      } else {
-        if (sections[tab]) sections[tab].style.display = 'block';
-        document.querySelector(`.catbtn[data-cat="${tab}"]`)?.classList.add('active');
+    // ===== Rajzolók (home 6/lap, otthon 6/lap, teljes 20/lap) =====
+    async function drawHomeOverview(page=1){
+      if(!DEFAULT_PARTNER) return;
+      const cfg = PARTNERS.get(DEFAULT_PARTNER);
+      const PAGE = cfg.placements?.home?.pageSize || 6;
+      try{
+        const {items, total} = await fetchItems(DEFAULT_PARTNER, (page-1)*PAGE, PAGE);
+        document.getElementById('home-partner-head').textContent = cfg.name;
+        document.getElementById('home-partner-list').innerHTML =
+          renderCards(DEFAULT_PARTNER, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
+        const totalPages = Math.max(1, Math.ceil(total/PAGE));
+        document.getElementById('home-partner-nav').innerHTML = `
+          <button class="cta" ${page<=1?'disabled':''} onclick="drawHomeOverview(${page-1})">Előző</button>
+          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
+          <button class="cta" ${page>=totalPages?'disabled':''} onclick="drawHomeOverview(${page+1})">Következő</button>`;
+      }catch(e){
+        console.error(e);
+        document.getElementById('home-partner-list').innerHTML = '<div class="empty">Nem sikerült betölteni (Főoldal).</div>';
       }
     }
 
-    // Gombokra a tab-váltó
-    document.querySelectorAll(".catbtn").forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        const tab = btn.dataset.cat || 'all';
-        switchTab(tab);
-      });
-    });
+    async function drawOtthonOverview(page=1){
+      const partner = Array.from(PARTNERS.values()).find(p=>p.group==='otthon' && p.placements?.otthon?.enabled);
+      if(!partner) return;
+      const PAGE = partner.placements?.otthon?.pageSize || 6;
+      try{
+        const {items, total} = await fetchItems(partner.id, (page-1)*PAGE, PAGE);
+        // „Otthon” dobozban a partner neve legyen kattintható fejléc a teljes nézethez:
+        const headLink = document.getElementById('home-cat-head-link');
+        headLink.textContent = partner.name;
+        document.getElementById('home-cat-list').innerHTML =
+          renderCards(partner.id, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
+        const totalPages = Math.max(1, Math.ceil(total/PAGE));
+        document.getElementById('home-cat-nav').innerHTML = `
+          <button class="cta" ${page<=1?'disabled':''} onclick="drawOtthonOverview(${page-1})">Előző</button>
+          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
+          <button class="cta" ${page>=totalPages?'disabled':''} onclick="drawOtthonOverview(${page+1})">Következő</button>`;
+      }catch(e){
+        console.error(e);
+        document.getElementById('home-cat-list').innerHTML = '<div class="empty">Nem sikerült betölteni (Otthon).</div>';
+      }
+    }
 
-    // ===== események =====
-    // Otthon fülön a név kattintása nyitja a teljes nézetet:
-    document.getElementById('tchibo-home-head-link').addEventListener('click', (e)=>{
-      e.preventDefault(); showHomeFull(); loadTchiboFull(1);
-    });
+    let PARTNER_FILTER = '';
+    async function drawPartnerFull(page=1){
+      const partner = Array.from(PARTNERS.values()).find(p=>p.group==='otthon' && p.placements?.otthon?.full?.enabled);
+      if(!partner) return;
+      const PAGE = partner.placements?.otthon?.full?.pageSize || 20;
+      try{
+        // lapozás a nyers feeden
+        const meta = await getMeta(partner.id);
+        const offset = (page-1)*PAGE;
+        const srcPageSize = meta.pageSize || 300;
+        const total = meta.total ?? (meta.pages * srcPageSize);
+        const buf=[];
+        for(let i=offset; buf.length<PAGE && i<total; i++){
+          const pageNum = Math.floor(i/srcPageSize) + 1;
+          const innerIdx = i % srcPageSize;
+          const arr = await getPageItems(partner.id, pageNum);
+          if(innerIdx < arr.length) buf.push(arr[innerIdx]);
+          if(arr.length===0) break;
+        }
+        let items = buf;
+        if(PARTNER_FILTER){
+          const q = PARTNER_FILTER.toLowerCase();
+          const ok = it => ((it?.title||'')+(it?.desc||'')).toLowerCase().includes(q);
+          if(!items.some(ok)){
+            const {items:extra} = await fetchItems(partner.id, 0, PAGE*5);
+            items = extra.filter(ok).slice(0, PAGE);
+          }else{
+            items = items.filter(ok);
+          }
+        }
+        document.getElementById('partner-full-list').innerHTML =
+          renderCards(partner.id, items) || '<div class="empty">Nincs találat.</div>';
 
-    document.getElementById('searchFormAll').addEventListener('submit', (e)=>{
-      e.preventDefault(); runAllSearch_FullFeed(document.getElementById('qAll').value||'');
-    });
-    document.getElementById('searchFormTch').addEventListener('submit', (e)=>{
-      e.preventDefault(); TCH_FILTER = document.getElementById('qTch').value||''; loadTchiboFull(1);
-    });
+        const totalPages = Math.max(1, Math.ceil(total/PAGE));
+        document.getElementById('partner-full-nav').innerHTML = `
+          <button class="cta" ${page<=1?'disabled':''} onclick="drawPartnerFull(${page-1})">Előző</button>
+          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
+          <button class="cta" ${page>=totalPages?'disabled':''} onclick="drawPartnerFull(${page+1})">Következő</button>`;
+      }catch(e){
+        console.error(e);
+        document.getElementById('partner-full-list').innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
+      }
+    }
 
-    // ===== Teljes Tchibo keresés =====
-    let SEARCH_RUN_ID = 0;
-    const MAX_RESULTS = 240;
+    // ===== Keresők =====
     function matchesNeedle(it, needle){
-      const t = (it?.title||'').toLowerCase();
-      const d = (it?.desc||'').toLowerCase();
+      const t=(it?.title||'').toLowerCase(), d=(it?.desc||'').toLowerCase();
       return t.includes(needle) || d.includes(needle);
     }
-    async function runAllSearch_FullFeed(q){
-      const needle = (q||'').trim().toLowerCase();
-      const listEl = document.getElementById('tchibo-overview-list');
-      const navEl  = document.getElementById('tchibo-overview-nav');
-      const progEl = document.getElementById('searchProgress');
+    let SEARCH_RUN_ID = 0;
+    const MAX_RESULTS = 240;
+    async function runSearchOnDefaultPartner(q){
+      if(!DEFAULT_PARTNER) return;
+      const needle=(q||'').trim().toLowerCase();
+      const listEl=document.getElementById('home-partner-list');
+      const navEl =document.getElementById('home-partner-nav');
+      const progEl=document.getElementById('searchProgress');
+      if(!needle){ progEl.style.display='none'; await drawHomeOverview(1); return; }
 
-      if (!needle){
-        progEl.style.display = 'none';
-        await loadTchiboOverview(1);
-        return;
-      }
-
-      const myRun = ++SEARCH_RUN_ID;
-      listEl.innerHTML = '<div class="card"><div class="thumb">🔎</div><div class="title">Keresés a teljes Tchibo feedben…</div></div>';
-      navEl.innerHTML = '';
-
+      const myRun=++SEARCH_RUN_ID;
+      listEl.innerHTML='<div class="card"><div class="thumb">🔎</div><div class="title">Keresés a teljes feedben…</div></div>';
+      navEl.innerHTML='';
       try{
-        const meta = await getMeta();
+        const meta = await getMeta(DEFAULT_PARTNER);
         const totalPages = meta.pages || Math.ceil((meta.total||0)/(meta.pageSize||300));
-        const seen = new Set();
-        const results = [];
-
-        progEl.style.display = 'inline-block';
-        progEl.textContent = `Keresés: 0/${totalPages} oldal…`;
-
-        for (let p=1; p<=totalPages; p++){
-          if (myRun !== SEARCH_RUN_ID) return;
-          const page = await getPage(p);
-          const items = page?.items || [];
-          for (const it of items){
-            if (myRun !== SEARCH_RUN_ID) return;
-            if (!needle || matchesNeedle(it, needle)){
+        const seen=new Set(); const results=[];
+        progEl.style.display='inline-block'; progEl.textContent=`Keresés: 0/${totalPages} oldal…`;
+        for(let p=1;p<=totalPages;p++){
+          if(myRun!==SEARCH_RUN_ID) return;
+          const arr = await getPageItems(DEFAULT_PARTNER, p);
+          for(const it of arr){
+            if(myRun!==SEARCH_RUN_ID) return;
+            if(matchesNeedle(it, needle)){
               const key = basePath(firstUrl(it)) + '|' + imgPath(it?.img||'');
-              if (!seen.has(key)){
-                seen.add(key);
-                results.push(it);
-                if (results.length >= MAX_RESULTS) break;
+              if(!seen.has(key)){
+                seen.add(key); results.push(it);
+                if(results.length>=MAX_RESULTS) break;
               }
             }
           }
-          progEl.textContent = `Keresés: ${p}/${totalPages} oldal… (${results.length} találat)`;
-          if (results.length >= MAX_RESULTS) break;
+          progEl.textContent=`Keresés: ${p}/${totalPages} oldal… (${results.length} találat)`;
+          if(results.length>=MAX_RESULTS) break;
         }
-
-        if (myRun !== SEARCH_RUN_ID) return;
-        progEl.style.display = 'none';
-        listEl.innerHTML = results.length ? renderCardsSimple(results) : '<div class="empty">Nincs találat.</div>';
-        navEl.innerHTML = '';
+        if(myRun!==SEARCH_RUN_ID) return;
+        progEl.style.display='none';
+        listEl.innerHTML = results.length ? renderCards(DEFAULT_PARTNER, results) : '<div class="empty">Nincs találat.</div>';
       }catch(e){
         console.error(e);
-        progEl.style.display = 'none';
+        progEl.style.display='none';
         listEl.innerHTML = '<div class="empty">Hiba történt a keresés közben.</div>';
       }
     }
 
+    // ===== Tab kezelés =====
+    async function switchTab(tab){
+      hideAllSections();
+      if(tab==='all'){
+        document.getElementById('akciok').style.display='block';
+        document.getElementById('osszes').style.display='block';
+        document.querySelector('.catbtn[data-cat="all"]')?.classList.add('active');
+        showHomeOverviewInOtthon(); // biztos: teljes nézet rejtve
+        await drawHomeOverview(1);
+      }else if(tab==='home'){
+        document.getElementById('otthon').style.display='block';
+        document.querySelector('.catbtn[data-cat="home"]')?.classList.add('active');
+        showHomeOverviewInOtthon();
+        await drawOtthonOverview(1);
+      }else{
+        const sec=document.getElementById(tab); if(sec) sec.style.display='block';
+        document.querySelector(`.catbtn[data-cat="${tab}"]`)?.classList.add('active');
+      }
+    }
+
+    // ===== események =====
+    document.getElementById('home-cat-head-link').addEventListener('click', (e)=>{
+      e.preventDefault(); showHomeFullInOtthon(); drawPartnerFull(1);
+    });
+    document.getElementById('searchFormAll').addEventListener('submit', (e)=>{
+      e.preventDefault(); runSearchOnDefaultPartner(document.getElementById('qAll').value||'');
+    });
+    document.getElementById('searchFormPartner').addEventListener('submit', (e)=>{
+      e.preventDefault(); PARTNER_FILTER = document.getElementById('qPartner').value||''; drawPartnerFull(1);
+    });
+
     // ===== indulás =====
     (async function init(){
-      switchTab('all');            // Főoldal: Akciók + Tchibo 6/lap
-      await loadTchiboOverview(1); // Főoldal 6/lap
-      await loadTchiboHome(1);     // Otthon 6/lap (előre betöltve)
-      await buildSaleBlocks();     // Akciók
+      // betöltjük a partnereket
+      await loadPartners();
+
+      // akciók a default partnerből (pl. Tchibo)
+      if(DEFAULT_PARTNER) await buildSaleBlocks(DEFAULT_PARTNER);
+
+      // alap nézet: Főoldal
+      await switchTab('all');
     })();
   </script>
 </body>
