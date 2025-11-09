@@ -1,4 +1,4 @@
-[
+{
   {
     "id": "tchibo",
     "name": "Tchibo",
@@ -11,7 +11,7 @@
       "otthon": { "enabled": true, "pageSize": 6, "full": { "enabled": true, "pageSize": 20 } }
     }
   }
-]
+}
 ,
   "jateksziget": {
     "name": "Játéksziget.hu",
