@@ -1,24 +1,18 @@
-{
-  "partners": [
-    {
-      "id": "tchibo",
-      "name": "Tchibo",
-      "feeds": {
-        "meta": "/feeds/tchibo/meta.json",
-        "pagePattern": "/feeds/tchibo/page-${NUM}.json",
-        "srcPageSize": 300
-      },
-      "deeplink": {
-        "partner": "tchibo" 
-      },
-      "placements": {
-        "home_overview": { "enabled": true, "page_size": 6 },
-        "otthon_overview": { "enabled": true, "page_size": 6 },
-        "otthon_full": { "enabled": true, "page_size": 20 }
-      }
+[
+  {
+    "id": "tchibo",
+    "name": "Tchibo",
+    "group": "otthon",
+    "meta": "/feeds/tchibo/meta.json",
+    "pagePattern": "/feeds/tchibo/page-{NNNN}.json",
+    "deeplinkPartner": "tchibo",
+    "placements": {
+      "home":   { "enabled": true, "pageSize": 6 },
+      "otthon": { "enabled": true, "pageSize": 6, "full": { "enabled": true, "pageSize": 20 } }
     }
-  ]
-},
+  }
+]
+,
   "jateksziget": {
     "name": "Játéksziget.hu",
     "feed": "/feeds/jateksziget/",
