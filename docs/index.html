@@ -118,6 +118,12 @@
     .title{font-weight:800;margin:10px;font-size:14px;line-height:1.25;text-align:center;color:#475569}
     .empty{padding:18px;color:#64748b}
 
+    /* +++ Tchibo kártya apróságok +++ */
+    .desc{margin:0 12px;color:#64748b;font-size:12px;text-align:center}
+    .muted{margin:8px 12px 0;color:#94a3b8;font-size:12px;text-align:center}
+    .price{margin:6px 12px 0;font-weight:900;text-align:center}
+    .cta{display:inline-block;margin:10px auto 12px;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;padding:8px 12px;border-radius:10px;font-weight:800;text-decoration:none}
+
     footer{text-align:center;padding:20px;background:#0b3a6a;color:#fff;margin-top:24px;font-size:14px;border-top:1px solid rgba(255,255,255,.15)}
 
     .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1}
@@ -233,16 +239,19 @@
       </aside>
 
       <section id="content">
-        <!-- Üres állapot / később ide jönnek a dinamikus szekciók -->
+        <!-- OTTHON / TCHIBO LISTA -->
         <section class="section" id="otthon">
-          <h2>Otthon</h2>
-          <div class="grid">
-            <div class="card"><div class="thumb">🏠</div><div class="title">Hamarosan termékek…</div></div>
-            <div class="card"><div class="thumb">🧹</div><div class="title">Készül az új feed</div></div>
-            <div class="card"><div class="thumb">🧺</div><div class="title">Gyors betöltés, stabil működés</div></div>
-            <div class="card"><div class="thumb">🪑</div><div class="title">Reszponzív rács</div></div>
+          <h2>Otthon – <a href="#tchibo-full" id="tchibo-head-link" style="text-decoration:underline;font-weight:900;">Tchibo</a> ajánlatok</h2>
+
+          <!-- Áttekintő (6/lap) -->
+          <div class="grid" id="tchibo-overview-list">
+            <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
           </div>
-          <div class="empty">A partnerblokkok jelenleg ki vannak kapcsolva (reset mód). Következő lépés: statikus JSON feed + partner.html.</div>
+          <div id="tchibo-overview-nav" class="grid" style="padding-top:0"></div>
+
+          <!-- Teljes nézet (20/lap) – ugyanazon az oldalon -->
+          <div class="grid" id="tchibo-full-list" style="display:none"></div>
+          <div id="tchibo-full-nav" class="grid" style="padding-top:0; display:none"></div>
         </section>
 
         <section class="section" id="akciok">
@@ -338,6 +347,127 @@
       const val = document.getElementById('q').value.trim();
       if(!val) return;
       alert('A kereső akkor aktiválódik, ha a partnerfeedek vissza vannak kötve. Keresett kifejezés: '+val);
+    });
+  </script>
+
+  <!-- ===== TCHIBO FEED (6/lap → fejléc katt: 20/lap) ===== -->
+  <script>
+    const API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
+    const tchiboDl = u => `${API_BASE}/api/dl?u=${encodeURIComponent(u)}&p=tchibo`;
+
+    const TCH_META_URL = '/feeds/tchibo/meta.json';
+    const TCH_PAGE_URL = n => `/feeds/tchibo/page-${String(n).padStart(4,'0')}.json`;
+
+    let TCH_META = null;
+    const TCH_CACHE = new Map();
+
+    async function getMeta(){
+      if (TCH_META) return TCH_META;
+      const r = await fetch(TCH_META_URL, {cache:'no-cache'});
+      if (!r.ok) throw new Error('meta.json nem elérhető');
+      TCH_META = await r.json();
+      return TCH_META;
+    }
+    async function getPage(n){
+      const key = `page-${String(n).padStart(4,'0')}`;
+      if (TCH_CACHE.has(key)) return TCH_CACHE.get(key);
+      const r = await fetch(TCH_PAGE_URL(n), {cache:'no-cache'});
+      if (!r.ok) throw new Error(`page ${key} nem elérhető`);
+      const d = await r.json();
+      TCH_CACHE.set(key, d);
+      return d;
+    }
+
+    async function fetchItems(offset, limit){
+      const meta = await getMeta();
+      const srcPageSize = meta.pageSize || 300;
+      const total = meta.total ?? (meta.pages * srcPageSize);
+      const out = [];
+      for (let i = offset; out.length < limit && i < total; i++){
+        const pageNum = Math.floor(i/srcPageSize) + 1;
+        const innerIdx = i % srcPageSize;
+        const page = await getPage(pageNum);
+        const arr = page?.items || [];
+        if (innerIdx < arr.length) out.push(arr[innerIdx]);
+        if (arr.length === 0) break;
+      }
+      return out;
+    }
+
+    function renderCards(root, items){
+      root.innerHTML = (items||[]).map(it => `
+        <div class="card">
+          <div class="thumb">
+            ${it?.img ? `<img src="${it.img}" alt="" loading="lazy" style="max-width:100%;max-height:100%">` : '🛍️'}
+          </div>
+          <div class="title">${it?.title || ''}</div>
+          ${it?.desc ? `<div class="desc">${it.desc}</div>` : ''}
+          <div class="muted">Tchibo${Number.isFinite(it?.discount)?` • −${it.discount}%`:''}</div>
+          <div class="price">${Number.isFinite(it?.price) ? (it.price.toLocaleString('hu-HU') + ' Ft') : (it?.price || '')}</div>
+          ${it?.url ? `<a class="cta" href="${tchiboDl(it.url)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
+        </div>
+      `).join('') || '<div class="card"><div class="thumb">🙃</div><div class="title">Nincs megjeleníthető termék.</div></div>';
+    }
+
+    // 6/lap áttekintő
+    const OVERVIEW_SIZE = 6;
+    async function loadTchiboOverview(page=1){
+      try{
+        const meta = await getMeta();
+        const total = meta.total ?? (meta.pages * (meta.pageSize||300));
+        const offset = (page-1) * OVERVIEW_SIZE;
+        const items = await fetchItems(offset, OVERVIEW_SIZE);
+        renderCards(document.getElementById('tchibo-overview-list'), items);
+        const totalPages = Math.max(1, Math.ceil(total / OVERVIEW_SIZE));
+        document.getElementById('tchibo-overview-nav').innerHTML = `
+          <button class="chip" ${page<=1?'disabled':''} onclick="loadTchiboOverview(${page-1})">Előző</button>
+          <span class="chip">${page}/${totalPages}</span>
+          <button class="chip" ${page>=totalPages?'disabled':''} onclick="loadTchiboOverview(${page+1})">Következő</button>`;
+      }catch(e){
+        console.error(e);
+        document.getElementById('tchibo-overview-list').innerHTML =
+          '<div class="card"><div class="thumb">⚠️</div><div class="title">Nem sikerült betölteni (áttekintő).</div></div>';
+      }
+    }
+
+    // 20/lap teljes
+    const FULL_SIZE = 20;
+    async function loadTchiboFull(page=1){
+      try{
+        const meta = await getMeta();
+        const total = meta.total ?? (meta.pages * (meta.pageSize||300));
+        const offset = (page-1) * FULL_SIZE;
+        const items = await fetchItems(offset, FULL_SIZE);
+        renderCards(document.getElementById('tchibo-full-list'), items);
+        const totalPages = Math.max(1, Math.ceil(total / FULL_SIZE));
+        document.getElementById('tchibo-full-nav').innerHTML = `
+          <button class="chip" ${page<=1?'disabled':''} onclick="loadTchiboFull(${page-1})">Előző</button>
+          <span class="chip">${page}/${totalPages}</span>
+          <button class="chip" ${page>=totalPages?'disabled':''} onclick="loadTchiboFull(${page+1})">Következő</button>`;
+      }catch(e){
+        console.error(e);
+        document.getElementById('tchibo-full-list').innerHTML =
+          '<div class="card"><div class="thumb">⚠️</div><div class="title">Nem sikerült betölteni (teljes).</div></div>';
+      }
+    }
+
+    function showOverview(){
+      document.getElementById('tchibo-overview-list').style.display = '';
+      document.getElementById('tchibo-overview-nav').style.display = '';
+      document.getElementById('tchibo-full-list').style.display = 'none';
+      document.getElementById('tchibo-full-nav').style.display = 'none';
+    }
+    function showFull(){
+      document.getElementById('tchibo-overview-list').style.display = 'none';
+      document.getElementById('tchibo-overview-nav').style.display = 'none';
+      document.getElementById('tchibo-full-list').style.display = '';
+      document.getElementById('tchibo-full-nav').style.display = '';
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const link = document.getElementById('tchibo-head-link');
+      if (link) link.addEventListener('click', (e)=>{ e.preventDefault(); showFull(); loadTchiboFull(1); });
+      showOverview(); loadTchiboOverview(1);
     });
   </script>
 </body>
