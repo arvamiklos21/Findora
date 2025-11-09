@@ -12,23 +12,3 @@
     }
   }
 ]
-,
-  "jateksziget": {
-    "name": "Játéksziget.hu",
-    "feed": "/feeds/jateksziget/",
-    "category": "games",
-    "per_page_home": 6,
-    "per_page_full": 20,
-    "deeplink_param": "jateksziget",
-    "active": true
-  },
-  "regiojatek": {
-    "name": "RegioJáték.hu",
-    "feed": "/feeds/regiojatek/",
-    "category": "games",
-    "per_page_home": 6,
-    "per_page_full": 20,
-    "deeplink_param": "regiojatek",
-    "active": true
-  }
-}
