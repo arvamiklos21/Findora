@@ -191,7 +191,7 @@
 
   <main>
 
-    <!-- ========= AKCIÓS BLOKKOK – CSAK TCHIBO ALAPJÁN ========= -->
+    <!-- ========= AKCIÓS BLOKKOK – CSAK FŐOLDALON ========= -->
     <section class="section" id="akciok">
       <h2>Akciók</h2>
 
@@ -220,16 +220,24 @@
       </div>
     </section>
 
-    <!-- ========= FŐOLDAL – TCHIBO (6/lap, fejléc-katt → 20/lap) ========= -->
+    <!-- ========= FŐOLDAL – TCHIBO (6/lap, NINCS link a 20/laphoz) ========= -->
     <section class="section" id="osszes">
-      <!-- VÁLTOZTATÁS: előtag elhagyva -->
-      <h2><a href="#tchibo-full" id="tchibo-head-link" style="text-decoration:underline;font-weight:900;">Tchibo</a></h2>
+      <h2>Tchibo</h2>
       <div class="grid" id="tchibo-overview-list">
         <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
       </div>
       <div id="tchibo-overview-nav" class="grid" style="padding-top:0"></div>
+    </section>
 
-      <!-- 20/lap teljes – partner keresővel -->
+    <!-- ========= OTTHON – Tchibo 6/lap (fejléc-katt → 20/lap + kereső) ========= -->
+    <section class="section" id="otthon">
+      <h2><a href="#tchibo-full" id="tchibo-home-head-link" style="text-decoration:underline;font-weight:900;">Tchibo</a></h2>
+      <div class="grid" id="tchibo-home-list">
+        <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
+      </div>
+      <div id="tchibo-home-nav" class="grid" style="padding-top:0"></div>
+
+      <!-- 20/lap teljes – partner keresővel (OTTHON alatt) -->
       <div id="tchibo-full-wrap" style="display:none; padding:12px;">
         <form id="searchFormTch" class="searchbar" role="search" action="" style="margin:0 0 8px">
           <input id="qTch" name="qTch" type="search" placeholder="Keresés a Tchibo termékei között…" aria-label="Keresés (Tchibo)" />
@@ -240,17 +248,7 @@
       </div>
     </section>
 
-    <!-- ========= OTTHON – Tchibo 6/lap (akció nélkül) ========= -->
-    <section class="section" id="otthon">
-      <!-- VÁLTOZTATÁS: előtag elhagyva -->
-      <h2>Tchibo</h2>
-      <div class="grid" id="tchibo-home-list">
-        <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
-      </div>
-      <div id="tchibo-home-nav" class="grid" style="padding-top:0"></div>
-    </section>
-
-    <!-- A többi kategória szekció most rejtett, hogy ne legyen üres keret -->
+    <!-- A többi kategória szekció rejtve, hogy ne legyen üres keret -->
     <section class="section" id="games" style="display:none"></section>
     <section class="section" id="tech" style="display:none"></section>
     <section class="section" id="vision" style="display:none"></section>
@@ -423,7 +421,7 @@
       }
     }
 
-    // ===== Teljes – 20/lap + partner-kereső =====
+    // ===== Teljes – 20/lap + partner-kereső (csak Otthon alatt) =====
     const FULL_SIZE = 20;
     let TCH_FILTER = '';
     async function loadTchiboFull(page=1){
@@ -469,14 +467,16 @@
         document.getElementById('tchibo-full-list').innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
       }
     }
-    function showOverview(){
-      document.getElementById('tchibo-overview-list').parentElement.style.display = '';
-      document.getElementById('tchibo-overview-nav').style.display = '';
+
+    // ===== Otthon nézet váltásai (itt van a teljes nézet) =====
+    function showHomeOverview(){
+      document.getElementById('tchibo-home-list').parentElement.style.display = '';
+      document.getElementById('tchibo-home-nav').style.display = '';
       document.getElementById('tchibo-full-wrap').style.display = 'none';
     }
-    function showFull(){
-      document.getElementById('tchibo-overview-list').parentElement.style.display = 'none';
-      document.getElementById('tchibo-overview-nav').style.display = 'none';
+    function showHomeFull(){
+      document.getElementById('tchibo-home-list').parentElement.style.display = 'none';
+      document.getElementById('tchibo-home-nav').style.display = 'none';
       document.getElementById('tchibo-full-wrap').style.display = '';
     }
 
@@ -556,9 +556,12 @@
     });
 
     // ===== események =====
-    document.getElementById('tchibo-head-link').addEventListener('click', (e)=>{
-      e.preventDefault(); showFull(); loadTchiboFull(1);
+    // Főoldalon NINCS link a teljes nézethez, így itt nem kezelünk kattintást
+    // Otthon fülön a név kattintása nyitja a teljes nézetet:
+    document.getElementById('tchibo-home-head-link').addEventListener('click', (e)=>{
+      e.preventDefault(); showHomeFull(); loadTchiboFull(1);
     });
+
     document.getElementById('searchFormAll').addEventListener('submit', (e)=>{
       e.preventDefault(); runAllSearch_FullFeed(document.getElementById('qAll').value||'');
     });
@@ -631,9 +634,10 @@
 
     // ===== indulás =====
     (async function init(){
+      showHomeOverview();          // biztos ami biztos: a teljes nézet rejtve indul
       await loadTchiboOverview(1); // Főoldal: Tchibo 6/lap
       await loadTchiboHome(1);     // Otthon: Tchibo 6/lap
-      await buildSaleBlocks();     // Akciók: Tchibo alapján
+      await buildSaleBlocks();     // Akciók: csak Főoldal
     })();
   </script>
 </body>
