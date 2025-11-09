@@ -125,6 +125,9 @@
     @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
 
     #searchProgress{display:none; margin:6px auto 0; font-size:12px; color:#334155; background:#fff; border:1px solid var(--border); border-radius:10px; padding:6px 10px; width:max-content}
+
+    /* >>> ÚJ: Otthon alapból rejtve, hogy a Főoldalon ne duplázzon a Tchibo <<< */
+    #otthon { display: none; }
   </style>
 </head>
 <body>
@@ -545,18 +548,51 @@
       }
     }
 
-    // ===== Kategória gombok – görgetés =====
+    /* ===== TAB VÁLTÁS – Főoldal <-> Otthon (MEGOLDJA A DUPLÁZÁST) ===== */
+    function switchTab(tab){
+      const sections = {
+        akciok: document.getElementById('akciok'),
+        osszes: document.getElementById('osszes'),
+        otthon: document.getElementById('otthon'),
+        games:  document.getElementById('games'),
+        tech:   document.getElementById('tech'),
+        vision: document.getElementById('vision'),
+        travel: document.getElementById('travel'),
+      };
+
+      // mindent rejtünk
+      Object.values(sections).forEach(s => { if(s) s.style.display = 'none'; });
+
+      // gombok aktív állapota
+      document.querySelectorAll('.catbtn').forEach(b => b.classList.remove('active'));
+
+      if (tab === 'all') {
+        // Főoldal: Akciók + Tchibo 6/lap
+        if (sections.akciok) sections.akciok.style.display = '';
+        if (sections.osszes) sections.osszes.style.display = '';
+        document.querySelector('.catbtn[data-cat="all"]')?.classList.add('active');
+        showHomeOverview(); // biztos ami biztos: a teljes nézet rejtve marad
+      } else if (tab === 'home') {
+        // Otthon „aloldal”: csak ez látszik
+        if (sections.otthon) sections.otthon.style.display = '';
+        document.querySelector('.catbtn[data-cat="home"]')?.classList.add('active');
+        showHomeOverview(); // Otthonon belül az áttekintő induljon
+      } else {
+        // többi menü (most amúgy rejtve)
+        if (sections[tab]) sections[tab].style.display = '';
+        document.querySelector(`.catbtn[data-cat="${tab}"]`)?.classList.add('active');
+      }
+    }
+
+    // Gombokra a tab-váltó
     document.querySelectorAll(".catbtn").forEach(btn=>{
-      btn.addEventListener("click",()=>{
-        document.querySelectorAll(".catbtn").forEach(b=>b.classList.toggle("active", b===btn));
-        const map = { all:'osszes', home:'otthon', games:'games', tech:'tech', vision:'vision', travel:'travel' };
-        const t = document.getElementById(map[btn.dataset.cat] || 'osszes');
-        if(t){ t.scrollIntoView({behavior:'smooth'}); }
+      btn.addEventListener("click", ()=>{
+        const tab = btn.dataset.cat || 'all';
+        switchTab(tab);
       });
     });
 
     // ===== események =====
-    // Főoldalon NINCS link a teljes nézethez, így itt nem kezelünk kattintást
     // Otthon fülön a név kattintása nyitja a teljes nézetet:
     document.getElementById('tchibo-home-head-link').addEventListener('click', (e)=>{
       e.preventDefault(); showHomeFull(); loadTchiboFull(1);
@@ -634,9 +670,10 @@
 
     // ===== indulás =====
     (async function init(){
-      showHomeOverview();          // biztos ami biztos: a teljes nézet rejtve indul
+      // Tabok: induláskor Főoldal (Akciók + Tchibo 6/lap), Otthon rejtve
+      switchTab('all');
       await loadTchiboOverview(1); // Főoldal: Tchibo 6/lap
-      await loadTchiboHome(1);     // Otthon: Tchibo 6/lap
+      await loadTchiboHome(1);     // Otthon: Tchibo 6/lap (előre betöltjük)
       await buildSaleBlocks();     // Akciók: csak Főoldal
     })();
   </script>
