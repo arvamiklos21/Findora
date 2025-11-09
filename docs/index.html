@@ -143,9 +143,9 @@
 
       <div class="gift-row" aria-hidden="true">
         <div class="gift"><div class="bow"></div></div>
-        <div class="gift style1" style="transform:rotate(-4deg)"><div class="bow"></div></div>
-        <div class="gift style2" style="transform:rotate(2deg)"><div class="bow"></div></div>
-        <div class="gift style3" style="transform:rotate(-6deg)"><div class="bow"></div></div>
+        <div class="gift" style="transform:rotate(-4deg)"><div class="bow"></div></div>
+        <div class="gift" style="transform:rotate(2deg)"><div class="bow"></div></div>
+        <div class="gift" style="transform:rotate(-6deg)"><div class="bow"></div></div>
       </div>
 
       <div class="promo" role="note">🎄 Ünnepi hangulat, friss ajánlatokkal! – A partnerek statikus feedről töltenek, gyors betöltéssel.</div>
@@ -311,17 +311,15 @@
 
     // ===== helpers & state =====
     const API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
-    const partnersUrl = '/feeds/partners.json'; // ABSZOLÚT útvonal (docs/feeds/partners.json -> /feeds/partners.json a weben)
+    const partnersUrl = '/feeds/partners.json'; // ABSZOLÚT útvonal
 
-    const PARTNERS = new Map();  // partnerId -> config
-    const META     = new Map();  // partnerId -> meta.json tartalma
-    const PAGES    = new Map();  // partnerId -> Map(pageKey -> items[])
+    const PARTNERS = new Map();
+    const META     = new Map();
+    const PAGES    = new Map();
     const DL = (partner, raw) => `${API_BASE}/api/dl?u=${encodeURIComponent(raw)}&p=${partner}`;
 
-    // Az „Otthon” aktuális partnere (teljes nézethez is ezt használjuk)
     let CURRENT_OTTHON_PARTNER = null;
 
-    // elérési út segéd
     const pageUrl = (partnerCfg, n) => partnerCfg.pagePattern.replace('{NNNN}', String(n).padStart(4,'0'));
     const priceText = (v) => Number.isFinite(v) ? (v.toLocaleString('hu-HU') + ' Ft') : (typeof v==='string' && v.trim() ? v : '—');
     const firstUrl  = (it) => it?.url || it?.link || it?.deeplink || '';
@@ -389,7 +387,7 @@
       return { items: out, total };
     }
 
-    // ===== Akció blokkok (első partner feedjéből) =====
+    // ===== Akció blokkok =====
     let ALL_INDEX = [];
     function getDiscountNumber(it){
       if(Number.isFinite(it?.discount)) return it.discount;
@@ -450,7 +448,7 @@
       }
     }
 
-    // ===== UI vezérlés (tabok + elrejtés/megnyitás) =====
+    // ===== UI vezérlés =====
     function hideAllSections(){
       ['akciok','osszes','otthon','games','tech','vision','travel'].forEach(id=>{
         const s=document.getElementById(id); if(s) s.style.display='none';
@@ -468,8 +466,7 @@
       document.getElementById('partner-full-wrap').style.display='';
     }
 
-    // ===== Dinamikus betöltés partners.json alapján =====
-    let DEFAULT_PARTNER = null; // akit a főoldal és az akciók is használnak (Tchibo)
+    let DEFAULT_PARTNER = null;
 
     async function loadPartners(){
       const r = await fetch(partnersUrl, {cache:'no-cache'});
@@ -479,7 +476,7 @@
       DEFAULT_PARTNER = arr.find(p=>p.placements?.home?.enabled)?.id || arr[0]?.id || null;
     }
 
-    // ===== Rajzolók (home 6/lap, otthon 6/lap, teljes 20/lap) =====
+    // ===== Rajzolók =====
     async function drawHomeOverview(page=1){
       if(!DEFAULT_PARTNER) return;
       const cfg = PARTNERS.get(DEFAULT_PARTNER);
@@ -504,13 +501,12 @@
       const partner = Array.from(PARTNERS.values()).find(p=>p.group==='otthon' && p.placements?.otthon?.enabled);
       if(!partner) return;
 
-      CURRENT_OTTHON_PARTNER = partner; // fontos: ezt fogjuk használni a teljes nézethez
+      CURRENT_OTTHON_PARTNER = partner;
 
       const PAGE = partner.placements?.otthon?.pageSize || 6;
       try{
         const {items, total} = await fetchItems(partner.id, (page-1)*PAGE, PAGE);
 
-        // Fejléc kattinthatóság beállítás
         const headLink = document.getElementById('home-cat-head-link');
         headLink.textContent = partner.name;
         const canFull = !!partner.placements?.otthon?.full?.enabled;
@@ -633,7 +629,7 @@
         document.getElementById('akciok').style.display='block';
         document.getElementById('osszes').style.display='block';
         document.querySelector('.catbtn[data-cat="all"]')?.classList.add('active');
-        showHomeOverviewInOtthon(); // biztos: teljes nézet rejtve
+        showHomeOverviewInOtthon();
         await drawHomeOverview(1);
       }else if(tab==='home'){
         document.getElementById('otthon').style.display='block';
@@ -647,8 +643,13 @@
     }
 
     // ===== események =====
+    // Kategóriagombok bekötése a switchTab-hoz
+    document.querySelectorAll('.categories .catbtn').forEach(btn=>{
+      btn.addEventListener('click', ()=>switchTab(btn.dataset.cat));
+    });
+
     document.getElementById('home-cat-head-link').addEventListener('click', (e)=>{
-      const canFull = !!CURRENT_OTTHON_PARTNER?.placements?.otthon?.full?.enabled;
+      const canFull = !!(CURRENT_OTTHON_PARTNER && CURRENT_OTTHON_PARTNER.placements?.otthon?.full?.enabled);
       if(!canFull){ e.preventDefault(); return; }
       e.preventDefault();
       showHomeFullInOtthon();
@@ -663,9 +664,9 @@
 
     // ===== indulás =====
     (async function init(){
-      await loadPartners();                       // partnerek betöltése
-      if(DEFAULT_PARTNER) await buildSaleBlocks(DEFAULT_PARTNER); // akció blokkok
-      await switchTab('all');                     // alap nézet: Főoldal
+      await loadPartners();
+      if(DEFAULT_PARTNER) await buildSaleBlocks(DEFAULT_PARTNER);
+      await switchTab('all');
     })();
   </script>
 </body>
