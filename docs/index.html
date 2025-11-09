@@ -112,17 +112,16 @@
     .section h2{font-size:18px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:linear-gradient(90deg,#eef6ff,#fff)}
 
     .grid{display:flex; flex-wrap:wrap; gap:12px; padding:12px}
-    .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; height:300px; transition:transform .18s ease, box-shadow .18s ease; min-width:220px; flex:1 1 calc(25% - 12px); max-width:calc(25% - 12px)}
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; /*height:300px;*/ min-width:220px; flex:1 1 calc(25% - 12px); max-width:calc(25% - 12px)}
     .card:hover{transform:translateY(-3px); box-shadow:0 14px 26px rgba(2,6,23,.16)}
     .thumb{height:130px;background:#eef2f7;display:flex;align-items:center;justify-content:center}
     .title{font-weight:800;margin:10px;font-size:14px;line-height:1.25;text-align:center;color:#475569}
     .empty{padding:18px;color:#64748b}
 
-    /* +++ Tchibo kártya apróságok +++ */
-    .desc{margin:0 12px;color:#64748b;font-size:12px;text-align:center}
-    .muted{margin:8px 12px 0;color:#94a3b8;font-size:12px;text-align:center}
-    .price{margin:6px 12px 0;font-weight:900;text-align:center}
-    .cta{display:inline-block;margin:10px auto 12px;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;padding:8px 12px;border-radius:10px;font-weight:800;text-decoration:none}
+    /* Tchibo kártya – csak név + ár + gomb */
+    .muted{display:none}
+    .price{margin:6px 12px 0; font-weight:900; text-align:center}
+    .cta{display:inline-block; margin:10px auto 12px; background:linear-gradient(90deg,var(--brand),var(--brand2)); color:#fff; padding:8px 12px; border-radius:10px; font-weight:800; text-decoration:none}
 
     footer{text-align:center;padding:20px;background:#0b3a6a;color:#fff;margin-top:24px;font-size:14px;border-top:1px solid rgba(255,255,255,.15)}
 
@@ -239,9 +238,9 @@
       </aside>
 
       <section id="content">
-        <!-- OTTHON / TCHIBO LISTA -->
-        <section class="section" id="otthon">
-          <h2>Otthon – <a href="#tchibo-full" id="tchibo-head-link" style="text-decoration:underline;font-weight:900;">Tchibo</a> ajánlatok</h2>
+        <!-- ========= ÖSSZES – TCHIBO (itt jelenik meg) ========= -->
+        <section class="section" id="osszes">
+          <h2>Összes – <a href="#tchibo-full" id="tchibo-head-link" style="text-decoration:underline;font-weight:900;">Tchibo</a></h2>
 
           <!-- Áttekintő (6/lap) -->
           <div class="grid" id="tchibo-overview-list">
@@ -252,6 +251,17 @@
           <!-- Teljes nézet (20/lap) – ugyanazon az oldalon -->
           <div class="grid" id="tchibo-full-list" style="display:none"></div>
           <div id="tchibo-full-nav" class="grid" style="padding-top:0; display:none"></div>
+        </section>
+
+        <!-- ===== OTTHON – itt NEM jelenik meg Tchibo ===== -->
+        <section class="section" id="otthon">
+          <h2>Otthon</h2>
+          <div class="grid">
+            <div class="card"><div class="thumb">🏠</div><div class="title">Hamarosan termékek…</div></div>
+            <div class="card"><div class="thumb">🧹</div><div class="title">Készül az új feed</div></div>
+            <div class="card"><div class="thumb">🧺</div><div class="title">Gyors betöltés, stabil működés</div></div>
+            <div class="card"><div class="thumb">🪑</div><div class="title">Reszponzív rács</div></div>
+          </div>
         </section>
 
         <section class="section" id="akciok">
@@ -294,11 +304,11 @@
     })();
 
     // Vissza a tetejére gomb
-    (function(){ 
-      const btn = document.getElementById('toTop'); 
-      window.addEventListener('scroll', ()=>{ 
-        if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show'); 
-      }); 
+    (function(){
+      const btn = document.getElementById('toTop');
+      window.addEventListener('scroll', ()=>{
+        if (window.scrollY > 600) btn.classList.add('show'); else btn.classList.remove('show');
+      });
       btn.addEventListener('click', ()=>window.scrollTo({top:0,behavior:'smooth'}));
     })();
 
@@ -330,13 +340,13 @@
       }
     })();
 
-    // Kategória gombok – most csak görgetnek/állapotot jeleznek
+    // Kategória gombok – most görgetnek/állapotot jeleznek
     document.querySelectorAll(".catbtn").forEach(btn=>{
       btn.addEventListener("click",()=>{
         document.querySelectorAll(".catbtn").forEach(b=>b.classList.toggle("active", b===btn));
         const id = btn.dataset.cat;
-        if(id==="all") { window.scrollTo({top:0,behavior:'smooth'}); return; }
-        const target = document.getElementById(id==='home'?'otthon':(id==='games'?'akciok':'')); 
+        if(id==="all") { const t=document.getElementById('osszes'); if(t){ t.scrollIntoView({behavior:'smooth'}); } return; }
+        const target = document.getElementById(id==='home'?'otthon':(id==='games'?'akciok':''));
         if(target) target.scrollIntoView({behavior:'smooth'});
       });
     });
@@ -350,7 +360,7 @@
     });
   </script>
 
-  <!-- ===== TCHIBO FEED (6/lap → fejléc katt: 20/lap) ===== -->
+  <!-- ===== TCHIBO FEED (ÖSSZES: 6/lap → fejléc katt: 20/lap) ===== -->
   <script>
     const API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
     const tchiboDl = u => `${API_BASE}/api/dl?u=${encodeURIComponent(u)}&p=tchibo`;
@@ -394,19 +404,29 @@
       return out;
     }
 
+    function priceText(v){
+      if (Number.isFinite(v)) return v.toLocaleString('hu-HU') + ' Ft';
+      if (typeof v === 'string' && v.trim()) return v;
+      return '—';
+    }
+
+    function firstUrl(it){
+      return it?.url || it?.link || it?.deeplink || '';
+    }
+
     function renderCards(root, items){
-      root.innerHTML = (items||[]).map(it => `
+      root.innerHTML = (items||[]).map(it => {
+        const raw = firstUrl(it);
+        return `
         <div class="card">
           <div class="thumb">
             ${it?.img ? `<img src="${it.img}" alt="" loading="lazy" style="max-width:100%;max-height:100%">` : '🛍️'}
           </div>
           <div class="title">${it?.title || ''}</div>
-          ${it?.desc ? `<div class="desc">${it.desc}</div>` : ''}
-          <div class="muted">Tchibo${Number.isFinite(it?.discount)?` • −${it.discount}%`:''}</div>
-          <div class="price">${Number.isFinite(it?.price) ? (it.price.toLocaleString('hu-HU') + ' Ft') : (it?.price || '')}</div>
-          ${it?.url ? `<a class="cta" href="${tchiboDl(it.url)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
-        </div>
-      `).join('') || '<div class="card"><div class="thumb">🙃</div><div class="title">Nincs megjeleníthető termék.</div></div>';
+          <div class="price">${priceText(it?.price)}</div>
+          ${raw ? `<a class="cta" href="${tchiboDl(raw)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
+        </div>`;
+      }).join('') || '<div class="card"><div class="thumb">🙃</div><div class="title">Nincs megjeleníthető termék.</div></div>';
     }
 
     // 6/lap áttekintő
@@ -465,8 +485,16 @@
     }
 
     document.addEventListener('DOMContentLoaded', ()=>{
+      // „Összes” gomb görgessen az összes szekcióra
+      const allBtn = document.querySelector('.catbtn[data-cat="all"]');
+      if (allBtn) allBtn.addEventListener('click', ()=>{
+        const t=document.getElementById('osszes');
+        if (t) t.scrollIntoView({behavior:'smooth'});
+      });
+
       const link = document.getElementById('tchibo-head-link');
       if (link) link.addEventListener('click', (e)=>{ e.preventDefault(); showFull(); loadTchiboFull(1); });
+
       showOverview(); loadTchiboOverview(1);
     });
   </script>
