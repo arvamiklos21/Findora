@@ -91,7 +91,7 @@
     .searchbar input{min-width:220px;max-width:360px;flex:1;padding-left:36px;background:#fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="%2399a1ad"><path d="M21 20l-5.6-5.6a7 7 0 10-1.4 1.4L20 21l1-1zM10 16a6 6 0 110-12 6 6 0 010 12z"/></svg>') no-repeat 10px center;background-size:18px 18px; border:1px solid var(--border)}
     .searchbar button{background:linear-gradient(90deg,var(--brand),var(--brand2));color:#ffffff;font-weight:800;cursor:pointer;box-shadow:0 8px 18px rgba(0,119,255,.18)}
 
-    /* nav gombok */
+    /* mini nav */
     .nav-mini{position:fixed;right:12px;bottom:70px;display:flex;gap:8px;z-index:60}
     .nav-mini button{background:#ffffff;border:1px solid #e2e8f0;border-radius:999px;padding:8px 12px;font-weight:800;box-shadow:0 8px 22px rgba(2,6,23,.22);cursor:pointer}
 
@@ -103,8 +103,22 @@
     .section h2{font-size:18px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:linear-gradient(90deg,#eef6ff,#fff)}
 
     .grid{display:flex; flex-wrap:wrap; gap:12px; padding:12px}
-    .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; min-width:220px; flex:1 1 calc(25% - 12px); max-width:calc(25% - 12px)}
+    .card{
+      background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden;
+      display:flex; flex-direction:column; min-width:220px;
+      flex:1 1 calc(25% - 12px); max-width:calc(25% - 12px)
+    }
     .card:hover{transform:translateY(-3px); box-shadow:0 14px 26px rgba(2,6,23,.16)}
+    @media (max-width:900px){
+      .card{ flex:1 1 calc(33.333% - 12px); max-width:calc(33.333% - 12px); }
+    }
+    @media (max-width:640px){
+      .card{ flex:1 1 calc(50% - 12px); max-width:calc(50% - 12px); }
+    }
+    @media (max-width:420px){
+      .card{ flex:1 1 100%; max-width:100%; }
+    }
+
     .thumb{height:130px;background:#eef2f7;display:flex;align-items:center;justify-content:center}
     .title{font-weight:800;margin:10px;font-size:14px;line-height:1.25;text-align:center;color:#475569}
     .price{margin:6px 12px 0; font-weight:900; text-align:center}
@@ -137,9 +151,9 @@
 
       <div class="gift-row" aria-hidden="true">
         <div class="gift"><div class="bow"></div></div>
-        <div class="gift" style="transform:rotate(-4deg)"><div class="bow"></div></div>
-        <div class="gift" style="transform:rotate(2deg)"><div class="bow"></div></div>
-        <div class="gift" style="transform:rotate(-6deg)"><div class="bow"></div></div>
+        <div class="gift style-1" style="transform:rotate(-4deg)"><div class="bow"></div></div>
+        <div class="gift style-2" style="transform:rotate(2deg)"><div class="bow"></div></div>
+        <div class="gift style-3" style="transform:rotate(-6deg)"><div class="bow"></div></div>
       </div>
 
       <div class="promo" role="note">🎄 Ünnepi hangulat, friss ajánlatokkal! – A partnerek statikus feedről töltenek, gyors betöltéssel.</div>
@@ -335,7 +349,7 @@
 
     let TCH_META = null;
     const TCH_CACHE = new Map();     // page cache
-    let ALL_INDEX = [];              // akció- és gyorskereső-index (csak a főoldali gyorsításra)
+    let ALL_INDEX = [];              // akció- és gyorskereső-index (csak a főoldali gyorsításhoz)
 
     function priceText(v){
       if (Number.isFinite(v)) return v.toLocaleString('hu-HU') + ' Ft';
@@ -466,7 +480,6 @@
 
         let items = await fetchItems(offset, FULL_SIZE);
 
-        // szűrés partner-keresőből
         if (TCH_FILTER){
           const q = TCH_FILTER.toLowerCase();
           const filterFn = it=>{
@@ -506,7 +519,7 @@
       document.getElementById('tchibo-full-wrap').style.display = '';
     }
 
-    // ===== GYORS INDEX az akciókhoz (változatlan) =====
+    // ===== GYORS INDEX akciókhoz =====
     async function ensureAllIndex(){
       if (ALL_INDEX.length) return;
       try{
@@ -517,9 +530,9 @@
       }catch(e){ console.warn('AllIndex skip:', e); }
     }
 
-    // ===== TELJES FEED KERESÉS (új – minden page-*.json átfésülése) =====
+    // ===== TELJES FEED KERESÉS (minden page-*.json átfésülése) =====
     let SEARCH_RUN_ID = 0;
-    const MAX_RESULTS = 240; // biztonsági limit, hogy ne terheld túl a DOM-ot
+    const MAX_RESULTS = 240;
     function matchesNeedle(it, needle){
       const t = (it?.title||'').toLowerCase();
       const d = (it?.desc||'').toLowerCase();
@@ -537,7 +550,7 @@
         return;
       }
 
-      const myRun = ++SEARCH_RUN_ID; // leállítjuk a korábbi futást, ha új keresés indul
+      const myRun = ++SEARCH_RUN_ID;
       listEl.innerHTML = '<div class="card"><div class="thumb">🔎</div><div class="title">Keresés a teljes Tchibo feedben…</div></div>';
       navEl.innerHTML = '';
 
@@ -551,7 +564,6 @@
         progEl.textContent = `Keresés: 0/${totalPages} oldal…`;
 
         for (let p=1; p<=totalPages; p++){
-          // ha közben új keresés indult, ezt megszakítjuk
           if (myRun !== SEARCH_RUN_ID) return;
 
           const page = await getPage(p);
@@ -647,19 +659,46 @@
       }
     }
 
+    // ===== partners.json integráció =====
+    // Opcionális fájl a gyökérben: /partners.json
+    // Példa:
+    // {
+    //   "tchibo": { "osszes": true, "otthon": true },
+    //   "showAkciok": true
+    // }
+    const PARTNERS_URL = '/partners.json';
+    async function loadPartnerConfig(){
+      try{
+        const r = await fetch(PARTNERS_URL, {cache:'no-cache'});
+        if(!r.ok) throw new Error('partners.json nincs');
+        return await r.json();
+      }catch(_){
+        // Alapértelmezés – Tchibo a főoldalon és az Otthonban is, Akciók be
+        return { tchibo:{osszes:true, otthon:true}, showAkciok:true };
+      }
+    }
+    function applyPartnerConfig(cfg){
+      const showOsszes = cfg?.tchibo?.osszes !== false;
+      const showOtthon = cfg?.tchibo?.otthon !== false;
+      const showAkciok = cfg?.showAkciok !== false;
+
+      const secOsszes = document.getElementById('osszes');
+      const secOtthon = document.getElementById('otthon');
+      const secAkciok = document.getElementById('akciok');
+
+      if (secOsszes) secOsszes.style.display = showOsszes ? '' : 'none';
+      if (secOtthon) secOtthon.style.display = showOtthon ? '' : 'none';
+      if (secAkciok) secAkciok.style.display = showAkciok ? '' : 'none';
+
+      return { showOsszes, showOtthon, showAkciok };
+    }
+
     // ===== Kategória gombok – saját szekcióra görget =====
     document.querySelectorAll(".catbtn").forEach(btn=>{
       btn.addEventListener("click",()=>{
         document.querySelectorAll(".catbtn").forEach(b=>b.classList.toggle("active", b===btn));
         const id = btn.dataset.cat;
-        const map = {
-          all: 'osszes',
-          home: 'otthon',
-          games: 'games',
-          tech: 'tech',
-          vision: 'vision',
-          travel: 'travel'
-        };
+        const map = { all:'osszes', home:'otthon', games:'games', tech:'tech', vision:'vision', travel:'travel' };
         const targetId = map[id] || 'osszes';
         const t = document.getElementById(targetId);
         if(t){ t.scrollIntoView({behavior:'smooth'}); }
@@ -678,11 +717,18 @@
       e.preventDefault(); TCH_FILTER = document.getElementById('qTch').value||''; loadTchiboFull(1);
     });
 
-    // induló töltések
+    // induló töltések – partners.json alapján csak azt töltjük, ami látszik
     (async function init(){
-      await loadTchiboOverview(1); // főoldali Tchibo 6/lap
-      await loadTchiboHome(1);     // Otthon Tchibo 6/lap
-      await buildSaleBlocks();      // akciók csak főoldalon
+      const cfg = await loadPartnerConfig();
+      const vis = applyPartnerConfig(cfg);
+
+      if (vis.showOsszes){
+        await loadTchiboOverview(1); // főoldali Tchibo 6/lap
+        await buildSaleBlocks();     // akciók csak főoldalon
+      }
+      if (vis.showOtthon){
+        await loadTchiboHome(1);     // Otthon Tchibo 6/lap
+      }
     })();
   </script>
 </body>
