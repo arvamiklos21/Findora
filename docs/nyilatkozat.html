@@ -1,4 +1,76 @@
-#impresszum
-#adatvedelem
-#jogi-nyilatkozat
-#affiliate-nyilatkozat
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Nyilatkozatok – Findora</title>
+  <meta name="robots" content="noindex,follow" />
+</head>
+<body>
+<main>
+  <!-- MINI STÍLUS CSAK EHHEZ AZ OLDALHOZ (betöltve az indexbe is működik) -->
+  <style>
+    .legal { max-width: 900px; margin: 0 auto; padding: 8px 0 0; font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:#0f172a; }
+    .legal h1 { font-size: 22px; margin: 8px 0 12px; font-weight: 800; }
+    .legal h2 { font-size: 18px; margin: 22px 0 8px; font-weight: 800; padding-top: 6px; }
+    .legal p, .legal li { color: #334155; }
+    .legal .muted { color:#64748b; font-size: 12px; }
+    .legal .pillnav { display:flex; flex-wrap:wrap; gap:8px; margin: 8px 0 16px; }
+    .legal .pillnav a { text-decoration:none; border:1px solid #e2e8f0; background:#fff; padding:6px 10px; border-radius:999px; font-weight:700; display:inline-block; }
+    .legal .box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px; }
+    .legal ul { margin: 6px 0 6px 18px; }
+    /* sticky header miatti ugrás-kompenzáció */
+    :target::before { content:""; display:block; height:64px; margin-top:-64px; }
+  </style>
+
+  <section class="legal" aria-label="Nyilatkozatok">
+    <h1>Nyilatkozatok</h1>
+    <div class="pillnav">
+      <a href="#impresszum">Impresszum</a>
+      <a href="#adatvedelem">Adatvédelem</a>
+      <a href="#jogi-nyilatkozat">Szabályok / Jogi nyilatkozat</a>
+      <a href="#affiliate-nyilatkozat">Affiliate nyilatkozat</a>
+    </div>
+    <p class="muted">Utolsó frissítés: 2025-11-10</p>
+
+    <!-- ====== IMPRESSZUM – TESZT TARTALOM ====== -->
+    <h2 id="impresszum">Impresszum</h2>
+    <div class="box">
+      <p><strong>Szolgáltatás neve:</strong> Findora – Ajánlatgyűjtő oldal</p>
+      <p><strong>Üzemeltető:</strong> <em>(Ide írd a nevet / céget)</em></p>
+      <p><strong>Székhely / levelezési cím:</strong> <em>(opcionális – ha nem szeretnéd nyilvánosan, hagyd üresen)</em></p>
+      <p><strong>Elérhetőség (e-mail):</strong> <strong>IDE JÖN AZ EMAIL CÍM</strong></p>
+      <p><strong>Cégjegyzékszám / egyéni vállalkozói nyilvántartási szám:</strong> <em>(opcionális)</em></p>
+      <p><strong>Adószám / EU ÁFA:</strong> <em>(opcionális – nem kötelező nyilvánosan feltüntetni)</em></p>
+      <p><strong>Üzemeltetés helye:</strong> Magyarország, EU</p>
+      <p class="muted">Megjegyzés: a Findora nem webáruház; az oldalon bemutatott termékek megvásárlása az adott partner weboldalán történik.</p>
+    </div>
+
+    <!-- ====== ADATVÉDELEM – COOKIE NÉLKÜL ====== -->
+    <h2 id="adatvedelem">Adatvédelem</h2>
+    <div class="box">
+      <p><strong>Sütik:</strong> Az oldal jelenleg nem használ saját cookie-t és nem futtat analitikát.</p>
+      <p><strong>Személyes adatok:</strong> Az oldalon nem gyűjtünk, nem kezelünk és nem tárolunk személyes adatot (nincs regisztráció, bejelentkezés, hírlevél).</p>
+      <p><strong>Külső linkek:</strong> A „Megnézem” gombok partner-oldalakra vezetnek. A partnerek saját adatkezelése eltérő lehet; kérünk, ott olvasd el a tájékoztatókat.</p>
+      <p><strong>Kapcsolatfelvétel:</strong> Ha e-mailben írsz nekünk, az üzeneted tartalmát csak a válaszadás idejéig kezeljük, majd töröljük.</p>
+    </div>
+
+    <!-- ====== JOGI NYILATKOZAT ====== -->
+    <h2 id="jogi-nyilatkozat">Szabályok / Jogi nyilatkozat</h2>
+    <div class="box">
+      <ul>
+        <li>A Findora információs jellegű, a feltüntetett árak/akciók a partnereknél változhatnak.</li>
+        <li>Nem vállalunk felelősséget a külső oldalakon bekövetkező tartalmi változásokért vagy hibákért.</li>
+        <li>Védjegyek, logók és termékfotók a megfelelő jogosultak tulajdonát képezik.</li>
+      </ul>
+    </div>
+
+    <!-- ====== AFFILIATE ====== -->
+    <h2 id="affiliate-nyilatkozat">Affiliate nyilatkozat</h2>
+    <div class="box">
+      <p>A Findora affiliate hivatkozásokat használ. Ha egy partnerhez vezető linkre kattintasz és vásárolsz, az oldal <strong>kis jutalékot</strong> kaphat. Ez <strong>nem növeli</strong> a termék árát számodra.</p>
+      <p>Jelenlegi partnerhálózat: <strong>Dognet</strong>. A konkrét vásárlás a partner weboldalán, az ő feltételeik szerint történik.</p>
+    </div>
+  </section>
+</main>
+</body>
+</html>
