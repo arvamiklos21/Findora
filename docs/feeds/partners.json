@@ -40,5 +40,19 @@
         "full": { "enabled": true,  "pageSize": 20 }
       }
     }
+  },
+  {
+  "id": "decathlon",
+  "name": "Decathlon",
+  "group": "Sport",
+  "meta": "feeds/decathlon/meta.json",
+  "pagePattern": "feeds/decathlon/page-{NNNN}.json",
+  "deeplinkPartner": "decathlon",
+  "placements": {
+    "home":  { "enabled": true, "pageSize": 6 },
+    "games": { "enabled": true,  "pageSize": 6,
+      "full": { "enabled": true,  "pageSize": 20 }
+    }
   }
+}
 ]
