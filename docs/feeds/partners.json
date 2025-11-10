@@ -6,8 +6,12 @@
     "meta": "/feeds/tchibo/meta.json",
     "pagePattern": "/feeds/tchibo/page-{NNNN}.json",
     "deeplinkPartner": "tchibo",
-    "placements": { "home": { "enabled": true, "pageSize": 6 }, "otthon": { "enabled": true, "pageSize": 6, "full": { "enabled": true, "pageSize": 20 }
-      
+    "placements": {
+      "home":   { "enabled": true, "pageSize": 6 },
+      "otthon": { "enabled": true, "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
   },
   {
     "id": "jateksziget",
@@ -16,10 +20,12 @@
     "meta": "/feeds/jateksziget/meta.json",
     "pagePattern": "/feeds/jateksziget/page-{NNNN}.json",
     "deeplinkPartner": "jateksziget",
-    "home":   { "enabled": true, "pageSize": 6 },
+    "placements": {
+      "home":   { "enabled": true, "pageSize": 6 },
       "games": { "enabled": true, "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
-        
+      }
+    }
   },
   {
     "id": "regiojatek",
@@ -28,8 +34,11 @@
     "meta": "/feeds/regiojatek/meta.json",
     "pagePattern": "/feeds/regiojatek/page-{NNNN}.json",
     "deeplinkPartner": "regiojatek",
-    "home":   { "enabled": true, "pageSize": 6 },
+    "placements": {
+      "home":   { "enabled": true, "pageSize": 6 },
       "games": { "enabled": true, "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
-  },
+      }
+    }
+  }
 ]
