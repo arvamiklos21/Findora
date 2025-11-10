@@ -316,10 +316,8 @@
 
     // ===== helpers & state =====
     var API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
-    // FONTOS: relatív alapértelmezett, hogy al-útvonalon is működjön
-    var partnersUrl = 'feeds/partners.json';
+    var partnersUrl = 'feeds/partners.json'; // relatív, hogy al-útvonalon is működjön
 
-    // --- DEBUG UI: látható hibaüzenet banner ---
     function showFatal(msg) {
       var b = document.createElement('div');
       b.style.cssText = "position:fixed;left:12px;bottom:12px;max-width:90vw;background:#fee2e2;color:#7f1d1d;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;z-index:9999;font:14px/1.3 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.15)";
@@ -327,7 +325,6 @@
       document.body.appendChild(b);
     }
 
-    // --- partners.json elérés intelligens feloldása + cache törés ---
     var partnersCandidates = [
       partnersUrl,
       (location.pathname.replace(/\/[^/]*$/, '') || '') + '/feeds/partners.json',
@@ -336,21 +333,17 @@
 
     function fetchFirstAvailable(urls){
       var v = Date.now();
-      return new Promise(async function(resolve, reject){
-        for (var i=0; i<urls.length; i++){
+      return new Promise(function(resolve, reject){
+        (function loop(i){
+          if(i>=urls.length) return reject(new Error('Egyik partners.json útvonal sem érhető el: ' + urls.join(', ')));
           var u = urls[i];
-          try{
-            var r = await fetch(u + (u.indexOf('?')>-1 ? '&' : '?') + 'v=' + v, { cache:'no-cache' });
-            if(r.ok){
-              var j = await r.json();
-              return resolve(j);
-            }
-            console.warn('partners.json próbálva, státusz:', r.status, u);
-          }catch(e){
-            console.warn('partners.json fetch hiba:', u, e);
-          }
-        }
-        reject(new Error('Egyik partners.json útvonal sem érhető el: ' + urls.join(', ')));
+          fetch(u + (u.indexOf('?')>-1 ? '&' : '?') + 'v=' + v, { cache:'no-cache' })
+            .then(function(r){
+              if(!r.ok){ console.warn('partners.json státusz:', r.status, u); return loop(i+1); }
+              return r.json().then(resolve);
+            })
+            .catch(function(){ console.warn('partners.json fetch hiba:', u); loop(i+1); });
+        })(0);
       });
     }
 
@@ -364,13 +357,12 @@
 
     var HOME_PARTNERS = [];
     var DEFAULT_PARTNER = null;
-    var SCAN_PAGES_FOR_SALES = 2; // akció-blokkoknál partnerenként ennyi forrást olvasunk
+    var SCAN_PAGES_FOR_SALES = 2;
 
     function pageUrl(partnerCfg, n){ return partnerCfg.pagePattern.replace('{NNNN}', String(n).padStart(4,'0')); }
-    function priceText(v){ return Number.isFinite(v) ? (v.toLocaleString('hu-HU') + ' Ft') : ((typeof v==='string' && v.trim()) ? v : '—'); }
+    function priceText(v){ return (typeof v==='number' && isFinite(v)) ? (v.toLocaleString('hu-HU') + ' Ft') : ((typeof v==='string' && v.trim()) ? v : '—'); }
     function firstUrl(it){ return (it && (it.url || it.link || it.deeplink)) || ''; }
 
-    // ===== ERŐS DEDUP mindenhol =====
     var SIZE_TOKENS = /(?:\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\b|\b\d{2}(?:-\d{2})?\b)/gi;
     function normalizeTitleNoSize(t){
       if(!t) return '';
@@ -403,7 +395,6 @@
       return out;
     }
 
-    // ===== oldalbetöltők =====
     async function getMeta(partnerId){
       if(META.has(partnerId)) return META.get(partnerId);
       var cfg = PARTNERS.get(partnerId);
@@ -445,7 +436,6 @@
       return dedupeStrong(acc).slice(0, want);
     }
 
-    // ===== kártya render =====
     function renderCards(partnerId, items){
       var cfg = PARTNERS.get(partnerId);
       var list = dedupeStrong(items);
@@ -464,7 +454,6 @@
       }).join('');
     }
 
-    // több partnerből kevert lista
     function renderMixedCards(itemsWithPid){
       var list = itemsWithPid || [];
       return list.map(function(r){
@@ -485,7 +474,6 @@
       }).join('');
     }
 
-    // Aktív partnerek
     function enabledPartners(){
       var arr = Array.from(PARTNERS.values());
       return arr.filter(function(p){
@@ -497,9 +485,9 @@
       });
     }
 
-    // ===== Akció blokkok – minden partner =====
+    // ===== Akció blokkok – all partners =====
     function getDiscountNumber(it){
-      if(it && Number.isFinite(it.discount)) return it.discount;
+      if(it && typeof it.discount==='number' && isFinite(it.discount)) return it.discount;
       var txt = ((it && it.title ? it.title : '') + ' ' + (it && it.desc ? it.desc : '')).toLowerCase();
       var m = txt.match(/-?\s?(\d{1,3})\s?%/);
       return m ? parseInt(m[1],10) : null;
@@ -533,8 +521,7 @@
     async function buildSaleBlocksAll(){
       try{
         var actives = enabledPartners();
-        var collected = []; // {pid,item}
-
+        var collected = [];
         for(var i=0;i<actives.length;i++){
           var p = actives[i];
           var meta = await getMeta(p.id);
@@ -547,7 +534,6 @@
             }
           }
         }
-
         var in10 = collected.filter(function(r){ var d=getDiscountNumber(r.item); return d!==null && d>=10 && d<=24; });
         var in25 = collected.filter(function(r){ var d=getDiscountNumber(r.item); return d!==null && d>=25 && d<=49; });
         var in50 = collected.filter(function(r){ var d=getDiscountNumber(r.item); return d!==null && d>=50;  });
@@ -556,7 +542,6 @@
           var txt=((it && it.title ? it.title : '')+' '+(it && it.desc ? it.desc : '')).toLowerCase();
           return /karácsony|xmas|ünnepi|ajándék/.test(txt);
         });
-
         renderPagedBlockMixed(xmas, 'xmas-list','xmas-nav');
         renderPagedBlockMixed(in10, 'sale10-list','sale10-nav');
         renderPagedBlockMixed(in25, 'sale25-list','sale25-nav');
@@ -657,9 +642,13 @@
     }
     async function drawOtthonOverview(page){
       page = page || 1;
-      var partner = Array.from(PARTNERS.values()).find(function(p){
-        return p.group==='otthon' && p.placements && p.placements.otthon && p.placements.otthon.enabled;
-      });
+      // FIX: Otthon fülön TCHIBO legyen az elsődleges, ha létezik
+      var tch = PARTNERS.get('tchibo');
+      var partner = tch && tch.placements && tch.placements.otthon && tch.placements.otthon.enabled
+        ? tch
+        : Array.from(PARTNERS.values()).find(function(p){
+            return p.group==='otthon' && p.placements && p.placements.otthon && p.placements.otthon.enabled;
+          });
       if(!partner){
         document.getElementById('home-cat-list').innerHTML =
           '<div class="empty">Nincs „Otthon” partner konfigurálva a partners.json-ban.</div>';
@@ -692,7 +681,7 @@
       }
     }
 
-    // ===== Teljes nézet (Otthon) =====
+    // ===== Teljes nézet (Otthon – Tchibo 20/lap) =====
     var PARTNER_FILTER = '';
     async function drawPartnerFull(page){
       page = page || 1;
@@ -711,7 +700,7 @@
         if(PARTNER_FILTER){
           var q = PARTNER_FILTER.toLowerCase();
           var ok = function(it){
-            return (((it && it.title) ? it.title : '') + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
+            return (((it && it.title) ? it.title : '') + ' ' + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
           };
           if(!items.some(ok)){
             var buffer = [];
@@ -807,7 +796,7 @@
         if(state.filter){
           var q = state.filter.toLowerCase();
           var ok = function(it){
-            return (((it && it.title) ? it.title : '') + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
+            return (((it && it.title) ? it.title : '') + ' ' + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
           };
           if(!items.some(ok)){
             var buffer = [];
