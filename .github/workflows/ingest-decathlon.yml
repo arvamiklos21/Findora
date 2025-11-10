@@ -1,1 +1,78 @@
+name: ingest-decathlon
 
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */2 * * *"  # 2 óránként (UTC)
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ingest-decathlon-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: "pip"
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Build Decathlon feed pages
+        env:
+          FEED_DECATHLON_URL: ${{ secrets.FEED_DECATHLON_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${FEED_DECATHLON_URL:-}" ]; then
+            echo "::error title=Missing secret::FEED_DECATHLON_URL nincs beállítva (Settings → Secrets → Actions)."
+            exit 1
+          fi
+
+          mkdir -p docs/feeds/decathlon
+          python -u scripts/build_decathlon.py
+
+          # Szigorú sanity check
+          test -s docs/feeds/decathlon/meta.json
+          test -s docs/feeds/decathlon/page-0001.json
+
+          if command -v jq >/dev/null 2>&1; then
+            jq -e '.items | length >= 0' docs/feeds/decathlon/page-0001.json >/dev/null
+            jq -e '.pages >= 1 and .total >= 0' docs/feeds/decathlon/meta.json >/dev/null
+            echo "Sanity check (first item):"
+            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/decathlon/page-0001.json || true
+          else
+            head -c 800 docs/feeds/decathlon/page-0001.json || true
+          fi
+
+          ls -la docs/feeds/decathlon
+
+      - name: Commit changes
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git add docs/feeds/decathlon
+          git commit -m "decathlon: update feed pages" || echo "No changes"
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: bot/update-decathlon
+          delete-branch: true
+          title: "decathlon: update feed pages"
+          commit-message: "decathlon: update feed pages"
+          body: |
+            Automated update of Decathlon feed pages (JSON pagination).
