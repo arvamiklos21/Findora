@@ -363,11 +363,25 @@
     function priceText(v){ return (typeof v==='number' && isFinite(v)) ? (v.toLocaleString('hu-HU') + ' Ft') : ((typeof v==='string' && v.trim()) ? v : '—'); }
     function firstUrl(it){ return (it && (it.url || it.link || it.deeplink)) || ''; }
 
-    var SIZE_TOKENS = /(?:\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\b|\b\d{2}(?:-\d{2})?\b)/gi;
+    // ===== ERŐS DEDUP mindenhol =====
+    var SIZE_TOKENS = new RegExp([
+      '\\\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\\\b',            // klasszikus ruhaméretek
+      '\\\\b(?:\\\\d{2,3}[\\\\/-]\\\\d{2,3})\\\\b',               // 36/38, 39-45
+      '\\\\bEU\\\\s?\\\\d{2,3}\\\\b',                             // EU 42
+      '[\\\\(\\\\[]\\\\s*(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|EU\\\\s?\\\\d{2,3}|\\\\d{2,3}[\\\\/-]\\\\d{2,3})\\\\s*[\\\\)\\\\]]',
+      '\\\\b(?:méret|meret)\\\\b\\\\s*[:\\\\-]?\\\\s*[A-Za-z0-9\\\\/-]+'
+    ].join('|'), 'gi');
+
     function normalizeTitleNoSize(t){
       if(!t) return '';
-      return String(t).replace(SIZE_TOKENS,'').replace(/\s{2,}/g,' ').trim().toLowerCase();
+      return String(t)
+        .replace(SIZE_TOKENS,' ')
+        .replace(/\\b(?:szín|szin|color)\\s*[:\\-]?\\s*[a-záéíóöőúüű0-9\\-]+/gi, ' ') // szín-információ ne befolyásolja a cím-hash-t
+        .replace(/\\s{2,}/g,' ')
+        .trim()
+        .toLowerCase();
     }
+
     function basePath(u){
       try{ var x=new URL(u); return x.origin + x.pathname; }catch(_){ return String(u||'').split('#')[0].split('?')[0]; }
     }
@@ -417,23 +431,40 @@
       store.set(key, arr);
       return arr;
     }
+
+    // VISSZATÖLTŐS gyűjtés: mindig pontosan want egyedi darabot próbál visszaadni
     async function collectUnique(partnerId, offset, want){
       var meta = await getMeta(partnerId);
       var srcSize = meta.pageSize || 300;
-      var total = (meta.total!==undefined && meta.total!==null) ? meta.total : ((meta.pages*srcSize) || 0);
-      var start = Math.max(0, offset|0);
-      var acc=[];
-      var i=start;
-      while(acc.length < want && i < total){
-        var pageNum = Math.floor(i/srcSize) + 1;
-        var inner   = i % srcSize;
+      var total   = (meta.total!==undefined && meta.total!==null) ? meta.total : ((meta.pages*srcSize) || 0);
+
+      var startIndex = Math.max(0, offset|0);
+      var uniques = [];
+      var seen = new Set();
+
+      var index = startIndex;
+      var safety = 0; // védelem végtelen ciklus ellen
+
+      while(uniques.length < want && index < total && safety < 500){
+        var pageNum = Math.floor(index/srcSize) + 1;
         var arr = await getPageItems(partnerId, pageNum);
-        for(var k=inner; k<arr.length && acc.length<want; k++){
-          acc.push(arr[k]);
+        var inner = index % srcSize;
+
+        for(var k=inner; k<arr.length; k++){
+          var it = arr[k];
+          var raw = firstUrl(it);
+          var key = basePath(stripVariantParams(raw)) + '|' + imgPath(it && it.img || '') + '|' + normalizeTitleNoSize(it && it.title || '');
+          if(!seen.has(key)){
+            seen.add(key);
+            uniques.push(it);
+            if(uniques.length === want) break;
+          }
         }
-        i = pageNum*srcSize;
+        // ugorjunk a következő forráslap elejére
+        index = pageNum * srcSize;
+        safety++;
       }
-      return dedupeStrong(acc).slice(0, want);
+      return uniques;
     }
 
     function renderCards(partnerId, items){
