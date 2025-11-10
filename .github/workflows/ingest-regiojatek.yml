@@ -41,7 +41,7 @@ jobs:
             exit 1
           fi
 
-          mkdir -p docs/feeds/regio
+          mkdir -p docs/feeds/regiojatek
           python -u scripts/build_regio.py
 
           # Szigorú sanity
