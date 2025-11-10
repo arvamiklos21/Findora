@@ -1103,9 +1103,82 @@
       host.scrollIntoView({ behavior: 'smooth' });
     });
   })();
+      <!-- ===== SPORT TAB DEFINÍCIÓ ===== -->
+  <script>
+  window.drawSportTab = async function drawSportTab(){
+    try {
+      var host = document.getElementById('sport-partners');
+      if(!host){ console.warn('sport-partners nincs a DOM-ban'); return; }
+
+      var sports = Array.from(PARTNERS.values()).filter(function(p){
+        return p.group === 'sport' && p.placements && p.placements.sport && p.placements.sport.enabled;
+      });
+
+      if(sports.length === 0){
+        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Sport” partner konfigurálva.</div></div>';
+        return;
+      }
+
+      host.innerHTML = sports.map(function(p){
+        return (
+          '<div class="section" id="sport-box-'+p.id+'">' +
+            '<h2>'+p.name+'</h2>' +
+            '<div class="grid" id="sport-'+p.id+'-list">' +
+              '<div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join('');
+
+      for (var i=0; i<sports.length; i++){
+        var pid = sports[i].id;
+        var cfg  = PARTNERS.get(pid);
+        var PAGE = (cfg && cfg.placements && cfg.placements.sport && cfg.placements.sport.pageSize) ? cfg.placements.sport.pageSize : 6;
+
+        try{
+          var items = await collectUnique(pid, 0, PAGE);
+          var html  = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
+          var listEl = document.getElementById('sport-'+pid+'-list');
+          if(listEl) listEl.innerHTML = html;
+        }catch(e){
+          console.error('Sport betöltési hiba', pid, e);
+          var listEl2 = document.getElementById('sport-'+pid+'-list');
+          if(listEl2) listEl2.innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
+        }
+      }
+    } catch(err){
+      console.error('drawSportTab hiba:', err);
+    }
+  };
+  </script>
+
+  <!-- ===== EREDTI SCRIPT BLOKK (pl. scroll kezelő, ami most nálad van) ===== -->
+  <script>
+    (function(){
+      const OFFSET_PX = 80;
+      document.querySelectorAll('a[href^="#"]').forEach(link=>{
+        link.addEventListener('click',function(e){
+          const targetId = this.getAttribute('href').substring(1);
+          const host = document.querySelector('main');
+          e.preventDefault();
+          if (targetId) {
+            const section = host.querySelector('#' + CSS.escape(targetId));
+            if (section) {
+              const rect = section.getBoundingClientRect();
+              const y = window.scrollY + rect.top - OFFSET_PX;
+              window.scrollTo({ top: y, behavior: 'smooth' });
+              return;
+            }
+          }
+          host.scrollIntoView({ behavior: 'smooth' });
+        });
+      });
+    })();
   </script>
 </body>
 </html>
+
+
 
 
 
