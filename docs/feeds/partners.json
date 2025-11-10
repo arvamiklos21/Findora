@@ -31,5 +31,5 @@
     "home":   { "enabled": true, "pageSize": 6 },
       "games": { "enabled": true, "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
-  }
+  },
 ]
