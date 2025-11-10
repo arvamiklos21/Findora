@@ -1,23 +1,14 @@
 [
   {
     "id": "tchibo",
-    "name": "Tchibo",
+    "name": "Tchibo.hu",
     "group": "otthon",
-    "deeplinkPartner": "tchibo",
     "meta": "/feeds/tchibo/meta.json",
     "pagePattern": "/feeds/tchibo/page-{NNNN}.json",
-
-    "placements": {
-      "home":   { "enabled": true,  "pageSize": 6 },
-      "otthon": {
-        "enabled": true,
-        "pageSize": 6,
-        "full":    { "enabled": true, "pageSize": 20 }
-      }
-    }
-  }
-]
-{
+    "deeplinkPartner": "tchibo",
+    "placements": { "home": { "enabled": true, "pageSize": 6 }, "otthon": { "enabled": true, "pageSize": 6, "full": { "enabled": true, "pageSize": 20 } } }
+  },
+  {
     "id": "regiojatek",
     "name": "RegioJáték",
     "group": "jatek",
