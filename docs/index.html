@@ -266,48 +266,48 @@
   <script>
     // ===== apró vizuálok =====
     (function snow(){
-      const wrap=document.querySelector('.snow');
-      const isMobile = matchMedia('(max-width: 640px)').matches;
-      const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const COUNT = prefersReduced ? 0 : (isMobile ? 14 : 28);
-      for(let i=0;i<COUNT;i++){
-        const f=document.createElement('div');
+      var wrap=document.querySelector('.snow');
+      var isMobile = matchMedia('(max-width: 640px)').matches;
+      var prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var COUNT = prefersReduced ? 0 : (isMobile ? 14 : 28);
+      for(var i=0;i<COUNT;i++){
+        var f=document.createElement('div');
         f.className='flake';
         f.style.left = Math.random()*100 + 'vw';
-        const dur = (isMobile ? 10 : 8) + Math.random()*10;
+        var dur = (isMobile ? 10 : 8) + Math.random()*10;
         f.style.animationDuration = dur + 's';
         f.style.animationDelay = (Math.random()*-dur) + 's';
         f.style.opacity = (0.45 + Math.random()*0.35).toFixed(2);
-        const size = (isMobile ? 1.5 : 2) + Math.random()*4;
+        var size = (isMobile ? 1.5 : 2) + Math.random()*4;
         f.style.width = f.style.height = size + 'px';
         wrap.appendChild(f);
       }
     })();
 
-    document.getElementById('homeBtn').onclick = ()=>location.href = location.origin + location.pathname;
-    document.getElementById('backBtn').onclick = ()=>history.back();
+    document.getElementById('homeBtn').onclick = function(){ location.href = location.origin + location.pathname; };
+    document.getElementById('backBtn').onclick = function(){ history.back(); };
 
     (function promoLogicTZ(){
-      const now = new Date();
-      const y = now.getFullYear();
       function lastFridayOfNovember(year){
-        const d = new Date(year, 10, 30);
+        var d = new Date(year, 10, 30);
         while(d.getDay() !== 5){ d.setDate(d.getDate()-1); }
         d.setHours(0,0,0,0);
         return d;
       }
-      const bfDate = lastFridayOfNovember(y);
-      const el = document.getElementById('bfCountdown');
+      var now = new Date();
+      var y = now.getFullYear();
+      var bfDate = lastFridayOfNovember(y);
+      var el = document.getElementById('bfCountdown');
       if(el){
-        const pad = n => String(n).padStart(2,'0');
+        function pad(n){ return String(n).padStart(2,'0'); }
         function tick(){
-          const now = new Date();
-          const diff = bfDate - now;
+          var now2 = new Date();
+          var diff = bfDate - now2;
           if(diff <= 0){ el.textContent = "Ma!"; return; }
-          const d = Math.floor(diff/86400000);
-          const h = Math.floor((diff%86400000)/3600000);
-          const m = Math.floor((diff%3600000)/60000);
-          el.textContent = `${pad(d)} nap ${pad(h)}:${pad(m)}`;
+          var d = Math.floor(diff/86400000);
+          var h = Math.floor((diff%86400000)/3600000);
+          var m = Math.floor((diff%3600000)/60000);
+          el.textContent = pad(d) + " nap " + pad(h) + ":" + pad(m);
           setTimeout(tick, 20000);
         }
         tick();
@@ -315,199 +315,245 @@
     })();
 
     // ===== helpers & state =====
-    const API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
-    const partnersUrl = '/feeds/partners.json';
+    var API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
+    // FONTOS: relatív alapértelmezett, hogy al-útvonalon is működjön
+    var partnersUrl = 'feeds/partners.json';
 
-    const PARTNERS = new Map();
-    const META     = new Map();
-    const PAGES    = new Map();
-    const DL = (partner, raw) => `${API_BASE}/api/dl?u=${encodeURIComponent(raw)}&p=${partner}`;
+    // --- DEBUG UI: látható hibaüzenet banner ---
+    function showFatal(msg) {
+      var b = document.createElement('div');
+      b.style.cssText = "position:fixed;left:12px;bottom:12px;max-width:90vw;background:#fee2e2;color:#7f1d1d;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;z-index:9999;font:14px/1.3 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.15)";
+      b.innerHTML = "❌ Hiba: " + msg + "<br><small>Részletek: F12 → Console/Network.</small>";
+      document.body.appendChild(b);
+    }
 
-    let CURRENT_OTTHON_PARTNER = null;
-    const GAMES_STATE = new Map();
+    // --- partners.json elérés intelligens feloldása + cache törés ---
+    var partnersCandidates = [
+      partnersUrl,
+      (location.pathname.replace(/\/[^/]*$/, '') || '') + '/feeds/partners.json',
+      (location.pathname.indexOf('/Findora') === 0 ? '/Findora/feeds/partners.json' : null)
+    ].filter(function(x){ return !!x; });
 
-    let HOME_PARTNERS = [];
-    let DEFAULT_PARTNER = null;
-    const SCAN_PAGES_FOR_SALES = 2; // akció-blokkoknál partnerenként ennyi forrást olvasunk
+    function fetchFirstAvailable(urls){
+      var v = Date.now();
+      return new Promise(async function(resolve, reject){
+        for (var i=0; i<urls.length; i++){
+          var u = urls[i];
+          try{
+            var r = await fetch(u + (u.indexOf('?')>-1 ? '&' : '?') + 'v=' + v, { cache:'no-cache' });
+            if(r.ok){
+              var j = await r.json();
+              return resolve(j);
+            }
+            console.warn('partners.json próbálva, státusz:', r.status, u);
+          }catch(e){
+            console.warn('partners.json fetch hiba:', u, e);
+          }
+        }
+        reject(new Error('Egyik partners.json útvonal sem érhető el: ' + urls.join(', ')));
+      });
+    }
 
-    const pageUrl = (partnerCfg, n) => partnerCfg.pagePattern.replace('{NNNN}', String(n).padStart(4,'0'));
-    const priceText = (v) => Number.isFinite(v) ? (v.toLocaleString('hu-HU') + ' Ft') : (typeof v==='string' && v.trim() ? v : '—');
-    const firstUrl  = (it) => it?.url || it?.link || it?.deeplink || '';
+    var PARTNERS = new Map();
+    var META     = new Map();
+    var PAGES    = new Map();
+    function DL(partner, raw){ return API_BASE + "/api/dl?u=" + encodeURIComponent(raw) + "&p=" + partner; }
+
+    var CURRENT_OTTHON_PARTNER = null;
+    var GAMES_STATE = new Map();
+
+    var HOME_PARTNERS = [];
+    var DEFAULT_PARTNER = null;
+    var SCAN_PAGES_FOR_SALES = 2; // akció-blokkoknál partnerenként ennyi forrást olvasunk
+
+    function pageUrl(partnerCfg, n){ return partnerCfg.pagePattern.replace('{NNNN}', String(n).padStart(4,'0')); }
+    function priceText(v){ return Number.isFinite(v) ? (v.toLocaleString('hu-HU') + ' Ft') : ((typeof v==='string' && v.trim()) ? v : '—'); }
+    function firstUrl(it){ return (it && (it.url || it.link || it.deeplink)) || ''; }
 
     // ===== ERŐS DEDUP mindenhol =====
-    const SIZE_TOKENS = /(?:\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\b|\b\d{2}(?:-\d{2})?\b)/gi;
+    var SIZE_TOKENS = /(?:\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\b|\b\d{2}(?:-\d{2})?\b)/gi;
     function normalizeTitleNoSize(t){
       if(!t) return '';
       return String(t).replace(SIZE_TOKENS,'').replace(/\s{2,}/g,' ').trim().toLowerCase();
     }
     function basePath(u){
-      try{ const x=new URL(u); return x.origin + x.pathname; }catch(_){ return String(u||'').split('#')[0].split('?')[0]; }
+      try{ var x=new URL(u); return x.origin + x.pathname; }catch(_){ return String(u||'').split('#')[0].split('?')[0]; }
     }
     function imgPath(u){ return String(u||'').split('#')[0].split('?')[0]; }
     function stripVariantParams(u){
       if(!u) return u;
       try{
-        const x=new URL(u);
-        const drop=['size','meret','merete','variant_size','size_id','meret_id','option','variant'];
-        for(const k of [...x.searchParams.keys()]){
-          if(drop.includes(k.toLowerCase())) x.searchParams.delete(k);
+        var x=new URL(u);
+        var drop=['size','meret','merete','variant_size','size_id','meret_id','option','variant'];
+        var keys = Array.from(x.searchParams.keys());
+        for(var i=0;i<keys.length;i++){
+          var k = keys[i];
+          if(drop.indexOf(k.toLowerCase())>-1) x.searchParams.delete(k);
         }
         return x.toString();
       }catch(_){ return u; }
     }
     function dedupeStrong(items){
-      const out=[], seen=new Set();
-      for(const it of (items||[])){
-        const raw = firstUrl(it);
-        const key = basePath(stripVariantParams(raw)) + '|' + imgPath(it?.img||'') + '|' + normalizeTitleNoSize(it?.title||'');
+      var out=[], seen=new Set();
+      (items||[]).forEach(function(it){
+        var raw = firstUrl(it);
+        var key = basePath(stripVariantParams(raw)) + '|' + imgPath(it && it.img || '') + '|' + normalizeTitleNoSize(it && it.title || '');
         if(!seen.has(key)){ seen.add(key); out.push(it); }
-      }
+      });
       return out;
     }
 
     // ===== oldalbetöltők =====
     async function getMeta(partnerId){
       if(META.has(partnerId)) return META.get(partnerId);
-      const cfg = PARTNERS.get(partnerId);
-      const r = await fetch(cfg.meta, {cache:'no-cache'});
-      if(!r.ok) throw new Error(`${partnerId} meta.json nem elérhető`);
-      const m = await r.json();
+      var cfg = PARTNERS.get(partnerId);
+      var r = await fetch(cfg.meta, {cache:'no-cache'});
+      if(!r.ok) throw new Error(partnerId + " meta.json nem elérhető");
+      var m = await r.json();
       META.set(partnerId, m);
       return m;
     }
     async function getPageItems(partnerId, pageNum){
       if(!PAGES.has(partnerId)) PAGES.set(partnerId, new Map());
-      const store = PAGES.get(partnerId);
-      const key = `page-${String(pageNum).padStart(4,'0')}`;
+      var store = PAGES.get(partnerId);
+      var key = 'page-' + String(pageNum).padStart(4,'0');
       if(store.has(key)) return store.get(key);
-      const cfg = PARTNERS.get(partnerId);
-      const r = await fetch(pageUrl(cfg, pageNum), {cache:'no-cache'});
-      if(!r.ok) throw new Error(`${partnerId} ${key} nem elérhető`);
-      const d = await r.json();
-      const arr = d?.items || [];
+      var cfg = PARTNERS.get(partnerId);
+      var r = await fetch(pageUrl(cfg, pageNum), {cache:'no-cache'});
+      if(!r.ok) throw new Error(partnerId + " " + key + " nem elérhető");
+      var d = await r.json();
+      var arr = (d && d.items) ? d.items : [];
       store.set(key, arr);
       return arr;
     }
     async function collectUnique(partnerId, offset, want){
-      const meta = await getMeta(partnerId);
-      const srcSize = meta.pageSize || 300;
-      const total = meta.total ?? (meta.pages*srcSize) || 0;
-      const start = Math.max(0, offset|0);
-      const acc=[];
-      let i=start;
+      var meta = await getMeta(partnerId);
+      var srcSize = meta.pageSize || 300;
+      var total = (meta.total!==undefined && meta.total!==null) ? meta.total : ((meta.pages*srcSize) || 0);
+      var start = Math.max(0, offset|0);
+      var acc=[];
+      var i=start;
       while(acc.length < want && i < total){
-        const pageNum = Math.floor(i/srcSize) + 1;
-        const inner   = i % srcSize;
-        const arr = await getPageItems(partnerId, pageNum);
-        for(let k=inner; k<arr.length && acc.length<want; k++){
+        var pageNum = Math.floor(i/srcSize) + 1;
+        var inner   = i % srcSize;
+        var arr = await getPageItems(partnerId, pageNum);
+        for(var k=inner; k<arr.length && acc.length<want; k++){
           acc.push(arr[k]);
         }
-        i = pageNum*srcSize; // ugrás a következő teljes oldalra
+        i = pageNum*srcSize;
       }
       return dedupeStrong(acc).slice(0, want);
     }
 
     // ===== kártya render =====
-    const renderCards = (partnerId, items)=>{
-      const cfg = PARTNERS.get(partnerId);
-      const list = dedupeStrong(items);
-      return list.map(it=>{
-        const raw = firstUrl(it);
-        return `
-          <div class="card">
-            <div class="thumb">
-              ${it?.img ? `<img src="${it.img}" alt="" loading="lazy" style="max-width:100%;max-height:100%">` : '🛍️'}
-            </div>
-            <div class="title">${it?.title || ''}</div>
-            <div class="price">${priceText(it?.price)}</div>
-            ${raw ? `<a class="cta" href="${DL(cfg.deeplinkPartner, raw)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
-          </div>`;
-      }).join('');
-    };
-
-    // több partnerből kevert lista
-    function renderMixedCards(itemsWithPid){
-      const list = itemsWithPid; // feltételezzük, hogy előtte már dedupoltuk
-      return (list||[]).map(r=>{
-        const cfg = PARTNERS.get(r.pid);
-        const it  = r.item;
-        const raw = firstUrl(it);
-        return `
-          <div class="card">
-            <div class="thumb">
-              ${it?.img ? `<img src="${it.img}" alt="" loading="lazy" style="max-width:100%;max-height:100%">` : '🛍️'}
-            </div>
-            <div class="title">${it?.title || ''}</div>
-            <div class="price">${priceText(it?.price)}</div>
-            <div class="title" style="color:#64748b;font-weight:700;font-size:12px;margin-top:0">• ${cfg?.name||r.pid}</div>
-            ${raw ? `<a class="cta" href="${DL(cfg.deeplinkPartner, raw)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
-          </div>`;
+    function renderCards(partnerId, items){
+      var cfg = PARTNERS.get(partnerId);
+      var list = dedupeStrong(items);
+      return list.map(function(it){
+        var raw = firstUrl(it);
+        return (
+          '<div class="card">' +
+            '<div class="thumb">' +
+              (it && it.img ? '<img src="'+it.img+'" alt="" loading="lazy" style="max-width:100%;max-height:100%">' : '🛍️') +
+            '</div>' +
+            '<div class="title">' + ((it && it.title) ? it.title : '') + '</div>' +
+            '<div class="price">' + priceText(it && it.price) + '</div>' +
+            (raw ? '<a class="cta" href="'+ DL(cfg.deeplinkPartner, raw) +'" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>' : '') +
+          '</div>'
+        );
       }).join('');
     }
 
-    // Aktív (bármely elhelyezésen engedélyezett) partnerek
+    // több partnerből kevert lista
+    function renderMixedCards(itemsWithPid){
+      var list = itemsWithPid || [];
+      return list.map(function(r){
+        var cfg = PARTNERS.get(r.pid);
+        var it  = r.item;
+        var raw = firstUrl(it);
+        return (
+          '<div class="card">' +
+            '<div class="thumb">' +
+              (it && it.img ? '<img src="'+it.img+'" alt="" loading="lazy" style="max-width:100%;max-height:100%">' : '🛍️') +
+            '</div>' +
+            '<div class="title">' + ((it && it.title) ? it.title : '') + '</div>' +
+            '<div class="price">' + priceText(it && it.price) + '</div>' +
+            '<div class="title" style="color:#64748b;font-weight:700;font-size:12px;margin-top:0">• ' + ((cfg && cfg.name) ? cfg.name : r.pid) + '</div>' +
+            (raw ? '<a class="cta" href="'+ DL(cfg ? cfg.deeplinkPartner : r.pid, raw) +'" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>' : '') +
+          '</div>'
+        );
+      }).join('');
+    }
+
+    // Aktív partnerek
     function enabledPartners(){
-      const arr = Array.from(PARTNERS.values());
-      return arr.filter(p=>{
-        const plc = p.placements||{};
-        return Object.values(plc).some(v => (v && v.enabled) || (v?.full?.enabled));
+      var arr = Array.from(PARTNERS.values());
+      return arr.filter(function(p){
+        var plc = p.placements || {};
+        var vals = Object.keys(plc).map(function(k){ return plc[k]; });
+        return vals.some(function(v){
+          return (v && v.enabled) || (v && v.full && v.full.enabled);
+        });
       });
     }
 
     // ===== Akció blokkok – minden partner =====
     function getDiscountNumber(it){
-      if(Number.isFinite(it?.discount)) return it.discount;
-      const txt = ((it?.title||'')+' '+(it?.desc||'')).toLowerCase();
-      const m = txt.match(/-?\s?(\d{1,3})\s?%/);
+      if(it && Number.isFinite(it.discount)) return it.discount;
+      var txt = ((it && it.title ? it.title : '') + ' ' + (it && it.desc ? it.desc : '')).toLowerCase();
+      var m = txt.match(/-?\s?(\d{1,3})\s?%/);
       return m ? parseInt(m[1],10) : null;
     }
-    function paginate(arr, size){ const pages=[]; for(let i=0;i<arr.length;i+=size) pages.push(arr.slice(i,i+size)); return pages.length?pages:[[]]; }
+    function paginate(arr, size){ var pages=[]; for(var i=0;i<arr.length;i+=size) pages.push(arr.slice(i,i+size)); return pages.length?pages:[[]]; }
     function renderPagedBlockMixed(itemsWithPid, listElId, navElId){
-      const PAGE=6;
-      const deduped = dedupeStrong(itemsWithPid.map(x=>x.item)).map(it=>{
-        // vissza kell rendelnünk a pid-et (URL alapján)
-        const raw = firstUrl(it);
-        const pid = itemsWithPid.find(y=>firstUrl(y.item)===raw)?.pid || 'unknown';
-        return {pid, item: it};
+      var PAGE=6;
+      var ded = dedupeStrong(itemsWithPid.map(function(x){ return x.item; })).map(function(it){
+        var raw = firstUrl(it);
+        var pid = 'unknown';
+        for(var i=0;i<itemsWithPid.length;i++){
+          if(firstUrl(itemsWithPid[i].item)===raw){ pid = itemsWithPid[i].pid; break; }
+        }
+        return {pid:pid, item:it};
       });
-      const pages = paginate(deduped, PAGE);
-      let cur=1;
+      var pages = paginate(ded, PAGE);
+      var cur=1;
       function draw(){
-        const list=document.getElementById(listElId);
-        const nav =document.getElementById(navElId);
+        var list=document.getElementById(listElId);
+        var nav =document.getElementById(navElId);
         list.innerHTML = pages[cur-1].length ? renderMixedCards(pages[cur-1]) : '<div class="empty">Sajnos nincsennek Akciók !! :(</div>';
-        const fnName = listElId.replace(/-/g,'_')+'_pager';
-        nav.innerHTML = `
-          <button class="cta" ${cur<=1?'disabled':''} onclick="(${fnName}).go(${cur-1})">Előző</button>
-          <span class="cta" style="pointer-events:none">${cur}/${pages.length}</span>
-          <button class="cta" ${cur>=pages.length?'disabled':''} onclick="(${fnName}).go(${cur+1})">Következő</button>`;
-        window[fnName] = { go:(n)=>{ cur=n; draw(); } };
+        var fnName = listElId.replace(/-/g,'_')+'_pager';
+        nav.innerHTML =
+          '<button class="cta" '+(cur<=1?'disabled':'')+' onclick="'+fnName+'.go('+(cur-1)+')">Előző</button>' +
+          '<span class="cta" style="pointer-events:none">'+cur+'/'+pages.length+'</span>' +
+          '<button class="cta" '+(cur>=pages.length?'disabled':'')+' onclick="'+fnName+'.go('+(cur+1)+')">Következő</button>';
+        window[fnName] = { go:function(n){ cur=n; draw(); } };
       }
       draw();
     }
     async function buildSaleBlocksAll(){
       try{
-        const actives = enabledPartners();
-        const collected = []; // {pid,item}
+        var actives = enabledPartners();
+        var collected = []; // {pid,item}
 
-        for(const p of actives){
-          const meta = await getMeta(p.id);
-          const srcSize = meta.pageSize || 300;
-          const scanPages = Math.min(SCAN_PAGES_FOR_SALES, meta.pages || Math.ceil((meta.total||0)/srcSize) || 1);
-          for(let pg=1; pg<=scanPages; pg++){
-            const arr = await getPageItems(p.id, pg);
-            for(const it of arr){
-              collected.push({ pid:p.id, item: it });
+        for(var i=0;i<actives.length;i++){
+          var p = actives[i];
+          var meta = await getMeta(p.id);
+          var srcSize = meta.pageSize || 300;
+          var scanPages = Math.min(SCAN_PAGES_FOR_SALES, meta.pages || Math.ceil((meta.total||0)/srcSize) || 1);
+          for(var pg=1; pg<=scanPages; pg++){
+            var arr = await getPageItems(p.id, pg);
+            for(var j=0;j<arr.length;j++){
+              collected.push({ pid:p.id, item: arr[j] });
             }
           }
         }
 
-        const in10 = collected.filter(r=>{ const d=getDiscountNumber(r.item); return d!==null && d>=10 && d<=24; });
-        const in25 = collected.filter(r=>{ const d=getDiscountNumber(r.item); return d!==null && d>=25 && d<=49; });
-        const in50 = collected.filter(r=>{ const d=getDiscountNumber(r.item); return d!==null && d>=50;  });
-        const xmas = collected.filter(r=>{
-          const it=r.item;
-          const txt=((it?.title||'')+' '+(it?.desc||'')).toLowerCase();
+        var in10 = collected.filter(function(r){ var d=getDiscountNumber(r.item); return d!==null && d>=10 && d<=24; });
+        var in25 = collected.filter(function(r){ var d=getDiscountNumber(r.item); return d!==null && d>=25 && d<=49; });
+        var in50 = collected.filter(function(r){ var d=getDiscountNumber(r.item); return d!==null && d>=50;  });
+        var xmas = collected.filter(function(r){
+          var it=r.item;
+          var txt=((it && it.title ? it.title : '')+' '+(it && it.desc ? it.desc : '')).toLowerCase();
           return /karácsony|xmas|ünnepi|ajándék/.test(txt);
         });
 
@@ -517,8 +563,8 @@
         renderPagedBlockMixed(in50, 'sale50-list','sale50-nav');
       }catch(e){
         console.warn('Akció blokkok hiba', e);
-        ['xmas-list','sale10-list','sale25-list','sale50-list'].forEach(id=>{
-          const el=document.getElementById(id);
+        ['xmas-list','sale10-list','sale25-list','sale50-list'].forEach(function(id){
+          var el=document.getElementById(id);
           if(el) el.innerHTML = '<div class="empty">Sajnos nincsennek Akciók !! :(</div>';
         });
       }
@@ -526,57 +572,75 @@
 
     // ===== partners betöltés =====
     async function loadPartners(){
-      const r = await fetch(partnersUrl, {cache:'no-cache'});
-      if(!r.ok) throw new Error('partners.json nem elérhető');
-      const arr = await r.json();
-      for(const p of arr) PARTNERS.set(p.id, p);
-
-      HOME_PARTNERS = arr.filter(p=>p.placements?.home?.enabled);
-      DEFAULT_PARTNER = HOME_PARTNERS[0]?.id || arr.find(p=>p.placements?.home?.enabled)?.id || arr[0]?.id || null;
+      try{
+        var arr = await fetchFirstAvailable(partnersCandidates);
+        if (!Array.isArray(arr) || !arr.length) {
+          throw new Error('partners.json üres vagy hibás formátum');
+        }
+        PARTNERS.clear();
+        for(var i=0;i<arr.length;i++){
+          var p = arr[i];
+          if(!p.id || !p.meta || !p.pagePattern || !p.deeplinkPartner){
+            console.error('Hibás partner objektum:', p);
+            throw new Error('Hibás partner (kötelező: id, meta, pagePattern, deeplinkPartner)');
+          }
+          PARTNERS.set(p.id, p);
+        }
+        HOME_PARTNERS = arr.filter(function(p){ return p.placements && p.placements.home && p.placements.home.enabled; });
+        DEFAULT_PARTNER = (HOME_PARTNERS[0] && HOME_PARTNERS[0].id) ||
+                          (arr.find(function(p){ return p.placements && p.placements.home && p.placements.home.enabled; }) || {}).id ||
+                          (arr[0] && arr[0].id) || null;
+        console.log('PARTNEREK BETÖLTVE:', PARTNERS);
+      }catch(e){
+        showFatal(e.message);
+        throw e;
+      }
     }
 
     // ===== Főoldal – több partner doboz =====
     function homeBoxTemplate(p){
-      const pid = p.id;
-      return `
-        <div class="section" id="home-box-${pid}">
-          <h3>${p.name}</h3>
-          <div class="grid" id="home-${pid}-list">
-            <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
-          </div>
-          <div class="grid" id="home-${pid}-nav" style="padding-top:0"></div>
-        </div>`;
+      var pid = p.id;
+      return (
+        '<div class="section" id="home-box-'+pid+'">' +
+          '<h3>'+p.name+'</h3>' +
+          '<div class="grid" id="home-'+pid+'-list">' +
+            '<div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>' +
+          '</div>' +
+          '<div class="grid" id="home-'+pid+'-nav" style="padding-top:0"></div>' +
+        '</div>'
+      );
     }
-    async function drawHomeOverviewFor(pid, page=1){
-      const p = PARTNERS.get(pid);
+    async function drawHomeOverviewFor(pid, page){
+      page = page || 1;
+      var p = PARTNERS.get(pid);
       if(!p) return;
-      const PAGE = p.placements?.home?.pageSize || 6;
+      var PAGE = (p.placements && p.placements.home ? p.placements.home.pageSize : 6) || 6;
       try{
-        const items = await collectUnique(pid, (page-1)*PAGE, PAGE);
-        const meta = await getMeta(pid);
-        const totalPages = Math.max(1, Math.ceil((meta.total||0)/PAGE));
-        const listEl = document.getElementById(`home-${pid}-list`);
-        const navEl  = document.getElementById(`home-${pid}-nav`);
+        var items = await collectUnique(pid, (page-1)*PAGE, PAGE);
+        var meta = await getMeta(pid);
+        var totalPages = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
+        var listEl = document.getElementById('home-'+pid+'-list');
+        var navEl  = document.getElementById('home-'+pid+'-nav');
         listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-        navEl.innerHTML = `
-          <button class="cta" ${page<=1?'disabled':''} onclick="drawHomeOverviewFor('${pid}',${page-1})">Előző</button>
-          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
-          <button class="cta" ${page>=totalPages?'disabled':''} onclick="drawHomeOverviewFor('${pid}',${page+1})">Következő</button>`;
+        navEl.innerHTML =
+          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawHomeOverviewFor(\''+pid+'\','+(page-1)+')">Előző</button>' +
+          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
+          '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawHomeOverviewFor(\''+pid+'\','+(page+1)+')">Következő</button>';
       }catch(e){
         console.error(e);
-        document.getElementById(`home-${pid}-list`).innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
+        document.getElementById('home-'+pid+'-list').innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
       }
     }
     async function drawHomeTab(){
-      const host = document.getElementById('home-multi');
-      const list = HOME_PARTNERS.length ? HOME_PARTNERS : enabledPartners();
+      var host = document.getElementById('home-multi');
+      var list = HOME_PARTNERS.length ? HOME_PARTNERS : enabledPartners();
       if(!list.length){
         host.innerHTML = '<div class="grid"><div class="empty">Nincs „Főoldal” partner konfigurálva.</div></div>';
         return;
       }
-      host.innerHTML = list.map(p=>homeBoxTemplate(p)).join('');
-      for(const p of list){
-        await drawHomeOverviewFor(p.id, 1);
+      host.innerHTML = list.map(function(p){ return homeBoxTemplate(p); }).join('');
+      for(var i=0;i<list.length;i++){
+        await drawHomeOverviewFor(list[i].id, 1);
       }
     }
 
@@ -591,8 +655,11 @@
       document.getElementById('home-cat-nav').style.display='none';
       document.getElementById('partner-full-wrap').style.display='';
     }
-    async function drawOtthonOverview(page=1){
-      const partner = Array.from(PARTNERS.values()).find(p=>p.group==='otthon' && p.placements?.otthon?.enabled);
+    async function drawOtthonOverview(page){
+      page = page || 1;
+      var partner = Array.from(PARTNERS.values()).find(function(p){
+        return p.group==='otthon' && p.placements && p.placements.otthon && p.placements.otthon.enabled;
+      });
       if(!partner){
         document.getElementById('home-cat-list').innerHTML =
           '<div class="empty">Nincs „Otthon” partner konfigurálva a partners.json-ban.</div>';
@@ -600,25 +667,25 @@
         return;
       }
       CURRENT_OTTHON_PARTNER = partner;
-      const PAGE = partner.placements?.otthon?.pageSize || 6;
+      var PAGE = (partner.placements && partner.placements.otthon ? partner.placements.otthon.pageSize : 6) || 6;
       try{
-        const items = await collectUnique(partner.id, (page-1)*PAGE, PAGE);
-        const meta  = await getMeta(partner.id);
-        const totalPages = Math.max(1, Math.ceil((meta.total||0)/PAGE));
+        var items = await collectUnique(partner.id, (page-1)*PAGE, PAGE);
+        var meta  = await getMeta(partner.id);
+        var totalPages = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
 
-        const headLink = document.getElementById('home-cat-head-link');
+        var headLink = document.getElementById('home-cat-head-link');
         headLink.textContent = partner.name;
-        const canFull = !!partner.placements?.otthon?.full?.enabled;
+        var canFull = !!(partner.placements && partner.placements.otthon && partner.placements.otthon.full && partner.placements.otthon.full.enabled);
         headLink.style.pointerEvents = canFull ? '' : 'none';
         headLink.style.textDecoration = canFull ? 'underline' : 'none';
 
         document.getElementById('home-cat-list').innerHTML =
           renderCards(partner.id, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
 
-        document.getElementById('home-cat-nav').innerHTML = `
-          <button class="cta" ${page<=1?'disabled':''} onclick="drawOtthonOverview(${page-1})">Előző</button>
-          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
-          <button class="cta" ${page>=totalPages?'disabled':''} onclick="drawOtthonOverview(${page+1})">Következő</button>`;
+        document.getElementById('home-cat-nav').innerHTML =
+          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawOtthonOverview('+(page-1)+')">Előző</button>' +
+          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
+          '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawOtthonOverview('+(page+1)+')">Következő</button>';
       }catch(e){
         console.error(e);
         document.getElementById('home-cat-list').innerHTML = '<div class="empty">Nem sikerült betölteni (Otthon).</div>';
@@ -626,31 +693,32 @@
     }
 
     // ===== Teljes nézet (Otthon) =====
-    let PARTNER_FILTER = '';
-    async function drawPartnerFull(page=1){
-      const partner = CURRENT_OTTHON_PARTNER && CURRENT_OTTHON_PARTNER.placements?.otthon?.full?.enabled
+    var PARTNER_FILTER = '';
+    async function drawPartnerFull(page){
+      page = page || 1;
+      var partner = (CURRENT_OTTHON_PARTNER && CURRENT_OTTHON_PARTNER.placements && CURRENT_OTTHON_PARTNER.placements.otthon && CURRENT_OTTHON_PARTNER.placements.otthon.full && CURRENT_OTTHON_PARTNER.placements.otthon.full.enabled)
         ? CURRENT_OTTHON_PARTNER
         : null;
       if(!partner) return;
 
-      const PAGE = partner.placements?.otthon?.full?.pageSize || 20;
+      var PAGE = (partner.placements && partner.placements.otthon && partner.placements.otthon.full ? partner.placements.otthon.full.pageSize : 20) || 20;
       try{
-        const meta = await getMeta(partner.id);
-        const offset = (page-1)*PAGE;
+        var meta = await getMeta(partner.id);
+        var offset = (page-1)*PAGE;
 
-        // gyűjtsünk annyit, hogy dedup után is meglegyen a PAGE
-        let items = await collectUnique(partner.id, offset, PAGE);
+        var items = await collectUnique(partner.id, offset, PAGE);
 
         if(PARTNER_FILTER){
-          const q = PARTNER_FILTER.toLowerCase();
-          const ok = it => ((it?.title||'')+(it?.desc||'')).toLowerCase().includes(q);
+          var q = PARTNER_FILTER.toLowerCase();
+          var ok = function(it){
+            return (((it && it.title) ? it.title : '') + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
+          };
           if(!items.some(ok)){
-            // ha az első blokkban nincs elég találat, nézzünk előről nagyobb ablakot
-            const buffer = [];
-            const totalPages = meta.pages || Math.ceil((meta.total||0)/(meta.pageSize||300)) || 1;
-            for(let pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
-              const arr = await getPageItems(partner.id, pg);
-              buffer.push(...arr);
+            var buffer = [];
+            var totalPages = meta.pages || Math.ceil(((meta.total||0))/(meta.pageSize||300)) || 1;
+            for(var pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
+              var arr = await getPageItems(partner.id, pg);
+              buffer.push.apply(buffer, arr);
             }
             items = dedupeStrong(buffer).filter(ok).slice(0,PAGE);
           }else{
@@ -661,11 +729,11 @@
         document.getElementById('partner-full-list').innerHTML =
           renderCards(partner.id, items) || '<div class="empty">Nincs találat.</div>';
 
-        const totalPages = Math.max(1, Math.ceil((meta.total||0)/PAGE));
-        document.getElementById('partner-full-nav').innerHTML = `
-          <button class="cta" ${page<=1?'disabled':''} onclick="drawPartnerFull(${page-1})">Előző</button>
-          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
-          <button class="cta" ${page>=totalPages?'disabled':''} onclick="drawPartnerFull(${page+1})">Következő</button>`;
+        var totalPages2 = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
+        document.getElementById('partner-full-nav').innerHTML =
+          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawPartnerFull('+(page-1)+')">Előző</button>' +
+          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages2+' </span>' +
+          '<button class="cta" '+(page>=totalPages2?'disabled':'')+' onclick="drawPartnerFull('+(page+1)+')">Következő</button>';
       }catch(e){
         console.error(e);
         document.getElementById('partner-full-list').innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
@@ -674,75 +742,79 @@
 
     // ===== Games =====
     function gamesBoxTemplate(p){
-      const pid = p.id;
-      return `
-        <div class="section" id="games-box-${pid}">
-          <h2><a href="#games-${pid}-full" class="games-head" data-partner="${pid}" style="text-decoration:underline;font-weight:900;">${p.name}</a></h2>
-          <div class="grid" id="games-${pid}-list"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div>
-          <div class="grid" id="games-${pid}-nav" style="padding-top:0"></div>
-
-          <div id="games-${pid}-full-wrap" style="display:none; padding:12px;">
-            <form class="searchbar games-search" data-partner="${pid}" role="search" action="" style="margin:0 0 8px">
-              <input id="qGames-${pid}" type="search" placeholder="Keresés a termékek között…" aria-label="Keresés (${p.name})" />
-              <button type="submit" aria-label="Keresés indítása">Keresés</button>
-            </form>
-            <div class="grid" id="games-${pid}-full-list"></div>
-            <div class="grid" id="games-${pid}-full-nav" style="padding-top:0"></div>
-          </div>
-        </div>`;
+      var pid = p.id;
+      return (
+        '<div class="section" id="games-box-'+pid+'">' +
+          '<h2><a href="#games-'+pid+'-full" class="games-head" data-partner="'+pid+'" style="text-decoration:underline;font-weight:900;">'+p.name+'</a></h2>' +
+          '<div class="grid" id="games-'+pid+'-list"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div>' +
+          '<div class="grid" id="games-'+pid+'-nav" style="padding-top:0"></div>' +
+          '<div id="games-'+pid+'-full-wrap" style="display:none; padding:12px;">' +
+            '<form class="searchbar games-search" data-partner="'+pid+'" role="search" action="" style="margin:0 0 8px">' +
+              '<input id="qGames-'+pid+'" type="search" placeholder="Keresés a termékek között…" aria-label="Keresés ('+p.name+')" />' +
+              '<button type="submit" aria-label="Keresés indítása">Keresés</button>' +
+            '</form>' +
+            '<div class="grid" id="games-'+pid+'-full-list"></div>' +
+            '<div class="grid" id="games-'+pid+'-full-nav" style="padding-top:0"></div>' +
+          '</div>' +
+        '</div>'
+      );
     }
     function showGamesOverview(pid){
-      document.getElementById(`games-${pid}-list`).style.display='';
-      document.getElementById(`games-${pid}-nav`).style.display='';
-      document.getElementById(`games-${pid}-full-wrap`).style.display='none';
+      document.getElementById('games-'+pid+'-list').style.display='';
+      document.getElementById('games-'+pid+'-nav').style.display='';
+      document.getElementById('games-'+pid+'-full-wrap').style.display='none';
     }
     function showGamesFull(pid){
-      document.getElementById(`games-${pid}-list`).style.display='none';
-      document.getElementById(`games-${pid}-nav`).style.display='none';
-      document.getElementById(`games-${pid}-full-wrap`).style.display='';
+      document.getElementById('games-'+pid+'-list').style.display='none';
+      document.getElementById('games-'+pid+'-nav').style.display='none';
+      document.getElementById('games-'+pid+'-full-wrap').style.display='';
     }
-    async function drawGamesOverviewFor(pid, page=1){
-      const p = PARTNERS.get(pid);
+    async function drawGamesOverviewFor(pid, page){
+      page = page || 1;
+      var p = PARTNERS.get(pid);
       if(!p) return;
-      const PAGE = p.placements?.games?.pageSize || 6;
+      var PAGE = (p.placements && p.placements.games ? p.placements.games.pageSize : 6) || 6;
       try{
-        const items = await collectUnique(pid, (page-1)*PAGE, PAGE);
-        const meta  = await getMeta(pid);
-        const totalPages = Math.max(1, Math.ceil((meta.total||0)/PAGE));
-        const listEl = document.getElementById(`games-${pid}-list`);
-        const navEl  = document.getElementById(`games-${pid}-nav`);
+        var items = await collectUnique(pid, (page-1)*PAGE, PAGE);
+        var meta  = await getMeta(pid);
+        var totalPages = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
+        var listEl = document.getElementById('games-'+pid+'-list');
+        var navEl  = document.getElementById('games-'+pid+'-nav');
         listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-        navEl.innerHTML = `
-          <button class="cta" ${page<=1?'disabled':''} onclick="drawGamesOverviewFor('${pid}',${page-1})">Előző</button>
-          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
-          <button class="cta" ${page>=totalPages?'disabled':''} onclick="drawGamesOverviewFor('${pid}',${page+1})">Következő</button>`;
+        navEl.innerHTML =
+          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawGamesOverviewFor(\''+pid+'\','+(page-1)+')">Előző</button>' +
+          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
+          '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawGamesOverviewFor(\''+pid+'\','+(page+1)+')">Következő</button>';
       }catch(e){
         console.error(e);
-        document.getElementById(`games-${pid}-list`).innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
+        document.getElementById('games-'+pid+'-list').innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
       }
     }
-    async function drawGamesFullFor(pid, page=1){
-      const p = PARTNERS.get(pid);
-      if(!p || !p.placements?.games?.full?.enabled) return;
+    async function drawGamesFullFor(pid, page){
+      page = page || 1;
+      var p = PARTNERS.get(pid);
+      if(!p || !(p.placements && p.placements.games && p.placements.games.full && p.placements.games.full.enabled)) return;
       if(!GAMES_STATE.has(pid)) GAMES_STATE.set(pid, { filter:'', page:1 });
 
-      const state = GAMES_STATE.get(pid);
-      const PAGE = p.placements?.games?.full?.pageSize || 20;
+      var state = GAMES_STATE.get(pid);
+      var PAGE = (p.placements && p.placements.games && p.placements.games.full ? p.placements.games.full.pageSize : 20) || 20;
       try{
-        const meta = await getMeta(pid);
-        const offset = (page-1)*PAGE;
+        var meta = await getMeta(pid);
+        var offset = (page-1)*PAGE;
 
-        let items = await collectUnique(pid, offset, PAGE);
+        var items = await collectUnique(pid, offset, PAGE);
 
         if(state.filter){
-          const q = state.filter.toLowerCase();
-          const ok = it => ((it?.title||'')+(it?.desc||'')).toLowerCase().includes(q);
+          var q = state.filter.toLowerCase();
+          var ok = function(it){
+            return (((it && it.title) ? it.title : '') + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
+          };
           if(!items.some(ok)){
-            const buffer = [];
-            const totalPages = meta.pages || Math.ceil((meta.total||0)/(meta.pageSize||300)) || 1;
-            for(let pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
-              const arr = await getPageItems(pid, pg);
-              buffer.push(...arr);
+            var buffer = [];
+            var totalPages = meta.pages || Math.ceil(((meta.total||0))/ (meta.pageSize||300)) || 1;
+            for(var pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
+              var arr = await getPageItems(pid, pg);
+              buffer.push.apply(buffer, arr);
             }
             items = dedupeStrong(buffer).filter(ok).slice(0,PAGE);
           }else{
@@ -750,47 +822,47 @@
           }
         }
 
-        document.getElementById(`games-${pid}-full-list`).innerHTML =
+        document.getElementById('games-'+pid+'-full-list').innerHTML =
           renderCards(pid, items) || '<div class="empty">Nincs találat.</div>';
-        const totalPages = Math.max(1, Math.ceil((meta.total||0)/PAGE));
-        document.getElementById(`games-${pid}-full-nav`).innerHTML = `
-          <button class="cta" ${page<=1?'disabled':''} onclick="drawGamesFullFor('${pid}',${page-1})">Előző</button>
-          <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
-          <button class="cta" ${page>=totalPages?'disabled':''} onclick="drawGamesFullFor('${pid}',${page+1})">Következő</button>`;
+        var totalPages2 = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
+        document.getElementById('games-'+pid+'-full-nav').innerHTML =
+          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawGamesFullFor(\''+pid+'\','+(page-1)+')">Előző</button>' +
+          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages2+' </span>' +
+          '<button class="cta" '+(page>=totalPages2?'disabled':'')+' onclick="drawGamesFullFor(\''+pid+'\','+(page+1)+')">Következő</button>';
       }catch(e){
         console.error(e);
-        document.getElementById(`games-${pid}-full-list`).innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
+        document.getElementById('games-'+pid+'-full-list').innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
       }
     }
     async function drawGamesTab(){
-      const games = Array.from(PARTNERS.values()).filter(p=>p.group==='games' && p.placements?.games?.enabled);
-      const host = document.getElementById('games-partners');
+      var games = Array.from(PARTNERS.values()).filter(function(p){
+        return p.group==='games' && p.placements && p.placements.games && p.placements.games.enabled;
+      });
+      var host = document.getElementById('games-partners');
       if(games.length===0){
         host.innerHTML = '<div class="grid"><div class="empty">Nincs „Játékok” partner konfigurálva.</div></div>';
         return;
       }
-      host.innerHTML = games.map(g=>gamesBoxTemplate(g)).join('');
+      host.innerHTML = games.map(function(g){ return gamesBoxTemplate(g); }).join('');
 
-      // header katt → teljes nézet (helyes pid)
-      host.querySelectorAll('.games-head').forEach(a=>{
-        a.addEventListener('click', (e)=>{
+      host.querySelectorAll('.games-head').forEach(function(a){
+        a.addEventListener('click', function(e){
           e.preventDefault();
-          const pid = e.currentTarget.dataset.partner;
-          const p = PARTNERS.get(pid);
-          if(!p?.placements?.games?.full?.enabled) return;
+          var pid = e.currentTarget.getAttribute('data-partner');
+          var p = PARTNERS.get(pid);
+          if(!(p && p.placements && p.placements.games && p.placements.games.full && p.placements.games.full.enabled)) return;
           showGamesFull(pid);
           drawGamesFullFor(pid, 1);
         });
       });
 
-      // keresők bekötése partnerenként
-      host.querySelectorAll('form.games-search').forEach(form=>{
-        const pid = form.dataset.partner;
-        form.addEventListener('submit', (e)=>{
+      host.querySelectorAll('form.games-search').forEach(function(form){
+        var pid = form.getAttribute('data-partner');
+        form.addEventListener('submit', function(e){
           e.preventDefault();
-          const q = (document.getElementById(`qGames-${pid}`).value||'').trim();
+          var q = (document.getElementById('qGames-'+pid).value||'').trim();
           if(!GAMES_STATE.has(pid)) GAMES_STATE.set(pid, { filter:'', page:1 });
-          const st = GAMES_STATE.get(pid);
+          var st = GAMES_STATE.get(pid);
           st.filter = q;
           st.page = 1;
           showGamesFull(pid);
@@ -798,53 +870,55 @@
         });
       });
 
-      // első betöltés: mindhez 6/lap (egyedi kitöltéssel)
-      for(const p of games){
+      for(var i=0;i<games.length;i++){
+        var p = games[i];
         showGamesOverview(p.id);
         await drawGamesOverviewFor(p.id, 1);
       }
     }
 
-    // ===== Globális kereső – minden partner, teljes bejárás =====
+    // ===== Globális kereső =====
     function matchesNeedle(it, needle){
-      const t=(it?.title||'').toLowerCase(), d=(it?.desc||'').toLowerCase();
-      return t.includes(needle) || d.includes(needle);
+      var t=((it && it.title) ? it.title : '').toLowerCase();
+      var d=((it && it.desc) ? it.desc : '').toLowerCase();
+      return t.indexOf(needle)>-1 || d.indexOf(needle)>-1;
     }
-    let SEARCH_RUN_ID = 0;
-    const MAX_RESULTS = 600; // összesített találati limit
+    var SEARCH_RUN_ID = 0;
+    var MAX_RESULTS = 600;
 
     async function runSearchAcrossPartners(q){
-      const needle=(q||'').trim().toLowerCase();
-      const host = document.getElementById('home-multi');
+      var needle=(q||'').trim().toLowerCase();
+      var host = document.getElementById('home-multi');
       host.innerHTML = '<div class="grid"><div class="card"><div class="thumb">🔎</div><div class="title">Keresés az összes partnerben…</div></div></div>';
-      const progEl=document.getElementById('searchProgress');
+      var progEl=document.getElementById('searchProgress');
 
       if(!needle){ progEl.style.display='none'; await drawHomeTab(); return; }
 
-      const actives = enabledPartners();
-      const results = [];
-      const seen = new Set();
-      const myRun = ++SEARCH_RUN_ID;
+      var actives = enabledPartners();
+      var results = [];
+      var seen = new Set();
+      var myRun = ++SEARCH_RUN_ID;
 
       try{
         progEl.style.display='inline-block';
-        progEl.textContent = `Keresés: 0/${actives.length} partner…`;
+        progEl.textContent = 'Keresés: 0/'+actives.length+' partner…';
 
-        let done=0;
-        for(const p of actives){
+        var done=0;
+        for(var i=0;i<actives.length;i++){
+          var p = actives[i];
           if(myRun!==SEARCH_RUN_ID) return;
-          const meta = await getMeta(p.id);
-          const srcSize = meta.pageSize || 300;
-          const totalPages = meta.pages || Math.ceil((meta.total||0)/srcSize) || 1;
+          var meta = await getMeta(p.id);
+          var srcSize = meta.pageSize || 300;
+          var totalPages = meta.pages || Math.ceil(((meta.total||0))/srcSize) || 1;
 
-          for(let pg=1; pg<=totalPages; pg++){
+          for(var pg=1; pg<=totalPages; pg++){
             if(myRun!==SEARCH_RUN_ID) return;
-            const arr = await getPageItems(p.id, pg);
-            for(const it of arr){
+            var arr = await getPageItems(p.id, pg);
+            for(var j=0;j<arr.length;j++){
               if(myRun!==SEARCH_RUN_ID) return;
+              var it = arr[j];
               if(matchesNeedle(it, needle)){
-                // erős dedup kulcs
-                const key = basePath(stripVariantParams(firstUrl(it))) + '|' + imgPath(it?.img||'') + '|' + normalizeTitleNoSize(it?.title||'');
+                var key = basePath(stripVariantParams(firstUrl(it))) + '|' + imgPath(it && it.img || '') + '|' + normalizeTitleNoSize(it && it.title || '');
                 if(!seen.has(key)){
                   seen.add(key);
                   results.push({ pid:p.id, item: it });
@@ -855,12 +929,12 @@
             if(results.length>=MAX_RESULTS) break;
           }
           done++;
-          progEl.textContent = `Keresés: ${done}/${actives.length} partner… (${results.length} találat)`;
+          progEl.textContent = 'Keresés: '+done+'/'+actives.length+' partner… ('+results.length+' találat)';
           if(results.length>=MAX_RESULTS) break;
         }
 
         progEl.style.display='none';
-        host.innerHTML = `<div class="grid">${ results.length ? renderMixedCards(results) : '<div class="empty">Nincs találat.</div>' }</div>`;
+        host.innerHTML = '<div class="grid">' + (results.length ? renderMixedCards(results) : '<div class="empty">Nincs találat.</div>') + '</div>';
       }catch(e){
         console.error(e);
         progEl.style.display='none';
@@ -870,58 +944,66 @@
 
     // ===== Tab kezelés =====
     function hideAllSections(){
-      ['akciok','osszes','otthon','games','tech','vision','travel'].forEach(id=>{
-        const s=document.getElementById(id); if(s) s.style.display='none';
+      ['akciok','osszes','otthon','games','tech','vision','travel'].forEach(function(id){
+        var s=document.getElementById(id); if(s) s.style.display='none';
       });
-      document.querySelectorAll('.catbtn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.catbtn').forEach(function(b){ b.classList.remove('active'); });
     }
     async function switchTab(tab){
       hideAllSections();
       if(tab==='all'){
         document.getElementById('akciok').style.display='block';
         document.getElementById('osszes').style.display='block';
-        document.querySelector('.catbtn[data-cat="all"]')?.classList.add('active');
+        var allBtn = document.querySelector('.catbtn[data-cat="all"]'); if(allBtn) allBtn.classList.add('active');
         await drawHomeTab();
       }else if(tab==='home'){
         document.getElementById('otthon').style.display='block';
-        document.querySelector('.catbtn[data-cat="home"]')?.classList.add('active');
+        var homeBtn = document.querySelector('.catbtn[data-cat="home"]'); if(homeBtn) homeBtn.classList.add('active');
         showHomeOverviewInOtthon();
         await drawOtthonOverview(1);
       }else if(tab==='games'){
-        const sec = document.getElementById('games');
+        var sec = document.getElementById('games');
         sec.style.display='block';
-        document.querySelector('.catbtn[data-cat="games"]')?.classList.add('active');
+        var gBtn = document.querySelector('.catbtn[data-cat="games"]'); if(gBtn) gBtn.classList.add('active');
         await drawGamesTab();
       }else{
-        const sec=document.getElementById(tab); if(sec) sec.style.display='block';
-        document.querySelector(`.catbtn[data-cat="${tab}"]`)?.classList.add('active');
+        var sec2=document.getElementById(tab); if(sec2) sec2.style.display='block';
+        var btn = document.querySelector('.catbtn[data-cat="'+tab+'"]'); if(btn) btn.classList.add('active');
       }
     }
 
     // ===== események =====
-    document.getElementById('home-cat-head-link').addEventListener('click', (e)=>{
-      const canFull = !!CURRENT_OTTHON_PARTNER?.placements?.otthon?.full?.enabled;
+    document.getElementById('home-cat-head-link').addEventListener('click', function(e){
+      var canFull = !!(CURRENT_OTTHON_PARTNER && CURRENT_OTTHON_PARTNER.placements && CURRENT_OTTHON_PARTNER.placements.otthon && CURRENT_OTTHON_PARTNER.placements.otthon.full && CURRENT_OTTHON_PARTNER.placements.otthon.full.enabled);
       if(!canFull){ e.preventDefault(); return; }
       e.preventDefault();
       showHomeFullInOtthon();
       drawPartnerFull(1);
     });
-    document.getElementById('searchFormAll').addEventListener('submit', (e)=>{
+    document.getElementById('searchFormAll').addEventListener('submit', function(e){
       e.preventDefault(); runSearchAcrossPartners(document.getElementById('qAll').value||'');
     });
-    document.getElementById('searchFormPartner').addEventListener('submit', (e)=>{
+    document.getElementById('searchFormPartner').addEventListener('submit', function(e){
       e.preventDefault(); PARTNER_FILTER = document.getElementById('qPartner').value||''; drawPartnerFull(1);
     });
-    document.querySelectorAll('.categories .catbtn').forEach(btn=>{
-      btn.addEventListener('click', ()=>switchTab(btn.dataset.cat));
+    document.querySelectorAll('.categories .catbtn').forEach(function(btn){
+      btn.addEventListener('click', function(){ switchTab(btn.getAttribute('data-cat')); });
     });
 
     // ===== indulás =====
     (async function init(){
-      await loadPartners();
-      await buildSaleBlocksAll();  // Akciók: minden partner
-      await switchTab('all');
+      try{
+        await loadPartners();
+        await buildSaleBlocksAll();  // Akciók: minden partner
+        await switchTab('all');
+      }catch(e){
+        console.error('Init hiba:', e);
+      }
     })();
+
+    // Globális hibafogók
+    window.addEventListener('error', function(ev){ showFatal(ev.message || 'Ismeretlen hiba'); });
+    window.addEventListener('unhandledrejection', function(ev){ showFatal((ev.reason && ev.reason.message) || 'Ismeretlen promise hiba'); });
   </script>
 </body>
 </html>
