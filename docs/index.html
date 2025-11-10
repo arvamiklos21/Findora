@@ -172,9 +172,6 @@
           <button class="catbtn" data-cat="tech">💻 Tech</button>
           <button class="catbtn" data-cat="vision">👓 Látás</button>
           <button class="catbtn" data-cat="travel">✈️ Utazás</button>
-          <button class="catbtn" data-cat="sport">🏃‍♂️ Sport</button>
-          <!-- ADDED: Nyilatkozatok menüpont (indexen belüli betöltéshez) -->
-          <a href="/nyilatkozat.html" class="catbtn" data-legal>📜 Nyilatkozatok</a>
         </nav>
 
         <form id="searchFormAll" class="searchbar" role="search" action="">
@@ -184,8 +181,6 @@
         <div id="searchProgress">Keresés…</div>
       </div>
     </div>
-    <!-- ADDED: a betöltött jogi tartalom helye (a menü ALATT) -->
-    <div id="legal-host" style="display:none"></div>
   </header>
 
   <!-- mini nav -->
@@ -258,16 +253,8 @@
       <div id="games-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
     </section>
 
-    <!-- ========= SPORT – Decathlon ========= -->
-<section class="section" id="sport" style="display:none">
-  <h2>Sport</h2>
-  <div id="sport-partners">
-    <div class="grid">
-      <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
-    </div>
-  </div>
-</section>
     <!-- A többi kategória szekció rejtve -->
+    <section class="section" id="tech" style="display:none"></section>
     <section class="section" id="vision" style="display:none"></section>
     <section class="section" id="travel" style="display:none"></section>
   </main>
@@ -378,9 +365,9 @@
 
     // ===== ERŐS DEDUP mindenhol =====
     var SIZE_TOKENS = new RegExp([
-      '\\\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\\\b',
-      '\\\\b(?:\\\\d{2,3}[\\\\/-]\\\\d{2,3})\\\\b',
-      '\\\\bEU\\\\s?\\\\d{2,3}\\\\b',
+      '\\\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\\\b',            // klasszikus ruhaméretek
+      '\\\\b(?:\\\\d{2,3}[\\\\/-]\\\\d{2,3})\\\\b',               // 36/38, 39-45
+      '\\\\bEU\\\\s?\\\\d{2,3}\\\\b',                             // EU 42
       '[\\\\(\\\\[]\\\\s*(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|EU\\\\s?\\\\d{2,3}|\\\\d{2,3}[\\\\/-]\\\\d{2,3})\\\\s*[\\\\)\\\\]]',
       '\\\\b(?:méret|meret)\\\\b\\\\s*[:\\\\-]?\\\\s*[A-Za-z0-9\\\\/-]+'
     ].join('|'), 'gi');
@@ -389,7 +376,7 @@
       if(!t) return '';
       return String(t)
         .replace(SIZE_TOKENS,' ')
-        .replace(/\\b(?:szín|szin|color)\\s*[:\\-]?\\s*[a-záéíóöőúüű0-9\\-]+/gi, ' ')
+        .replace(/\\b(?:szín|szin|color)\\s*[:\\-]?\\s*[a-záéíóöőúüű0-9\\-]+/gi, ' ') // szín-információ ne befolyásolja a cím-hash-t
         .replace(/\\s{2,}/g,' ')
         .trim()
         .toLowerCase();
@@ -456,7 +443,7 @@
       var seen = new Set();
 
       var index = startIndex;
-      var safety = 0;
+      var safety = 0; // védelem végtelen ciklus ellen
 
       while(uniques.length < want && index < total && safety < 500){
         var pageNum = Math.floor(index/srcSize) + 1;
@@ -473,6 +460,7 @@
             if(uniques.length === want) break;
           }
         }
+        // ugorjunk a következő forráslap elejére
         index = pageNum * srcSize;
         safety++;
       }
@@ -747,7 +735,7 @@
           };
           if(!items.some(ok)){
             var buffer = [];
-            var totalPages = meta.pages || Math.ceil(((meta.total||0))/ (meta.pageSize||300)) || 1;
+            var totalPages = meta.pages || Math.ceil(((meta.total||0))/(meta.pageSize||300)) || 1;
             for(var pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
               var arr = await getPageItems(partner.id, pg);
               buffer.push.apply(buffer, arr);
@@ -760,6 +748,7 @@
 
         document.getElementById('partner-full-list').innerHTML =
           renderCards(partner.id, items) || '<div class="empty">Nincs találat.</div>';
+
         var totalPages2 = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
         document.getElementById('partner-full-nav').innerHTML =
           '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawPartnerFull('+(page-1)+')">Előző</button>' +
@@ -942,7 +931,7 @@
           var srcSize = meta.pageSize || 300;
           var totalPages = meta.pages || Math.ceil(((meta.total||0))/srcSize) || 1;
 
-        for(var pg=1; pg<=totalPages; pg++){
+          for(var pg=1; pg<=totalPages; pg++){
             if(myRun!==SEARCH_RUN_ID) return;
             var arr = await getPageItems(p.id, pg);
             for(var j=0;j<arr.length;j++){
@@ -975,11 +964,11 @@
 
     // ===== Tab kezelés =====
     function hideAllSections(){
-  ['akciok','osszes','otthon','games','sport','tech','vision','travel'].forEach(function(id){
-    var s=document.getElementById(id); if(s) s.style.display='none';
-  });
-  document.querySelectorAll('.catbtn').forEach(function(b){ b.classList.remove('active'); });
-}
+      ['akciok','osszes','otthon','games','tech','vision','travel'].forEach(function(id){
+        var s=document.getElementById(id); if(s) s.style.display='none';
+      });
+      document.querySelectorAll('.catbtn').forEach(function(b){ b.classList.remove('active'); });
+    }
     async function switchTab(tab){
       hideAllSections();
       if(tab==='all'){
@@ -992,12 +981,6 @@
         var homeBtn = document.querySelector('.catbtn[data-cat="home"]'); if(homeBtn) homeBtn.classList.add('active');
         showHomeOverviewInOtthon();
         await drawOtthonOverview(1);
-        } else if(tab==='sport'){
-        var sec = document.getElementById('sport');
-        sec.style.display='block';
-      var sBtn = document.querySelector('.catbtn[data-cat="sport"]');
-      if(sBtn) sBtn.classList.add('active');
-        await drawSportTab();
       }else if(tab==='games'){
         var sec = document.getElementById('games');
         sec.style.display='block';
@@ -1024,10 +1007,7 @@
       e.preventDefault(); PARTNER_FILTER = document.getElementById('qPartner').value||''; drawPartnerFull(1);
     });
     document.querySelectorAll('.categories .catbtn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        var cat = btn.getAttribute('data-cat');
-        if (cat) switchTab(cat);
-      });
+      btn.addEventListener('click', function(){ switchTab(btn.getAttribute('data-cat')); });
     });
 
     // ===== indulás =====
@@ -1045,142 +1025,5 @@
     window.addEventListener('error', function(ev){ showFatal(ev.message || 'Ismeretlen hiba'); });
     window.addEventListener('unhandledrejection', function(ev){ showFatal((ev.reason && ev.reason.message) || 'Ismeretlen promise hiba'); });
   </script>
-
-  <!-- ADDED: Betöltő JS a nyilatkozat.html indexen belüli megjelenítéséhez -->
-  <script>
-  (function(){
-    const host = document.getElementById('legal-host');
-    let loaded = false;
-    const OFFSET_PX = 64; // ha van sticky header
-
-    document.addEventListener('click', async (e) => {
-      const link = e.target.closest('a[data-legal]');
-      if (!link) return;
-
-      e.preventDefault();
-
-      const url = new URL(link.getAttribute('href'), location.origin);
-      const targetId = url.hash ? url.hash.slice(1) : null;
-
-      if (!loaded) {
-        try {
-          const res = await fetch('nyilatkozat.html', { credentials: 'same-origin' });
-          const html = await res.text();
-          const doc = new DOMParser().parseFromString(html, 'text/html');
-          const main = doc.querySelector('main');
-
-          host.innerHTML = '';
-          host.appendChild(main ? main : doc.body);
-          loaded = true;
-
-          // Bezár gomb
-          const closeBtn = document.createElement('button');
-          closeBtn.textContent = 'Bezár';
-          closeBtn.style.cssText = 'float:right;margin:8px 0;padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;';
-          closeBtn.addEventListener('click', () => { host.style.display = 'none'; });
-          host.prepend(closeBtn);
-
-          // Doboz stílus
-          host.style.cssText = 'display:block;margin:24px 0;padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;';
-        } catch (err) {
-          host.style.display = 'block';
-          host.innerHTML = '<p>Nem sikerült betölteni a nyilatkozatot. Próbáld újra később.</p>';
-          return;
-        }
-      } else {
-        host.style.display = 'block';
-      }
-
-      if (targetId) {
-        const section = host.querySelector('#' + CSS.escape(targetId));
-        if (section) {
-          const rect = section.getBoundingClientRect();
-          const y = window.scrollY + rect.top - OFFSET_PX;
-          window.scrollTo({ top: y, behavior: 'smooth' });
-          return;
-        }
-      }
-      host.scrollIntoView({ behavior: 'smooth' });
-    });
-  })();
-      <!-- ===== SPORT TAB DEFINÍCIÓ ===== -->
-  <script>
-  window.drawSportTab = async function drawSportTab(){
-    try {
-      var host = document.getElementById('sport-partners');
-      if(!host){ console.warn('sport-partners nincs a DOM-ban'); return; }
-
-      var sports = Array.from(PARTNERS.values()).filter(function(p){
-        return p.group === 'sport' && p.placements && p.placements.sport && p.placements.sport.enabled;
-      });
-
-      if(sports.length === 0){
-        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Sport” partner konfigurálva.</div></div>';
-        return;
-      }
-
-      host.innerHTML = sports.map(function(p){
-        return (
-          '<div class="section" id="sport-box-'+p.id+'">' +
-            '<h2>'+p.name+'</h2>' +
-            '<div class="grid" id="sport-'+p.id+'-list">' +
-              '<div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>' +
-            '</div>' +
-          '</div>'
-        );
-      }).join('');
-
-      for (var i=0; i<sports.length; i++){
-        var pid = sports[i].id;
-        var cfg  = PARTNERS.get(pid);
-        var PAGE = (cfg && cfg.placements && cfg.placements.sport && cfg.placements.sport.pageSize) ? cfg.placements.sport.pageSize : 6;
-
-        try{
-          var items = await collectUnique(pid, 0, PAGE);
-          var html  = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-          var listEl = document.getElementById('sport-'+pid+'-list');
-          if(listEl) listEl.innerHTML = html;
-        }catch(e){
-          console.error('Sport betöltési hiba', pid, e);
-          var listEl2 = document.getElementById('sport-'+pid+'-list');
-          if(listEl2) listEl2.innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
-        }
-      }
-    } catch(err){
-      console.error('drawSportTab hiba:', err);
-    }
-  };
-  </script>
-
-  <!-- ===== EREDTI SCRIPT BLOKK (pl. scroll kezelő, ami most nálad van) ===== -->
-  <script>
-    (function(){
-      const OFFSET_PX = 80;
-      document.querySelectorAll('a[href^="#"]').forEach(link=>{
-        link.addEventListener('click',function(e){
-          const targetId = this.getAttribute('href').substring(1);
-          const host = document.querySelector('main');
-          e.preventDefault();
-          if (targetId) {
-            const section = host.querySelector('#' + CSS.escape(targetId));
-            if (section) {
-              const rect = section.getBoundingClientRect();
-              const y = window.scrollY + rect.top - OFFSET_PX;
-              window.scrollTo({ top: y, behavior: 'smooth' });
-              return;
-            }
-          }
-          host.scrollIntoView({ behavior: 'smooth' });
-        });
-      });
-    })();
-  </script>
 </body>
 </html>
-
-
-
-
-
-
-
