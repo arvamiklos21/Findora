@@ -15,7 +15,7 @@
     "meta": "/feeds/jateksziget/meta.json",
     "pagePattern": "/feeds/jateksziget/page-{NNNN}.json",
     "deeplinkPartner": "jateksziget",
-    "placements": { "home": { "enabled": true, "pageSize": 6 }, "Játékok": { "enabled": true, "pageSize": 6, "full": { "enabled": true, "pageSize": 20 } } }
+    "placements": { "home": { "enabled": true, "pageSize": 6 }, "Jatekok": { "enabled": true, "pageSize": 6, "full": { "enabled": true, "pageSize": 20 } } }
   },
   {
     "id": "regiojatek",
@@ -24,6 +24,6 @@
     "meta": "/feeds/regiojatek/meta.json",
     "pagePattern": "/feeds/regiojatek/page-{NNNN}.json",
     "deeplinkPartner": "regiojatek",
-    "placements": { "home": { "enabled": true, "pageSize": 6 }, "Játékok": { "enabled": true, "pageSize": 6, "full": { "enabled": true, "pageSize": 20 } } }
+    "placements": { "home": { "enabled": true, "pageSize": 6 }, "Jatekok": { "enabled": true, "pageSize": 6, "full": { "enabled": true, "pageSize": 20 } } }
   }
 ]
