@@ -1,4 +1,4 @@
-name: ingest-regio
+name: ingest-regiojatek
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: ingest-regio-${{ github.ref }}
+  group: ingest-regiojatek-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -31,48 +31,48 @@ jobs:
       - name: Install deps
         run: pip install requests
 
-      - name: Build Regio feed pages
+      - name: Build RegioJatek feed pages
         env:
-          FEED_REGIO_URL: ${{ secrets.FEED_REGIO_URL }}
+          FEED_REGIOJATEK_URL: ${{ secrets.FEED_REGIOJATEK_URL }}
         run: |
           set -euo pipefail
-          if [ -z "${FEED_REGIO_URL:-}" ]; then
-            echo "::error title=Missing secret::FEED_REGIO_URL nincs beállítva (Settings → Secrets → Actions)."
+          if [ -z "${FEED_REGIOJATEK_URL:-}" ]; then
+            echo "::error title=Missing secret::FEED_REGIOJATEK_URL nincs beállítva (Settings → Secrets → Actions)."
             exit 1
           fi
 
           mkdir -p docs/feeds/regiojatek
-          python -u scripts/build_regio.py
+          python -u scripts/build_regiojatek.py
 
-          # Szigorú sanity
-          test -s docs/feeds/regio/meta.json
-          test -s docs/feeds/regio/page-0001.json
+          # Szigorú sanity check
+          test -s docs/feeds/regiojatek/meta.json
+          test -s docs/feeds/regiojatek/page-0001.json
 
           if command -v jq >/dev/null 2>&1; then
-            jq -e '.items | length >= 0' docs/feeds/regio/page-0001.json >/dev/null
-            jq -e '.pages >= 1 and .total >= 0' docs/feeds/regio/meta.json >/dev/null
+            jq -e '.items | length >= 0' docs/feeds/regiojatek/page-0001.json >/dev/null
+            jq -e '.pages >= 1 and .total >= 0' docs/feeds/regiojatek/meta.json >/dev/null
             echo "Sanity check (first item):"
-            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/regio/page-0001.json || true
+            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/regiojatek/page-0001.json || true
           else
-            head -c 800 docs/feeds/regio/page-0001.json || true
+            head -c 800 docs/feeds/regiojatek/page-0001.json || true
           fi
 
-          ls -la docs/feeds/regio
+          ls -la docs/feeds/regiojatek
 
       - name: Commit changes
         run: |
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git add docs/feeds/regio
-          git commit -m "regio: update feed pages" || echo "No changes"
+          git add docs/feeds/regiojatek
+          git commit -m "regiojatek: update feed pages" || echo "No changes"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
         with:
-          branch: bot/update-regio
+          branch: bot/update-regiojatek
           delete-branch: true
-          title: "regio: update feed pages"
-          commit-message: "regio: update feed pages"
+          title: "regiojatek: update feed pages"
+          commit-message: "regiojatek: update feed pages"
           body: |
-            Automated update of Regio feed pages (JSON pagination).
+            Automated update of RegioJáték feed pages (JSON pagination).
