@@ -264,7 +264,7 @@
   </footer>
 
   <script>
-    // ===== vizuálok =====
+    // ===== apró vizuálok =====
     (function snow(){
       const wrap=document.querySelector('.snow');
       const isMobile = matchMedia('(max-width: 640px)').matches;
@@ -323,28 +323,17 @@
     const PAGES    = new Map();
     const DL = (partner, raw) => `${API_BASE}/api/dl?u=${encodeURIComponent(raw)}&p=${partner}`;
 
-    // Otthon (Tchibo) teljes nézethez
     let CURRENT_OTTHON_PARTNER = null;
-    // Games teljes nézetekhez: partnerId -> { filter: string, page:int }
     const GAMES_STATE = new Map();
 
     const pageUrl = (partnerCfg, n) => partnerCfg.pagePattern.replace('{NNNN}', String(n).padStart(4,'0'));
     const priceText = (v) => Number.isFinite(v) ? (v.toLocaleString('hu-HU') + ' Ft') : (typeof v==='string' && v.trim() ? v : '—');
     const firstUrl  = (it) => it?.url || it?.link || it?.deeplink || '';
-    const basePath  = (u)=>{ try{ const x=new URL(u); return x.origin + x.pathname; }catch(_){ return String(u||'').split('#')[0].split('?')[0]; } };
-    const imgPath   = (u)=> String(u||'').split('#')[0].split('?')[0];
-    function dedupeBySizeKeepColor(items){
-      const seen=new Set(), out=[];
-      for(const it of (items||[])){
-        const key = basePath(firstUrl(it)) + '|' + imgPath(it?.img||'');
-        if(key && !seen.has(key)){ seen.add(key); out.push(it); }
-      }
-      return out;
-    }
+
+    // KLIENSOLDALI DEDUP TÖRÖLVE — a feed már deduplikált!
     const renderCards = (partnerId, items)=>{
       const cfg = PARTNERS.get(partnerId);
-      const deduped = dedupeBySizeKeepColor(items);
-      return deduped.map(it=>{
+      return (items||[]).map(it=>{
         const raw = firstUrl(it);
         return `
           <div class="card">
@@ -432,7 +421,7 @@
           const arr = await getPageItems(defaultPartnerId, pageNum);
           if(innerIdx < arr.length) out.push(arr[innerIdx]);
         }
-        ALL_INDEX = dedupeBySizeKeepColor(out);
+        ALL_INDEX = out; // már deduplikált a feed
 
         const items = ALL_INDEX;
         const in10 = items.filter(it=>{ const d=getDiscountNumber(it); return d!==null && d>=10 && d<=24; });
@@ -584,7 +573,7 @@
       }
     }
 
-    // ===== Games: ugyanaz a viselkedés partnerenként (6/lap + Teljes 20/lap + kereső) =====
+    // ===== Games (mindkét partner ugyanaz a viselkedés) =====
     function gamesBoxTemplate(p){
       const pid = p.id;
       return `
@@ -689,11 +678,11 @@
       }
       host.innerHTML = games.map(g=>gamesBoxTemplate(g)).join('');
 
-      // header katt → teljes nézet
+      // header katt → teljes nézet (stabil PID olvasás)
       host.querySelectorAll('.games-head').forEach(a=>{
         a.addEventListener('click', (e)=>{
           e.preventDefault();
-          const pid = a.dataset.partner;
+          const pid = e.currentTarget.dataset.partner;
           const p = PARTNERS.get(pid);
           if(!p?.placements?.games?.full?.enabled) return;
           showGamesFull(pid);
@@ -752,7 +741,7 @@
           for(const it of arr){
             if(myRun!==SEARCH_RUN_ID) return;
             if(matchesNeedle(it, needle)){
-              const key = basePath(firstUrl(it)) + '|' + imgPath(it?.img||'');
+              const key = (it?.url||it?.link||it?.deeplink||'') + '|' + (it?.img||'');
               if(!seen.has(key)){
                 seen.add(key); results.push(it);
                 if(results.length>=MAX_RESULTS) break;
