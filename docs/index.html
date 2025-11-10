@@ -169,6 +169,7 @@
           <button class="catbtn active" data-cat="all">Főoldal</button>
           <button class="catbtn" data-cat="home">🏠 Otthon</button>
           <button class="catbtn" data-cat="games">🕹️ Játékok</button>
+          <button class="catbtn" data-cat="sport">🏃‍♂️ Sport</button> <!-- ÚJ -->
           <button class="catbtn" data-cat="tech">💻 Tech</button>
           <button class="catbtn" data-cat="vision">👓 Látás</button>
           <button class="catbtn" data-cat="travel">✈️ Utazás</button>
@@ -251,6 +252,12 @@
     <section class="section" id="games">
       <h2>Játékok</h2>
       <div id="games-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
+    </section>
+
+    <!-- ========= SPORT – (pl. Decathlon) ========= -->
+    <section class="section" id="sport" style="display:none">
+      <h2>Sport</h2>
+      <div id="sport-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
     </section>
 
     <!-- A többi kategória szekció rejtve -->
@@ -354,6 +361,7 @@
 
     var CURRENT_OTTHON_PARTNER = null;
     var GAMES_STATE = new Map();
+    var SPORT_STATE = new Map(); // ÚJ
 
     var HOME_PARTNERS = [];
     var DEFAULT_PARTNER = null;
@@ -365,9 +373,9 @@
 
     // ===== ERŐS DEDUP mindenhol =====
     var SIZE_TOKENS = new RegExp([
-      '\\\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\\\b',            // klasszikus ruhaméretek
-      '\\\\b(?:\\\\d{2,3}[\\\\/-]\\\\d{2,3})\\\\b',               // 36/38, 39-45
-      '\\\\bEU\\\\s?\\\\d{2,3}\\\\b',                             // EU 42
+      '\\\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\\\b',
+      '\\\\b(?:\\\\d{2,3}[\\\\/-]\\\\d{2,3})\\\\b',
+      '\\\\bEU\\\\s?\\\\d{2,3}\\\\b',
       '[\\\\(\\\\[]\\\\s*(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|EU\\\\s?\\\\d{2,3}|\\\\d{2,3}[\\\\/-]\\\\d{2,3})\\\\s*[\\\\)\\\\]]',
       '\\\\b(?:méret|meret)\\\\b\\\\s*[:\\\\-]?\\\\s*[A-Za-z0-9\\\\/-]+'
     ].join('|'), 'gi');
@@ -376,7 +384,7 @@
       if(!t) return '';
       return String(t)
         .replace(SIZE_TOKENS,' ')
-        .replace(/\\b(?:szín|szin|color)\\s*[:\\-]?\\s*[a-záéíóöőúüű0-9\\-]+/gi, ' ') // szín-információ ne befolyásolja a cím-hash-t
+        .replace(/\\b(?:szín|szin|color)\\s*[:\\-]?\\s*[a-záéíóöőúüű0-9\\-]+/gi, ' ')
         .replace(/\\s{2,}/g,' ')
         .trim()
         .toLowerCase();
@@ -432,18 +440,16 @@
       return arr;
     }
 
-    // VISSZATÖLTŐS gyűjtés: mindig pontosan want egyedi darabot próbál visszaadni
+    // VISSZATÖLTŐS gyűjtés
     async function collectUnique(partnerId, offset, want){
       var meta = await getMeta(partnerId);
       var srcSize = meta.pageSize || 300;
       var total   = (meta.total!==undefined && meta.total!==null) ? meta.total : ((meta.pages*srcSize) || 0);
-
       var startIndex = Math.max(0, offset|0);
       var uniques = [];
       var seen = new Set();
-
       var index = startIndex;
-      var safety = 0; // védelem végtelen ciklus ellen
+      var safety = 0;
 
       while(uniques.length < want && index < total && safety < 500){
         var pageNum = Math.floor(index/srcSize) + 1;
@@ -460,7 +466,6 @@
             if(uniques.length === want) break;
           }
         }
-        // ugorjunk a következő forráslap elejére
         index = pageNum * srcSize;
         safety++;
       }
@@ -673,7 +678,6 @@
     }
     async function drawOtthonOverview(page){
       page = page || 1;
-      // FIX: Otthon fülön TCHIBO legyen az elsődleges, ha létezik
       var tch = PARTNERS.get('tchibo');
       var partner = tch && tch.placements && tch.placements.otthon && tch.placements.otthon.enabled
         ? tch
@@ -897,6 +901,143 @@
       }
     }
 
+    // ===== SPORT =====
+    function sportBoxTemplate(p){
+      var pid = p.id;
+      return (
+        '<div class="section" id="sport-box-'+pid+'">' +
+          '<h2><a href="#sport-'+pid+'-full" class="sport-head" data-partner="'+pid+'" style="text-decoration:underline;font-weight:900;">'+p.name+'</a></h2>' +
+          '<div class="grid" id="sport-'+pid+'-list"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div>' +
+          '<div class="grid" id="sport-'+pid+'-nav" style="padding-top:0"></div>' +
+          '<div id="sport-'+pid+'-full-wrap" style="display:none; padding:12px;">' +
+            '<form class="searchbar sport-search" data-partner="'+pid+'" role="search" action="" style="margin:0 0 8px">' +
+              '<input id="qSport-'+pid+'" type="search" placeholder="Keresés a termékek között…" aria-label="Keresés ('+p.name+')" />' +
+              '<button type="submit" aria-label="Keresés indítása">Keresés</button>' +
+            '</form>' +
+            '<div class="grid" id="sport-'+pid+'-full-list"></div>' +
+            '<div class="grid" id="sport-'+pid+'-full-nav" style="padding-top:0"></div>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+    function showSportOverview(pid){
+      document.getElementById('sport-'+pid+'-list').style.display='';
+      document.getElementById('sport-'+pid+'-nav').style.display='';
+      document.getElementById('sport-'+pid+'-full-wrap').style.display='none';
+    }
+    function showSportFull(pid){
+      document.getElementById('sport-'+pid+'-list').style.display='none';
+      document.getElementById('sport-'+pid+'-nav').style.display='none';
+      document.getElementById('sport-'+pid+'-full-wrap').style.display='';
+    }
+    async function drawSportOverviewFor(pid, page){
+      page = page || 1;
+      var p = PARTNERS.get(pid);
+      if(!p) return;
+      var PAGE = (p.placements && p.placements.sport ? p.placements.sport.pageSize : 6) || 6;
+      try{
+        var items = await collectUnique(pid, (page-1)*PAGE, PAGE);
+        var meta  = await getMeta(pid);
+        var totalPages = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
+        var listEl = document.getElementById('sport-'+pid+'-list');
+        var navEl  = document.getElementById('sport-'+pid+'-nav');
+        listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
+        navEl.innerHTML =
+          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawSportOverviewFor(\''+pid+'\','+(page-1)+')">Előző</button>' +
+          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
+          '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawSportOverviewFor(\''+pid+'\','+(page+1)+')">Következő</button>';
+      }catch(e){
+        console.error(e);
+        document.getElementById('sport-'+pid+'-list').innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
+      }
+    }
+    async function drawSportFullFor(pid, page){
+      page = page || 1;
+      var p = PARTNERS.get(pid);
+      if(!p || !(p.placements && p.placements.sport && p.placements.sport.full && p.placements.sport.full.enabled)) return;
+      if(!SPORT_STATE.has(pid)) SPORT_STATE.set(pid, { filter:'', page:1 });
+
+      var state = SPORT_STATE.get(pid);
+      var PAGE = (p.placements && p.placements.sport && p.placements.sport.full ? p.placements.sport.full.pageSize : 20) || 20;
+      try{
+        var meta = await getMeta(pid);
+        var offset = (page-1)*PAGE;
+
+        var items = await collectUnique(pid, offset, PAGE);
+
+        if(state.filter){
+          var q = state.filter.toLowerCase();
+          var ok = function(it){
+            return (((it && it.title) ? it.title : '') + ' ' + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
+          };
+          if(!items.some(ok)){
+            var buffer = [];
+            var totalPages = meta.pages || Math.ceil(((meta.total||0))/ (meta.pageSize||300)) || 1;
+            for(var pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
+              var arr = await getPageItems(pid, pg);
+              buffer.push.apply(buffer, arr);
+            }
+            items = dedupeStrong(buffer).filter(ok).slice(0,PAGE);
+          }else{
+            items = dedupeStrong(items.filter(ok)).slice(0,PAGE);
+          }
+        }
+
+        document.getElementById('sport-'+pid+'-full-list').innerHTML =
+          renderCards(pid, items) || '<div class="empty">Nincs találat.</div>';
+        var totalPages2 = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
+        document.getElementById('sport-'+pid+'-full-nav').innerHTML =
+          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawSportFullFor(\''+pid+'\','+(page-1)+')">Előző</button>' +
+          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages2+' </span>' +
+          '<button class="cta" '+(page>=totalPages2?'disabled':'')+' onclick="drawSportFullFor(\''+pid+'\','+(page+1)+')">Következő</button>';
+      }catch(e){
+        console.error(e);
+        document.getElementById('sport-'+pid+'-full-list').innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
+      }
+    }
+    async function drawSportTab(){
+      var sports = Array.from(PARTNERS.values()).filter(function(p){
+        return p.group==='sport' && p.placements && p.placements.sport && p.placements.sport.enabled;
+      });
+      var host = document.getElementById('sport-partners');
+      if(sports.length===0){
+        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Sport” partner konfigurálva.</div></div>';
+        return;
+      }
+      host.innerHTML = sports.map(function(g){ return sportBoxTemplate(g); }).join('');
+
+      host.querySelectorAll('.sport-head').forEach(function(a){
+        a.addEventListener('click', function(e){
+          e.preventDefault();
+          var pid = e.currentTarget.getAttribute('data-partner');
+          var p = PARTNERS.get(pid);
+          if(!(p && p.placements && p.placements.sport && p.placements.sport.full && p.placements.sport.full.enabled)) return;
+          showSportFull(pid);
+          drawSportFullFor(pid, 1);
+        });
+      });
+
+      host.querySelectorAll('form.sport-search').forEach(function(form){
+        var pid = form.getAttribute('data-partner');
+        form.addEventListener('submit', function(e){
+          e.preventDefault();
+          var q = (document.getElementById('qSport-'+pid).value||'').trim();
+          if(!SPORT_STATE.has(pid)) SPORT_STATE.set(pid, { filter:'', page:1 });
+          var st = SPORT_STATE.get(pid);
+          st.filter = q;
+          st.page = 1;
+          showSportFull(pid);
+          drawSportFullFor(pid, 1);
+        });
+      });
+
+      for(var i=0;i<sports.length;i++){
+        var p = sports[i];
+        showSportOverview(p.id);
+        await drawSportOverviewFor(p.id, 1);
+      }
+    }
+
     // ===== Globális kereső =====
     function matchesNeedle(it, needle){
       var t=((it && it.title) ? it.title : '').toLowerCase();
@@ -964,7 +1105,7 @@
 
     // ===== Tab kezelés =====
     function hideAllSections(){
-      ['akciok','osszes','otthon','games','tech','vision','travel'].forEach(function(id){
+      ['akciok','osszes','otthon','games','sport','tech','vision','travel'].forEach(function(id){
         var s=document.getElementById(id); if(s) s.style.display='none';
       });
       document.querySelectorAll('.catbtn').forEach(function(b){ b.classList.remove('active'); });
@@ -986,8 +1127,13 @@
         sec.style.display='block';
         var gBtn = document.querySelector('.catbtn[data-cat="games"]'); if(gBtn) gBtn.classList.add('active');
         await drawGamesTab();
+      }else if(tab==='sport'){
+        var sec2 = document.getElementById('sport');
+        sec2.style.display='block';
+        var sBtn = document.querySelector('.catbtn[data-cat="sport"]'); if(sBtn) sBtn.classList.add('active');
+        await drawSportTab();
       }else{
-        var sec2=document.getElementById(tab); if(sec2) sec2.style.display='block';
+        var sec3=document.getElementById(tab); if(sec3) sec3.style.display='block';
         var btn = document.querySelector('.catbtn[data-cat="'+tab+'"]'); if(btn) btn.classList.add('active');
       }
     }
@@ -1014,7 +1160,7 @@
     (async function init(){
       try{
         await loadPartners();
-        await buildSaleBlocksAll();  // Akciók: minden partner
+        await buildSaleBlocksAll();
         await switchTab('all');
       }catch(e){
         console.error('Init hiba:', e);
