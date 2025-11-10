@@ -8,22 +8,30 @@
     "deeplinkPartner": "tchibo",
     "placements": { "home": { "enabled": true, "pageSize": 6 }, "otthon": { "enabled": true, "pageSize": 6, "full": { "enabled": true, "pageSize": 20 } } }
   },
-  {
-    "id": "regiojatek",
-    "name": "RegioJáték",
-    "group": "jatek",
-    "meta": "/feeds/regiojatek/meta.json",
-    "pagePattern": "/feeds/regiojatek/page-{NNNN}.json",
-    "deeplinkPartner": "regiojatek",
-    "placements": { "home": { "enabled": false }, "otthon": { "enabled": false } }
-  },
-  {
+ {
     "id": "jateksziget",
     "name": "Játéksziget",
-    "group": "jatek",
+    "group": "games",
     "meta": "/feeds/jateksziget/meta.json",
     "pagePattern": "/feeds/jateksziget/page-{NNNN}.json",
     "deeplinkPartner": "jateksziget",
-    "placements": { "home": { "enabled": false }, "otthon": { "enabled": false } }
+    "placements": {
+      "games": { "enabled": true, "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
+  },
+  {
+    "id": "regiojatek",
+    "name": "REGIO Játék",
+    "group": "games",
+    "meta": "/feeds/regiojatek/meta.json",
+    "pagePattern": "/feeds/regiojatek/page-{NNNN}.json",
+    "deeplinkPartner": "regiojatek",
+    "placements": {
+      "games": { "enabled": true, "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
   }
 ]
