@@ -477,10 +477,11 @@
     // Aktív partnerek
     function enabledPartners(){
       const arr = Array.from(PARTNERS.values());
-      return arr.filter(p=>{
+      const enabled = arr.filter(p=>{
         const plc = p.placements||{};
         return Object.values(plc).some(v => (v && v.enabled) || (v?.full?.enabled));
       });
+      return enabled;
     }
 
     // ===== Akció blokkok – minden partner =====
