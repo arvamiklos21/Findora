@@ -316,36 +316,7 @@
 
     // ===== helpers & state =====
     const API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
-    const partnersUrl = '/feeds/partners.json'; // elsődleges cél
-
-    // --- DEBUG UI: látható hibaüzenet banner ---
-    function showFatal(msg) {
-      const b = document.createElement('div');
-      b.style.cssText = "position:fixed;left:12px;bottom:12px;max-width:90vw;background:#fee2e2;color:#7f1d1d;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;z-index:9999;font:14px/1.3 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.15)";
-      b.innerHTML = "❌ Hiba: " + msg + "<br><small>Részletek: F12 → Console/Network.</small>";
-      document.body.appendChild(b);
-    }
-
-    // --- partners.json elérés intelligens feloldása + cache törés ---
-    const partnersCandidates = [
-      partnersUrl,
-      (location.pathname.replace(/\/[^/]*$/, '') || '') + '/feeds/partners.json',
-      (location.pathname.startsWith('/Findora') ? '/Findora/feeds/partners.json' : null)
-    ].filter(Boolean);
-
-    async function fetchFirstAvailable(urls){
-      const v = Date.now();
-      for(const u of urls){
-        try{
-          const r = await fetch(u + (u.includes('?') ? '&' : '?') + 'v=' + v, { cache:'no-cache' });
-          if(r.ok) return await r.json();
-          console.warn('partners.json próbálva, státusz:', r.status, u);
-        }catch(e){
-          console.warn('partners.json fetch hiba:', u, e);
-        }
-      }
-      throw new Error('Egyik partners.json útvonal sem érhető el: ' + urls.join(', '));
-    }
+    const partnersUrl = '/feeds/partners.json';
 
     const PARTNERS = new Map();
     const META     = new Map();
@@ -431,7 +402,7 @@
         for(let k=inner; k<arr.length && acc.length<want; k++){
           acc.push(arr[k]);
         }
-        i = pageNum*srcSize;
+        i = pageNum*srcSize; // ugrás a következő teljes oldalra
       }
       return dedupeStrong(acc).slice(0, want);
     }
@@ -456,7 +427,7 @@
 
     // több partnerből kevert lista
     function renderMixedCards(itemsWithPid){
-      const list = itemsWithPid;
+      const list = itemsWithPid; // feltételezzük, hogy előtte már dedupoltuk
       return (list||[]).map(r=>{
         const cfg = PARTNERS.get(r.pid);
         const it  = r.item;
@@ -474,14 +445,13 @@
       }).join('');
     }
 
-    // Aktív partnerek
+    // Aktív (bármely elhelyezésen engedélyezett) partnerek
     function enabledPartners(){
       const arr = Array.from(PARTNERS.values());
-      const enabled = arr.filter(p=>{
+      return arr.filter(p=>{
         const plc = p.placements||{};
         return Object.values(plc).some(v => (v && v.enabled) || (v?.full?.enabled));
       });
-      return enabled;
     }
 
     // ===== Akció blokkok – minden partner =====
@@ -495,6 +465,7 @@
     function renderPagedBlockMixed(itemsWithPid, listElId, navElId){
       const PAGE=6;
       const deduped = dedupeStrong(itemsWithPid.map(x=>x.item)).map(it=>{
+        // vissza kell rendelnünk a pid-et (URL alapján)
         const raw = firstUrl(it);
         const pid = itemsWithPid.find(y=>firstUrl(y.item)===raw)?.pid || 'unknown';
         return {pid, item: it};
@@ -553,28 +524,15 @@
       }
     }
 
-    // ===== partners betöltés (JAVÍTVA) =====
+    // ===== partners betöltés =====
     async function loadPartners(){
-      try{
-        const arr = await fetchFirstAvailable(partnersCandidates);
-        if (!Array.isArray(arr) || !arr.length) {
-          throw new Error('partners.json üres vagy hibás formátum');
-        }
-        PARTNERS.clear();
-        for(const p of arr){
-          if(!p.id || !p.meta || !p.pagePattern || !p.deeplinkPartner){
-            console.error('Hibás partner objektum:', p);
-            throw new Error('Hibás partner (kötelező: id, meta, pagePattern, deeplinkPartner)');
-          }
-          PARTNERS.set(p.id, p);
-        }
-        HOME_PARTNERS = arr.filter(p=>p.placements?.home?.enabled);
-        DEFAULT_PARTNER = HOME_PARTNERS[0]?.id || arr.find(p=>p.placements?.home?.enabled)?.id || arr[0]?.id || null;
-        console.log('PARTNEREK BETÖLTVE:', PARTNERS);
-      }catch(e){
-        showFatal(e.message);
-        throw e;
-      }
+      const r = await fetch(partnersUrl, {cache:'no-cache'});
+      if(!r.ok) throw new Error('partners.json nem elérhető');
+      const arr = await r.json();
+      for(const p of arr) PARTNERS.set(p.id, p);
+
+      HOME_PARTNERS = arr.filter(p=>p.placements?.home?.enabled);
+      DEFAULT_PARTNER = HOME_PARTNERS[0]?.id || arr.find(p=>p.placements?.home?.enabled)?.id || arr[0]?.id || null;
     }
 
     // ===== Főoldal – több partner doboz =====
@@ -680,12 +638,14 @@
         const meta = await getMeta(partner.id);
         const offset = (page-1)*PAGE;
 
+        // gyűjtsünk annyit, hogy dedup után is meglegyen a PAGE
         let items = await collectUnique(partner.id, offset, PAGE);
 
         if(PARTNER_FILTER){
           const q = PARTNER_FILTER.toLowerCase();
           const ok = it => ((it?.title||'')+(it?.desc||'')).toLowerCase().includes(q);
           if(!items.some(ok)){
+            // ha az első blokkban nincs elég találat, nézzünk előről nagyobb ablakot
             const buffer = [];
             const totalPages = meta.pages || Math.ceil((meta.total||0)/(meta.pageSize||300)) || 1;
             for(let pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
@@ -811,6 +771,7 @@
       }
       host.innerHTML = games.map(g=>gamesBoxTemplate(g)).join('');
 
+      // header katt → teljes nézet (helyes pid)
       host.querySelectorAll('.games-head').forEach(a=>{
         a.addEventListener('click', (e)=>{
           e.preventDefault();
@@ -822,6 +783,7 @@
         });
       });
 
+      // keresők bekötése partnerenként
       host.querySelectorAll('form.games-search').forEach(form=>{
         const pid = form.dataset.partner;
         form.addEventListener('submit', (e)=>{
@@ -836,19 +798,20 @@
         });
       });
 
+      // első betöltés: mindhez 6/lap (egyedi kitöltéssel)
       for(const p of games){
         showGamesOverview(p.id);
         await drawGamesOverviewFor(p.id, 1);
       }
     }
 
-    // ===== Globális kereső =====
+    // ===== Globális kereső – minden partner, teljes bejárás =====
     function matchesNeedle(it, needle){
       const t=(it?.title||'').toLowerCase(), d=(it?.desc||'').toLowerCase();
       return t.includes(needle) || d.includes(needle);
     }
     let SEARCH_RUN_ID = 0;
-    const MAX_RESULTS = 600;
+    const MAX_RESULTS = 600; // összesített találati limit
 
     async function runSearchAcrossPartners(q){
       const needle=(q||'').trim().toLowerCase();
@@ -880,6 +843,7 @@
             for(const it of arr){
               if(myRun!==SEARCH_RUN_ID) return;
               if(matchesNeedle(it, needle)){
+                // erős dedup kulcs
                 const key = basePath(stripVariantParams(firstUrl(it))) + '|' + imgPath(it?.img||'') + '|' + normalizeTitleNoSize(it?.title||'');
                 if(!seen.has(key)){
                   seen.add(key);
@@ -952,20 +916,12 @@
       btn.addEventListener('click', ()=>switchTab(btn.dataset.cat));
     });
 
-    // ===== indulás (JAVÍTVA: try/catch + hibaláthatóság) =====
+    // ===== indulás =====
     (async function init(){
-      try{
-        await loadPartners();
-        await buildSaleBlocksAll();  // Akciók: minden partner
-        await switchTab('all');
-      }catch(e){
-        console.error('Init hiba:', e);
-      }
+      await loadPartners();
+      await buildSaleBlocksAll();  // Akciók: minden partner
+      await switchTab('all');
     })();
-
-    // Globális hibafogók – ha bármi elszáll, látod a képernyőn
-    window.addEventListener('error', (ev)=> showFatal(ev.message || 'Ismeretlen hiba'));
-    window.addEventListener('unhandledrejection', (ev)=> showFatal((ev.reason && ev.reason.message) || 'Ismeretlen promise hiba'));
   </script>
 </body>
 </html>
