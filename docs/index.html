@@ -327,48 +327,45 @@
     const GAMES_STATE = new Map();
 
     let HOME_PARTNERS = [];
-    let DEFAULT_PARTNER = null; // csak az akciók régi logikájához kellett, most mindet használjuk
-    const SCAN_PAGES_FOR_SALES = 2; // akció-blokkokhoz partnerenként ennyi forrásoldalt olvasunk
+    let DEFAULT_PARTNER = null;
+    const SCAN_PAGES_FOR_SALES = 2; // akció-blokkoknál partnerenként ennyi forrást olvasunk
 
     const pageUrl = (partnerCfg, n) => partnerCfg.pagePattern.replace('{NNNN}', String(n).padStart(4,'0'));
     const priceText = (v) => Number.isFinite(v) ? (v.toLocaleString('hu-HU') + ' Ft') : (typeof v==='string' && v.trim() ? v : '—');
     const firstUrl  = (it) => it?.url || it?.link || it?.deeplink || '';
 
-    const renderCards = (partnerId, items)=>{
-      const cfg = PARTNERS.get(partnerId);
-      return (items||[]).map(it=>{
+    // ===== ERŐS DEDUP mindenhol =====
+    const SIZE_TOKENS = /(?:\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\b|\b\d{2}(?:-\d{2})?\b)/gi;
+    function normalizeTitleNoSize(t){
+      if(!t) return '';
+      return String(t).replace(SIZE_TOKENS,'').replace(/\s{2,}/g,' ').trim().toLowerCase();
+    }
+    function basePath(u){
+      try{ const x=new URL(u); return x.origin + x.pathname; }catch(_){ return String(u||'').split('#')[0].split('?')[0]; }
+    }
+    function imgPath(u){ return String(u||'').split('#')[0].split('?')[0]; }
+    function stripVariantParams(u){
+      if(!u) return u;
+      try{
+        const x=new URL(u);
+        const drop=['size','meret','merete','variant_size','size_id','meret_id','option','variant'];
+        for(const k of [...x.searchParams.keys()]){
+          if(drop.includes(k.toLowerCase())) x.searchParams.delete(k);
+        }
+        return x.toString();
+      }catch(_){ return u; }
+    }
+    function dedupeStrong(items){
+      const out=[], seen=new Set();
+      for(const it of (items||[])){
         const raw = firstUrl(it);
-        return `
-          <div class="card">
-            <div class="thumb">
-              ${it?.img ? `<img src="${it.img}" alt="" loading="lazy" style="max-width:100%;max-height:100%">` : '🛍️'}
-            </div>
-            <div class="title">${it?.title || ''}</div>
-            <div class="price">${priceText(it?.price)}</div>
-            ${raw ? `<a class="cta" href="${DL(cfg.deeplinkPartner, raw)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
-          </div>`;
-      }).join('');
-    };
-
-    // több partnerből kevert lista kirajzolása
-    function renderMixedCards(itemsWithPid){
-      return (itemsWithPid||[]).map(r=>{
-        const cfg = PARTNERS.get(r.pid);
-        const it  = r.item;
-        const raw = firstUrl(it);
-        return `
-          <div class="card">
-            <div class="thumb">
-              ${it?.img ? `<img src="${it.img}" alt="" loading="lazy" style="max-width:100%;max-height:100%">` : '🛍️'}
-            </div>
-            <div class="title">${it?.title || ''}</div>
-            <div class="price">${priceText(it?.price)}</div>
-            <div class="title" style="color:#64748b;font-weight:700;font-size:12px;margin-top:0">• ${cfg?.name||r.pid}</div>
-            ${raw ? `<a class="cta" href="${DL(cfg.deeplinkPartner, raw)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
-          </div>`;
-      }).join('');
+        const key = basePath(stripVariantParams(raw)) + '|' + imgPath(it?.img||'') + '|' + normalizeTitleNoSize(it?.title||'');
+        if(!seen.has(key)){ seen.add(key); out.push(it); }
+      }
+      return out;
     }
 
+    // ===== oldalbetöltők =====
     async function getMeta(partnerId){
       if(META.has(partnerId)) return META.get(partnerId);
       const cfg = PARTNERS.get(partnerId);
@@ -391,19 +388,61 @@
       store.set(key, arr);
       return arr;
     }
-    async function fetchItems(partnerId, offset, limit){
+    async function collectUnique(partnerId, offset, want){
       const meta = await getMeta(partnerId);
-      const srcPageSize = meta.pageSize || 300;
-      const total = meta.total ?? (meta.pages * srcPageSize);
-      const out=[];
-      for(let i=offset; out.length<limit && i<total; i++){
-        const pageNum = Math.floor(i/srcPageSize) + 1;
-        const innerIdx = i % srcPageSize;
+      const srcSize = meta.pageSize || 300;
+      const total = meta.total ?? (meta.pages*srcSize) || 0;
+      const start = Math.max(0, offset|0);
+      const acc=[];
+      let i=start;
+      while(acc.length < want && i < total){
+        const pageNum = Math.floor(i/srcSize) + 1;
+        const inner   = i % srcSize;
         const arr = await getPageItems(partnerId, pageNum);
-        if(innerIdx < arr.length) out.push(arr[innerIdx]);
-        if(arr.length===0) break;
+        for(let k=inner; k<arr.length && acc.length<want; k++){
+          acc.push(arr[k]);
+        }
+        i = pageNum*srcSize; // ugrás a következő teljes oldalra
       }
-      return { items: out, total };
+      return dedupeStrong(acc).slice(0, want);
+    }
+
+    // ===== kártya render =====
+    const renderCards = (partnerId, items)=>{
+      const cfg = PARTNERS.get(partnerId);
+      const list = dedupeStrong(items);
+      return list.map(it=>{
+        const raw = firstUrl(it);
+        return `
+          <div class="card">
+            <div class="thumb">
+              ${it?.img ? `<img src="${it.img}" alt="" loading="lazy" style="max-width:100%;max-height:100%">` : '🛍️'}
+            </div>
+            <div class="title">${it?.title || ''}</div>
+            <div class="price">${priceText(it?.price)}</div>
+            ${raw ? `<a class="cta" href="${DL(cfg.deeplinkPartner, raw)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
+          </div>`;
+      }).join('');
+    };
+
+    // több partnerből kevert lista
+    function renderMixedCards(itemsWithPid){
+      const list = itemsWithPid; // feltételezzük, hogy előtte már dedupoltuk
+      return (list||[]).map(r=>{
+        const cfg = PARTNERS.get(r.pid);
+        const it  = r.item;
+        const raw = firstUrl(it);
+        return `
+          <div class="card">
+            <div class="thumb">
+              ${it?.img ? `<img src="${it.img}" alt="" loading="lazy" style="max-width:100%;max-height:100%">` : '🛍️'}
+            </div>
+            <div class="title">${it?.title || ''}</div>
+            <div class="price">${priceText(it?.price)}</div>
+            <div class="title" style="color:#64748b;font-weight:700;font-size:12px;margin-top:0">• ${cfg?.name||r.pid}</div>
+            ${raw ? `<a class="cta" href="${DL(cfg.deeplinkPartner, raw)}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a>` : ''}
+          </div>`;
+      }).join('');
     }
 
     // Aktív (bármely elhelyezésen engedélyezett) partnerek
@@ -425,7 +464,13 @@
     function paginate(arr, size){ const pages=[]; for(let i=0;i<arr.length;i+=size) pages.push(arr.slice(i,i+size)); return pages.length?pages:[[]]; }
     function renderPagedBlockMixed(itemsWithPid, listElId, navElId){
       const PAGE=6;
-      const pages = paginate(itemsWithPid, PAGE);
+      const deduped = dedupeStrong(itemsWithPid.map(x=>x.item)).map(it=>{
+        // vissza kell rendelnünk a pid-et (URL alapján)
+        const raw = firstUrl(it);
+        const pid = itemsWithPid.find(y=>firstUrl(y.item)===raw)?.pid || 'unknown';
+        return {pid, item: it};
+      });
+      const pages = paginate(deduped, PAGE);
       let cur=1;
       function draw(){
         const list=document.getElementById(listElId);
@@ -457,7 +502,6 @@
           }
         }
 
-        // Szűrés kategóriákba
         const in10 = collected.filter(r=>{ const d=getDiscountNumber(r.item); return d!==null && d>=10 && d<=24; });
         const in25 = collected.filter(r=>{ const d=getDiscountNumber(r.item); return d!==null && d>=25 && d<=49; });
         const in50 = collected.filter(r=>{ const d=getDiscountNumber(r.item); return d!==null && d>=50;  });
@@ -508,11 +552,12 @@
       if(!p) return;
       const PAGE = p.placements?.home?.pageSize || 6;
       try{
-        const {items, total} = await fetchItems(pid, (page-1)*PAGE, PAGE);
+        const items = await collectUnique(pid, (page-1)*PAGE, PAGE);
+        const meta = await getMeta(pid);
+        const totalPages = Math.max(1, Math.ceil((meta.total||0)/PAGE));
         const listEl = document.getElementById(`home-${pid}-list`);
         const navEl  = document.getElementById(`home-${pid}-nav`);
         listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-        const totalPages = Math.max(1, Math.ceil(total/PAGE));
         navEl.innerHTML = `
           <button class="cta" ${page<=1?'disabled':''} onclick="drawHomeOverviewFor('${pid}',${page-1})">Előző</button>
           <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
@@ -557,7 +602,9 @@
       CURRENT_OTTHON_PARTNER = partner;
       const PAGE = partner.placements?.otthon?.pageSize || 6;
       try{
-        const {items, total} = await fetchItems(partner.id, (page-1)*PAGE, PAGE);
+        const items = await collectUnique(partner.id, (page-1)*PAGE, PAGE);
+        const meta  = await getMeta(partner.id);
+        const totalPages = Math.max(1, Math.ceil((meta.total||0)/PAGE));
 
         const headLink = document.getElementById('home-cat-head-link');
         headLink.textContent = partner.name;
@@ -568,7 +615,6 @@
         document.getElementById('home-cat-list').innerHTML =
           renderCards(partner.id, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
 
-        const totalPages = Math.max(1, Math.ceil(total/PAGE));
         document.getElementById('home-cat-nav').innerHTML = `
           <button class="cta" ${page<=1?'disabled':''} onclick="drawOtthonOverview(${page-1})">Előző</button>
           <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
@@ -591,31 +637,31 @@
       try{
         const meta = await getMeta(partner.id);
         const offset = (page-1)*PAGE;
-        const srcPageSize = meta.pageSize || 300;
-        const total = meta.total ?? (meta.pages * srcPageSize);
-        const buf=[];
-        for(let i=offset; buf.length<PAGE && i<total; i++){
-          const pageNum = Math.floor(i/srcPageSize) + 1;
-          const innerIdx = i % srcPageSize;
-          const arr = await getPageItems(partner.id, pageNum);
-          if(innerIdx < arr.length) buf.push(arr[innerIdx]);
-          if(arr.length===0) break;
-        }
-        let items = buf;
+
+        // gyűjtsünk annyit, hogy dedup után is meglegyen a PAGE
+        let items = await collectUnique(partner.id, offset, PAGE);
+
         if(PARTNER_FILTER){
           const q = PARTNER_FILTER.toLowerCase();
           const ok = it => ((it?.title||'')+(it?.desc||'')).toLowerCase().includes(q);
           if(!items.some(ok)){
-            const {items:extra} = await fetchItems(partner.id, 0, PAGE*5);
-            items = extra.filter(ok).slice(0, PAGE);
+            // ha az első blokkban nincs elég találat, nézzünk előről nagyobb ablakot
+            const buffer = [];
+            const totalPages = meta.pages || Math.ceil((meta.total||0)/(meta.pageSize||300)) || 1;
+            for(let pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
+              const arr = await getPageItems(partner.id, pg);
+              buffer.push(...arr);
+            }
+            items = dedupeStrong(buffer).filter(ok).slice(0,PAGE);
           }else{
-            items = items.filter(ok);
+            items = dedupeStrong(items.filter(ok)).slice(0,PAGE);
           }
         }
+
         document.getElementById('partner-full-list').innerHTML =
           renderCards(partner.id, items) || '<div class="empty">Nincs találat.</div>';
 
-        const totalPages = Math.max(1, Math.ceil(total/PAGE));
+        const totalPages = Math.max(1, Math.ceil((meta.total||0)/PAGE));
         document.getElementById('partner-full-nav').innerHTML = `
           <button class="cta" ${page<=1?'disabled':''} onclick="drawPartnerFull(${page-1})">Előző</button>
           <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
@@ -626,7 +672,7 @@
       }
     }
 
-    // ===== Games (változatlan logika) =====
+    // ===== Games =====
     function gamesBoxTemplate(p){
       const pid = p.id;
       return `
@@ -646,12 +692,12 @@
         </div>`;
     }
     function showGamesOverview(pid){
-      document.getElementById(`games-${pid}-list`).parentElement.style.display='';
+      document.getElementById(`games-${pid}-list`).style.display='';
       document.getElementById(`games-${pid}-nav`).style.display='';
       document.getElementById(`games-${pid}-full-wrap`).style.display='none';
     }
     function showGamesFull(pid){
-      document.getElementById(`games-${pid}-list`).parentElement.style.display='none';
+      document.getElementById(`games-${pid}-list`).style.display='none';
       document.getElementById(`games-${pid}-nav`).style.display='none';
       document.getElementById(`games-${pid}-full-wrap`).style.display='';
     }
@@ -660,11 +706,12 @@
       if(!p) return;
       const PAGE = p.placements?.games?.pageSize || 6;
       try{
-        const {items, total} = await fetchItems(pid, (page-1)*PAGE, PAGE);
+        const items = await collectUnique(pid, (page-1)*PAGE, PAGE);
+        const meta  = await getMeta(pid);
+        const totalPages = Math.max(1, Math.ceil((meta.total||0)/PAGE));
         const listEl = document.getElementById(`games-${pid}-list`);
         const navEl  = document.getElementById(`games-${pid}-nav`);
         listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-        const totalPages = Math.max(1, Math.ceil(total/PAGE));
         navEl.innerHTML = `
           <button class="cta" ${page<=1?'disabled':''} onclick="drawGamesOverviewFor('${pid}',${page-1})">Előző</button>
           <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
@@ -684,30 +731,28 @@
       try{
         const meta = await getMeta(pid);
         const offset = (page-1)*PAGE;
-        const srcPageSize = meta.pageSize || 300;
-        const total = meta.total ?? (meta.pages * srcPageSize);
-        const buf=[];
-        for(let i=offset; buf.length<PAGE && i<total; i++){
-          const pageNum = Math.floor(i/srcPageSize) + 1;
-          const innerIdx = i % srcPageSize;
-          const arr = await getPageItems(pid, pageNum);
-          if(innerIdx < arr.length) buf.push(arr[innerIdx]);
-          if(arr.length===0) break;
-        }
-        let items = buf;
+
+        let items = await collectUnique(pid, offset, PAGE);
+
         if(state.filter){
           const q = state.filter.toLowerCase();
           const ok = it => ((it?.title||'')+(it?.desc||'')).toLowerCase().includes(q);
           if(!items.some(ok)){
-            const {items:extra} = await fetchItems(pid, 0, PAGE*5);
-            items = extra.filter(ok).slice(0, PAGE);
+            const buffer = [];
+            const totalPages = meta.pages || Math.ceil((meta.total||0)/(meta.pageSize||300)) || 1;
+            for(let pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
+              const arr = await getPageItems(pid, pg);
+              buffer.push(...arr);
+            }
+            items = dedupeStrong(buffer).filter(ok).slice(0,PAGE);
           }else{
-            items = items.filter(ok);
+            items = dedupeStrong(items.filter(ok)).slice(0,PAGE);
           }
         }
+
         document.getElementById(`games-${pid}-full-list`).innerHTML =
           renderCards(pid, items) || '<div class="empty">Nincs találat.</div>';
-        const totalPages = Math.max(1, Math.ceil(total/PAGE));
+        const totalPages = Math.max(1, Math.ceil((meta.total||0)/PAGE));
         document.getElementById(`games-${pid}-full-nav`).innerHTML = `
           <button class="cta" ${page<=1?'disabled':''} onclick="drawGamesFullFor('${pid}',${page-1})">Előző</button>
           <span class="cta" style="pointer-events:none"> ${page}/${totalPages} </span>
@@ -725,6 +770,8 @@
         return;
       }
       host.innerHTML = games.map(g=>gamesBoxTemplate(g)).join('');
+
+      // header katt → teljes nézet (helyes pid)
       host.querySelectorAll('.games-head').forEach(a=>{
         a.addEventListener('click', (e)=>{
           e.preventDefault();
@@ -735,6 +782,8 @@
           drawGamesFullFor(pid, 1);
         });
       });
+
+      // keresők bekötése partnerenként
       host.querySelectorAll('form.games-search').forEach(form=>{
         const pid = form.dataset.partner;
         form.addEventListener('submit', (e)=>{
@@ -748,20 +797,21 @@
           drawGamesFullFor(pid, 1);
         });
       });
+
+      // első betöltés: mindhez 6/lap (egyedi kitöltéssel)
       for(const p of games){
         showGamesOverview(p.id);
         await drawGamesOverviewFor(p.id, 1);
       }
     }
 
-    // ===== Globális kereső – minden partner =====
+    // ===== Globális kereső – minden partner, teljes bejárás =====
     function matchesNeedle(it, needle){
       const t=(it?.title||'').toLowerCase(), d=(it?.desc||'').toLowerCase();
       return t.includes(needle) || d.includes(needle);
     }
     let SEARCH_RUN_ID = 0;
-    const MAX_RESULTS = 300;       // összesített találati limit
-    const MAX_PAGES_PER_PARTNER = 5; // keresésnél biztonsági limit partnerenként
+    const MAX_RESULTS = 600; // összesített találati limit
 
     async function runSearchAcrossPartners(q){
       const needle=(q||'').trim().toLowerCase();
@@ -784,16 +834,17 @@
         for(const p of actives){
           if(myRun!==SEARCH_RUN_ID) return;
           const meta = await getMeta(p.id);
-          const totalPages = meta.pages || Math.ceil((meta.total||0)/(meta.pageSize||300)) || 1;
-          const limitPages = Math.min(totalPages, MAX_PAGES_PER_PARTNER);
+          const srcSize = meta.pageSize || 300;
+          const totalPages = meta.pages || Math.ceil((meta.total||0)/srcSize) || 1;
 
-          for(let pg=1; pg<=limitPages; pg++){
+          for(let pg=1; pg<=totalPages; pg++){
             if(myRun!==SEARCH_RUN_ID) return;
             const arr = await getPageItems(p.id, pg);
             for(const it of arr){
               if(myRun!==SEARCH_RUN_ID) return;
               if(matchesNeedle(it, needle)){
-                const key = (it?.url||it?.link||it?.deeplink||'') + '|' + (it?.img||'');
+                // erős dedup kulcs
+                const key = basePath(stripVariantParams(firstUrl(it))) + '|' + imgPath(it?.img||'') + '|' + normalizeTitleNoSize(it?.title||'');
                 if(!seen.has(key)){
                   seen.add(key);
                   results.push({ pid:p.id, item: it });
@@ -830,7 +881,7 @@
         document.getElementById('akciok').style.display='block';
         document.getElementById('osszes').style.display='block';
         document.querySelector('.catbtn[data-cat="all"]')?.classList.add('active');
-        await drawHomeTab();              // több partner a Főoldalon
+        await drawHomeTab();
       }else if(tab==='home'){
         document.getElementById('otthon').style.display='block';
         document.querySelector('.catbtn[data-cat="home"]')?.classList.add('active');
@@ -868,7 +919,7 @@
     // ===== indulás =====
     (async function init(){
       await loadPartners();
-      await buildSaleBlocksAll();  // << Akciók: minden partner
+      await buildSaleBlocksAll();  // Akciók: minden partner
       await switchTab('all');
     })();
   </script>
