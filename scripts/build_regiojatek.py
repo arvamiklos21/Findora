@@ -1,10 +1,16 @@
+# scripts/build_regiojatek.py
 import os, re, json, math, xml.etree.ElementTree as ET, requests
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
-FEED_URL  = os.environ.get("FEED_REGIO_URL")
+# ====== KONFIG ======
+# Fogadjuk mindkét secret nevet – első a FEED_REGIOJATEK_URL (workflow szerinti), fallback a FEED_REGIO_URL
+FEED_URL  = (
+    os.environ.get("FEED_REGIOJATEK_URL")
+    or os.environ.get("FEED_REGIO_URL")
+)
 OUT_DIR   = "docs/feeds/regiojatek"
-PAGE_SIZE = 300  # forrás-oldal méret
+PAGE_SIZE = 300  # forrásoldal méret
 
 def norm_price(v):
     if v is None: return None
@@ -171,7 +177,7 @@ def dedup_size_variants(items):
     return list(buckets.values())
 
 def main():
-    assert FEED_URL, "FEED_REGIO_URL hiányzik (repo Secrets)."
+    assert FEED_URL, "Hiányzó URL. Állítsd be a FEED_REGIOJATEK_URL (vagy FEED_REGIO_URL) secretet."
     os.makedirs(OUT_DIR, exist_ok=True)
     r = requests.get(FEED_URL, headers={"User-Agent":"Mozilla/5.0","Accept":"application/xml"}, timeout=120)
     r.raise_for_status()
@@ -191,7 +197,7 @@ def main():
         "total":len(items),
         "pages":pages,
         "lastUpdated":datetime.utcnow().isoformat()+"Z",
-        "source":"feed"
+        "source":"regiojatek"
     }
     with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False)
