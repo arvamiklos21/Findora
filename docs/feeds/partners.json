@@ -36,7 +36,7 @@
     "deeplinkPartner": "regiojatek",
     "placements": {
       "home":  { "enabled": true, "pageSize": 6 },
-      "games": { "enabled": true,  "pageSize": 6,
+      "Sport": { "enabled": true,  "pageSize": 6,
         "full": { "enabled": true,  "pageSize": 20 }
       }
     }
