@@ -1,12 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
-  <!-- Tchibo női ruhák (tematikus SEO-oldal) -->
+  <!-- Tchibo női ruhák -->
   <url>
     <loc>https://www.findora.hu/tchibo-noi-ruhak.html</loc>
     <lastmod>2025-11-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
+  </url>
+
+  <!-- Tchibo férfi ruhák -->
+  <url>
+    <loc>https://www.findora.hu/tchibo-ferfi-ruhak.html</loc>
+    <lastmod>2025-11-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Tchibo kávégépek és kapszulák -->
+  <url>
+    <loc>https://www.findora.hu/tchibo-kavogepek.html</loc>
+    <lastmod>2025-11-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Tchibo akciók (globál) -->
+  <url>
+    <loc>https://www.findora.hu/tchibo-akcio.html</loc>
+    <lastmod>2025-11-11</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
   </url>
 
   <!-- Főoldal -->
