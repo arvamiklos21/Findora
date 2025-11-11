@@ -3,7 +3,7 @@ name: ingest-tchibo
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */2 * * *"
+    - cron: "0 8,18 * * *"   # reggel 9:00 és este 19:00 magyar idő
 
 permissions:
   contents: write
