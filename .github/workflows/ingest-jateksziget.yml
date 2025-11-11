@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "10 10,19 * * *"   # reggel 11:10 és este 20:10 magyar idő (10:10 és 19:10 UTC)
+    
 permissions:
   contents: write
   pull-requests: write
