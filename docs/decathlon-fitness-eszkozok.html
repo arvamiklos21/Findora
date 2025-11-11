@@ -37,7 +37,15 @@
 </style>
 </head><body>
 <div class="wrap">
-  <div class="top"><nav class="menu"><a href="https://www.findora.hu/">🏠 Főoldal</a><a href="https://www.findora.hu/#sport">Sport</a><a href="https://www.findora.hu/#akciok">Akciók</a></nav><a class="back" href="https://www.findora.hu">← Vissza a főoldalra</a></div>
+  <div class="top">
+    <nav class="menu">
+      <a href="https://www.findora.hu/">🏠 Főoldal</a>
+      <a href="https://www.findora.hu/#sport">Sport</a>
+      <a href="https://www.findora.hu/#akciok">Akciók</a>
+    </nav>
+    <a class="back" href="https://www.findora.hu">← Vissza a főoldalra</a>
+  </div>
+
   <h1>Otthoni fitnesz eszközök</h1>
   <div class="muted">Súlyzók, kettlebell, gumipánt, matrac, masszázshengerek.</div>
 
@@ -54,39 +62,103 @@
       </select>
     </label>
     <label class="pill">Rendezés:
-      <select id="sortBy"><option value="price-asc">Ár: alacsony→magas</option><option value="price-desc">Ár: magas→alacsony</option></select>
+      <select id="sortBy">
+        <option value="price-asc">Ár: alacsony→magas</option>
+        <option value="price-desc">Ár: magas→alacsony</option>
+      </select>
     </label>
   </div>
 
   <div id="grid" class="grid"></div>
-  <div class="pager"><button id="prevBtn" disabled>Előző</button><span id="pageInfo" class="muted">1. oldal</span><button id="nextBtn">Következő</button></div>
+  <div class="pager">
+    <button id="prevBtn" disabled>Előző</button>
+    <span id="pageInfo" class="muted">1. oldal</span>
+    <button id="nextBtn">Következő</button>
+  </div>
 </div>
 
 <!-- ===== FIX, mindig látható affiliate-nyilatkozat ===== -->
 <div class="aff-disclosure" role="note" aria-label="Affiliate nyilatkozat">
-  🔔 <strong>Figyelem:</strong> A Findora.hu oldal affiliate linkeket tartalmaz. 
-  Az oldalon megjelenő 🔗 linkek partnerlinkek lehetnek, amelyekre kattintva — vásárlás esetén — a Findora jutalékot kaphat. 
+  🔔 <strong>Figyelem:</strong> A Findora.hu oldal affiliate linkeket tartalmaz.
+  Az oldalon megjelenő 🔗 linkek partnerlinkek lehetnek, amelyekre kattintva — vásárlás esetén — a Findora jutalékot kaphat.
   Ez a vásárló számára nem jelent semmilyen pluszköltséget.
   <!-- Ha van külön szekció: <a href="https://www.findora.hu/#nyilatkozatok">Részletek</a> -->
 </div>
 
 <script>
 const FEED_BASE='/feeds/decathlon',MAX_PAGES_TO_SCAN=1000,PAGE_SIZE=20;let currentPage=1,feedPage=1;
-const $=id=>document.getElementById(id);const grid=$('grid'),pageInfo=$('pageInfo'),prevBtn=$('prevBtn'),nextBtn=$('nextBtn'),onlyDiscountEl=$('onlyDiscount'),minDiscEl=$('minDisc'),sortByEl=$('sortBy'),categoryEl=$('category');
+const $=id=>document.getElementById(id);
+const grid=$('grid'),pageInfo=$('pageInfo'),prevBtn=$('prevBtn'),nextBtn=$('nextBtn'),
+      onlyDiscountEl=$('onlyDiscount'),minDiscEl=$('minDisc'),sortByEl=$('sortBy'),categoryEl=$('category');
+
 const low=s=>(s||'').toLocaleLowerCase('hu-HU');
 const KW=['fitnesz','fitness','domyos','súlyzó','sulyzo','kettlebell','gumiszalag','erősítő szalag','erősáv','szőnyeg','szonyeg','roller','henger'];
 const CAT={sulyzo:['súlyzó','sulyzo','kettlebell','tárcsa','tarcsa'],gumi:['gumiszalag','erősítő','ero','band'],szonyeg:['szőnyeg','szonyeg','matrac','mat'],henger:['masszázs','masszazs','henger','roller','mobilizáló','mobilizalo']};
-function isHit(p){const h=`${low(p.title)} ${low(p.category||'')} ${(p.tags||[]).map(low).join(' ')}`;return KW.some(k=>h.includes(k));}
-function matchCat(p,k){if(k==='osszes')return true;const h=`${low(p.title)} ${low(p.category||'')} ${(p.tags||[]).map(low).join(' ')}`;return (CAT[k]||[]).some(x=>h.includes(x));}
+
+function isHit(p){
+  const h=`${low(p.title)} ${low(p.category||'')} ${(p.tags||[]).map(low).join(' ')}`;
+  return KW.some(k=>h.includes(k));
+}
+function matchCat(p,k){
+  if(k==='osszes')return true;
+  const h=`${low(p.title)} ${low(p.category||'')} ${(p.tags||[]).map(low).join(' ')}`;
+  return (CAT[k]||[]).some(x=>h.includes(x));
+}
+
 const dl=u=>`/api/dl?u=${encodeURIComponent(u)}&p=decathlon`;
-const pNum=p=>{if(p==null||p==='')return NaN;const n=String(p).replace(/[^\d.]/g,'');return n?Number(n):NaN}, pFmt=p=>isNaN(pNum(p))?'':new Intl.NumberFormat('hu-HU').format(pNum(p))+' Ft';
-const card=it=>`<div class="card"><div class="thumb"><img loading="lazy" src="${it.image||it.img||it.imageUrl||''}" alt="${(it.title||'Termék').replace(/"/g,'&quot;')}"></div><div class="title">${it.title||'Termék'}</div><div class="muted">${it.partner||'Decathlon'}${it.discount?` • −${it.discount}%`:''}</div><div class="price">${pFmt(it.price||it.price_huf||it.final_price||'')}</div><div class="cta"><a href="${dl(it.url||it.link||'')}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a></div></div>`;
-async function page(n){const r=await fetch(`${FEED_BASE}/page-${String(n).padStart(4,'0')}.json`,{cache:'no-store'});return r.ok? r.json().catch(()=>null):null}
-async function render(dir){grid.innerHTML='';let list=[],sc=0;if(dir<0)feedPage=Math.max(1,feedPage-2);
-  while(list.length<PAGE_SIZE&&sc<MAX_PAGES_TO_SCAN){const d=await page(feedPage);sc++;feedPage++;if(!d)break;let it=(d.items||[]).filter(isHit).filter(x=>matchCat(x,categoryEl.value));
-    const od=onlyDiscountEl.checked,md=parseInt(minDiscEl.value||'0',10);if(od||md>0)it=it.filter(x=>{const dd=Number(x.discount||x.sale_percent||x.salePercent||0);return (od?dd>0:true)&&dd>=md});list.push(...it);if(!d.nextPage)break;}
-  list.sort((a,b)=>{const pa=pNum(a.price||a.price_huf||a.final_price||''),pb=pNum(b.price||b.price_huf||b.final_price||'');if(isNaN(pa)&&isNaN(pb))return 0;if(isNaN(pa))return 1;if(isNaN(pb))return -1;return (sortByEl.value==='price-asc')?pa-pb:pb-pa});
-  const s=list.slice(0,PAGE_SIZE);grid.innerHTML=s.map(card).join('')||'<div class="muted">Nincs találat.</div>';pageInfo.textContent=`${currentPage}. oldal • ${s.length} tétel • beolvasva: ${sc}`;prevBtn.disabled=currentPage<=1;}
-nextBtn.addEventListener('click',()=>{currentPage++;render(+1)});prevBtn.addEventListener('click',()=>{if(currentPage>1){currentPage--;render(-1)}});[onlyDiscountEl,minDiscEl,sortByEl,categoryEl].forEach(el=>{el.addEventListener('change',()=>{currentPage=1;feedPage=1;render(0)});el.addEventListener('input',()=>{currentPage=1;feedPage=1;render(0)})});render(0);
+const pNum=p=>{if(p==null||p==='')return NaN;const n=String(p).replace(/[^\d.]/g,'');return n?Number(n):NaN};
+const pFmt=p=>isNaN(pNum(p))?'':new Intl.NumberFormat('hu-HU').format(pNum(p))+' Ft';
+
+const card=it=>`<div class="card">
+  <div class="thumb"><img loading="lazy" src="${it.image||it.img||it.imageUrl||''}" alt="${(it.title||'Termék').replace(/"/g,'&quot;')}"></div>
+  <div class="title">${it.title||'Termék'}</div>
+  <div class="muted">${it.partner||'Decathlon'}${it.discount?` • −${it.discount}%`:''}</div>
+  <div class="price">${pFmt(it.price||it.price_huf||it.final_price||'')}</div>
+  <div class="cta"><a href="${dl(it.url||it.link||'')}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a></div>
+</div>`;
+
+async function page(n){
+  const r=await fetch(`${FEED_BASE}/page-${String(n).padStart(4,'0')}.json`,{cache:'no-store'});
+  return r.ok? r.json().catch(()=>null):null;
+}
+
+async function render(dir){
+  grid.innerHTML='';
+  let list=[],sc=0;
+  if(dir<0)feedPage=Math.max(1,feedPage-2);
+  while(list.length<PAGE_SIZE&&sc<MAX_PAGES_TO_SCAN){
+    const d=await page(feedPage);sc++;feedPage++;if(!d)break;
+    let it=(d.items||[]).filter(isHit).filter(x=>matchCat(x,categoryEl.value));
+    const od=onlyDiscountEl.checked,md=parseInt(minDiscEl.value||'0',10);
+    if(od||md>0){
+      it=it.filter(x=>{
+        const dd=Number(x.discount||x.sale_percent||x.salePercent||0);
+        return (od?dd>0:true)&&dd>=md;
+      });
+    }
+    list.push(...it);
+    if(!d.nextPage)break;
+  }
+  list.sort((a,b)=>{
+    const pa=pNum(a.price||a.price_huf||a.final_price||''),
+          pb=pNum(b.price||b.price_huf||b.final_price||'');
+    if(isNaN(pa)&&isNaN(pb))return 0;
+    if(isNaN(pa))return 1;
+    if(isNaN(pb))return -1;
+    return (sortByEl.value==='price-asc')?pa-pb:pb-pa;
+  });
+  const s=list.slice(0,PAGE_SIZE);
+  grid.innerHTML=s.map(card).join('')||'<div class="muted">Nincs találat.</div>';
+  pageInfo.textContent=`${currentPage}. oldal • ${s.length} tétel • beolvasva: ${sc}`;
+  prevBtn.disabled=currentPage<=1;
+}
+
+nextBtn.addEventListener('click',()=>{currentPage++;render(+1)});
+prevBtn.addEventListener('click',()=>{if(currentPage>1){currentPage--;render(-1)}});
+[onlyDiscountEl,minDiscEl,sortByEl,categoryEl].forEach(el=>{
+  el.addEventListener('change',()=>{currentPage=1;feedPage=1;render(0)});
+  el.addEventListener('input',()=>{currentPage=1;feedPage=1;render(0)});
+});
+render(0);
 </script>
 </body></html>
