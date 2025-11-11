@@ -3,7 +3,7 @@ name: ingest-decathlon
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */2 * * *"  # 2 óránként (UTC)
+    - cron: "10 9,17 * * *"   # reggel 10:10 és este 18:10 magyar idő (9:10 és 17:10 UTC)
 
 permissions:
   contents: write
