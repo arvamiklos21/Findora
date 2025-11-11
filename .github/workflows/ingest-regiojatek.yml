@@ -3,7 +3,7 @@ name: ingest-regiojatek
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */2 * * *"  # 2 óránként (UTC)
+    - cron: "0 9,19 * * *"   # reggel 10:00 és este 20:00 magyar idő (9 és 19 UTC)
 
 permissions:
   contents: write
