@@ -41,4 +41,36 @@
     <priority>1.0</priority>
   </url>
 
+  <!-- regiojatek akció -->
+  <url>
+  <loc>https://www.findora.hu/regiojatek-akcio.html</loc>
+  <lastmod>2025-11-11</lastmod>
+  <changefreq>daily</changefreq>
+  <priority>0.9</priority>
+</url>
+
+  <!-- regiojatek társasjáték -->
+<url>
+  <loc>https://www.findora.hu/regiojatek-tarsasjatekok.html</loc>
+  <lastmod>2025-11-11</lastmod>
+  <changefreq>weekly</changefreq>
+  <priority>0.8</priority>
+</url>
+
+  <!-- regiojatek barbie -->
+<url>
+  <loc>https://www.findora.hu/jateksziget-barbie.html</loc>
+  <lastmod>2025-11-11</lastmod>
+  <changefreq>weekly</changefreq>
+  <priority>0.9</priority>
+</url>
+  
+  <!-- regiojatek akció -->
+<url>
+  <loc>https://www.findora.hu/jateksziget-akcio.html</loc>
+  <lastmod>2025-11-11</lastmod>
+  <changefreq>daily</changefreq>
+  <priority>0.9</priority>
+</url>
+
 </urlset>
