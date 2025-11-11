@@ -2,7 +2,39 @@
 <title>Decathlon fitnesz eszközök – súlyzók, gumipánt, matrac | Findora</title>
 <meta name="description" content="Otthoni fitnesz: súlyzók, kettlebell, gumiszalag, fitneszszőnyeg, hengerek – friss árak és akciók.">
 <link rel="canonical" href="https://www.findora.hu/decathlon-fitness-eszkozok.html"/><link rel="icon" href="assets/img/findora_mark.png"/><link rel="stylesheet" href="assets/css/style.css"/>
-<style>.wrap{max-width:1200px;margin:0 auto;padding:16px}.top{display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap}.menu{display:flex;gap:14px;flex-wrap:wrap}.menu a,.back{color:#1a73e8;text-decoration:none;font-weight:600}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}.card{background:#fff;border-radius:14px;padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.06);display:flex;flex-direction:column}.thumb{height:180px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}.thumb img{max-height:100%;max-width:100%;object-fit:contain}.title{font-weight:600;margin-bottom:6px}.price{font-weight:700;margin-top:auto}.cta a{display:inline-block;margin-top:10px;padding:10px 14px;border-radius:12px;background:#1a73e8;color:#fff;text-decoration:none}.muted{color:#64748b;font-size:.9rem}.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 18px}.pill{padding:6px 10px;border:1px solid #e2e8f0;border-radius:999px;background:#fff}.pager{display:flex;gap:8px;justify-content:center;margin:22px 0}.pager button{padding:8px 12px;border-radius:10px;border:1px solid #e2e8f0;background:#fff;cursor:pointer}</style>
+<style>
+  :root{--pad-bottom:64px}
+  body{padding-bottom:var(--pad-bottom);}
+  .wrap{max-width:1200px;margin:0 auto;padding:16px}
+  .top{display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap}
+  .menu{display:flex;gap:14px;flex-wrap:wrap}
+  .menu a,.back{color:#1a73e8;text-decoration:none;font-weight:600}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+  .card{background:#fff;border-radius:14px;padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.06);display:flex;flex-direction:column}
+  .thumb{height:180px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+  .thumb img{max-height:100%;max-width:100%;object-fit:contain}
+  .title{font-weight:600;margin-bottom:6px}
+  .price{font-weight:700;margin-top:auto}
+  .cta a{display:inline-block;margin-top:10px;padding:10px 14px;border-radius:12px;background:#1a73e8;color:#fff;text-decoration:none}
+  .muted{color:#64748b;font-size:.9rem}
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 18px}
+  .pill{padding:6px 10px;border:1px solid #e2e8f0;border-radius:999px;background:#fff}
+  .pager{display:flex;gap:8px;justify-content:center;margin:22px 0}
+  .pager button{padding:8px 12px;border-radius:10px;border:1px solid #e2e8f0;background:#fff;cursor:pointer}
+
+  /* ===== Fixen alul látható affiliate-nyilatkozat ===== */
+  .aff-disclosure{
+    position:fixed;left:0;right:0;bottom:0;z-index:1000;
+    background:#0f172a;color:#e2e8f0;
+    font-size:.92rem;line-height:1.35;
+    padding:10px 16px;box-shadow:0 -6px 18px rgba(0,0,0,.15);
+  }
+  .aff-disclosure a{color:#93c5fd;text-decoration:underline;font-weight:600}
+  @media (max-width:480px){
+    :root{--pad-bottom:78px}
+    .aff-disclosure{font-size:.9rem;padding:12px}
+  }
+</style>
 </head><body>
 <div class="wrap">
   <div class="top"><nav class="menu"><a href="https://www.findora.hu/">🏠 Főoldal</a><a href="https://www.findora.hu/#sport">Sport</a><a href="https://www.findora.hu/#akciok">Akciók</a></nav><a class="back" href="https://www.findora.hu">← Vissza a főoldalra</a></div>
@@ -30,6 +62,14 @@
   <div class="pager"><button id="prevBtn" disabled>Előző</button><span id="pageInfo" class="muted">1. oldal</span><button id="nextBtn">Következő</button></div>
 </div>
 
+<!-- ===== FIX, mindig látható affiliate-nyilatkozat ===== -->
+<div class="aff-disclosure" role="note" aria-label="Affiliate nyilatkozat">
+  🔔 <strong>Figyelem:</strong> A Findora.hu oldal affiliate linkeket tartalmaz. 
+  Az oldalon megjelenő 🔗 linkek partnerlinkek lehetnek, amelyekre kattintva — vásárlás esetén — a Findora jutalékot kaphat. 
+  Ez a vásárló számára nem jelent semmilyen pluszköltséget.
+  <!-- Ha van külön szekció: <a href="https://www.findora.hu/#nyilatkozatok">Részletek</a> -->
+</div>
+
 <script>
 const FEED_BASE='/feeds/decathlon',MAX_PAGES_TO_SCAN=1000,PAGE_SIZE=20;let currentPage=1,feedPage=1;
 const $=id=>document.getElementById(id);const grid=$('grid'),pageInfo=$('pageInfo'),prevBtn=$('prevBtn'),nextBtn=$('nextBtn'),onlyDiscountEl=$('onlyDiscount'),minDiscEl=$('minDisc'),sortByEl=$('sortBy'),categoryEl=$('category');
@@ -48,4 +88,5 @@ async function render(dir){grid.innerHTML='';let list=[],sc=0;if(dir<0)feedPage=
   list.sort((a,b)=>{const pa=pNum(a.price||a.price_huf||a.final_price||''),pb=pNum(b.price||b.price_huf||b.final_price||'');if(isNaN(pa)&&isNaN(pb))return 0;if(isNaN(pa))return 1;if(isNaN(pb))return -1;return (sortByEl.value==='price-asc')?pa-pb:pb-pa});
   const s=list.slice(0,PAGE_SIZE);grid.innerHTML=s.map(card).join('')||'<div class="muted">Nincs találat.</div>';pageInfo.textContent=`${currentPage}. oldal • ${s.length} tétel • beolvasva: ${sc}`;prevBtn.disabled=currentPage<=1;}
 nextBtn.addEventListener('click',()=>{currentPage++;render(+1)});prevBtn.addEventListener('click',()=>{if(currentPage>1){currentPage--;render(-1)}});[onlyDiscountEl,minDiscEl,sortByEl,categoryEl].forEach(el=>{el.addEventListener('change',()=>{currentPage=1;feedPage=1;render(0)});el.addEventListener('input',()=>{currentPage=1;feedPage=1;render(0)})});render(0);
-</script></body></html>
+</script>
+</body></html>
