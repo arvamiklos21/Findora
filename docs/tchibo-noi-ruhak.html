@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tchibo női ruhák – Akciók és kedvezmények | Findora</title>
+  <meta name="description" content="Válogass a Tchibo női ruhák kínálatából: nadrágok, pulóverek, kabátok, kabátok, felsők és akciók egy helyen a Findora.hu-n." />
+  <link rel="canonical" href="https://www.findora.hu/tchibo-noi-ruhak.html" />
+  <link rel="icon" href="assets/img/findora_mark.png" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    /* csak minimális védőstílus, ha a style.css más */
+    .wrap{max-width:1200px;margin:0 auto;padding:16px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+    .card{background:#fff;border-radius:14px;padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.06);display:flex;flex-direction:column}
+    .thumb{height:180px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+    .thumb img{max-height:100%;max-width:100%;object-fit:contain}
+    .title{font-weight:600;margin-bottom:6px}
+    .price{font-weight:700;margin-top:auto}
+    .cta a{display:inline-block;margin-top:10px;padding:10px 14px;border-radius:12px;background:#1a73e8;color:#fff;text-decoration:none}
+    .muted{color:#64748b;font-size:.9rem}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0 18px}
+    .pill{padding:6px 10px;border:1px solid #e2e8f0;border-radius:999px;background:#fff}
+    .pager{display:flex;gap:8px;justify-content:center;margin:22px 0}
+    .pager button{padding:8px 12px;border-radius:10px;border:1px solid #e2e8f0;background:#fff}
+  </style>
+
+  <!-- Strukturált adat a listához -->
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"CollectionPage",
+    "name":"Tchibo női ruhák – Akciók és kedvezmények",
+    "breadcrumb":{
+      "@type":"BreadcrumbList",
+      "itemListElement":[
+        {"@type":"ListItem","position":1,"name":"Findora","item":"https://www.findora.hu/"},
+        {"@type":"ListItem","position":2,"name":"Tchibo női ruhák","item":"https://www.findora.hu/tchibo-noi-ruhak.html"}
+      ]
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Tchibo női ruhák</h1>
+    <div class="muted">Válogatott női ruhák a Tchibo kínálatából. Az árak és készletek 2 óránként frissülnek.</div>
+
+    <div class="toolbar">
+      <span class="pill">Szűrő: női / ruha / szoknya / nadrág / pulóver / kabát</span>
+      <label class="pill"><input id="onlyDiscount" type="checkbox" /> Csak akciós</label>
+      <label class="pill">Min. kedvezmény: <input id="minDisc" type="number" min="0" max="90" step="5" value="0" style="width:70px" />%</label>
+    </div>
+
+    <div id="grid" class="grid" aria-live="polite"></div>
+    <div class="pager">
+      <button id="prevBtn" disabled>Előző</button>
+      <span id="pageInfo" class="muted">1. oldal (dinamikus betöltés)</span>
+      <button id="nextBtn">Következő</button>
+    </div>
+  </div>
+
+  <script>
+    // ===== Beállítások (index.html-hez nem nyúlunk) =====
+    const FEED_BASE = '/feeds/tchibo';             // a JSON-oldalak helye
+    const MAX_PAGES_TO_SCAN = 1000;                // védelmi limit
+    const PAGE_SIZE = 20;                          // csak tájékoztató
+    let currentPage = 1;                           // látványos lapozó (nem kötelező egyezni a feed lapozással)
+    let feedPage = 1;                              // tényleges page-XXXX.json számláló
+
+    const grid = document.getElementById('grid');
+    const pageInfo = document.getElementById('pageInfo');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const onlyDiscountEl = document.getElementById('onlyDiscount');
+    const minDiscEl = document.getElementById('minDisc');
+
+    // Fogalom-kulcsszavak (HU ékezetbiztos)
+    const KW = ['női','ruha','ruházat','szoknya','nadrág','pulóver','felső','kabát','blézer','kardigán','leggings','tunika','ruhadarab','trikó','blúz','overall','pizsama'];
+
+    // safe lower (ékezetekkel is)
+    const toLower = s => (s || '').toLocaleLowerCase('hu-HU');
+
+    // Szűrés női ruhákra
+    function isNoiRuha(p) {
+      const t = toLower(p.title);
+      const c = toLower(p.category || '');
+      const tags = (p.tags || []).map(toLower).join(' ');
+      const hay = `${t} ${c} ${tags}`;
+      return KW.some(k => hay.includes(k)) || hay.includes('női ');
+    }
+
+    // Deeplink építés (mindig a Workerre mutat)
+    function deeplink(url) {
+      try { return `/api/dl?u=${encodeURIComponent(url)}&p=tchibo`; }
+      catch { return url; }
+    }
+
+    function priceFmt(p) {
+      if (p == null || p === '') return '';
+      const num = String(p).replace(/[^\d.]/g,'');
+      if (!num) return '';
+      return new Intl.NumberFormat('hu-HU').format(Number(num)) + ' Ft';
+    }
+
+    function cardHTML(it){
+      const img = it.image || it.img || it.imageUrl || '';
+      const discount = it.discount || it.sale_percent || it.salePercent || null;
+      const price = it.price || it.price_huf || it.final_price || '';
+      return `
+        <div class="card">
+          <div class="thumb">
+            <img loading="lazy" src="${img}" alt="${it.title?.replace(/"/g,'&quot;')||'Tchibo termék'}" />
+          </div>
+          <div class="title">${it.title || 'Termék'}</div>
+          <div class="muted">${it.partner || 'Tchibo.hu'}${discount ? ` • −${discount}%` : ''}</div>
+          <div class="price">${priceFmt(price)}</div>
+          <div class="cta"><a href="${deeplink(it.url || it.link || '')}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a></div>
+        </div>`;
+    }
+
+    async function fetchFeedPage(n){
+      const url = `${FEED_BASE}/page-${String(n).padStart(4,'0')}.json`;
+      const res = await fetch(url,{cache:'no-store'});
+      if (!res.ok) return null;
+      try { return await res.json(); } catch { return null; }
+    }
+
+    async function renderPage(direction){
+      // direction: +1 következő, -1 előző, 0 első betöltés
+      grid.innerHTML = '';
+      let collected = [];
+      let scanned = 0;
+      const need = PAGE_SIZE;
+
+      // ha visszalépsz, próbáljuk csökkenteni a feedPage-et is
+      if (direction < 0) feedPage = Math.max(1, feedPage - 2);
+
+      while (collected.length < need && scanned < MAX_PAGES_TO_SCAN){
+        const data = await fetchFeedPage(feedPage);
+        scanned++;
+        feedPage++;
+
+        if (!data) break;
+
+        let items = Array.isArray(data.items) ? data.items : [];
+        items = items.filter(isNoiRuha);
+
+        // opcionális akció szűrők
+        const onlyDiscount = onlyDiscountEl.checked;
+        const minDisc = parseInt(minDiscEl.value || '0', 10);
+        if (onlyDiscount || minDisc > 0){
+          items = items.filter(x => {
+            const d = Number(x.discount || x.sale_percent || x.salePercent || 0);
+            return (onlyDiscount ? d > 0 : true) && d >= minDisc;
+          });
+        }
+
+        collected.push(...items);
+        if (!data.nextPage && collected.length === 0) break; // nincs több
+        if (!data.nextPage && collected.length >= need) break;
+        if (!data.nextPage && collected.length < need) break; // elfogyott a feed
+      }
+
+      const slice = collected.slice(0, need);
+      grid.innerHTML = slice.map(cardHTML).join('') || `<div class="muted">Nem találtunk a szűrőre illeszkedő terméket.</div>`;
+
+      // UI
+      pageInfo.textContent = `${currentPage}. oldal • összegyűjtve: ${slice.length} / ${collected.length} tétel`;
+      prevBtn.disabled = currentPage <= 1;
+    }
+
+    // Események
+    nextBtn.addEventListener('click', () => { currentPage++; renderPage(+1); });
+    prevBtn.addEventListener('click', () => { if (currentPage>1){ currentPage--; renderPage(-1); }});
+    onlyDiscountEl.addEventListener('change', () => { currentPage=1; feedPage=1; renderPage(0); });
+    minDiscEl.addEventListener('input', () => { currentPage=1; feedPage=1; renderPage(0); });
+
+    // Start
+    renderPage(0);
+  </script>
+</body>
+</html>
