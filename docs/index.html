@@ -383,6 +383,12 @@
     var CURRENT_OTTHON_PARTNER = null;
     var GAMES_STATE = new Map();
     var SPORT_STATE = new Map();
+    var GENERIC_STATE = {
+  tech:   new Map(),
+  vision: new Map(),
+  travel: new Map()
+};
+
 
     var HOME_PARTNERS = [];
     var DEFAULT_PARTNER = null;
@@ -653,7 +659,7 @@
       );
     }
     async function drawHomeOverviewFor(pid, page){
-      page = page || 1;
+      page = page || ;
       var p = PARTNERS.get(pid);
       if(!p) return;
       var PAGE = (p.placements && p.placements.home ? p.placements.home.pageSize : 6) || 6;
@@ -1284,3 +1290,4 @@
   </script>
 </body>
 </html>
+
