@@ -110,7 +110,7 @@
         "full": { "enabled": true, "pageSize": 20 }
     },
         , 
-             #AWIN partners
+      { "_comment": "===== #AWIN partners =====" },
   {
     "id": "aliexpress",
     "name": "AliExpress",
