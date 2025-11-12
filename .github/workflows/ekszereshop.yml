@@ -35,7 +35,7 @@ jobs:
             echo "::error title=Missing secret::FEED_EKSZERESHOP_URL nincs beállítva (Settings → Secrets → Actions)."; exit 1
           fi
           mkdir -p docs/feeds/ekszereshop
-          python scripts/build_ekszereshop.py
+          python scripts/ekszereshop.py
           echo "Sanity check (first item):"
           if command -v jq >/dev/null 2>&1; then
             jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/ekszereshop/page-0001.json || true
