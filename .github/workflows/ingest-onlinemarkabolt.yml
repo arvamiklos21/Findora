@@ -1,13 +1,17 @@
-name: ingest-dyson
+name: ingest-onlinemarkabolt
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "25 10,19 * * *"   # 11:25 és 20:25 (HU)
+    - cron: "0 9,19 * * *"   # reggel 10:00 és este 20:00 magyar idő (9 és 19 UTC)
 
 permissions:
   contents: write
   pull-requests: write
+
+concurrency:
+  group: ingest-onlinemarkabolt-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ingest:
@@ -22,43 +26,53 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
+          cache: "pip"
 
       - name: Install deps
         run: pip install requests
 
-      - name: Build Dyson feed pages
+      - name: Build OnlineMarkabolt feed pages
         env:
-          FEED_DYSON_URL: ${{ secrets.FEED_DYSON_URL }}
+          FEED_ONLINEMARKABOLT_URL: ${{ secrets.FEED_ONLINEMARKABOLT_URL }}
         run: |
-          set -e
-          if [ -z "$FEED_DYSON_URL" ]; then
-            echo "::error title=Missing secret::FEED_DYSON_URL nincs beállítva (Settings → Secrets → Actions)."; exit 1
+          set -euo pipefail
+          if [ -z "${FEED_ONLINEMARKABOLT_URL:-}" ]; then
+            echo "::error title=Missing secret::FEED_ONLINEMARKABOLT_URL nincs beállítva (Settings → Secrets → Actions)."
+            exit 1
           fi
-          mkdir -p docs/feeds/dyson
-          python scripts/build-dyson.py
-          echo "Sanity check (first item):"
+
+          mkdir -p docs/feeds/onlinemarkabolt
+          python -u scripts/build-onlinemarkabolt.py
+
+          # Szigorú sanity check
+          test -s docs/feeds/onlinemarkabolt/meta.json
+          test -s docs/feeds/onlinemarkabolt/page-0001.json
+
           if command -v jq >/dev/null 2>&1; then
-            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/dyson/page-0001.json || true
+            jq -e '.items | length >= 0' docs/feeds/onlinemarkabolt/page-0001.json >/dev/null
+            jq -e '.pages >= 1 and .total >= 0' docs/feeds/onlinemarkabolt/meta.json >/dev/null
+            echo "Sanity check (first item):"
+            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/onlinemarkabolt/page-0001.json || true
           else
-            head -c 600 docs/feeds/dyson/page-0001.json || true
+            head -c 800 docs/feeds/onlinemarkabolt/page-0001.json || true
           fi
-          ls -la docs/feeds/dyson
+
+          ls -la docs/feeds/onlinemarkabolt
 
       - name: Commit changes
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main || true
-          git add docs/feeds/dyson
-          git commit -m "dyson: update feed pages" || echo "No changes"
-          git push origin main || (git pull --rebase origin main && git push origin main)
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git add docs/feeds/onlinemarkabolt
+          git commit -m "onlinemarkabolt: update feed pages" || echo "No changes"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
         with:
-          branch: bot/update-dyson
+          branch: bot/update-onlinemarkabolt
           delete-branch: true
-          title: "dyson: update feed pages"
-          commit-message: "dyson: update feed pages"
+          title: "onlinemarkabolt: update feed pages"
+          commit-message: "onlinemarkabolt: update feed pages"
           body: |
-            Automated update of Dyson feed pages (JSON pagination).
+            Automated update of OnlineMárkabolt feed pages (JSON pagination).
