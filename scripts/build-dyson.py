@@ -154,8 +154,9 @@ def parse_items(xml_text):
             else None
         )
 
-        # FONTOS DYSON FIX: csak akkor engedjük át, ha van link ÉS ára
-        if not link or not price_new:
+        # FONTOS DYSON FIX:
+        # csak a linket követeljük meg (ár nélkül is mehet, az ármező lehet üres)
+        if not link:
             continue
 
         items.append(
@@ -170,6 +171,7 @@ def parse_items(xml_text):
             }
         )
 
+    print(f"Dyson parse_items: {len(items)} termék a feedben.")
     return items
 
 # ===== dedup: méret összevonás, szín marad =====
@@ -249,7 +251,6 @@ def main():
         print("::warning ::Dyson feed 429 (Too Many Requests) – ezt a futást most kihagyjuk.")
         return
 
-    # egyéb hibáknál továbbra is bukjon el
     r.raise_for_status()
 
     items = parse_items(r.text)
