@@ -619,7 +619,7 @@
 
     // ===== partners betöltés =====
     async function loadPartners(){
-      try{
+      try;
         var arr = await fetchFirstAvailable(partnersCandidates);
         if (!Array.isArray(arr) || !arr.length) {
           throw new Error('partners.json üres vagy hibás formátum');
@@ -1440,3 +1440,4 @@
   </script>
 </body>
 </html>
+
