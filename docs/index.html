@@ -123,7 +123,7 @@
 
     .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1}
     .flake{position:absolute;top:-10px;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.9);filter:blur(.5px);animation:fall linear infinite}
-    @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}}
+    @keyframes fall{0%{transform:translateY(-10px)}100%{transform:translateY(110vh)}
 
     #searchProgress{display:none; margin:6px auto 0; font-size:12px; color:#334155; background:#fff; border:1px solid var(--border); border-radius:10px; padding:6px 10px; width:max-content}
   </style>
@@ -173,7 +173,6 @@
           <button class="catbtn" data-cat="tech">💻 Tech & Elektronika ⚡️ </button>
           <button class="catbtn" data-cat="vision">👗 Divat & Látás 👓</button>
           <button class="catbtn" data-cat="travel"> 🛒 Multishop 🛍 </button>
-          <!-- ÚJ: Jogi/nyilatkozatok külön oldalra -->
           <a class="catbtn" href="nyilatkozat.html" rel="nofollow">📜 Nyilatkozatok</a>
         </nav>
 
@@ -239,7 +238,6 @@
       </div>
       <div id="home-cat-nav" class="grid" style="padding-top:0"></div>
 
-      <!-- 20/lap teljes – partner keresővel (OTTHON alatt) -->
       <div id="partner-full-wrap" style="display:none; padding:12px;">
         <form id="searchFormPartner" class="searchbar" role="search" action="" style="margin:0 0 8px">
           <input id="qPartner" name="qPartner" type="search" placeholder="Keresés a termékek között…" aria-label="Keresés (Partner)" />
@@ -250,29 +248,41 @@
       </div>
     </section>
 
-    <!-- ========= JÁTÉKOK – Játéksziget + REGIO (6/lap + Teljes 20/lap) ========= -->
+    <!-- ========= JÁTÉKOK ========= -->
     <section class="section" id="games">
       <h2>Játékok</h2>
       <div id="games-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
     </section>
 
-    <!-- ========= SPORT – (pl. Decathlon) ========= -->
+    <!-- ========= SPORT ========= -->
     <section class="section" id="sport" style="display:none">
       <h2>Sport</h2>
       <div id="sport-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
     </section>
 
-    <!-- A többi kategória szekció rejtve -->
-    <section class="section" id="tech" style="display:none"></section>
-    <section class="section" id="vision" style="display:none"></section>
-    <section class="section" id="travel" style="display:none"></section>
+    <!-- ========= TECH ========= -->
+    <section class="section" id="tech" style="display:none">
+      <h2>Tech & Elektronika</h2>
+      <div id="tech-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
+    </section>
+
+    <!-- ========= DIVAT & LÁTÁS ========= -->
+    <section class="section" id="vision" style="display:none">
+      <h2>Divat & Látás</h2>
+      <div id="vision-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
+    </section>
+
+    <!-- ========= MULTISHOP / TRAVEL ========= -->
+    <section class="section" id="travel" style="display:none">
+      <h2>Multishop</h2>
+      <div id="travel-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
+    </section>
   </main>
 
   <footer>
     © 2025 A Findora.hu oldal affiliate linkeket tartalmaz.
-Az oldalon megjelenő 🔗 linkek partnerlinkek lehetnek, amelyekre kattintva — vásárlás esetén — a Findora jutalékot kaphat.
-Ez a vásárló számára nem jelent semmilyen pluszköltséget.
-    <!-- ÚJ: jogi hivatkozások -->
+    Az oldalon megjelenő 🔗 linkek partnerlinkek lehetnek, amelyekre kattintva — vásárlás esetén — a Findora jutalékot kaphat.
+    Ez a vásárló számára nem jelent semmilyen pluszköltséget.
     <div style="margin-top:8px">
       <a href="nyilatkozat.html#impresszum" style="color:#fff; text-decoration:underline">Impresszum</a> •
       <a href="nyilatkozat.html#adatvedelem" style="color:#fff; text-decoration:underline">Adatvédelem</a> •
@@ -334,7 +344,7 @@ Ez a vásárló számára nem jelent semmilyen pluszköltséget.
 
     // ===== helpers & state =====
     var API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
-    var partnersUrl = 'feeds/partners.json'; // relatív, hogy al-útvonalon is működjön
+    var partnersUrl = 'feeds/partners.json';
 
     function showFatal(msg) {
       var b = document.createElement('div');
@@ -372,7 +382,7 @@ Ez a vásárló számára nem jelent semmilyen pluszköltséget.
 
     var CURRENT_OTTHON_PARTNER = null;
     var GAMES_STATE = new Map();
-    var SPORT_STATE = new Map(); // ÚJ
+    var SPORT_STATE = new Map();
 
     var HOME_PARTNERS = [];
     var DEFAULT_PARTNER = null;
@@ -382,7 +392,7 @@ Ez a vásárló számára nem jelent semmilyen pluszköltséget.
     function priceText(v){ return (typeof v==='number' && isFinite(v)) ? (v.toLocaleString('hu-HU') + ' Ft') : ((typeof v==='string' && v.trim()) ? v : '—'); }
     function firstUrl(it){ return (it && (it.url || it.link || it.deeplink)) || ''; }
 
-    // ===== ERŐS DEDUP mindenhol =====
+    // ===== ERŐS DEDUP =====
     var SIZE_TOKENS = new RegExp([
       '\\\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\\\b',
       '\\\\b(?:\\\\d{2,3}[\\\\/-]\\\\d{2,3})\\\\b',
@@ -629,7 +639,7 @@ Ez a vásárló számára nem jelent semmilyen pluszköltséget.
       }
     }
 
-    // ===== Főoldal – több partner doboz =====
+    // ===== Főoldal dobozok =====
     function homeBoxTemplate(p){
       var pid = p.id;
       return (
@@ -676,7 +686,7 @@ Ez a vásárló számára nem jelent semmilyen pluszköltséget.
       }
     }
 
-    // ===== Otthon – Tchibo (6/lap + 20/lap) =====
+    // ===== Otthon – Tchibo =====
     function showHomeOverviewInOtthon(){
       document.getElementById('home-cat-list').style.display='';
       document.getElementById('home-cat-nav').style.display='';
@@ -727,7 +737,7 @@ Ez a vásárló számára nem jelent semmilyen pluszköltséget.
       }
     }
 
-    // ===== Teljes nézet (Otthon – Tchibo 20/lap) =====
+    // ===== Teljes nézet (Otthon) =====
     var PARTNER_FILTER = '';
     async function drawPartnerFull(page){
       page = page || 1;
@@ -775,7 +785,7 @@ Ez a vásárló számára nem jelent semmilyen pluszköltséget.
       }
     }
 
-    // ===== Games =====
+    // ===== Games (overview + full) =====
     function gamesBoxTemplate(p){
       var pid = p.id;
       return (
@@ -912,7 +922,7 @@ Ez a vásárló számára nem jelent semmilyen pluszköltséget.
       }
     }
 
-    // ===== SPORT =====
+    // ===== SPORT (overview + full) =====
     function sportBoxTemplate(p){
       var pid = p.id;
       return (
@@ -1049,6 +1059,81 @@ Ez a vásárló számára nem jelent semmilyen pluszköltséget.
       }
     }
 
+    // ===== GENERIKUS doboz sablon (Tech / Vision / Travel) =====
+    function genericBoxTemplate(p, grp){
+      var pid = p.id;
+      return (
+        '<div class="section" id="'+grp+'-box-'+pid+'">' +
+          '<h2>'+p.name+'</h2>' +
+          '<div class="grid" id="'+grp+'-'+pid+'-list"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div>' +
+          '<div class="grid" id="'+grp+'-'+pid+'-nav" style="padding-top:0"></div>' +
+        '</div>'
+      );
+    }
+    async function drawGenericOverviewFor(grp, pid, page){
+      page = page || 1;
+      var p = PARTNERS.get(pid);
+      if(!p) return;
+      var PAGE = (p.placements && p.placements[grp] ? p.placements[grp].pageSize : 6) || 6;
+      try{
+        var items = await collectUnique(pid, (page-1)*PAGE, PAGE);
+        var meta  = await getMeta(pid);
+        var totalPages = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
+        var listEl = document.getElementById(grp+'-'+pid+'-list');
+        var navEl  = document.getElementById(grp+'-'+pid+'-nav');
+        listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
+        navEl.innerHTML =
+          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawGenericOverviewFor(\''+grp+'\', \''+pid+'\','+(page-1)+')">Előző</button>' +
+          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
+          '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawGenericOverviewFor(\''+grp+'\', \''+pid+'\','+(page+1)+')">Következő</button>';
+      }catch(e){
+        console.error(e);
+        document.getElementById(grp+'-'+pid+'-list').innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
+      }
+    }
+    async function drawTechTab(){
+      var list = Array.from(PARTNERS.values()).filter(function(p){
+        return p.group==='tech' && p.placements && p.placements.tech && p.placements.tech.enabled;
+      });
+      var host = document.getElementById('tech-partners');
+      if(!list.length){
+        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Tech & Elektronika” partner konfigurálva.</div></div>';
+        return;
+      }
+      host.innerHTML = list.map(function(p){ return genericBoxTemplate(p, 'tech'); }).join('');
+      for(var i=0;i<list.length;i++){
+        await drawGenericOverviewFor('tech', list[i].id, 1);
+      }
+    }
+    async function drawVisionTab(){
+      var list = Array.from(PARTNERS.values()).filter(function(p){
+        return p.group==='vision' && p.placements && p.placements.vision && p.placements.vision.enabled;
+      });
+      var host = document.getElementById('vision-partners');
+      if(!list.length){
+        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Divat & Látás” partner konfigurálva.</div></div>';
+        return;
+      }
+      host.innerHTML = list.map(function(p){ return genericBoxTemplate(p, 'vision'); }).join('');
+      for(var i=0;i<list.length;i++){
+        await drawGenericOverviewFor('vision', list[i].id, 1);
+      }
+    }
+    async function drawTravelTab(){
+      var list = Array.from(PARTNERS.values()).filter(function(p){
+        return p.group==='travel' && p.placements && p.placements.travel && p.placements.travel.enabled;
+      });
+      var host = document.getElementById('travel-partners');
+      if(!list.length){
+        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Multishop” partner konfigurálva.</div></div>';
+        return;
+      }
+      host.innerHTML = list.map(function(p){ return genericBoxTemplate(p, 'travel'); }).join('');
+      for(var i=0;i<list.length;i++){
+        await drawGenericOverviewFor('travel', list[i].id, 1);
+      }
+    }
+
     // ===== Globális kereső =====
     function matchesNeedle(it, needle){
       var t=((it && it.title) ? it.title : '').toLowerCase();
@@ -1143,6 +1228,21 @@ Ez a vásárló számára nem jelent semmilyen pluszköltséget.
         sec2.style.display='block';
         var sBtn = document.querySelector('.catbtn[data-cat="sport"]'); if(sBtn) sBtn.classList.add('active');
         await drawSportTab();
+      }else if(tab==='tech'){
+        var secT = document.getElementById('tech');
+        secT.style.display='block';
+        var tBtn = document.querySelector('.catbtn[data-cat="tech"]'); if(tBtn) tBtn.classList.add('active');
+        await drawTechTab();
+      }else if(tab==='vision'){
+        var secV = document.getElementById('vision');
+        secV.style.display='block';
+        var vBtn = document.querySelector('.catbtn[data-cat="vision"]'); if(vBtn) vBtn.classList.add('active');
+        await drawVisionTab();
+      }else if(tab==='travel'){
+        var secTr = document.getElementById('travel');
+        secTr.style.display='block';
+        var trBtn = document.querySelector('.catbtn[data-cat="travel"]'); if(trBtn) trBtn.classList.add('active');
+        await drawTravelTab();
       }else{
         var sec3=document.getElementById(tab); if(sec3) sec3.style.display='block';
         var btn = document.querySelector('.catbtn[data-cat="'+tab+'"]'); if(btn) btn.classList.add('active');
@@ -1184,8 +1284,3 @@ Ez a vásárló számára nem jelent semmilyen pluszköltséget.
   </script>
 </body>
 </html>
-
-
-
-
-
