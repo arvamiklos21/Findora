@@ -123,8 +123,8 @@
       "vision": {
         "enabled": true,
         "pageSize": 6,
-        "full": { "enabled": true, "pageSize": 20 },
-        }
+        "full": { "enabled": true, "pageSize": 20 }
+      }
     }
   }
 ]
