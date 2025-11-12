@@ -176,15 +176,15 @@
     }
   },
   {
-    "id": "dyson",
-    "name": "Dyson",
-    "group": "otthon",
-    "meta": "feeds/dyson/meta.json",
-    "pagePattern": "feeds/dyson/page-{NNNN}.json",
-    "deeplinkPartner": "dyson",
+    "id": "onlinemarkabolt",
+    "name": "OnlineMárkabolt",
+    "group": "tech",
+    "meta": "feeds/onlinemarkabolt/meta.json",
+    "pagePattern": "feeds/onlinemarkabolt/page-{NNNN}.json",
+    "deeplinkPartner": "onlinemarkabolt",
     "placements": {
       "home": { "enabled": true, "pageSize": 6 },
-      "otthon": {
+      "tech": {
         "enabled": true,
         "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
