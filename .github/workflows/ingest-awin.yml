@@ -21,14 +21,16 @@ jobs:
 
       - name: Run AWIN ingest
         env:
-          AWIN_FEED_LIST_URL: ${{ secrets.AWIN_FEED_LIST_URL }}  # Secret → AWIN fő feedlist URL
-          AWIN_PAGE_SIZE: "300"                                  # Oldalméret (200/300)
+          AWIN_FEED_LIST_URL: ${{ secrets.AWIN_FEED_LIST_URL }}  # az AWIN feedlist URL-ed (secret)
+          AWIN_PAGE_SIZE: "300"                                  # vagy 200
         run: python scripts/build_awin.py
 
       - name: Commit feed updates
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+          # --- FONTOS: mindig húzza le a legfrissebb main ágat ---
+          git pull --rebase origin main || true
           git add docs/feeds/awin
           git commit -m "chore: update AWIN feeds" || echo "No changes"
           git push
