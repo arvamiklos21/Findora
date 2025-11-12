@@ -126,5 +126,72 @@
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
+  },
+
+  /* ===== ÚJ DOGNET PARTNEREK ===== */
+
+  {
+    "id": "laifenshop",
+    "name": "Laifenshop",
+    "group": "otthon",
+    "meta": "feeds/laifenshop/meta.json",
+    "pagePattern": "feeds/laifenshop/page-{NNNN}.json",
+    "deeplinkPartner": "laifenshop",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 6 },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
+  },
+  {
+    "id": "karacsonydekor",
+    "name": "Karácsonyi Dekor",
+    "group": "otthon",
+    "meta": "feeds/karacsonydekor/meta.json",
+    "pagePattern": "feeds/karacsonydekor/page-{NNNN}.json",
+    "deeplinkPartner": "karacsonydekor",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 6 },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
+  },
+  {
+    "id": "otthonmarket",
+    "name": "OtthonMarket",
+    "group": "otthon",
+    "meta": "feeds/otthonmarket/meta.json",
+    "pagePattern": "feeds/otthonmarket/page-{NNNN}.json",
+    "deeplinkPartner": "otthonmarket",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 6 },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
+  },
+  {
+    "id": "dyson",
+    "name": "Dyson",
+    "group": "otthon",
+    "meta": "feeds/dyson/meta.json",
+    "pagePattern": "feeds/dyson/page-{NNNN}.json",
+    "deeplinkPartner": "dyson",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 6 },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
   }
 ]
