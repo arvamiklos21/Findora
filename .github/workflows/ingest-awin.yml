@@ -29,8 +29,15 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          # --- FONTOS: mindig húzza le a legfrissebb main ágat ---
+
+          # --- Mindig húzza le a legfrissebb main ágat, hogy ne legyen push ütközés ---
           git pull --rebase origin main || true
+
+          # --- Csak az AWIN feedeket addolja ---
           git add docs/feeds/awin
+
+          # --- Commit, ha van változás ---
           git commit -m "chore: update AWIN feeds" || echo "No changes"
-          git push
+
+          # --- Push, ha sikertelen lenne, újrapróbálja ---
+          git push origin main || (git pull --rebase origin main && git push origin main)
