@@ -1,1 +1,64 @@
+name: ingest-dyson
 
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 10,19 * * *"   # 11:25 és 20:25 (HU)
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Build Dyson feed pages
+        env:
+          FEED_DYSON_URL: ${{ secrets.FEED_DYSON_URL }}
+        run: |
+          set -e
+          if [ -z "$FEED_DYSON_URL" ]; then
+            echo "::error title=Missing secret::FEED_DYSON_URL nincs beállítva (Settings → Secrets → Actions)."; exit 1
+          fi
+          mkdir -p docs/feeds/dyson
+          python scripts/build_dyson.py
+          echo "Sanity check (first item):"
+          if command -v jq >/dev/null 2>&1; then
+            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/dyson/page-0001.json || true
+          else
+            head -c 600 docs/feeds/dyson/page-0001.json || true
+          fi
+          ls -la docs/feeds/dyson
+
+      - name: Commit changes
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main || true
+          git add docs/feeds/dyson
+          git commit -m "dyson: update feed pages" || echo "No changes"
+          git push origin main || (git pull --rebase origin main && git push origin main)
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: bot/update-dyson
+          delete-branch: true
+          title: "dyson: update feed pages"
+          commit-message: "dyson: update feed pages"
+          body: |
+            Automated update of Dyson feed pages (JSON pagination).
