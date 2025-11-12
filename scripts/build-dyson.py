@@ -154,7 +154,7 @@ def parse_items(xml_text):
             else None
         )
 
-        # FONTOS DYSON FIX
+        # FONTOS DYSON FIX: csak akkor engedjük át, ha van link ÉS ára
         if not link or not price_new:
             continue
 
@@ -243,6 +243,13 @@ def main():
         headers={"User-Agent": "Mozilla/5.0", "Accept": "application/xml"},
         timeout=120,
     )
+
+    # 429 → túl sok kérés, ne dőljön el a workflow, csak jelezzük és kilépünk
+    if r.status_code == 429:
+        print("::warning ::Dyson feed 429 (Too Many Requests) – ezt a futást most kihagyjuk.")
+        return
+
+    # egyéb hibáknál továbbra is bukjon el
     r.raise_for_status()
 
     items = parse_items(r.text)
