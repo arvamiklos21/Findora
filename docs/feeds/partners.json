@@ -108,7 +108,29 @@
       "home":   { "enabled": true, "pageSize": 6 },
       "vision": { "enabled": true, "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
-      }
+    },
+        , 
+  // #AWIN partners
+  {
+    "id": "aliexpress",
+    "name": "AliExpress",
+    "feed": { "source": "awin", "path": "/feeds/awin/aliexpress/" },
+    "dl": { "network": "awin", "awinmid": "119135" }
+  },
+  {
+    "id": "alibaba",
+    "name": "Alibaba",
+    "feed": { "source": "awin", "path": "/feeds/awin/alibaba/" },
+    "dl": { "network": "awin", "awinmid": "17943" }
+  },
+  {
+    "id": "lunzo",
+    "name": "Lunzo",
+    "feed": { "source": "awin", "path": "/feeds/awin/lunzo/" },
+    "dl": { "network": "awin", "awinmid": "40452" }
+  }
+]
+
     }
   }
 ]
