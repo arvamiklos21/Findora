@@ -6,6 +6,34 @@ FEED_URL  = os.environ.get("FEED_KOZMETIKAOTTHON_URL")
 OUT_DIR   = "docs/feeds/kozmetikaotthon"
 PAGE_SIZE = 300  # JSON-lap méret
 
+# --- ÚJ: XML tisztító ---
+
+CTRL_CHARS_RE = re.compile(r'[\x00-\x08\x0B\x0C\x0E-\x1F]')
+AMP_FIX_RE = re.compile(r'&(?!#\d+;|#x[0-9A-Fa-f]+;|[A-Za-z][A-Za-z0-9]+;)')
+
+def clean_xml(text_or_bytes):
+    """Eltávolít tiltott vezérlőkaraktereket és escape-eli a kóbor &-eket."""
+    if isinstance(text_or_bytes, (bytes, bytearray)):
+        s = text_or_bytes.decode('utf-8', 'replace')
+    else:
+        s = str(text_or_bytes)
+    s = CTRL_CHARS_RE.sub('', s)
+    s = AMP_FIX_RE.sub('&amp;', s)
+    return s
+
+def fetch_xml(url):
+    """Letölt, content-type-ot ellenőriz, tisztít."""
+    r = requests.get(url, headers={"User-Agent":"Mozilla/5.0","Accept":"application/xml"}, timeout=180)
+    r.raise_for_status()
+    ct = (r.headers.get("content-type") or "").lower()
+    # ha netán HTML hibaoldal jön, szóljunk hangosan
+    if "xml" not in ct and not r.text.strip().startswith("<?xml"):
+        head = r.text[:500].replace("\n"," ")[:500]
+        raise RuntimeError(f"Nem XML érkezett a feed URL-ről. content-type={ct}; első 500 karakter: {head!r}")
+    return clean_xml(r.content)
+
+# --- utilok (marad) ---
+
 def norm_price(v):
     if v is None: return None
     s = re.sub(r"[^\d.,-]", "", str(v)).replace(" ", "")
@@ -71,6 +99,7 @@ OLD_PRICE_KEYS = (
 )
 
 def parse_items(xml_text):
+    # --- MÓDOSÍTÁS: már tisztított szöveg jön, de a biztonság kedvéért itt is megszűrhető lenne ---
     root = ET.fromstring(xml_text)
     candidates = []
     for path in (".//channel/item",".//item",".//products/product",".//product",".//SHOPITEM",".//shopitem",".//entry"):
@@ -174,10 +203,11 @@ def dedup_size_variants(items):
 def main():
     assert FEED_URL, "FEED_KOZMETIKAOTTHON_URL hiányzik (repo Secrets)."
     os.makedirs(OUT_DIR, exist_ok=True)
-    r = requests.get(FEED_URL, headers={"User-Agent":"Mozilla/5.0","Accept":"application/xml"}, timeout=180)
-    r.raise_for_status()
 
-    items = parse_items(r.text)
+    # --- MÓDOSÍTÁS: tisztított XML-t adunk a parsernek ---
+    xml_clean = fetch_xml(FEED_URL)
+
+    items = parse_items(xml_clean)
     items = dedup_size_variants(items)
 
     pages = max(1, math.ceil(len(items)/PAGE_SIZE))
