@@ -52,8 +52,38 @@
       "home":  { "enabled": true, "pageSize": 6 },
       "sport": { "enabled": true, "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
+        }
+    }
+  },
+     // ===== ÚJ: Alza =====
+  {
+    "id": "alza",
+    "name": "Alza",
+    "group": "tech",
+    "meta": "feeds/alza/meta.json",
+    "pagePattern": "feeds/alza/page-{NNNN}.json",
+    "deeplinkPartner": "alza",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 6 },
+      "tech": { "enabled": true, "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
+  },
+
+  // ===== ÚJ: KozmetikaOtthon =====
+  {
+    "id": "kozmetikaotthon",
+    "name": "KozmetikaOtthon",
+    "group": "otthon",
+    "meta": "feeds/kozmetikaotthon/meta.json",
+    "pagePattern": "feeds/kozmetikaotthon/page-{NNNN}.json",
+    "deeplinkPartner": "kozmetikaotthon",
+    "placements": {
+      "home":   { "enabled": true, "pageSize": 6 },
+      "otthon": { "enabled": true, "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
       }
     }
   }
 ]
-
