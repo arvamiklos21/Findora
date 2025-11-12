@@ -6,6 +6,18 @@ FEED_URL  = os.environ.get("FEED_EKSZERESHOP_URL")
 OUT_DIR   = "docs/feeds/ekszereshop"
 PAGE_SIZE = 300  # forrás-oldal méret
 
+# --------- utilok ----------
+def force_https(u: str) -> str:
+    """http -> https, // -> https://  (mixed content ellen)"""
+    if not u:
+        return ""
+    u = u.strip()
+    if u.startswith("//"):
+        return "https:" + u
+    if u.startswith("http://"):
+        return "https://" + u[7:]
+    return u
+
 def norm_price(v):
     if v is None: return None
     s = re.sub(r"[^\d.,-]", "", str(v)).replace(" ", "")
@@ -89,12 +101,14 @@ def parse_items(xml_text):
         pid   = first(m, ("g:id","id","item_id","sku","product_id","itemid"))
         title = first(m, TITLE_KEYS) or "Ismeretlen termék"
         link  = first(m, LINK_KEYS)
+        link  = force_https(link) if link else ""
 
         img = first(m, IMG_KEYS)
         if not img:
             alt = first(m, IMG_ALT_KEYS)
             if isinstance(alt, list) and alt: img = alt[0]
             elif isinstance(alt, str): img = alt
+        img = force_https(img)  # <-- fontos
 
         desc  = short_desc(first(m, DESC_KEYS))
 
@@ -108,7 +122,9 @@ def parse_items(xml_text):
             old = norm_price(m.get(k))
             if old: break
 
-        discount = round((1 - price_new/old)*100) if old and price_new and old > price_new else None
+        discount = None
+        if old and price_new and old > price_new:
+            discount = round((1 - price_new/old) * 100)
 
         items.append({
             "id": pid or link or title,
