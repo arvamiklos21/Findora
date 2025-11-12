@@ -66,13 +66,13 @@
   {
     "id": "alza",
     "name": "Alza",
-    "group": "travel",
+    "group": "tech",
     "meta": "feeds/alza/meta.json",
     "pagePattern": "feeds/alza/page-{NNNN}.json",
     "deeplinkPartner": "alza",
     "placements": {
       "home": { "enabled": true, "pageSize": 6 },
-      "travel": {
+      "tech": {
         "enabled": true,
         "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
@@ -98,13 +98,13 @@
   {
     "id": "pepita",
     "name": "Pepita.hu",
-    "group": "travel",
+    "group": "tech",
     "meta": "feeds/pepita/meta.json",
     "pagePattern": "feeds/pepita/page-{NNNN}.json",
     "deeplinkPartner": "pepita",
     "placements": {
       "home": { "enabled": true, "pageSize": 6 },
-      "travel": {
+      "tech": {
         "enabled": true,
         "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
@@ -178,13 +178,13 @@
   {
     "id": "onlinemarkabolt",
     "name": "OnlineMárkabolt",
-    "group": "tech",
+    "group": "otthon",
     "meta": "feeds/onlinemarkabolt/meta.json",
     "pagePattern": "feeds/onlinemarkabolt/page-{NNNN}.json",
     "deeplinkPartner": "onlinemarkabolt",
     "placements": {
       "home": { "enabled": true, "pageSize": 6 },
-      "tech": {
+      "otthon": {
         "enabled": true,
         "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
