@@ -11,6 +11,13 @@
 <label class="pill">Rendezés:
 <select id="sortBy"><option value="price-asc">Ár: alacsony→magas</option><option value="price-desc">Ár: magas→alacsony</option></select></label></div>
 <div id="grid" class="grid"></div><div class="pager"><button id="prevBtn" disabled>Előző</button><span id="pageInfo" class="muted">1. oldal</span><button id="nextBtn">Következő</button></div></div>
+  <!-- ===== FIX, mindig látható affiliate-nyilatkozat ===== -->
+<div class="aff-disclosure" role="note" aria-label="Affiliate nyilatkozat">
+  🔔 <strong>Figyelem:</strong> A Findora.hu oldal affiliate linkeket tartalmaz. 
+  Az oldalon megjelenő 🔗 linkek partnerlinkek lehetnek, amelyekre kattintva — vásárlás esetén — a Findora jutalékot kaphat. 
+  Ez a vásárló számára nem jelent semmilyen pluszköltséget.
+  <!-- Ha van külön szekció: <a href="https://www.findora.hu/#nyilatkozatok">Részletek</a> -->
+</div>
 <script>
 const FEED_BASE='/feeds/regiojatek',MAX_PAGES_TO_SCAN=1000,PAGE_SIZE=20;let currentPage=1,feedPage=1;
 const grid=document.getElementById('grid'),pageInfo=document.getElementById('pageInfo'),prevBtn=document.getElementById('prevBtn'),nextBtn=document.getElementById('nextBtn'),onlyDiscountEl=document.getElementById('onlyDiscount'),minDiscEl=document.getElementById('minDisc'),sortByEl=document.getElementById('sortBy'),categoryEl=document.getElementById('category');
