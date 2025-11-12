@@ -72,7 +72,7 @@
 {
   "id": "kozmetikaotthon",
   "name": "KozmetikaOtthon",
-  "group": "vision",
+  "group": "home",
   "meta": "feeds/kozmetikaotthon/meta.json",
   "pagePattern": "feeds/kozmetikaotthon/page-{NNNN}.json",
   "deeplinkPartner": "kozmetikaotthon",
