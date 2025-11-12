@@ -10,6 +10,7 @@
       "home":   { "enabled": true,  "pageSize": 6 },
       "otthon": { "enabled": true,  "pageSize": 6,
         "full": { "enabled": true,  "pageSize": 20 }
+        }
       }
     }
   },
