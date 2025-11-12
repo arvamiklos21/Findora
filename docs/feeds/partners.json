@@ -58,7 +58,7 @@
   {
     "id": "alza",
     "name": "Alza",
-    "group": "tech",
+    "group": "travel",
     "meta": "feeds/alza/meta.json",
     "pagePattern": "feeds/alza/page-{NNNN}.json",
     "deeplinkPartner": "alza",
@@ -72,7 +72,7 @@
   {
     "id": "kozmetikaotthon",
     "name": "KozmetikaOtthon",
-    "group": "otthon",
+    "group": "vision",
     "meta": "feeds/kozmetikaotthon/meta.json",
     "pagePattern": "feeds/kozmetikaotthon/page-{NNNN}.json",
     "deeplinkPartner": "kozmetikaotthon",
