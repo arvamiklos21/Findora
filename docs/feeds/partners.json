@@ -7,9 +7,11 @@
     "pagePattern": "feeds/tchibo/page-{NNNN}.json",
     "deeplinkPartner": "tchibo",
     "placements": {
-      "home":   { "enabled": true,  "pageSize": 6 },
-      "otthon": { "enabled": true,  "pageSize": 6,
-        "full": { "enabled": true,  "pageSize": 20 }
+      "home": { "enabled": true, "pageSize": 6 },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
       }
     }
   },
@@ -21,8 +23,10 @@
     "pagePattern": "feeds/jateksziget/page-{NNNN}.json",
     "deeplinkPartner": "jateksziget",
     "placements": {
-      "home":  { "enabled": true, "pageSize": 6 },
-      "games": { "enabled": true, "pageSize": 6,
+      "home": { "enabled": true, "pageSize": 6 },
+      "games": {
+        "enabled": true,
+        "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -35,8 +39,10 @@
     "pagePattern": "feeds/regiojatek/page-{NNNN}.json",
     "deeplinkPartner": "regiojatek",
     "placements": {
-      "home":  { "enabled": true, "pageSize": 6 },
-      "games": { "enabled": true, "pageSize": 6,
+      "home": { "enabled": true, "pageSize": 6 },
+      "games": {
+        "enabled": true,
+        "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -49,8 +55,10 @@
     "pagePattern": "feeds/decathlon/page-{NNNN}.json",
     "deeplinkPartner": "decathlon",
     "placements": {
-      "home":  { "enabled": true, "pageSize": 6 },
-      "sport": { "enabled": true, "pageSize": 6,
+      "home": { "enabled": true, "pageSize": 6 },
+      "sport": {
+        "enabled": true,
+        "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -63,8 +71,10 @@
     "pagePattern": "feeds/alza/page-{NNNN}.json",
     "deeplinkPartner": "alza",
     "placements": {
-      "home":   { "enabled": true, "pageSize": 6 },
-      "travel": { "enabled": true, "pageSize": 6,
+      "home": { "enabled": true, "pageSize": 6 },
+      "travel": {
+        "enabled": true,
+        "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -77,8 +87,10 @@
     "pagePattern": "feeds/kozmetikaotthon/page-{NNNN}.json",
     "deeplinkPartner": "kozmetikaotthon",
     "placements": {
-      "home":   { "enabled": true, "pageSize": 6 },
-      "vision": { "enabled": true, "pageSize": 6,
+      "home": { "enabled": true, "pageSize": 6 },
+      "vision": {
+        "enabled": true,
+        "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -91,8 +103,10 @@
     "pagePattern": "feeds/pepita/page-{NNNN}.json",
     "deeplinkPartner": "pepita",
     "placements": {
-      "home":   { "enabled": true, "pageSize": 6 },
-      "travel": { "enabled": true, "pageSize": 6,
+      "home": { "enabled": true, "pageSize": 6 },
+      "travel": {
+        "enabled": true,
+        "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -105,13 +119,15 @@
     "pagePattern": "feeds/ekszereshop/page-{NNNN}.json",
     "deeplinkPartner": "ekszereshop",
     "placements": {
-      "home":   { "enabled": true, "pageSize": 6 },
-      "vision": { "enabled": true, "pageSize": 6,
+      "home": { "enabled": true, "pageSize": 6 },
+      "vision": {
+        "enabled": true,
+        "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
+      }
     }
   },
-  
-     { "_comment": "===== #AWIN partners =====" },
+  { "_comment": "===== #AWIN partners =====" },
   {
     "id": "aliexpress",
     "name": "AliExpress",
@@ -129,5 +145,5 @@
     "name": "Lunzo",
     "feed": { "source": "awin", "path": "/feeds/awin/lunzo/" },
     "dl": { "network": "awin", "awinmid": "40452" }
-  
+  }
 ]
