@@ -10,7 +10,7 @@
       "home":   { "enabled": true,  "pageSize": 6 },
       "otthon": { "enabled": true,  "pageSize": 6,
         "full": { "enabled": true,  "pageSize": 20 }
-       }
+      }
     }
   },
   {
@@ -21,23 +21,23 @@
     "pagePattern": "feeds/jateksziget/page-{NNNN}.json",
     "deeplinkPartner": "jateksziget",
     "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
+      "home":  { "enabled": true, "pageSize": 6 },
       "games": { "enabled": true, "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
   },
   {
-  "id": "regiojatek",
-  "name": "REGIO Játék",
-  "group": "games",
-  "meta": "feeds/regiojatek/meta.json",
-  "pagePattern": "feeds/regiojatek/page-{NNNN}.json",
-  "deeplinkPartner": "regiojatek",
-  "placements": {
-    "home":  { "enabled": true, "pageSize": 6 },
-    "games": { "enabled": true, "pageSize": 6,
-      "full": { "enabled": true, "pageSize": 20 }
+    "id": "regiojatek",
+    "name": "REGIO Játék",
+    "group": "games",
+    "meta": "feeds/regiojatek/meta.json",
+    "pagePattern": "feeds/regiojatek/page-{NNNN}.json",
+    "deeplinkPartner": "regiojatek",
+    "placements": {
+      "home":  { "enabled": true, "pageSize": 6 },
+      "games": { "enabled": true, "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
       }
     }
   },
@@ -52,35 +52,63 @@
       "home":  { "enabled": true, "pageSize": 6 },
       "sport": { "enabled": true, "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
-        }
+      }
     }
   },
   {
-  "id": "alza",
-  "name": "Alza",
-  "group": "travel",
-  "meta": "feeds/alza/meta.json",
-  "pagePattern": "feeds/alza/page-{NNNN}.json",
-  "deeplinkPartner": "alza",
-  "placements": {
-    "home":   { "enabled": true, "pageSize": 6 },
-    "travel": { "enabled": true, "pageSize": 6,
-      "full": { "enabled": true, "pageSize": 20 }
+    "id": "alza",
+    "name": "Alza",
+    "group": "travel",
+    "meta": "feeds/alza/meta.json",
+    "pagePattern": "feeds/alza/page-{NNNN}.json",
+    "deeplinkPartner": "alza",
+    "placements": {
+      "home":   { "enabled": true, "pageSize": 6 },
+      "travel": { "enabled": true, "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
+  },
+  {
+    "id": "kozmetikaotthon",
+    "name": "KozmetikaOtthon",
+    "group": "vision",
+    "meta": "feeds/kozmetikaotthon/meta.json",
+    "pagePattern": "feeds/kozmetikaotthon/page-{NNNN}.json",
+    "deeplinkPartner": "kozmetikaotthon",
+    "placements": {
+      "home":   { "enabled": true, "pageSize": 6 },
+      "vision": { "enabled": true, "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
+  },
+  {
+    "id": "pepita",
+    "name": "Pepita.hu",
+    "group": "travel",
+    "meta": "feeds/pepita/meta.json",
+    "pagePattern": "feeds/pepita/page-{NNNN}.json",
+    "deeplinkPartner": "pepita",
+    "placements": {
+      "home":   { "enabled": true, "pageSize": 6 },
+      "travel": { "enabled": true, "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
+  },
+  {
+    "id": "ekszereshop",
+    "name": "Ékszer-Eshop.hu",
+    "group": "vision",
+    "meta": "feeds/ekszereshop/meta.json",
+    "pagePattern": "feeds/ekszereshop/page-{NNNN}.json",
+    "deeplinkPartner": "ekszereshop",
+    "placements": {
+      "home":   { "enabled": true, "pageSize": 6 },
+      "vision": { "enabled": true, "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
     }
   }
-},
-{
-  "id": "kozmetikaotthon",
-  "name": "KozmetikaOtthon",
-  "group": "vision",
-  "meta": "feeds/kozmetikaotthon/meta.json",
-  "pagePattern": "feeds/kozmetikaotthon/page-{NNNN}.json",
-  "deeplinkPartner": "kozmetikaotthon",
-  "placements": {
-    "home":   { "enabled": true, "pageSize": 6 },
-    "vision": { "enabled": true, "pageSize": 6,
-      "full": { "enabled": true, "pageSize": 20 }
-    }
-  }
-}
 ]
