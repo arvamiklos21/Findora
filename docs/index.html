@@ -384,11 +384,10 @@
     var GAMES_STATE = new Map();
     var SPORT_STATE = new Map();
     var GENERIC_STATE = {
-  tech:   new Map(),
-  vision: new Map(),
-  travel: new Map()
-};
-
+      tech:   new Map(),
+      vision: new Map(),
+      travel: new Map()
+    };
 
     var HOME_PARTNERS = [];
     var DEFAULT_PARTNER = null;
@@ -659,7 +658,7 @@
       );
     }
     async function drawHomeOverviewFor(pid, page){
-      page = page || ;
+      page = page || 1;
       var p = PARTNERS.get(pid);
       if(!p) return;
       var PAGE = (p.placements && p.placements.home ? p.placements.home.pageSize : 6) || 6;
@@ -1070,11 +1069,37 @@
       var pid = p.id;
       return (
         '<div class="section" id="'+grp+'-box-'+pid+'">' +
-          '<h2>'+p.name+'</h2>' +
+          '<h2><a href="#'+grp+'-'+pid+'-full" class="generic-head" data-group="'+grp+'" data-partner="'+pid+'" style="text-decoration:underline;font-weight:900;">'+p.name+'</a></h2>' +
           '<div class="grid" id="'+grp+'-'+pid+'-list"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div>' +
           '<div class="grid" id="'+grp+'-'+pid+'-nav" style="padding-top:0"></div>' +
+          '<div id="'+grp+'-'+pid+'-full-wrap" style="display:none; padding:12px;">' +
+            '<form class="searchbar generic-search" data-group="'+grp+'" data-partner="'+pid+'" role="search" action="" style="margin:0 0 8px">' +
+              '<input id="q-'+grp+'-'+pid+'" type="search" placeholder="Keresés a termékek között…" aria-label="Keresés ('+p.name+')" />' +
+              '<button type="submit" aria-label="Keresés indítása">Keresés</button>' +
+            '</form>' +
+            '<div class="grid" id="'+grp+'-'+pid+'-full-list"></div>' +
+            '<div class="grid" id="'+grp+'-'+pid+'-full-nav" style="padding-top:0"></div>' +
+          '</div>' +
         '</div>'
       );
+    }
+    function showGenericOverview(grp, pid){
+      var base = grp+'-'+pid;
+      var list = document.getElementById(base+'-list');
+      var nav  = document.getElementById(base+'-nav');
+      var wrap = document.getElementById(base+'-full-wrap');
+      if(list) list.style.display='';
+      if(nav)  nav.style.display='';
+      if(wrap) wrap.style.display='none';
+    }
+    function showGenericFull(grp, pid){
+      var base = grp+'-'+pid;
+      var list = document.getElementById(base+'-list');
+      var nav  = document.getElementById(base+'-nav');
+      var wrap = document.getElementById(base+'-full-wrap');
+      if(list) list.style.display='none';
+      if(nav)  nav.style.display='none';
+      if(wrap) wrap.style.display='';
     }
     async function drawGenericOverviewFor(grp, pid, page){
       page = page || 1;
@@ -1087,14 +1112,61 @@
         var totalPages = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
         var listEl = document.getElementById(grp+'-'+pid+'-list');
         var navEl  = document.getElementById(grp+'-'+pid+'-nav');
-        listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-        navEl.innerHTML =
-          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawGenericOverviewFor(\''+grp+'\', \''+pid+'\','+(page-1)+')">Előző</button>' +
-          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
-          '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawGenericOverviewFor(\''+grp+'\', \''+pid+'\','+(page+1)+')">Következő</button>';
+        if(listEl) listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
+        if(navEl){
+          navEl.innerHTML =
+            '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawGenericOverviewFor(\''+grp+'\', \''+pid+'\','+(page-1)+')">Előző</button>' +
+            '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
+            '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawGenericOverviewFor(\''+grp+'\', \''+pid+'\','+(page+1)+')">Következő</button>';
+        }
       }catch(e){
         console.error(e);
-        document.getElementById(grp+'-'+pid+'-list').innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
+        var listEl2 = document.getElementById(grp+'-'+pid+'-list');
+        if(listEl2) listEl2.innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
+      }
+    }
+    async function drawGenericFullFor(grp, pid, page){
+      page = page || 1;
+      var p = PARTNERS.get(pid);
+      if(!p || !(p.placements && p.placements[grp] && p.placements[grp].full && p.placements[grp].full.enabled)) return;
+      if(!GENERIC_STATE[grp].has(pid)) GENERIC_STATE[grp].set(pid, { filter:'', page:1 });
+      var state = GENERIC_STATE[grp].get(pid);
+      var PAGE = (p.placements && p.placements[grp] && p.placements[grp].full ? p.placements[grp].full.pageSize : 20) || 20;
+      try{
+        var meta = await getMeta(pid);
+        var offset = (page-1)*PAGE;
+        var items = await collectUnique(pid, offset, PAGE);
+        if(state.filter){
+          var q = state.filter.toLowerCase();
+          var ok = function(it){
+            return (((it && it.title) ? it.title : '') + ' ' + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
+          };
+          if(!items.some(ok)){
+            var buffer = [];
+            var totalPages = meta.pages || Math.ceil(((meta.total||0))/ (meta.pageSize||300)) || 1;
+            for(var pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
+              var arr = await getPageItems(pid, pg);
+              buffer.push.apply(buffer, arr);
+            }
+            items = dedupeStrong(buffer).filter(ok).slice(0,PAGE);
+          }else{
+            items = dedupeStrong(items.filter(ok)).slice(0,PAGE);
+          }
+        }
+        var listEl = document.getElementById(grp+'-'+pid+'-full-list');
+        if(listEl) listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs találat.</div>';
+        var totalPages2 = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
+        var navEl = document.getElementById(grp+'-'+pid+'-full-nav');
+        if(navEl){
+          navEl.innerHTML =
+            '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawGenericFullFor(\''+grp+'\', \''+pid+'\','+(page-1)+')">Előző</button>' +
+            '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages2+' </span>' +
+            '<button class="cta" '+(page>=totalPages2?'disabled':'')+' onclick="drawGenericFullFor(\''+grp+'\', \''+pid+'\','+(page+1)+')">Következő</button>';
+        }
+      }catch(e){
+        console.error(e);
+        var listEl2 = document.getElementById(grp+'-'+pid+'-full-list');
+        if(listEl2) listEl2.innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
       }
     }
     async function drawTechTab(){
@@ -1107,8 +1179,34 @@
         return;
       }
       host.innerHTML = list.map(function(p){ return genericBoxTemplate(p, 'tech'); }).join('');
+      host.querySelectorAll('.generic-head').forEach(function(a){
+        a.addEventListener('click', function(e){
+          e.preventDefault();
+          var grp = e.currentTarget.getAttribute('data-group');
+          var pid = e.currentTarget.getAttribute('data-partner');
+          var p = PARTNERS.get(pid);
+          if(!(p && p.placements && p.placements[grp] && p.placements[grp].full && p.placements[grp].full.enabled)) return;
+          showGenericFull(grp, pid);
+          if(!GENERIC_STATE[grp].has(pid)) GENERIC_STATE[grp].set(pid, { filter:'', page:1 });
+          drawGenericFullFor(grp, pid, 1);
+        });
+      });
+      host.querySelectorAll('form.generic-search').forEach(function(form){
+        var grp = form.getAttribute('data-group');
+        var pid = form.getAttribute('data-partner');
+        form.addEventListener('submit', function(e){
+          e.preventDefault();
+          var input = document.getElementById('q-'+grp+'-'+pid);
+          var q = (input && input.value || '').trim();
+          GENERIC_STATE[grp].set(pid, { filter:q, page:1 });
+          showGenericFull(grp, pid);
+          drawGenericFullFor(grp, pid, 1);
+        });
+      });
       for(var i=0;i<list.length;i++){
-        await drawGenericOverviewFor('tech', list[i].id, 1);
+        var p = list[i];
+        showGenericOverview('tech', p.id);
+        await drawGenericOverviewFor('tech', p.id, 1);
       }
     }
     async function drawVisionTab(){
@@ -1121,8 +1219,34 @@
         return;
       }
       host.innerHTML = list.map(function(p){ return genericBoxTemplate(p, 'vision'); }).join('');
+      host.querySelectorAll('.generic-head').forEach(function(a){
+        a.addEventListener('click', function(e){
+          e.preventDefault();
+          var grp = e.currentTarget.getAttribute('data-group');
+          var pid = e.currentTarget.getAttribute('data-partner');
+          var p = PARTNERS.get(pid);
+          if(!(p && p.placements && p.placements[grp] && p.placements[grp].full && p.placements[grp].full.enabled)) return;
+          showGenericFull(grp, pid);
+          if(!GENERIC_STATE[grp].has(pid)) GENERIC_STATE[grp].set(pid, { filter:'', page:1 });
+          drawGenericFullFor(grp, pid, 1);
+        });
+      });
+      host.querySelectorAll('form.generic-search').forEach(function(form){
+        var grp = form.getAttribute('data-group');
+        var pid = form.getAttribute('data-partner');
+        form.addEventListener('submit', function(e){
+          e.preventDefault();
+          var input = document.getElementById('q-'+grp+'-'+pid);
+          var q = (input && input.value || '').trim();
+          GENERIC_STATE[grp].set(pid, { filter:q, page:1 });
+          showGenericFull(grp, pid);
+          drawGenericFullFor(grp, pid, 1);
+        });
+      });
       for(var i=0;i<list.length;i++){
-        await drawGenericOverviewFor('vision', list[i].id, 1);
+        var p = list[i];
+        showGenericOverview('vision', p.id);
+        await drawGenericOverviewFor('vision', p.id, 1);
       }
     }
     async function drawTravelTab(){
@@ -1135,8 +1259,34 @@
         return;
       }
       host.innerHTML = list.map(function(p){ return genericBoxTemplate(p, 'travel'); }).join('');
+      host.querySelectorAll('.generic-head').forEach(function(a){
+        a.addEventListener('click', function(e){
+          e.preventDefault();
+          var grp = e.currentTarget.getAttribute('data-group');
+          var pid = e.currentTarget.getAttribute('data-partner');
+          var p = PARTNERS.get(pid);
+          if(!(p && p.placements && p.placements[grp] && p.placements[grp].full && p.placements[grp].full.enabled)) return;
+          showGenericFull(grp, pid);
+          if(!GENERIC_STATE[grp].has(pid)) GENERIC_STATE[grp].set(pid, { filter:'', page:1 });
+          drawGenericFullFor(grp, pid, 1);
+        });
+      });
+      host.querySelectorAll('form.generic-search').forEach(function(form){
+        var grp = form.getAttribute('data-group');
+        var pid = form.getAttribute('data-partner');
+        form.addEventListener('submit', function(e){
+          e.preventDefault();
+          var input = document.getElementById('q-'+grp+'-'+pid);
+          var q = (input && input.value || '').trim();
+          GENERIC_STATE[grp].set(pid, { filter:q, page:1 });
+          showGenericFull(grp, pid);
+          drawGenericFullFor(grp, pid, 1);
+        });
+      });
       for(var i=0;i<list.length;i++){
-        await drawGenericOverviewFor('travel', list[i].id, 1);
+        var p = list[i];
+        showGenericOverview('travel', p.id);
+        await drawGenericOverviewFor('travel', p.id, 1);
       }
     }
 
@@ -1290,4 +1440,3 @@
   </script>
 </body>
 </html>
-
