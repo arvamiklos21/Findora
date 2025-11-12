@@ -55,7 +55,6 @@
         }
     }
   },
-     // ===== ÚJ: Alza =====
   {
     "id": "alza",
     "name": "Alza",
@@ -70,8 +69,6 @@
       }
     }
   },
-
-  // ===== ÚJ: KozmetikaOtthon =====
   {
     "id": "kozmetikaotthon",
     "name": "KozmetikaOtthon",
