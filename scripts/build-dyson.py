@@ -1,239 +1,81 @@
-import os, re, json, math, xml.etree.ElementTree as ET, requests
-from datetime import datetime
-from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+name: ingest-dyson
 
-FEED_URL  = os.environ.get("FEED_DYSON_URL")
-OUT_DIR   = "docs/feeds/dyson"
-PAGE_SIZE = 300  # oldalankénti termékszám
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "10 10,19 * * *"   # 11:10 és 20:10 (HU) – 10:10 és 19:10 UTC
 
+permissions:
+  contents: write
+  pull-requests: write
 
-# -------------------- ár normalizálás --------------------
-def norm_price(v):
-    if v is None: return None
-    s = re.sub(r"[^\d.,-]", "", str(v)).replace(" ", "")
-    if not s or s in ("-", ""): return None
-    try:
-        return int(round(float(s.replace(",", "."))))
-    except:
-        digits = re.sub(r"[^\d]", "", str(v))
-        return int(digits) if digits else None
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
-# -------------------- rövid leírás --------------------
-def short_desc(t, maxlen=180):
-    if not t: return None
-    t = re.sub(r"<[^>]+>", " ", str(t))
-    t = re.sub(r"\s+", " ", t).strip()
-    return (t[:maxlen-1] + "…") if len(t) > maxlen else t
+      - name: Install deps
+        run: pip install requests
 
+      - name: Build Dyson feed pages
+        env:
+          FEED_DYSON_URL: ${{ secrets.FEED_DYSON_URL }}
+        run: |
+          set -e
+          if [ -z "$FEED_DYSON_URL" ]; then
+            echo "::error title=Missing secret::FEED_DYSON_URL nincs beállítva (Settings → Secrets → Actions)."; exit 1
+          fi
+          mkdir -p docs/feeds/dyson
+          python scripts/build_dyson.py
+          echo "Sanity check (first item):"
+          if command -v jq >/dev/null 2>&1; then
+            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/dyson/page-0001.json || true
+          else
+            head -c 600 docs/feeds/dyson/page-0001.json || true
+          fi
+          ls -la docs/feeds/dyson
 
-# -------------------- XML namespace kezelése --------------------
-def strip_ns(tag):
-    return tag.split("}")[-1].split(":")[-1].lower()
+      - name: Prepare clean branch
+        run: |
+          set -e
+          git rebase --abort || true
+          git merge --abort || true
+          git reset --hard
+          git clean -fd
 
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
 
-def collect_node(n):
-    m = {}
-    txt = (n.text or "").strip()
-    k0 = strip_ns(n.tag)
-    if txt: m.setdefault(k0, txt)
-    for ak, av in (n.attrib or {}).items():
-        m.setdefault(strip_ns(ak), av)
-    for c in list(n):
-        k = strip_ns(c.tag)
-        v = (c.text or "").strip()
-        if k in ("imgurl_alternative","additional_image_link","additional_image_url","images","image2","image3"):
-            m.setdefault(k, [])
-            if v: m[k].append(v)
-        else:
-            if v:
-                m[k] = v
-            else:
-                sub = collect_node(c)
-                for sk, sv in sub.items():
-                    m.setdefault(sk, sv)
-    return m
+          BR="bot/update-dyson"
+          git checkout -B "$BR"
 
+      - name: Commit feed updates
+        run: |
+          set -e
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-def first(d, keys):
-    for raw in keys:
-        k = raw.lower()
-        v = d.get(k)
-        if isinstance(v, list) and v: return v[0]
-        if isinstance(v, str) and v.strip(): return v.strip()
-        if v not in (None, "", []): return v
-    return None
+          git add docs/feeds/dyson
+          git commit -m "dyson: update feed pages" || echo "No changes"
+          git push --force-with-lease origin HEAD:bot/update-dyson
 
-
-TITLE_KEYS = ("productname","title","g:title","name","product_name")
-LINK_KEYS  = ("url","link","g:link","product_url","product_link","deeplink")
-IMG_KEYS   = ("imgurl","image_link","image","image_url","g:image_link","image1","main_image_url")
-IMG_ALT_KEYS = ("imgurl_alternative","additional_image_link","additional_image_url","images","image2","image3")
-DESC_KEYS  = ("description","g:description","long_description","short_description","desc","popis")
-
-NEW_PRICE_KEYS = (
-    "price_vat","price_with_vat","price_final","price_huf",
-    "g:sale_price","sale_price","g:price","price","price_amount","current_price","amount"
-)
-OLD_PRICE_KEYS = (
-    "old_price","price_before","was_price","list_price","regular_price","g:price","price"
-)
-
-
-def parse_items(xml_text):
-    xml_text = xml_text.strip()
-    if not xml_text.startswith("<"):
-        raise ValueError(f"Nem XML-nek tűnő válasz (első 100 karakter): {xml_text[:100]!r}")
-
-    root = ET.fromstring(xml_text)
-    candidates = []
-    for path in (".//channel/item",".//item",".//products/product",".//product",".//SHOPITEM",".//shopitem",".//entry"):
-        nodes = root.findall(path)
-        if nodes:
-            candidates = nodes
-            break
-    if not candidates:
-        candidates = [n for n in root.iter() if strip_ns(n.tag) in ("item","product","shopitem","entry")]
-
-    items = []
-    for n in candidates:
-        m = collect_node(n)
-        m = { (k.lower() if isinstance(k,str) else k): v for k,v in m.items() }
-
-        pid   = first(m, ("g:id","id","item_id","sku","product_id","itemid"))
-        title = first(m, TITLE_KEYS) or "Ismeretlen termék"
-        link  = first(m, LINK_KEYS)
-
-        img = first(m, IMG_KEYS)
-        if not img:
-            alt = first(m, IMG_ALT_KEYS)
-            if isinstance(alt, list) and alt: img = alt[0]
-            elif isinstance(alt, str): img = alt
-
-        desc  = short_desc(first(m, DESC_KEYS))
-
-        price_new = None
-        for k in NEW_PRICE_KEYS:
-            price_new = norm_price(m.get(k))
-            if price_new: break
-
-        old = None
-        for k in OLD_PRICE_KEYS:
-            old = norm_price(m.get(k))
-            if old: break
-
-        discount = round((1 - price_new/old)*100) if old and price_new and old > price_new else None
-
-        items.append({
-            "id": pid or link or title,
-            "title": title,
-            "img": img or "",
-            "desc": desc,
-            "price": price_new,
-            "discount": discount,
-            "url": link or ""
-        })
-    return items
-
-
-# ===== dedup: méret összevonás, szín marad =====
-SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
-COLOR_WORDS = ("fekete","fehér","feher","szürke","szurke","kék","kek","piros","zöld","zold",
-               "lila","sárga","sarga","narancs","barna","bézs","bezs","rózsaszín","rozsaszin","bordó","bordeaux")
-
-
-def normalize_title_for_size(t):
-    if not t: return ""
-    t0 = re.sub(r"\s+", " ", t.strip(), flags=re.I)
-    t1 = re.sub(rf"\b{SIZE_TOKENS}\b", "", t0, flags=re.I)
-    t1 = re.sub(r"\s{2,}", " ", t1).strip()
-    return t1.lower()
-
-
-def detect_color_token(t):
-    if not t: return ""
-    tl = t.lower()
-    for w in COLOR_WORDS:
-        if re.search(rf"\b{re.escape(w)}\b", tl, flags=re.I):
-            return w
-    return ""
-
-
-def strip_size_from_url(u):
-    if not u: return u
-    try:
-        p = urlparse(u)
-        q = dict(parse_qsl(p.query, keep_blank_values=True))
-        for k in list(q.keys()):
-            if k.lower() in ("size","meret","merete","variant_size","size_id","meret_id"):
-                q.pop(k, None)
-        new_q = urlencode(q, doseq=True)
-        return urlunparse((p.scheme,p.netloc,p.path,p.params,new_q,p.fragment))
-    except:
-        return u
-
-
-def dedup_size_variants(items):
-    buckets = {}
-    for it in items:
-        tnorm = normalize_title_for_size(it.get("title"))
-        color = detect_color_token(it.get("title")) or detect_color_token(it.get("desc") or "")
-        base_url = strip_size_from_url(it.get("url") or "")
-        key = (tnorm, color or "", base_url or "")
-        cur = buckets.get(key)
-        if not cur:
-            buckets[key] = it
-        else:
-            if not cur.get("img") and it.get("img"): cur["img"] = it["img"]
-            if (it.get("price") or 0) and (not cur.get("price") or it["price"] < cur["price"]): cur["price"] = it["price"]
-            if (it.get("discount") or 0) > (cur.get("discount") or 0): cur["discount"] = it["discount"]
-    return list(buckets.values())
-
-
-def main():
-    assert FEED_URL, "FEED_DYSON_URL hiányzik (repo Secrets)."
-    os.makedirs(OUT_DIR, exist_ok=True)
-
-    r = requests.get(FEED_URL, headers={"User-Agent":"Mozilla/5.0","Accept":"application/xml"}, timeout=120)
-
-    # 429: túl sok kérés – ne omoljunk össze, csak logoljuk és lépjünk ki
-    if r.status_code == 429:
-        print("⚠ Dyson feed: 429 Too Many Requests – kihagyjuk ezt a futást, a régi JSON-ok maradnak.")
-        return
-
-    # egyéb hibákra továbbra is álljunk le (pl. 404, 500)
-    if r.status_code >= 400:
-        r.raise_for_status()
-
-    try:
-        items_raw = parse_items(r.text)
-    except Exception as e:
-        print("❌ Dyson feed parse error:", repr(e))
-        print("Első 300 karakter a válaszból:")
-        print(r.text[:300])
-        items_raw = []
-
-    items = dedup_size_variants(items_raw)
-
-    pages = max(1, math.ceil(len(items)/PAGE_SIZE))
-    for i in range(pages):
-        data = {"items": items[i*PAGE_SIZE:(i+1)*PAGE_SIZE]}
-        with open(os.path.join(OUT_DIR, f"page-{str(i+1).zfill(4)}.json"), "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False)
-
-    meta = {
-        "partner": "dyson",
-        "pageSize": PAGE_SIZE,
-        "total": len(items),
-        "pages": pages,
-        "lastUpdated": datetime.utcnow().isoformat()+"Z",
-        "source": "feed"
-    }
-    with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False)
-
-    print(f"✅ {len(items)} termék, {pages} oldal → {OUT_DIR}")
-
-
-if __name__ == "__main__":
-    main()
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: bot/update-dyson
+          delete-branch: true
+          title: "dyson: update feed pages"
+          commit-message: "dyson: update feed pages"
+          body: |
+            Automated update of Dyson feed pages (JSON pagination).
+          base: main
