@@ -56,31 +56,31 @@
     }
   },
   {
-    "id": "alza",
-    "name": "Alza",
-    "group": "travel",
-    "meta": "feeds/alza/meta.json",
-    "pagePattern": "feeds/alza/page-{NNNN}.json",
-    "deeplinkPartner": "alza",
-    "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
-      "tech": { "enabled": true, "pageSize": 6,
-        "full": { "enabled": true, "pageSize": 20 }
-      }
-    }
-  },
-  {
-    "id": "kozmetikaotthon",
-    "name": "KozmetikaOtthon",
-    "group": "vision",
-    "meta": "feeds/kozmetikaotthon/meta.json",
-    "pagePattern": "feeds/kozmetikaotthon/page-{NNNN}.json",
-    "deeplinkPartner": "kozmetikaotthon",
-    "placements": {
-      "home":   { "enabled": true, "pageSize": 6 },
-      "otthon": { "enabled": true, "pageSize": 6,
-        "full": { "enabled": true, "pageSize": 20 }
-      }
+  "id": "alza",
+  "name": "Alza",
+  "group": "travel",
+  "meta": "feeds/alza/meta.json",
+  "pagePattern": "feeds/alza/page-{NNNN}.json",
+  "deeplinkPartner": "alza",
+  "placements": {
+    "home":   { "enabled": true, "pageSize": 6 },
+    "travel": { "enabled": true, "pageSize": 6,
+      "full": { "enabled": true, "pageSize": 20 }
     }
   }
+},
+{
+  "id": "kozmetikaotthon",
+  "name": "KozmetikaOtthon",
+  "group": "vision",
+  "meta": "feeds/kozmetikaotthon/meta.json",
+  "pagePattern": "feeds/kozmetikaotthon/page-{NNNN}.json",
+  "deeplinkPartner": "kozmetikaotthon",
+  "placements": {
+    "home":   { "enabled": true, "pageSize": 6 },
+    "vision": { "enabled": true, "pageSize": 6,
+      "full": { "enabled": true, "pageSize": 20 }
+    }
+  }
+}
 ]
