@@ -131,19 +131,49 @@
   {
     "id": "aliexpress",
     "name": "AliExpress",
-    "feed": { "source": "awin", "path": "/feeds/awin/aliexpress/" },
-    "dl": { "network": "awin", "awinmid": "119135" }
+    "group": "travel",
+    "meta": "feeds/awin/aliexpress/meta.json",
+    "pagePattern": "feeds/awin/aliexpress/page-{NNNN}.json",
+    "deeplinkPartner": "aliexpress",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 6 },
+      "travel": {
+        "enabled": true,
+        "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
   },
   {
     "id": "alibaba",
     "name": "Alibaba",
-    "feed": { "source": "awin", "path": "/feeds/awin/alibaba/" },
-    "dl": { "network": "awin", "awinmid": "17943" }
+    "group": "travel",
+    "meta": "feeds/awin/alibaba/meta.json",
+    "pagePattern": "feeds/awin/alibaba/page-{NNNN}.json",
+    "deeplinkPartner": "alibaba",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 6 },
+      "travel": {
+        "enabled": true,
+        "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
   },
   {
     "id": "lunzo",
     "name": "Lunzo",
-    "feed": { "source": "awin", "path": "/feeds/awin/lunzo/" },
-    "dl": { "network": "awin", "awinmid": "40452" }
+    "group": "travel",
+    "meta": "feeds/awin/lunzo/meta.json",
+    "pagePattern": "feeds/awin/lunzo/page-{NNNN}.json",
+    "deeplinkPartner": "lunzo",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 6 },
+      "travel": {
+        "enabled": true,
+        "pageSize": 6,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    }
   }
 ]
