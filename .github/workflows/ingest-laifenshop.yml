@@ -1,1 +1,64 @@
+name: ingest-laifenshop
 
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "10 10,19 * * *"   # 11:10 és 20:10 (HU) – 10:10 és 19:10 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Build Laifenshop feed pages
+        env:
+          FEED_LAIFENSHOP_URL: ${{ secrets.FEED_LAIFENSHOP_URL }}
+        run: |
+          set -e
+          if [ -z "$FEED_LAIFENSHOP_URL" ]; then
+            echo "::error title=Missing secret::FEED_LAIFENSHOP_URL nincs beállítva (Settings → Secrets → Actions)."; exit 1
+          fi
+          mkdir -p docs/feeds/laifenshop
+          python scripts/build_laifenshop.py
+          echo "Sanity check (first item):"
+          if command -v jq >/dev/null 2>&1; then
+            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/laifenshop/page-0001.json || true
+          else
+            head -c 600 docs/feeds/laifenshop/page-0001.json || true
+          fi
+          ls -la docs/feeds/laifenshop
+
+      - name: Commit changes
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main || true
+          git add docs/feeds/laifenshop
+          git commit -m "laifenshop: update feed pages" || echo "No changes"
+          git push origin main || (git pull --rebase origin main && git push origin main)
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: bot/update-laifenshop
+          delete-branch: true
+          title: "laifenshop: update feed pages"
+          commit-message: "laifenshop: update feed pages"
+          body: |
+            Automated update of Laifenshop feed pages (JSON pagination).
