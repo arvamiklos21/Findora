@@ -108,9 +108,10 @@
       "home":   { "enabled": true, "pageSize": 6 },
       "vision": { "enabled": true, "pageSize": 6,
         "full": { "enabled": true, "pageSize": 20 }
-    },
-        , 
-      { "_comment": "===== #AWIN partners =====" },
+    }
+  },
+  
+     { "_comment": "===== #AWIN partners =====" },
   {
     "id": "aliexpress",
     "name": "AliExpress",
@@ -128,9 +129,5 @@
     "name": "Lunzo",
     "feed": { "source": "awin", "path": "/feeds/awin/lunzo/" },
     "dl": { "network": "awin", "awinmid": "40452" }
-  }
-]
-
-    }
   }
 ]
