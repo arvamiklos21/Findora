@@ -9,6 +9,10 @@
   <link rel="icon" href="assets/img/findora_mark.png" />
   <link rel="stylesheet" href="assets/css/style.css" />
   <style>
+    /* ===== A fix alsó nyilatkozat miatt legyen alsó belső margó ===== */
+    :root{--pad-bottom:64px}
+    body{padding-bottom:var(--pad-bottom)}
+
     .wrap{max-width:1200px;margin:0 auto;padding:16px}
     .topbar{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px}
     nav.menu{display:flex;gap:14px;flex-wrap:wrap}
@@ -32,6 +36,20 @@
     .floating-home:hover{filter:brightness(1.05)}
     footer{margin:28px 0 10px}
     .legal{color:#6b7280;font-size:.85rem}
+
+    /* ===== Fixen alul látható affiliate-nyilatkozat ===== */
+    .aff-disclosure{
+      position:fixed;left:0;right:0;bottom:0;z-index:1000;
+      background:#0f172a;color:#e2e8f0;
+      font-size:.92rem;line-height:1.35;
+      padding:10px 16px;box-shadow:0 -6px 18px rgba(0,0,0,.15);
+    }
+    .aff-disclosure a{color:#93c5fd;text-decoration:underline;font-weight:600}
+
+    @media (max-width:480px){
+      :root{--pad-bottom:78px}
+      .aff-disclosure{font-size:.9rem;padding:12px}
+    }
   </style>
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"CollectionPage","name":"Játéksziget Barbie – Babák, szettek, kiegészítők","breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Findora","item":"https://www.findora.hu/"},{"@type":"ListItem","position":2,"name":"Játéksziget Barbie","item":"https://www.findora.hu/jateksziget-barbie.html"}]}}
@@ -91,6 +109,14 @@
 
   <a class="floating-home" href="https://www.findora.hu" aria-label="Vissza a főoldalra">← Főoldal</a>
 
+  <!-- ===== FIX, mindig látható affiliate-nyilatkozat ===== -->
+  <div class="aff-disclosure" role="note" aria-label="Affiliate nyilatkozat">
+    🔔 <strong>Figyelem:</strong> A Findora.hu oldal affiliate linkeket tartalmaz.
+    Az oldalon megjelenő 🔗 linkek partnerlinkek lehetnek, amelyekre kattintva — vásárlás esetén — a Findora jutalékot kaphat.
+    Ez a vásárló számára nem jelent semmilyen pluszköltséget.
+    <!-- Ha van külön szekció: <a href="https://www.findora.hu/#nyilatkozatok">Részletek</a> -->
+  </div>
+
   <script>
     const FEED_BASE = '/feeds/jateksziget';
     const PAGE_SIZE = 20, MAX_PAGES_TO_SCAN = 1000;
@@ -110,7 +136,7 @@
       babak: ['barbie','ken','divatbaba','fashion doll'],
       szettek: ['szett','set','játékszett','jatekszett','playset'],
       kiegeszitok: ['kiegészítő','kiegeszito','ruha','outfit','cipő','cipo','kellék','kellek'],
-      haz-jarmu: ['ház','haz','dreamhouse','jármű','jarmu','autó','auto','lakókocsi','lakokocsi']
+      'haz-jarmu': ['ház','haz','dreamhouse','jármű','jarmu','autó','auto','lakókocsi','lakokocsi']
     };
 
     const toLower = s => (s || '').toLocaleLowerCase('hu-HU');
@@ -126,7 +152,7 @@
     function priceFmt(p){ const n=priceNum(p); return isNaN(n)?'':new Intl.NumberFormat('hu-HU').format(n)+' Ft'; }
     function cardHTML(it){
       const img=it.image||it.img||it.imageUrl||''; const d=it.discount||it.sale_percent||it.salePercent||0; const price=it.price||it.price_huf||it.final_price||'';
-      return `<div class="card"><div class="thumb"><img loading="lazy" src="${img}" alt="${(it.title||'Termék').replace(/"/g,'&quot;')}"/></div><div class="title">${it.title||'Termék'}</div><div class="muted">${it.partner||'Játéksziget'}${d?` • −${d}%`:''}</div><div class="price">${priceFmt(price)}</div><div class="cta"><a href="${deeplink(it.url||it.link||'')}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a></div></div>`;
+      return `<div class="card"><div class="thumb"><img loading="lazy" src="${img}" alt="${(it.title||'Termék').replace(/"/g,'&quot;')}" /></div><div class="title">${it.title||'Termék'}</div><div class="muted">${it.partner||'Játéksziget'}${d?` • −${d}%`:''}</div><div class="price">${priceFmt(price)}</div><div class="cta"><a href="${deeplink(it.url||it.link||'')}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a></div></div>`;
     }
 
     async function fetchFeedPage(n){ const res=await fetch(`${FEED_BASE}/page-${String(n).padStart(4,'0')}.json`,{cache:'no-store'}); if(!res.ok)return null; try{return await res.json();}catch{return null;} }
