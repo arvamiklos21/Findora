@@ -232,22 +232,11 @@
       </div>
     </section>
 
-    <!-- ========= OTTHON – TCHIBO (6/lap + Teljes 20/lap) ========= -->
+    <!-- ========= OTTHON – TÖBB PARTNER ========= -->
     <section class="section" id="otthon">
-      <h2><a href="#partner-full" id="home-cat-head-link" style="text-decoration:underline;font-weight:900;">Otthon</a></h2>
-
-      <div class="grid" id="home-cat-list">
-        <div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>
-      </div>
-      <div id="home-cat-nav" class="grid" style="padding-top:0"></div>
-
-      <div id="partner-full-wrap" style="display:none; padding:12px;">
-        <form id="searchFormPartner" class="searchbar" role="search" action="" style="margin:0 0 8px">
-          <input id="qPartner" name="qPartner" type="search" placeholder="Keresés a termékek között…" aria-label="Keresés (Partner)" />
-          <button type="submit" aria-label="Keresés indítása">Keresés</button>
-        </form>
-        <div class="grid" id="partner-full-list"></div>
-        <div id="partner-full-nav" class="grid" style="padding-top:0"></div>
+      <h2>Otthon & Kert</h2>
+      <div id="otthon-partners">
+        <div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div>
       </div>
     </section>
 
@@ -383,13 +372,13 @@
     var PAGES    = new Map();
     function DL(partner, raw){ return API_BASE + "/api/dl?u=" + encodeURIComponent(raw) + "&p=" + partner; }
 
-    var CURRENT_OTTHON_PARTNER = null;
     var GAMES_STATE = new Map();
     var SPORT_STATE = new Map();
     var GENERIC_STATE = {
       tech:   new Map(),
       vision: new Map(),
-      travel: new Map()
+      travel: new Map(),
+      otthon: new Map()
     };
 
     var HOME_PARTNERS = [];
@@ -694,102 +683,49 @@
       }
     }
 
-    // ===== Otthon – Tchibo =====
-    function showHomeOverviewInOtthon(){
-      document.getElementById('home-cat-list').style.display='';
-      document.getElementById('home-cat-nav').style.display='';
-      document.getElementById('partner-full-wrap').style.display='none';
-    }
-    function showHomeFullInOtthon(){
-      document.getElementById('home-cat-list').style.display='none';
-      document.getElementById('home-cat-nav').style.display='none';
-      document.getElementById('partner-full-wrap').style.display='';
-    }
-    async function drawOtthonOverview(page){
-      page = page || 1;
-      var tch = PARTNERS.get('tchibo');
-      var partner = tch && tch.placements && tch.placements.otthon && tch.placements.otthon.enabled
-        ? tch
-        : Array.from(PARTNERS.values()).find(function(p){
-            return p.group==='otthon' && p.placements && p.placements.otthon && p.placements.otthon.enabled;
-          });
-      if(!partner){
-        document.getElementById('home-cat-list').innerHTML =
-          '<div class="empty">Nincs „Otthon” partner konfigurálva a partners.json-ban.</div>';
-        document.getElementById('home-cat-nav').innerHTML = '';
+    // ===== Otthon – több partner (generic alapokon) =====
+    async function drawOtthonTab(){
+      var list = Array.from(PARTNERS.values()).filter(function(p){
+        return p.group === 'otthon' && p.placements && p.placements.otthon && p.placements.otthon.enabled;
+      });
+      var host = document.getElementById('otthon-partners');
+      if(!host) return;
+      if(!list.length){
+        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Otthon & Kert” partner konfigurálva.</div></div>';
         return;
       }
-      CURRENT_OTTHON_PARTNER = partner;
-      var PAGE = (partner.placements && partner.placements.otthon ? partner.placements.otthon.pageSize : 6) || 6;
-      try{
-        var items = await collectUnique(partner.id, (page-1)*PAGE, PAGE);
-        var meta  = await getMeta(partner.id);
-        var totalPages = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
+      host.innerHTML = list.map(function(p){ return genericBoxTemplate(p, 'otthon'); }).join('');
 
-        var headLink = document.getElementById('home-cat-head-link');
-        headLink.textContent = partner.name;
-        var canFull = !!(partner.placements && partner.placements.otthon && partner.placements.otthon.full && partner.placements.otthon.full.enabled);
-        headLink.style.pointerEvents = canFull ? '' : 'none';
-        headLink.style.textDecoration = canFull ? 'underline' : 'none';
+      host.querySelectorAll('.generic-head').forEach(function(a){
+        a.addEventListener('click', function(e){
+          e.preventDefault();
+          var grp = e.currentTarget.getAttribute('data-group');
+          var pid = e.currentTarget.getAttribute('data-partner');
+          var p = PARTNERS.get(pid);
+          if(!(p && p.placements && p.placements[grp] && p.placements[grp].full && p.placements[grp].full.enabled)) return;
+          showGenericFull(grp, pid);
+          if(!GENERIC_STATE[grp].has(pid)) GENERIC_STATE[grp].set(pid, { filter:'', page:1 });
+          drawGenericFullFor(grp, pid, 1);
+        });
+      });
 
-        document.getElementById('home-cat-list').innerHTML =
-          renderCards(partner.id, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
+      host.querySelectorAll('form.generic-search').forEach(function(form){
+        var grp = form.getAttribute('data-group');
+        var pid = form.getAttribute('data-partner');
+        form.addEventListener('submit', function(e){
+          e.preventDefault();
+          var input = document.getElementById('q-'+grp+'-'+pid);
+          var q = (input && input.value || '').trim();
+          GENERIC_STATE[grp].set(pid, { filter:q, page:1 });
+          showGenericFull(grp, pid);
+          drawGenericFullFor(grp, pid, 1);
+        });
+      });
 
-        document.getElementById('home-cat-nav').innerHTML =
-          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawOtthonOverview('+(page-1)+')">Előző</button>' +
-          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
-          '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawOtthonOverview('+(page+1)+')">Következő</button>';
-      }catch(e){
-        console.error(e);
-        document.getElementById('home-cat-list').innerHTML = '<div class="empty">Nem sikerült betölteni (Otthon).</div>';
-      }
-    }
-
-    // ===== Teljes nézet (Otthon) =====
-    var PARTNER_FILTER = '';
-    async function drawPartnerFull(page){
-      page = page || 1;
-      var partner = (CURRENT_OTTHON_PARTNER && CURRENT_OTTHON_PARTNER.placements && CURRENT_OTTHON_PARTNER.placements.otthon && CURRENT_OTTHON_PARTNER.placements.otthon.full && CURRENT_OTTHON_PARTNER.placements.otthon.full.enabled)
-        ? CURRENT_OTTHON_PARTNER
-        : null;
-      if(!partner) return;
-
-      var PAGE = (partner.placements && partner.placements.otthon && partner.placements.otthon.full ? partner.placements.otthon.full.pageSize : 20) || 20;
-      try{
-        var meta = await getMeta(partner.id);
-        var offset = (page-1)*PAGE;
-
-        var items = await collectUnique(partner.id, offset, PAGE);
-
-        if(PARTNER_FILTER){
-          var q = PARTNER_FILTER.toLowerCase();
-          var ok = function(it){
-            return (((it && it.title) ? it.title : '') + ' ' + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
-          };
-          if(!items.some(ok)){
-            var buffer = [];
-            var totalPages = meta.pages || Math.ceil(((meta.total||0))/ (meta.pageSize||300)) || 1;
-            for(var pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
-              var arr = await getPageItems(partner.id, pg);
-              buffer.push.apply(buffer, arr);
-            }
-            items = dedupeStrong(buffer).filter(ok).slice(0,PAGE);
-          }else{
-            items = dedupeStrong(items.filter(ok)).slice(0,PAGE);
-          }
-        }
-
-        document.getElementById('partner-full-list').innerHTML =
-          renderCards(partner.id, items) || '<div class="empty">Nincs találat.</div>';
-
-        var totalPages2 = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
-        document.getElementById('partner-full-nav').innerHTML =
-          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawPartnerFull('+(page-1)+')">Előző</button>' +
-          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages2+' </span>' +
-          '<button class="cta" '+(page>=totalPages2?'disabled':'')+' onclick="drawPartnerFull('+(page+1)+')">Következő</button>';
-      }catch(e){
-        console.error(e);
-        document.getElementById('partner-full-list').innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
+      for(var i=0;i<list.length;i++){
+        var p = list[i];
+        showGenericOverview('otthon', p.id);
+        await drawGenericOverviewFor('otthon', p.id, 1);
       }
     }
 
@@ -1067,7 +1003,7 @@
       }
     }
 
-    // ===== GENERIKUS doboz sablon (Tech / Vision / Travel) =====
+    // ===== GENERIKUS doboz sablon (Tech / Vision / Travel / Otthon) =====
     function genericBoxTemplate(p, grp){
       var pid = p.id;
       return (
@@ -1375,8 +1311,7 @@
       }else if(tab==='home'){
         document.getElementById('otthon').style.display='block';
         var homeBtn = document.querySelector('.catbtn[data-cat="home"]'); if(homeBtn) homeBtn.classList.add('active');
-        showHomeOverviewInOtthon();
-        await drawOtthonOverview(1);
+        await drawOtthonTab();
       }else if(tab==='games'){
         var sec = document.getElementById('games');
         sec.style.display='block';
@@ -1409,18 +1344,8 @@
     }
 
     // ===== események =====
-    document.getElementById('home-cat-head-link').addEventListener('click', function(e){
-      var canFull = !!(CURRENT_OTTHON_PARTNER && CURRENT_OTTHON_PARTNER.placements && CURRENT_OTTHON_PARTNER.placements.otthon && CURRENT_OTTHON_PARTNER.placements.otthon.full && CURRENT_OTTHON_PARTNER.placements.otthon.full.enabled);
-      if(!canFull){ e.preventDefault(); return; }
-      e.preventDefault();
-      showHomeFullInOtthon();
-      drawPartnerFull(1);
-    });
     document.getElementById('searchFormAll').addEventListener('submit', function(e){
       e.preventDefault(); runSearchAcrossPartners(document.getElementById('qAll').value||'');
-    });
-    document.getElementById('searchFormPartner').addEventListener('submit', function(e){
-      e.preventDefault(); PARTNER_FILTER = document.getElementById('qPartner').value||''; drawPartnerFull(1);
     });
     document.querySelectorAll('.categories .catbtn').forEach(function(btn){
       btn.addEventListener('click', function(){
