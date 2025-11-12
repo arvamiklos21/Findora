@@ -82,7 +82,6 @@ OLD_PRICE_KEYS = (
 
 def parse_items(xml_text):
     xml_text = xml_text.strip()
-    # extra védelem: ha nem XML-nek tűnik, dobjunk értelmes hibát
     if not xml_text.startswith("<"):
         raise ValueError(f"Nem XML-nek tűnő válasz (első 100 karakter): {xml_text[:100]!r}")
 
@@ -196,17 +195,22 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
 
     r = requests.get(FEED_URL, headers={"User-Agent":"Mozilla/5.0","Accept":"application/xml"}, timeout=120)
-    r.raise_for_status()
+
+    # 429: túl sok kérés – ne omoljunk össze, csak logoljuk és lépjünk ki
+    if r.status_code == 429:
+        print("⚠ Dyson feed: 429 Too Many Requests – kihagyjuk ezt a futást, a régi JSON-ok maradnak.")
+        return
+
+    # egyéb hibákra továbbra is álljunk le (pl. 404, 500)
+    if r.status_code >= 400:
+        r.raise_for_status()
 
     try:
         items_raw = parse_items(r.text)
     except Exception as e:
-        # ide írd ki, mit kapunk vissza, hogy lásd mi a gond
         print("❌ Dyson feed parse error:", repr(e))
         print("Első 300 karakter a válaszból:")
         print(r.text[:300])
-        # vagy eldöntheted, hogy itt inkább teljesen kilép:
-        # raise
         items_raw = []
 
     items = dedup_size_variants(items_raw)
