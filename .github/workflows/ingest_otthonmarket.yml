@@ -3,7 +3,7 @@ name: ingest-otthonmarket
 on:
   workflow_dispatch:
   schedule:
-    - cron: "20 10,19 * * *"   # 11:20 és 20:20 (HU)
+    - cron: "10 10,19 * * *"   # 11:10 és 20:10 (HU) – 10:10 és 19:10 UTC
 
 permissions:
   contents: write
@@ -26,7 +26,7 @@ jobs:
       - name: Install deps
         run: pip install requests
 
-      - name: Build Otthonmarket feed pages
+      - name: Build OtthonMarket feed pages
         env:
           FEED_OTTHONMARKET_URL: ${{ secrets.FEED_OTTHONMARKET_URL }}
         run: |
@@ -44,14 +44,33 @@ jobs:
           fi
           ls -la docs/feeds/otthonmarket
 
-      - name: Commit changes
+      - name: Prepare clean branch
         run: |
+          set -e
+          # minden korábbi félbemaradt merge/rebase pucolása
+          git rebase --abort || true
+          git merge --abort || true
+          git reset --hard
+          git clean -fd
+
+          # friss origin/main lehúzása és arra állás
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
+
+          # bot branch létrehozása/frissítése
+          BR="bot/update-otthonmarket"
+          git checkout -B "$BR"
+
+      - name: Commit feed updates
+        run: |
+          set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main || true
+
           git add docs/feeds/otthonmarket
           git commit -m "otthonmarket: update feed pages" || echo "No changes"
-          git push origin main || (git pull --rebase origin main && git push origin main)
+          git push --force-with-lease origin HEAD:bot/update-otthonmarket
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
@@ -61,4 +80,5 @@ jobs:
           title: "otthonmarket: update feed pages"
           commit-message: "otthonmarket: update feed pages"
           body: |
-            Automated update of Otthonmarket feed pages (JSON pagination).
+            Automated update of OtthonMarket feed pages (JSON pagination).
+          base: main
