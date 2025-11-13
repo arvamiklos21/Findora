@@ -23,7 +23,7 @@ def first_nonempty(row, *keys):
     return None
 
 def parse_price(raw_value, row_currency=None):
-    """Kezeli a '1234.56 HUF' és a '1234.56' + külön currency mező formátumot is."""
+    """Kezeli a '1234.56 HUF' és '1234.56' + külön currency mező formát."""
     if not raw_value:
         return None, row_currency or "HUF"
     raw_value = raw_value.strip()
@@ -44,7 +44,7 @@ def parse_price(raw_value, row_currency=None):
     return value, currency
 
 
-# ---- CSV olvasás: automatikus szeparátor felismeréssel ----
+# ---- CSV olvasás / delimiter felismerés ----
 with feed_file.open("r", encoding="utf-8", newline="") as f:
     sample = f.read(4096)
     f.seek(0)
@@ -53,7 +53,6 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         dialect = csv.Sniffer().sniff(sample, delimiters="\t,;|")
         print("DEBUG CJ KARCHER DIALECT delimiter:", repr(dialect.delimiter))
     except csv.Error:
-        # ha nem sikerül felismerni, próbáljuk tab-bal
         dialect = csv.excel_tab
         print("DEBUG CJ KARCHER DIALECT fallback: TAB")
 
@@ -63,71 +62,35 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         if idx == 0:
             print("DEBUG CJ KARCHER HEADERS:", list(row.keys()))
 
-        # --- FIELD MAPPING a valós (NAGYBETŰS) oszlopnevekre ---
+        # --- FIELD MAPPING (NAGYBETŰS CJ HEADERS) ---
 
-        # ID
-        pid = first_nonempty(
-            row,
-            "ID",
-        )
+        pid = first_nonempty(row, "ID")
+        title = first_nonempty(row, "TITLE")
+        description = first_nonempty(row, "DESCRIPTION") or ""
+        url = first_nonempty(row, "LINK", "ADS_REDIRECT")
+        image = first_nonempty(row, "IMAGE_LINK")
 
-        # TITLE
-        title = first_nonempty(
-            row,
-            "TITLE",
-        )
+        row_currency = None
 
-        # DESCRIPTION
-        description = first_nonempty(
-            row,
-            "DESCRIPTION",
-        ) or ""
-
-        # URL – vásárlási link (LINK, esetleg ADS_REDIRECT fallback)
-        url = first_nonempty(
-            row,
-            "LINK",
-            "ADS_REDIRECT",
-        )
-
-        # KÉP
-        image = first_nonempty(
-            row,
-            "IMAGE_LINK",
-        )
-
-        # CURRENCY – nincs külön mező, ezért majd az árból próbáljuk kiszedni, vagy default HUF
-        row_currency = None  # first_nonempty(row, "CURRENCY")  # ha lenne, itt kezelnénk
-
-        # ÁR – SALE_PRICE előnyben, utána PRICE
-        raw_sale = first_nonempty(
-            row,
-            "SALE_PRICE",
-        )
-        raw_price = first_nonempty(
-            row,
-            "PRICE",
-        )
+        raw_sale = first_nonempty(row, "SALE_PRICE")
+        raw_price = first_nonempty(row, "PRICE")
 
         sale_val, currency = parse_price(raw_sale, row_currency)
         price_val, currency2 = parse_price(raw_price, row_currency or currency)
+
         if not currency and currency2:
             currency = currency2
 
         final_price = sale_val or price_val
-        original_price = price_val if sale_val and price_val and sale_val < price_val else None
+        original_price = (
+            price_val if sale_val and price_val and sale_val < price_val else None
+        )
 
         discount = None
         if original_price and final_price and final_price < original_price:
             discount = round((original_price - final_price) / original_price * 100)
 
-        # BRAND
-        brand = first_nonempty(
-            row,
-            "BRAND",
-        )
-
-        # CATEGORY
+        brand = first_nonempty(row, "BRAND")
         category = first_nonempty(
             row,
             "GOOGLE_PRODUCT_CATEGORY_NAME",
@@ -151,23 +114,28 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         }
         items.append(item)
 
+
 total = len(items)
 pages = max(1, math.ceil(total / PAGE_SIZE))
 
+# ---- OLDALAK ÍRÁSA ----
 for i in range(pages):
     page_num = i + 1
     chunk = items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]
     out_path = OUT_DIR / f"page-{page_num:04d}.json"
+
     payload = {
         "ok": True,
-            "partner": "cj-karcher",
-            "page": page_num,
-            "total": total,
-            "items": chunk,
-        }
-        with out_path.open("w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False)
+        "partner": "cj-karcher",
+        "page": page_num,
+        "total": total,
+        "items": chunk,
+    }
 
+    with out_path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False)
+
+# ---- META ÍRÁSA ----
 meta = {
     "ok": True,
     "partner": "cj-karcher",
@@ -175,6 +143,7 @@ meta = {
     "pages": pages,
     "page_size": PAGE_SIZE,
 }
+
 with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
     json.dump(meta, f, ensure_ascii=False)
 
