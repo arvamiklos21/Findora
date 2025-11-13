@@ -1,64 +1,83 @@
+# .github/workflows/ingest-cj-eoptika.yml
+
 name: ingest-cj-eoptika
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 3 * * *"   # minden nap 4:00 magyar idő (3:00 UTC)
+    - cron: "0 4 * * *"   # minden nap 5:00 körül magyar idő (4:00 UTC)
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  build:
+  ingest:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository (full)
+      - name: Checkout (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.x"
 
-      - name: Download CJ eOptika feed (PLAIN TXT via HTTP)
+      - name: Download CJ eOptika feed (plain TXT via HTTP)
         run: |
           set -e
           rm -rf cj-eoptika-feed
           mkdir cj-eoptika-feed
 
           curl -L -u "${{ secrets.CJ_HTTP_USER }}:${{ secrets.CJ_HTTP_PASS }}" \
-            "http://datatransfer.cj.com/datatransfer/files/${{ secrets.CJ_HTTP_USER }}/outgoing/productcatalog/XXXXX/EOPTIKA_FEED_FILENAME.txt" \
+            "http://datatransfer.cj.com/datatransfer/files/${{ secrets.CJ_HTTP_USER }}/outgoing/productcatalog/XXXXXXXX/eOptika_feed.txt" \
             -o cj-eoptika-feed/eoptika.txt
 
-      - name: Install Python dependencies
+          ls -la cj-eoptika-feed
+
+      - name: Install Python deps
         run: |
           pip install --upgrade pip
 
       - name: Build CJ eOptika JSON feed
         run: |
           python scripts/build_cj_eoptika.py
+          echo "Sanity check (first page, first item):"
+          head -c 600 docs/feeds/cj-eoptika/page-0001.json || true
 
-      - name: Commit and push changes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare clean branch
         run: |
           set -e
+          git rebase --abort || true
+          git merge --abort || true
+          git reset --hard
+          git clean -fd
 
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
+
+          BR="bot/update-cj-eoptika"
+          git checkout -B "$BR"
+
+      - name: Commit feed updates
+        run: |
+          set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/feeds/cj-eoptika
+          git commit -m "cj-eoptika: update feed pages" || echo "No changes"
+          git push --force-with-lease origin HEAD:bot/update-cj-eoptika
 
-          # szinkronizálunk a remote main-nel → nem lesz több "fetch first" hiba
-          git pull --rebase origin main || true
-
-          git add docs/feeds/cj-eoptika || true
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "update CJ eOptika feed"
-            git push origin HEAD:main
-          fi
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: bot/update-cj-eoptika
+          delete-branch: true
+          title: "cj-eoptika: update feed pages"
+          commit-message: "cj-eoptika: update feed pages"
+          body: |
+            Automated update of CJ eOptika feed pages (JSON pagination).
+          base: main
