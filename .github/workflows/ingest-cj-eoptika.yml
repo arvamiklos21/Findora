@@ -2,38 +2,34 @@ name: ingest-cj-eoptika
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 4 * * *"   # minden nap 5:00 magyar idő (4:00 UTC)
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Download CJ eOptika feed
         run: |
           curl -L -u "${{ secrets.CJ_HTTP_USER }}:${{ secrets.CJ_HTTP_PASS }}" \
-            "${{ secrets.CJ_EOPTIKA_URL }}" \
+            "http://datatransfer.cj.com/datatransfer/files/${{ secrets.CJ_HTTP_USER }}/outgoing/productcatalog/310806/eOptika_HU-eOptikaHU_google_all-shopping.txt.zip" \
             -o cj-eoptika.zip
 
-      - name: Unzip feed
+      - name: Unzip
         run: |
           rm -rf cj-eoptika-feed
           mkdir cj-eoptika-feed
           unzip -o cj-eoptika.zip -d cj-eoptika-feed
 
-      - name: Build CJ eOptika JSON feed
+      - name: Build
         run: python scripts/build_cj_eoptika.py
 
-      - name: Commit and push changes
+      - name: Commit
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
