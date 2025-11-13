@@ -12,23 +12,45 @@ PAGE_SIZE = 300
 def clean_xml(text):
     if not text:
         return text
-    # '&'-ek javítása, hogy az XML megfeleljen a szabványnak
-    text = text.replace("& ", "&amp; ")
-    text = text.replace(" &", " &amp;")
-    if text == "&":
+    # óvatosabb & kezelés – ne barmoljuk szét a URL-eket
+    # csak a "magányos" &-eket próbáljuk javítani, de ez is minimálisan
+    text = text.replace(" & ", " &amp; ")
+    if text.strip() == "&":
         text = "&amp;"
     return text
 
 
 def get_child_text(prod, keylist):
     """
-    Case-insensitive keresés: bármelyik tag megfejtése.
+    Case-insensitive, namespace- és formátum-toleráns keresés.
+    - Minden leszármazottban keres (prod.iter())
+    - Namespace levágása: {ns}Tag -> Tag
+    - Kisbetűs, '_' kiszedve
+    - Ha nincs .text, akkor attribútumokból is próbál olvasni (href, url, src, stb.)
     """
-    for child in prod:
-        tag = child.tag.lower()
-        for key in keylist:
-            if tag == key.lower():
-                return (child.text or "").strip()
+    target_keys = []
+    for k in keylist:
+        k_norm = k.lower().replace("_", "")
+        target_keys.append(k_norm)
+
+    for child in prod.iter():
+        raw_tag = child.tag or ""
+        # namespace levágás
+        if "}" in raw_tag:
+            raw_tag = raw_tag.split("}", 1)[1]
+        tag_norm = raw_tag.lower().replace("_", "")
+
+        if tag_norm in target_keys:
+            txt = (child.text or "").strip()
+            if txt:
+                return txt
+
+            # fallback: attribútumok (pl. <Url href="...">)
+            for attr_val in child.attrib.values():
+                val = (attr_val or "").strip()
+                if val:
+                    return val
+
     return ""
 
 
@@ -60,7 +82,19 @@ def main():
 
     items = []
 
-    for prod in root.findall(".//Product"):
+    # Ha namespace lenne a Product-on, a findall(".//Product") lehet, hogy nem találja.
+    # Ezért fallback: minden elem közül azokat nézzük, ahol a localname "Product".
+    products = []
+    for el in root.iter():
+        tag = el.tag or ""
+        if "}" in tag:
+            tag = tag.split("}", 1)[1]
+        if tag.lower() == "product":
+            products.append(el)
+
+    print(f"Talált Product elemek száma: {len(products)}")
+
+    for prod in products:
         title = get_child_text(prod, ["Name", "ProductName", "Title"])
         if not title:
             continue
@@ -69,20 +103,26 @@ def main():
         if not pid:
             pid = title
 
-        url = get_child_text(prod, ["ProductUrl", "ProductURL", "Url", "Product_Link"])
-        img = get_child_text(prod, [
-            "ImageUrl", "ImageURL", "Image",
-            "Image1", "ImageUrl1", "ImageURL1"
-        ])
+        url = get_child_text(
+            prod,
+            ["ProductUrl", "ProductURL", "Url", "Product_Link", "Link"]
+        )
+        img = get_child_text(
+            prod,
+            [
+                "ImageUrl", "ImageURL", "Image",
+                "Image1", "ImageUrl1", "ImageURL1",
+                "ImageUrl2", "ImageURL2"
+            ]
+        )
 
         desc = get_child_text(prod, ["Description", "LongDescription", "ShortDescription"])
         price_raw = get_child_text(prod, ["Price", "SalePrice", "NetPrice"])
         price = to_price(price_raw)
 
-        # fallback – ha nincs img → ProductUrl alapján is lehet képet keresni
-        if not img:
-            # Nincs thumbnail → üresen hagyjuk, Findora kezeli
-            img = ""
+        # ha valamiért még mindig nincs url / img, legyen inkább üres string
+        url = url or ""
+        img = img or ""
 
         item = {
             "id":       pid,
