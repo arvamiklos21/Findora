@@ -24,17 +24,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Download CJ eOptika feed (ZIP via HTTP)
+      - name: Download CJ eOptika feed (PLAIN TXT via HTTP)
         run: |
-          curl -L -u "${{ secrets.CJ_HTTP_USER }}:${{ secrets.CJ_HTTP_PASS }}" \
-            "http://datatransfer.cj.com/datatransfer/files/${{ secrets.CJ_HTTP_USER }}/outgoing/productcatalog/XXXXX/xxxx.txt.zip" \
-            -o cj-eoptika.zip
-
-      - name: Unzip feed
-        run: |
+          set -e
           rm -rf cj-eoptika-feed
           mkdir cj-eoptika-feed
-          unzip -o cj-eoptika.zip -d cj-eoptika-feed
+
+          curl -L -u "${{ secrets.CJ_HTTP_USER }}:${{ secrets.CJ_HTTP_PASS }}" \
+            "http://datatransfer.cj.com/datatransfer/files/${{ secrets.CJ_HTTP_USER }}/outgoing/productcatalog/XXXXX/EOPTIKA_FEED_FILENAME.txt" \
+            -o cj-eoptika-feed/eoptika.txt
 
       - name: Install Python dependencies
         run: |
@@ -53,7 +51,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # legyen szinkron a remote main-hez -> megoldja a "fetch first" hibát
+          # szinkronizálunk a remote main-nel → nem lesz több "fetch first" hiba
           git pull --rebase origin main || true
 
           git add docs/feeds/cj-eoptika || true
