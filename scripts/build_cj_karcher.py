@@ -43,14 +43,24 @@ def parse_price(raw_value, row_currency=None):
 
     return value, currency
 
-with feed_file.open("r", encoding="utf-8", newline="") as f:
-    reader = csv.DictReader(f, delimiter="\t")
 
-    # Debug: logoljuk az oszlopneveket az első sor alapján
-    first_row = None
+# ---- CSV olvasás: automatikus szeparátor felismeréssel ----
+with feed_file.open("r", encoding="utf-8", newline="") as f:
+    sample = f.read(4096)
+    f.seek(0)
+
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters="\t,;|")
+        print("DEBUG CJ KARCHER DIALECT delimiter:", repr(dialect.delimiter))
+    except csv.Error:
+        # ha nem sikerül felismerni, próbáljuk tab-bal
+        dialect = csv.excel_tab
+        print("DEBUG CJ KARCHER DIALECT fallback: TAB")
+
+    reader = csv.DictReader(f, dialect=dialect)
+
     for idx, row in enumerate(reader):
         if idx == 0:
-            first_row = row
             print("DEBUG CJ KARCHER HEADERS:", list(row.keys()))
 
         # --- FIELD MAPPING ---
