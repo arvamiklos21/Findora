@@ -1,15 +1,12 @@
-import os
-import re
-import math
-import json
-import requests
-import xml.etree.ElementTree as ET
-from pathlib import Path
+import os, json, math, xml.etree.ElementTree as ET, requests
+from datetime import datetime
 
-FEED_URL = os.environ.get("FEED_LAIFENSHOP_URL")
-OUT_DIR = Path("docs/feeds/laifenshop")
-PAGE_SIZE = 300  # bőven elég, most csak ~pár tucat termék van
+FEED_URL  = os.environ.get("FEED_LAIFENSHOP_URL")
+OUT_DIR   = "docs/feeds/laifenshop"
+PAGE_SIZE = 300  # maximum termék / JSON oldal
 
+
+# --------- utilok ----------
 
 def force_https(u: str) -> str:
     """http -> https, // -> https://  (mixed content ellen)"""
@@ -17,163 +14,169 @@ def force_https(u: str) -> str:
         return ""
     u = u.strip()
     if u.startswith("//"):
-        u = "https:" + u
+        return "https:" + u
     if u.startswith("http://"):
-        u = "https://" + u[len("http://") :]
+        return "https://" + u[len("http://") :]
     return u
 
 
-def clean_text(s: str) -> str:
-    if not s:
+def clean_text(x: str) -> str:
+    if not x:
         return ""
-    return re.sub(r"\s+", " ", s).strip()
+    return " ".join(str(x).split()).strip()
 
 
-def parse_price(raw: str):
-    """
-    Google feed stílusú ár: pl.
-      '34999 HUF' vagy 'HUF 34999' vagy '34999'
-    Visszatérés: (value: float | None, currency: str | None)
-    """
-    if not raw:
-        return None, None
-    s = raw.strip()
-    # egyszerű: keressünk benne egy számot (pontot/veszőt engedve)
-    m = re.search(r"(\d[\d\s.,]*)", s)
-    if not m:
-        return None, None
-    num_txt = m.group(1).replace(" ", "").replace(",", ".")
+def to_num(v):
+    """Szám konverzió – Laifennél sima egész ár jön (44999 stb.)"""
+    if v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    s = str(v).strip().replace(" ", "")
+    if not s:
+        return None
+    # csak számok – ha bármi más, hagyjuk None-ra
     try:
-        val = float(num_txt)
-    except ValueError:
-        return None, None
-
-    # pénznem – ha benne van HUF/EUR stb.
-    cur = None
-    for code in ["HUF", "Ft", "EUR", "€", "USD", "$"]:
-        if code in s:
-            cur = "HUF" if code in ("HUF", "Ft") else (
-                "EUR" if code in ("EUR", "€") else (
-                    "USD" if code in ("USD", "$") else None
-                )
-            )
-            break
-
-    return val, cur
+        return float(s.replace(",", "."))
+    except Exception:
+        return None
 
 
-def get_child_text_any(item, names):
+def ensure_out_dir():
+    os.makedirs(OUT_DIR, exist_ok=True)
+
+
+# --------- XML betöltés és normalizálás ----------
+
+def fetch_xml(url: str) -> ET.Element:
+    if not url:
+        raise RuntimeError("FEED_LAIFENSHOP_URL nincs beállítva env-ben.")
+    print(f"Letöltés: {url}")
+    r = requests.get(url, timeout=60)
+    r.raise_for_status()
+    print(f"HTTP {r.status_code}, {len(r.content)} byte")
+    return ET.fromstring(r.content)
+
+
+def text_or_none(node: ET.Element, tag: str):
+    el = node.find(tag)
+    if el is not None and el.text:
+        return el.text.strip()
+    return None
+
+
+def parse_products(root: ET.Element):
     """
-    item alatti bármelyik child közül visszaadja az elsőt,
-    amelynek localname-je szerepel a names listában.
-    (kezeli a névtereket, pl. {http://base.google.com/ns/1.0}title)
+    Forrás struktúra:
+
+    <Products>
+      <Product>
+        <Identifier>55479255859578</Identifier>
+        <Manufacturer>Laifen</Manufacturer>
+        <Name>Laifen Wave</Name>
+        <ProductUrl>https://www.laifenshop.hu/products/...</ProductUrl>
+        <Price>44999</Price>
+        <Description>...</Description>
+        ...
+        <ImageUrl>...</ImageUrl>
+        <ImageUrl2>...</ImageUrl2>
+        ...
+      </Product>
+      ...
+    </Products>
     """
-    for child in item:
-        tag = child.tag
-        # localname: ha van namespace, vágjuk le
-        if "}" in tag:
-            local = tag.split("}", 1)[1]
-        else:
-            local = tag
-        if local in names:
-            return (child.text or "").strip()
-    return ""
+    products = root.findall(".//Product")
+    items = []
+
+    print(f"Talált Product elemek: {len(products)}")
+
+    for p in products:
+        identifier = clean_text(text_or_none(p, "Identifier") or "") or None
+        name       = clean_text(text_or_none(p, "Name") or "")
+        desc       = clean_text(text_or_none(p, "Description") or "")
+        url        = clean_text(text_or_none(p, "ProductUrl") or "")
+        price_raw  = text_or_none(p, "Price") or text_or_none(p, "NetPrice")
+        price      = to_num(price_raw)
+
+        # Kép kiválasztása: ImageUrl, majd ImageUrl2..19
+        img = ""
+        img_candidates = []
+
+        first_img = text_or_none(p, "ImageUrl")
+        if first_img:
+            img_candidates.append(first_img)
+
+        for i in range(2, 20):
+            ti = text_or_none(p, f"ImageUrl{i}")
+            if ti:
+                img_candidates.append(ti)
+
+        if img_candidates:
+            img = force_https(img_candidates[0])
+
+        item = {
+            "id": identifier or name or "",
+            "title": name,
+            "img": img,
+            "desc": desc,
+            "price": price,
+            "discount": None,
+            "url": url,
+        }
+
+        # Minimális szűrés: ha egyáltalán nincs neve, akkor dobjuk
+        if not item["title"]:
+            continue
+
+        items.append(item)
+
+    print(f"Normalizált termékek száma: {len(items)}")
+    return items
 
 
-def parse_items_from_xml(xml_text: str):
-    root = ET.fromstring(xml_text)
+# --------- JSON oldalak írása ----------
 
-    # próbáljuk meg úgy, mintha RSS lenne: <rss><channel><item>...
-    items = root.findall(".//item")
-    if not items:
-        # ha nem talál, lehet, hogy <products><product> a struktúra
-        items = root.findall(".//product")
+def chunked(seq, size):
+    for i in range(0, len(seq), size):
+        yield seq[i : i + size]
 
-    parsed = []
-    for it in items:
-        # localname-ek alapján szedjük ki
-        pid = get_child_text_any(it, ["g:id", "id"])
-        if not pid:
-            pid = get_child_text_any(it, ["id"])  # fallback
 
-        title = get_child_text_any(it, ["g:title", "title"])
-        desc = get_child_text_any(it, ["g:description", "description"])
+def write_pages(items):
+    ensure_out_dir()
+    total = len(items)
+    pages = max(1, math.ceil(total / PAGE_SIZE))
 
-        link = get_child_text_any(it, ["g:link", "link"])
-        img = get_child_text_any(it, ["g:image_link", "image_link"])
+    # meta.json
+    meta = {
+        "partner": "laifenshop",
+        "pageSize": PAGE_SIZE,
+        "total": total,
+        "pages": pages,
+        "lastUpdated": datetime.utcnow().isoformat() + "Z",
+        "source": "feed",
+    }
 
-        price_raw = get_child_text_any(it, ["g:price", "price"])
-        sale_raw = get_child_text_any(it, ["g:sale_price", "sale_price"])
+    meta_path = os.path.join(OUT_DIR, "meta.json")
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    print(f"meta.json kiírva: {meta_path}")
 
-        price_val, cur1 = parse_price(sale_raw or price_raw)
-        orig_val, cur2 = parse_price(price_raw)
-
-        currency = cur1 or cur2 or "HUF"
-
-        discount = None
-        if orig_val and price_val and orig_val > price_val:
-            discount = int(round((orig_val - price_val) / orig_val * 100))
-
-        parsed.append(
-            {
-                "id": pid or None,
-                "title": clean_text(title) or None,
-                "img": force_https(img),
-                "desc": clean_text(desc),
-                "price": price_val,
-                "original_price": orig_val if orig_val and orig_val != price_val else None,
-                "currency": currency,
-                "discount": discount,
-                "url": force_https(link),
-            }
-        )
-
-    return parsed
+    # page-0001.json, page-0002.json, ...
+    page_num = 1
+    for chunk in chunked(items, PAGE_SIZE):
+        out = {"items": chunk}
+        fn = f"page-{page_num:04d}.json"
+        out_path = os.path.join(OUT_DIR, fn)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False)
+        print(f"Oldal #{page_num} → {out_path} ({len(chunk)} termék)")
+        page_num += 1
 
 
 def main():
-    if not FEED_URL:
-        raise SystemExit("FEED_LAIFENSHOP_URL nincs beállítva (env).")
-
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    print(f"Letöltés: {FEED_URL}")
-    resp = requests.get(FEED_URL, timeout=60)
-    resp.raise_for_status()
-
-    items = parse_items_from_xml(resp.text)
-    # szűrés: kell, hogy legyen title ÉS url, különben nem tudunk gombot/képet linkelni
-    cleaned = [it for it in items if it.get("title") and it.get("url")]
-
-    total = len(cleaned)
-    pages = max(1, math.ceil(total / PAGE_SIZE))
-
-    meta = {
-        "ok": True,
-        "partner": "laifenshop",
-        "total": total,
-        "pages": pages,
-        "pageSize": PAGE_SIZE,
-    }
-
-    (OUT_DIR / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    for p in range(1, pages + 1):
-        start = (p - 1) * PAGE_SIZE
-        end = start + PAGE_SIZE
-        chunk = cleaned[start:end]
-        page_obj = {
-            "ok": True,
-            "partner": "laifenshop",
-            "page": p,
-            "total": total,
-            "items": chunk,
-        }
-        out_path = OUT_DIR / f"page-{p:04d}.json"
-        out_path.write_text(json.dumps(page_obj, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"Írva: {out_path} ({len(chunk)} termék)")
-
-    print(f"✅ Laifenshop kész: {total} termék, {pages} oldal.")
+    root = fetch_xml(FEED_URL)
+    items = parse_products(root)
+    write_pages(items)
 
 
 if __name__ == "__main__":
