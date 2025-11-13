@@ -1,7 +1,8 @@
+# scripts/build_cj_eoptika.py
+
 import csv, json, math
 from pathlib import Path
 
-# ---- INPUT / OUTPUT ----
 IN_DIR = Path("cj-eoptika-feed")
 OUT_DIR = Path("docs/feeds/cj-eoptika")
 PAGE_SIZE = 200
@@ -10,30 +11,21 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 txt_files = list(IN_DIR.glob("*.txt"))
 if not txt_files:
-    raise SystemExit("Nincs .txt fájl a CJ eOptika feed mappában :(")
+    raise SystemExit("Nincs .txt fájl a CJ eOptika feedben :(")
 
 feed_file = txt_files[0]
 
 items = []
 
-
 def first_nonempty(row, *keys):
-    """
-    Adj vissza az első nem üres mezőt a megadott kulcsnevek közül.
-    """
     for key in keys:
         if key in row and row[key]:
             return row[key].strip()
     return None
 
-
 def parse_price(raw_value, row_currency=None):
-    """
-    Kezeli a '1234.56 HUF' és a '1234.56' + külön currency mező formátumot is.
-    """
     if not raw_value:
         return None, row_currency or "HUF"
-
     raw_value = raw_value.strip()
     parts = raw_value.split()
 
@@ -52,14 +44,8 @@ def parse_price(raw_value, row_currency=None):
     return value, currency
 
 
-# ---- CSV OLVASÁS ----
 with feed_file.open("r", encoding="utf-8", newline="") as f:
-    # Minta a delimiter + BOM felismeréshez
     sample = f.read(4096)
-
-    # *** FONTOS FIX: UTF-8 BOM eltávolítás ***
-    sample = sample.lstrip("\ufeff")
-
     f.seek(0)
 
     try:
@@ -75,35 +61,18 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         if idx == 0:
             print("DEBUG CJ EOPTIKA HEADERS:", list(row.keys()))
 
-        # --- FIELD MAPPING (rugalmas kulcsnevek) ---
+        pid = first_nonempty(row, "ID")
+        title = first_nonempty(row, "TITLE", "NAME")
+        if not title:
+            continue
 
-        pid = first_nonempty(row, "ID", "ITEM_ID", "SKU")
-        title = first_nonempty(row, "TITLE", "NAME", "PRODUCT_NAME")
-        description = first_nonempty(
-            row,
-            "DESCRIPTION",
-            "LONG_DESCRIPTION",
-            "SHORT_DESCRIPTION",
-        ) or ""
+        description = first_nonempty(row, "DESCRIPTION") or ""
+        url = first_nonempty(row, "LINK", "ADS_REDIRECT")
+        image = first_nonempty(row, "IMAGE_LINK", "IMAGE_URL")
 
-        url = first_nonempty(
-            row,
-            "LINK",
-            "URL",
-            "BUY_URL",
-            "ADS_REDIRECT",
-        )
+        row_currency = None
 
-        image = first_nonempty(
-            row,
-            "IMAGE_LINK",
-            "IMAGE_URL",
-            "IMAGE",
-        )
-
-        row_currency = first_nonempty(row, "CURRENCY")
-
-        raw_sale = first_nonempty(row, "SALE_PRICE", "SALEPRICE")
+        raw_sale = first_nonempty(row, "SALE_PRICE")
         raw_price = first_nonempty(row, "PRICE")
 
         sale_val, currency = parse_price(raw_sale, row_currency)
@@ -129,10 +98,6 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
             "PRODUCT_TYPE",
         )
 
-        # Ha nagyon hiányos a sor, ugorjuk
-        if not pid or not title or not url:
-            continue
-
         item = {
             "id": pid,
             "title": title,
@@ -149,16 +114,12 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         }
         items.append(item)
 
-
 total = len(items)
 pages = max(1, math.ceil(total / PAGE_SIZE))
 
-print(f"DEBUG CJ EOPTIKA total items: {total}, pages: {pages}")
-
-# ---- OLDALAK ÍRÁSA ----
 for i in range(pages):
     page_num = i + 1
-    chunk = items[i * PAGE_SIZE:(i + 1) * PAGE_SIZE]
+    chunk = items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]
     out_path = OUT_DIR / f"page-{page_num:04d}.json"
 
     payload = {
@@ -172,7 +133,6 @@ for i in range(pages):
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False)
 
-# ---- META ÍRÁSA ----
 meta = {
     "ok": True,
     "partner": "cj-eoptika",
