@@ -1,28 +1,36 @@
 import os, json, math, xml.etree.ElementTree as ET, requests
 from datetime import datetime
+import re
 
 FEED_URL  = os.environ.get("FEED_LAIFENSHOP_URL")
 OUT_DIR   = "docs/feeds/laifenshop"
-PAGE_SIZE = 300  # elég, mert 17 termék van
+PAGE_SIZE = 300
 
-# ---------- kis helper függvények ----------
 
-def txt(node, tag):
-    """Biztonságos .find(tag).text"""
-    if node is None:
-        return ""
-    el = node.find(tag)
-    if el is None or el.text is None:
-        return ""
-    return el.text.strip()
+# -------------- HELPEREK --------------
 
-def first_non_empty(node, tags):
-    """Az első nem üres tag a listából"""
-    for t in tags:
-        v = txt(node, t)
-        if v:
-            return v
+def clean_xml(text):
+    if not text:
+        return text
+    # '&'-ek javítása, hogy az XML megfeleljen a szabványnak
+    text = text.replace("& ", "&amp; ")
+    text = text.replace(" &", " &amp;")
+    if text == "&":
+        text = "&amp;"
+    return text
+
+
+def get_child_text(prod, keylist):
+    """
+    Case-insensitive keresés: bármelyik tag megfejtése.
+    """
+    for child in prod:
+        tag = child.tag.lower()
+        for key in keylist:
+            if tag == key.lower():
+                return (child.text or "").strip()
     return ""
+
 
 def to_price(v):
     if not v:
@@ -30,10 +38,11 @@ def to_price(v):
     s = str(v).strip().replace(" ", "").replace(",", ".")
     try:
         return int(round(float(s)))
-    except Exception:
+    except:
         return None
 
-# ---------- main ----------
+
+# -------------- MAIN ------------------
 
 def main():
     if not FEED_URL:
@@ -45,31 +54,35 @@ def main():
     r = requests.get(FEED_URL, timeout=60)
     r.raise_for_status()
 
-    root = ET.fromstring(r.content)
+    # XML javítás
+    xml_text = clean_xml(r.text)
+    root = ET.fromstring(xml_text)
 
     items = []
 
-    # A feed szerkezete: <Products><Product>...</Product>...</Products>
     for prod in root.findall(".//Product"):
-        title = first_non_empty(prod, ["Name", "ProductName"])
+        title = get_child_text(prod, ["Name", "ProductName", "Title"])
         if not title:
-            # ha nincs neve, inkább kihagyjuk
             continue
 
-        pid = first_non_empty(prod, ["Identifier", "ProductNumber"])
+        pid = get_child_text(prod, ["Identifier", "ProductNumber", "Id"])
         if not pid:
             pid = title
 
-        url = first_non_empty(prod, ["ProductUrl", "ProductURL", "ProductUrl1", "ProductURL1"])
-        img = first_non_empty(prod, [
+        url = get_child_text(prod, ["ProductUrl", "ProductURL", "Url", "Product_Link"])
+        img = get_child_text(prod, [
             "ImageUrl", "ImageURL", "Image",
-            "ImageUrl1", "ImageURL1"
+            "Image1", "ImageUrl1", "ImageURL1"
         ])
 
-        desc = first_non_empty(prod, ["Description", "LongDescription", "ShortDescription"])
-
-        price_raw = first_non_empty(prod, ["Price", "SalePrice", "NetPrice"])
+        desc = get_child_text(prod, ["Description", "LongDescription", "ShortDescription"])
+        price_raw = get_child_text(prod, ["Price", "SalePrice", "NetPrice"])
         price = to_price(price_raw)
+
+        # fallback – ha nincs img → ProductUrl alapján is lehet képet keresni
+        if not img:
+            # Nincs thumbnail → üresen hagyjuk, Findora kezeli
+            img = ""
 
         item = {
             "id":       pid,
@@ -83,39 +96,31 @@ def main():
         items.append(item)
 
     total = len(items)
-    pages = math.ceil(total / PAGE_SIZE) if total else 0
+    pages = max(1, math.ceil(total / PAGE_SIZE))
 
     meta = {
         "partner":     "laifenshop",
         "pageSize":    PAGE_SIZE,
         "total":       total,
-        "pages":       pages or 1,
+        "pages":       pages,
         "lastUpdated": datetime.utcnow().isoformat() + "Z",
-        "source":      "feed",
+        "source":      "feed"
     }
 
     # meta.json
-    meta_path = os.path.join(OUT_DIR, "meta.json")
-    with open(meta_path, "w", encoding="utf-8") as f:
+    with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False)
-    print("Írva:", meta_path)
 
-    # page-0001.json, page-0002.json, ...
-    if total == 0:
-        page_path = os.path.join(OUT_DIR, "page-0001.json")
-        with open(page_path, "w", encoding="utf-8") as f:
-            json.dump({"items": []}, f, ensure_ascii=False)
-        print("Írva:", page_path)
-        return
-
+    # pages
     for i in range(pages):
         start = i * PAGE_SIZE
         end   = start + PAGE_SIZE
         chunk = items[start:end]
-        page_name = f"page-{i+1:04d}.json"
-        page_path = os.path.join(OUT_DIR, page_name)
+
+        page_path = os.path.join(OUT_DIR, f"page-{i+1:04d}.json")
         with open(page_path, "w", encoding="utf-8") as f:
             json.dump({"items": chunk}, f, ensure_ascii=False)
+
         print("Írva:", page_path)
 
 
