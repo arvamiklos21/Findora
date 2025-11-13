@@ -412,6 +412,12 @@
       try{ var x=new URL(u); return x.origin + x.pathname; }catch(_){ return String(u||'').split('#')[0].split('?')[0]; }
     }
     function imgPath(u){ return String(u||'').split('#')[0].split('?')[0]; }
+
+    // ÚJ: egységes képmező kiválasztása (image / img / image_link / thumbnail)
+    function itemImg(it){
+      return (it && (it.image || it.img || it.image_link || it.thumbnail)) || '';
+    }
+
     function stripVariantParams(u){
       if(!u) return u;
       try{
@@ -429,7 +435,7 @@
       var out=[], seen=new Set();
       (items||[]).forEach(function(it){
         var raw = firstUrl(it);
-        var key = basePath(stripVariantParams(raw)) + '|' + imgPath(it && it.img || '') + '|' + normalizeTitleNoSize(it && it.title || '');
+        var key = basePath(stripVariantParams(raw)) + '|' + imgPath(itemImg(it)) + '|' + normalizeTitleNoSize(it && it.title || '');
         if(!seen.has(key)){ seen.add(key); out.push(it); }
       });
       return out;
@@ -477,7 +483,7 @@
         for(var k=inner; k<arr.length; k++){
           var it = arr[k];
           var raw = firstUrl(it);
-          var key = basePath(stripVariantParams(raw)) + '|' + imgPath(it && it.img || '') + '|' + normalizeTitleNoSize(it && it.title || '');
+          var key = basePath(stripVariantParams(raw)) + '|' + imgPath(itemImg(it)) + '|' + normalizeTitleNoSize(it && it.title || '');
           if(!seen.has(key)){
             seen.add(key);
             uniques.push(it);
@@ -495,10 +501,11 @@
       var list = dedupeStrong(items);
       return list.map(function(it){
         var raw = firstUrl(it);
+        var img = itemImg(it);
         return (
           '<div class="card">' +
             '<div class="thumb">' +
-              (it && it.img ? '<img src="'+it.img+'" alt="" loading="lazy" style="max-width:100%;max-height:100%">' : '🛍️') +
+              (img ? '<img src="'+img+'" alt="" loading="lazy" style="max-width:100%;max-height:100%">' : '🛍️') +
             '</div>' +
             '<div class="title">' + ((it && it.title) ? it.title : '') + '</div>' +
             '<div class="price">' + priceText(it && it.price) + '</div>' +
@@ -514,10 +521,11 @@
         var cfg = PARTNERS.get(r.pid);
         var it  = r.item;
         var raw = firstUrl(it);
+        var img = itemImg(it);
         return (
           '<div class="card">' +
             '<div class="thumb">' +
-              (it && it.img ? '<img src="'+it.img+'" alt="" loading="lazy" style="max-width:100%;max-height:100%">' : '🛍️') +
+              (img ? '<img src="'+img+'" alt="" loading="lazy" style="max-width:100%;max-height:100%">' : '🛍️') +
             '</div>' +
             '<div class="title">' + ((it && it.title) ? it.title : '') + '</div>' +
             '<div class="price">' + priceText(it && it.price) + '</div>' +
@@ -1270,7 +1278,7 @@
               if(myRun!==SEARCH_RUN_ID) return;
               var it = arr[j];
               if(matchesNeedle(it, needle)){
-                var key = basePath(stripVariantParams(firstUrl(it))) + '|' + imgPath(it && it.img || '') + '|' + normalizeTitleNoSize(it && it.title || '');
+                var key = basePath(stripVariantParams(firstUrl(it))) + '|' + imgPath(itemImg(it)) + '|' + normalizeTitleNoSize(it && it.title || '');
                 if(!seen.has(key)){
                   seen.add(key);
                   results.push({ pid:p.id, item: it });
