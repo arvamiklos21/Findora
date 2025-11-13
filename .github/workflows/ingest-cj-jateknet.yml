@@ -1,0 +1,44 @@
+name: ingest-cj-jateknet
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * *"   # minden nap 5:00 magyar idő (4:00 UTC)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download CJ JatekNet feed
+        run: |
+          curl -L -u "${{ secrets.CJ_HTTP_USER }}:${{ secrets.CJ_HTTP_PASS }}" \
+            "${{ secrets.CJ_JATEKNET_URL }}" \
+            -o cj-jateknet.zip
+
+      - name: Unzip feed
+        run: |
+          rm -rf cj-jateknet-feed
+          mkdir cj-jateknet-feed
+          unzip -o cj-jateknet.zip -d cj-jateknet-feed
+
+      - name: Build CJ JatekNet JSON feed
+        run: python scripts/build_cj_jateknet.py
+
+      - name: Commit and push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/feeds/cj-jateknet || true
+          git commit -m "update CJ JátékNet feed" || echo "No changes"
+          git push
