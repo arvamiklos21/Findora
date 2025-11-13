@@ -63,81 +63,50 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         if idx == 0:
             print("DEBUG CJ KARCHER HEADERS:", list(row.keys()))
 
-        # --- FIELD MAPPING ---
+        # --- FIELD MAPPING a valós (NAGYBETŰS) oszlopnevekre ---
 
-        # ID – lehet 'id', 'sku', 'catalog-id' stb.
+        # ID
         pid = first_nonempty(
             row,
-            "id",
-            "item_id",
-            "item-id",
-            "sku",
-            "manufacturer-sku",
-            "catalog-id",
-            "catalog_id"
+            "ID",
         )
 
-        # TITLE / NAME
+        # TITLE
         title = first_nonempty(
             row,
-            "title",
-            "name",
-            "product-name",
-            "product_name",
-            "item_name"
+            "TITLE",
         )
 
         # DESCRIPTION
         description = first_nonempty(
             row,
-            "description",
-            "long-description",
-            "long_description",
-            "short-description",
-            "short_description"
+            "DESCRIPTION",
         ) or ""
 
-        # URL – vásárlási link
+        # URL – vásárlási link (LINK, esetleg ADS_REDIRECT fallback)
         url = first_nonempty(
             row,
-            "link",
-            "buy-url",
-            "buy_url",
-            "product-url",
-            "product_url"
+            "LINK",
+            "ADS_REDIRECT",
         )
 
         # KÉP
         image = first_nonempty(
             row,
-            "image_link",
-            "image-url",
-            "image_url"
+            "IMAGE_LINK",
         )
 
-        # CURRENCY – külön mező is lehet
-        row_currency = first_nonempty(
-            row,
-            "currency",
-            "currency-code",
-            "currency_code"
-        )
+        # CURRENCY – nincs külön mező, ezért majd az árból próbáljuk kiszedni, vagy default HUF
+        row_currency = None  # first_nonempty(row, "CURRENCY")  # ha lenne, itt kezelnénk
 
-        # ÁR – sale -> retail -> price
+        # ÁR – SALE_PRICE előnyben, utána PRICE
         raw_sale = first_nonempty(
             row,
-            "sale_price",
-            "sale-price",
-            "sale-price-amount",
-            "sale_price_amount"
+            "SALE_PRICE",
         )
         raw_price = first_nonempty(
             row,
-            "price",
-            "retail-price",
-            "retail_price",
-            "price-amount",
-            "price_amount"
+            "PRICE",
         )
 
         sale_val, currency = parse_price(raw_sale, row_currency)
@@ -155,19 +124,15 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         # BRAND
         brand = first_nonempty(
             row,
-            "brand",
-            "manufacturer-name",
-            "manufacturer",
-            "brand-name"
+            "BRAND",
         )
 
         # CATEGORY
         category = first_nonempty(
             row,
-            "google_product_category",
-            "product_type",
-            "category",
-            "advertiser-category"
+            "GOOGLE_PRODUCT_CATEGORY_NAME",
+            "GOOGLE_PRODUCT_CATEGORY",
+            "PRODUCT_TYPE",
         )
 
         item = {
@@ -195,13 +160,13 @@ for i in range(pages):
     out_path = OUT_DIR / f"page-{page_num:04d}.json"
     payload = {
         "ok": True,
-        "partner": "cj-karcher",
-        "page": page_num,
-        "total": total,
-        "items": chunk,
-    }
-    with out_path.open("w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False)
+            "partner": "cj-karcher",
+            "page": page_num,
+            "total": total,
+            "items": chunk,
+        }
+        with out_path.open("w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False)
 
 meta = {
     "ok": True,
