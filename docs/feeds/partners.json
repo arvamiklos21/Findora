@@ -31,6 +31,22 @@
     }
   }
 },
+{
+  "id": "cj-eoptika", 
+  "name": "eOptika", 
+  "group": "vision", 
+  "meta": "feeds/cj-eoptika/meta.json", 
+  "pagePattern": "feeds/cj-eoptika/page-{NNNN}.json", 
+  "deeplinkPartner": "cj-eoptika", 
+  "placements": {
+    "home": { "enabled": true, "pageSize": 6 },
+    "vision": { 
+      "enabled": true,
+      "pageSize": 6,
+      "full": { "enabled": true, "pageSize": 20 }
+    }
+  }
+},
   {
     "id": "jateksziget",
     "name": "Játéksziget",
