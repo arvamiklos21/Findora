@@ -27,7 +27,7 @@ def clean_text(x: str) -> str:
 
 
 def to_num(v):
-    """Szám konverzió – Laifennél sima egész ár jön (44999 stb.)"""
+    """Szám konverzió – Laifen árak (44999 stb.)"""
     if v is None:
         return None
     if isinstance(v, (int, float)):
@@ -35,7 +35,6 @@ def to_num(v):
     s = str(v).strip().replace(" ", "")
     if not s:
         return None
-    # csak számok – ha bármi más, hagyjuk None-ra
     try:
         return float(s.replace(",", "."))
     except Exception:
@@ -74,7 +73,7 @@ def parse_products(root: ET.Element):
         <Identifier>55479255859578</Identifier>
         <Manufacturer>Laifen</Manufacturer>
         <Name>Laifen Wave</Name>
-        <ProductUrl>https://www.laifenshop.hu/products/...</ProductUrl>
+        <ProductUrl>https://www.laifenshop.hu/products/laifen-wave?variant=...</ProductUrl>
         <Price>44999</Price>
         <Description>...</Description>
         ...
@@ -124,7 +123,7 @@ def parse_products(root: ET.Element):
             "url": url,
         }
 
-        # Minimális szűrés: ha egyáltalán nincs neve, akkor dobjuk
+        # Ha nincs neve, dobjuk
         if not item["title"]:
             continue
 
@@ -146,7 +145,6 @@ def write_pages(items):
     total = len(items)
     pages = max(1, math.ceil(total / PAGE_SIZE))
 
-    # meta.json
     meta = {
         "partner": "laifenshop",
         "pageSize": PAGE_SIZE,
@@ -161,7 +159,6 @@ def write_pages(items):
         json.dump(meta, f, ensure_ascii=False, indent=2)
     print(f"meta.json kiírva: {meta_path}")
 
-    # page-0001.json, page-0002.json, ...
     page_num = 1
     for chunk in chunked(items, PAGE_SIZE):
         out = {"items": chunk}
