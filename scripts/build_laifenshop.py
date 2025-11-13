@@ -9,48 +9,28 @@ PAGE_SIZE = 300
 
 # -------------- HELPEREK --------------
 
-def clean_xml(text):
+def clean_xml(text: str) -> str:
+    """
+    XML szöveg minimális javítása: az olyan '&'-eket, amik NEM entitások,
+    átalakítjuk '&amp;'-re. Így az XML parser nem száll el.
+    """
     if not text:
         return text
-    # óvatosabb & kezelés – ne barmoljuk szét a URL-eket
-    # csak a "magányos" &-eket próbáljuk javítani, de ez is minimálisan
-    text = text.replace(" & ", " &amp; ")
-    if text.strip() == "&":
-        text = "&amp;"
-    return text
+    # & amelyet nem követ 'amp;', 'lt;', 'gt;', 'quot;', 'apos;' vagy numerikus entitás
+    return re.sub(r'&(?!amp;|lt;|gt;|quot;|apos;|#\d+;)', '&amp;', text)
 
 
 def get_child_text(prod, keylist):
     """
-    Case-insensitive, namespace- és formátum-toleráns keresés.
-    - Minden leszármazottban keres (prod.iter())
-    - Namespace levágása: {ns}Tag -> Tag
-    - Kisbetűs, '_' kiszedve
-    - Ha nincs .text, akkor attribútumokból is próbál olvasni (href, url, src, stb.)
+    Case-insensitive közvetlen gyerek tag keresés: bármelyik tag megfejtése.
+    Nem megy rekurzívan – itt a Laifen feedben a fontos mezők közvetlen
+    a <Product> alatt vannak (Name, ProductUrl, ImageUrl, Price, Description, ...).
     """
-    target_keys = []
-    for k in keylist:
-        k_norm = k.lower().replace("_", "")
-        target_keys.append(k_norm)
-
-    for child in prod.iter():
-        raw_tag = child.tag or ""
-        # namespace levágás
-        if "}" in raw_tag:
-            raw_tag = raw_tag.split("}", 1)[1]
-        tag_norm = raw_tag.lower().replace("_", "")
-
-        if tag_norm in target_keys:
-            txt = (child.text or "").strip()
-            if txt:
-                return txt
-
-            # fallback: attribútumok (pl. <Url href="...">)
-            for attr_val in child.attrib.values():
-                val = (attr_val or "").strip()
-                if val:
-                    return val
-
+    for child in prod:
+        tag = child.tag.lower()
+        for key in keylist:
+            if tag == key.lower():
+                return (child.text or "").strip()
     return ""
 
 
@@ -60,7 +40,7 @@ def to_price(v):
     s = str(v).strip().replace(" ", "").replace(",", ".")
     try:
         return int(round(float(s)))
-    except:
+    except Exception:
         return None
 
 
@@ -76,25 +56,14 @@ def main():
     r = requests.get(FEED_URL, timeout=60)
     r.raise_for_status()
 
-    # XML javítás
+    # XML javítás + parse
     xml_text = clean_xml(r.text)
     root = ET.fromstring(xml_text)
 
     items = []
 
-    # Ha namespace lenne a Product-on, a findall(".//Product") lehet, hogy nem találja.
-    # Ezért fallback: minden elem közül azokat nézzük, ahol a localname "Product".
-    products = []
-    for el in root.iter():
-        tag = el.tag or ""
-        if "}" in tag:
-            tag = tag.split("}", 1)[1]
-        if tag.lower() == "product":
-            products.append(el)
-
-    print(f"Talált Product elemek száma: {len(products)}")
-
-    for prod in products:
+    # A Laifen feedben a termékek <Products><Product> alatt vannak
+    for prod in root.findall(".//Product"):
         title = get_child_text(prod, ["Name", "ProductName", "Title"])
         if not title:
             continue
@@ -103,35 +72,31 @@ def main():
         if not pid:
             pid = title
 
-        url = get_child_text(
-            prod,
-            ["ProductUrl", "ProductURL", "Url", "Product_Link", "Link"]
-        )
-        img = get_child_text(
-            prod,
-            [
-                "ImageUrl", "ImageURL", "Image",
-                "Image1", "ImageUrl1", "ImageURL1",
-                "ImageUrl2", "ImageURL2"
-            ]
-        )
+        # URL – ez kell a "Megnézem🔗" gombhoz
+        url = get_child_text(prod, [
+            "ProductUrl", "ProductURL", "Url", "Product_Link"
+        ])
+
+        # Kép – elsődlegesen ImageUrl, de több variánst is megpróbálunk
+        img = get_child_text(prod, [
+            "ImageUrl", "ImageURL", "Image",
+            "Image1", "ImageUrl1", "ImageURL1"
+        ])
 
         desc = get_child_text(prod, ["Description", "LongDescription", "ShortDescription"])
+
+        # Ár – sorrend: Price, SalePrice, NetPrice
         price_raw = get_child_text(prod, ["Price", "SalePrice", "NetPrice"])
         price = to_price(price_raw)
-
-        # ha valamiért még mindig nincs url / img, legyen inkább üres string
-        url = url or ""
-        img = img or ""
 
         item = {
             "id":       pid,
             "title":    title,
-            "img":      img,
+            "img":      img or "",
             "desc":     desc,
             "price":    price,
             "discount": None,
-            "url":      url,
+            "url":      url or "",
         }
         items.append(item)
 
@@ -148,8 +113,10 @@ def main():
     }
 
     # meta.json
-    with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
+    meta_path = os.path.join(OUT_DIR, "meta.json")
+    with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False)
+    print("Írva:", meta_path)
 
     # pages
     for i in range(pages):
@@ -160,8 +127,16 @@ def main():
         page_path = os.path.join(OUT_DIR, f"page-{i+1:04d}.json")
         with open(page_path, "w", encoding="utf-8") as f:
             json.dump({"items": chunk}, f, ensure_ascii=False)
-
         print("Írva:", page_path)
+
+    # Logoljunk egy teszt sort, hogy a GitHub Actions logban is lásd:
+    if items:
+        print("First item debug:", {
+            "title": items[0]["title"],
+            "img": items[0]["img"],
+            "url": items[0]["url"],
+            "price": items[0]["price"],
+        })
 
 
 if __name__ == "__main__":
