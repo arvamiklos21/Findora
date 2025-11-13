@@ -32,15 +32,31 @@
   }
 },
 {
-  "id": "cj-jateknet", 
-  "name": "JatekNet", 
-  "group": "games", 
-  "meta": "feeds/cj-jateknet/meta.json", 
-  "pagePattern": "feeds/cj-jateknet/page-{NNNN}.json", 
-  "deeplinkPartner": "cj-jateknet", 
+  "id": "cj-eoptika",
+  "name": "eOptika",
+  "group": "latas",
+  "meta": "feeds/cj-eoptika/meta.json",
+  "pagePattern": "feeds/cj-eoptika/page-{NNNN}.json",
+  "deeplinkPartner": "cj-eoptika",
   "placements": {
     "home": { "enabled": true, "pageSize": 6 },
-    "games": { 
+    "latas": {
+      "enabled": true,
+      "pageSize": 6,
+      "full": { "enabled": true, "pageSize": 20 }
+    }
+  }
+},
+{
+  "id": "cj-jateknet",
+  "name": "JátékNet",
+  "group": "jatekok",
+  "meta": "feeds/cj-jateknet/meta.json",
+  "pagePattern": "feeds/cj-jateknet/page-{NNNN}.json",
+  "deeplinkPartner": "cj-jateknet",
+  "placements": {
+    "home": { "enabled": true, "pageSize": 6 },
+    "jatekok": {
       "enabled": true,
       "pageSize": 6,
       "full": { "enabled": true, "pageSize": 20 }
