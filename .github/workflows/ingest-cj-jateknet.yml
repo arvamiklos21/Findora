@@ -8,9 +8,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # fontos: lássa a teljes history-t, tudjon pull-olni
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -26,15 +30,27 @@ jobs:
           mkdir cj-jateknet-feed
           unzip -o cj-jateknet.zip -d cj-jateknet-feed
 
-      - name: Build
-        run: python scripts/build_cj_jateknet.py
+      - name: Build CJ JátékNet JSON feed
+        run: |
+          python scripts/build_cj_jateknet.py
 
-      - name: Commit
+      - name: Commit and push changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -e
+
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # mindig szinkronizálunk a remote main-nel, hogy ne legyen "fetch first" hiba
+          git pull --rebase origin main || true
+
           git add docs/feeds/cj-jateknet || true
-          git commit -m "update CJ JátékNet feed" || echo "No changes"
-          git push
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "update CJ JátékNet feed"
+            git push origin HEAD:main
+          fi
