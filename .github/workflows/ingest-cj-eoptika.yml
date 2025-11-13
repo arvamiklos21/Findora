@@ -69,6 +69,13 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/feeds/cj-eoptika
           git commit -m "cj-eoptika: update feed pages" || echo "No changes"
+
+      - name: Force delete stale remote branch (error-tolerant)
+        run: |
+          git push origin :bot/update-cj-eoptika || true
+
+      - name: Push update branch
+        run: |
           git push --force-with-lease origin HEAD:bot/update-cj-eoptika
 
       - name: Create pull request
