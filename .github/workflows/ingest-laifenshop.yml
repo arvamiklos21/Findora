@@ -12,6 +12,7 @@ permissions:
 jobs:
   ingest:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (full)
         uses: actions/checkout@v4
@@ -26,6 +27,9 @@ jobs:
       - name: Install deps
         run: pip install requests
 
+      # --------------------------------------------------
+      # FEED BUILD
+      # --------------------------------------------------
       - name: Build Laifenshop feed pages
         env:
           FEED_LAIFENSHOP_URL: ${{ secrets.FEED_LAIFENSHOP_URL }}
@@ -34,39 +38,60 @@ jobs:
           if [ -z "$FEED_LAIFENSHOP_URL" ]; then
             echo "::error title=Missing secret::FEED_LAIFENSHOP_URL nincs beállítva (Settings → Secrets → Actions)."; exit 1
           fi
+
           mkdir -p docs/feeds/laifenshop
+
           python scripts/build_laifenshop.py
+
           echo "Sanity check (first item):"
           if command -v jq >/dev/null 2>&1; then
             jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/laifenshop/page-0001.json || true
           else
             head -c 600 docs/feeds/laifenshop/page-0001.json || true
           fi
+
           ls -la docs/feeds/laifenshop
 
+      # --------------------------------------------------
+      # CLEAN BRANCH (FIX: always delete old branch)
+      # --------------------------------------------------
       - name: Prepare clean branch
         run: |
           set -e
+
           git rebase --abort || true
           git merge --abort || true
           git reset --hard
           git clean -fd
 
           git fetch origin
+
+          # always start from fresh main
           git checkout main
           git reset --hard origin/main
 
-          BR="bot/update-laifenshop"
-          git checkout -B "$BR"
+          # delete old remote branch if exists
+          git push origin --delete bot/update-laifenshop || true
 
+          # create fresh clean branch
+          git checkout -b bot/update-laifenshop
+
+      # --------------------------------------------------
+      # COMMIT + PUSH
+      # --------------------------------------------------
       - name: Commit feed updates
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/feeds/laifenshop
-          git commit -m "laifenshop: update feed pages" || echo "No changes"
-          git push --force-with-lease origin HEAD:bot/update-laifenshop
 
+          git add docs/feeds/laifenshop
+
+          git commit -m "laifenshop: update feed pages" || echo "No changes"
+          git push origin bot/update-laifenshop
+
+      # --------------------------------------------------
+      # PR CREATION
+      # --------------------------------------------------
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
         with:
