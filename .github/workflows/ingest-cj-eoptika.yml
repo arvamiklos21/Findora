@@ -1,11 +1,9 @@
-# .github/workflows/ingest-cj-eoptika.yml
-
 name: ingest-cj-eoptika
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 4 * * *"   # minden nap 5:00 körül magyar idő (4:00 UTC)
+    - cron: "0 2 * * *"   # 03:00 HU (02:00 UTC) – amikor neked tetszik, átírhatod
 
 permissions:
   contents: write
@@ -14,6 +12,7 @@ permissions:
 jobs:
   ingest:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (full)
         uses: actions/checkout@v4
@@ -28,23 +27,24 @@ jobs:
       - name: Download CJ eOptika feed (plain TXT via HTTP)
         run: |
           set -e
+          curl -L -u "${{ secrets.CJ_HTTP_USER }}:${{ secrets.CJ_HTTP_PASS }}" \
+            "http://datatransfer.cj.com/datatransfer/files/${{ secrets.CJ_HTTP_USER }}/outgoing/productcatalog/310806/eOptika_HU-eOptikaHU_google_all-shopping.txt.zip" \
+            -o cj-eoptika.zip
+
           rm -rf cj-eoptika-feed
           mkdir cj-eoptika-feed
-
-          curl -L -u "${{ secrets.CJ_HTTP_USER }}:${{ secrets.CJ_HTTP_PASS }}" \
-            "http://datatransfer.cj.com/datatransfer/files/${{ secrets.CJ_HTTP_USER }}/outgoing/productcatalog/XXXXXXXX/eOptika_feed.txt" \
-            -o cj-eoptika-feed/eoptika.txt
-
-          ls -la cj-eoptika-feed
+          unzip -o cj-eoptika.zip -d cj-eoptika-feed
 
       - name: Install Python deps
         run: |
           pip install --upgrade pip
 
-      - name: Build CJ eOptika JSON feed
+      - name: Build CJ eOptika JSON feed pages
         run: |
+          set -e
+          mkdir -p docs/feeds/cj-eoptika
           python scripts/build_cj_eoptika.py
-          echo "Sanity check (first page, first item):"
+          echo "Sanity check (first page):"
           head -c 600 docs/feeds/cj-eoptika/page-0001.json || true
 
       - name: Prepare clean branch
@@ -76,6 +76,7 @@ jobs:
 
       - name: Push update branch
         run: |
+          set -e
           git push --force-with-lease origin HEAD:bot/update-cj-eoptika
 
       - name: Create pull request
