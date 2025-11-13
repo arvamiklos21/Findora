@@ -1,14 +1,12 @@
 import csv, json, math
 from pathlib import Path
 
-# Bemenet: a CJ ZIP-ből kibontott Shopping (Google) TXT
 IN_DIR = Path("cj-karcher-feed")
 OUT_DIR = Path("docs/feeds/cj-karcher")
-PAGE_SIZE = 200  # hány termék/JSON oldal
+PAGE_SIZE = 200
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# 1) TXT fájl keresése
 txt_files = list(IN_DIR.glob("*.txt"))
 if not txt_files:
     raise SystemExit("Nincs .txt fájl a CJ feedben :(")
@@ -17,28 +15,125 @@ feed_file = txt_files[0]
 
 items = []
 
-def parse_price(raw: str):
-    """'1234.56 HUF' -> float(1234.56), currency 'HUF'"""
-    if not raw:
-        return None, None
-    raw = raw.strip()
-    parts = raw.split()
-    amount = parts[0].replace(",", ".")
-    currency = parts[1] if len(parts) > 1 else "HUF"
+def first_nonempty(row, *keys):
+    """Adj vissza az első nem üres mezőt a megadott kulcsnevek közül."""
+    for key in keys:
+        if key in row and row[key]:
+            return row[key].strip()
+    return None
+
+def parse_price(raw_value, row_currency=None):
+    """Kezeli a '1234.56 HUF' és a '1234.56' + külön currency mező formátumot is."""
+    if not raw_value:
+        return None, row_currency or "HUF"
+    raw_value = raw_value.strip()
+    parts = raw_value.split()
+
+    if len(parts) >= 2:
+        amount = parts[0].replace(",", ".")
+        currency = parts[1]
+    else:
+        amount = raw_value.replace(",", ".")
+        currency = row_currency or "HUF"
+
     try:
         value = float(amount)
     except ValueError:
         return None, currency
+
     return value, currency
 
 with feed_file.open("r", encoding="utf-8", newline="") as f:
     reader = csv.DictReader(f, delimiter="\t")
-    for row in reader:
-        raw_price = (row.get("price") or "").strip()
-        raw_sale = (row.get("sale_price") or "").strip()
 
-        price_val, currency = parse_price(raw_price)
-        sale_val, _ = parse_price(raw_sale)
+    # Debug: logoljuk az oszlopneveket az első sor alapján
+    first_row = None
+    for idx, row in enumerate(reader):
+        if idx == 0:
+            first_row = row
+            print("DEBUG CJ KARCHER HEADERS:", list(row.keys()))
+
+        # --- FIELD MAPPING ---
+
+        # ID – lehet 'id', 'sku', 'catalog-id' stb.
+        pid = first_nonempty(
+            row,
+            "id",
+            "item_id",
+            "item-id",
+            "sku",
+            "manufacturer-sku",
+            "catalog-id",
+            "catalog_id"
+        )
+
+        # TITLE / NAME
+        title = first_nonempty(
+            row,
+            "title",
+            "name",
+            "product-name",
+            "product_name",
+            "item_name"
+        )
+
+        # DESCRIPTION
+        description = first_nonempty(
+            row,
+            "description",
+            "long-description",
+            "long_description",
+            "short-description",
+            "short_description"
+        ) or ""
+
+        # URL – vásárlási link
+        url = first_nonempty(
+            row,
+            "link",
+            "buy-url",
+            "buy_url",
+            "product-url",
+            "product_url"
+        )
+
+        # KÉP
+        image = first_nonempty(
+            row,
+            "image_link",
+            "image-url",
+            "image_url"
+        )
+
+        # CURRENCY – külön mező is lehet
+        row_currency = first_nonempty(
+            row,
+            "currency",
+            "currency-code",
+            "currency_code"
+        )
+
+        # ÁR – sale -> retail -> price
+        raw_sale = first_nonempty(
+            row,
+            "sale_price",
+            "sale-price",
+            "sale-price-amount",
+            "sale_price_amount"
+        )
+        raw_price = first_nonempty(
+            row,
+            "price",
+            "retail-price",
+            "retail_price",
+            "price-amount",
+            "price_amount"
+        )
+
+        sale_val, currency = parse_price(raw_sale, row_currency)
+        price_val, currency2 = parse_price(raw_price, row_currency or currency)
+        if not currency and currency2:
+            currency = currency2
 
         final_price = sale_val or price_val
         original_price = price_val if sale_val and price_val and sale_val < price_val else None
@@ -47,17 +142,35 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         if original_price and final_price and final_price < original_price:
             discount = round((original_price - final_price) / original_price * 100)
 
+        # BRAND
+        brand = first_nonempty(
+            row,
+            "brand",
+            "manufacturer-name",
+            "manufacturer",
+            "brand-name"
+        )
+
+        # CATEGORY
+        category = first_nonempty(
+            row,
+            "google_product_category",
+            "product_type",
+            "category",
+            "advertiser-category"
+        )
+
         item = {
-            "id": row.get("id"),
-            "title": row.get("title"),
-            "description": row.get("description") or "",
-            "url": row.get("link"),
-            "image": row.get("image_link"),
+            "id": pid,
+            "title": title,
+            "description": description,
+            "url": url,
+            "image": image,
             "price": final_price,
             "original_price": original_price,
             "currency": currency or "HUF",
-            "brand": row.get("brand"),
-            "category": row.get("google_product_category") or row.get("product_type"),
+            "brand": brand,
+            "category": category,
             "partner": "Kärcher (CJ)",
             "discount": discount,
         }
@@ -66,7 +179,6 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
 total = len(items)
 pages = max(1, math.ceil(total / PAGE_SIZE))
 
-# 2) page-0001.json, page-0002.json, ...
 for i in range(pages):
     page_num = i + 1
     chunk = items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]
@@ -81,7 +193,6 @@ for i in range(pages):
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False)
 
-# 3) meta.json
 meta = {
     "ok": True,
     "partner": "cj-karcher",
