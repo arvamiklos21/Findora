@@ -1,5 +1,3 @@
-# scripts/build_cj_eoptika.py
-
 import csv, json, math
 from pathlib import Path
 
@@ -17,15 +15,20 @@ feed_file = txt_files[0]
 
 items = []
 
+
 def first_nonempty(row, *keys):
+    """Adj vissza az első nem üres mezőt a kulcsok közül."""
     for key in keys:
         if key in row and row[key]:
             return row[key].strip()
     return None
 
+
 def parse_price(raw_value, row_currency=None):
+    """Kezeli a '1234.56 HUF' és '1234.56' + külön currency mezőt."""
     if not raw_value:
         return None, row_currency or "HUF"
+
     raw_value = raw_value.strip()
     parts = raw_value.split()
 
@@ -44,6 +47,7 @@ def parse_price(raw_value, row_currency=None):
     return value, currency
 
 
+# ---- CSV olvasás / delimiter felismerés ----
 with feed_file.open("r", encoding="utf-8", newline="") as f:
     sample = f.read(4096)
     f.seek(0)
@@ -61,19 +65,20 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         if idx == 0:
             print("DEBUG CJ EOPTIKA HEADERS:", list(row.keys()))
 
-        pid = first_nonempty(row, "ID")
-        title = first_nonempty(row, "TITLE", "NAME")
-        if not title:
+        pid = first_nonempty(row, "ID", "id", "ITEM_ID")
+        title = first_nonempty(row, "TITLE", "title")
+        description = first_nonempty(row, "DESCRIPTION", "description") or ""
+        url = first_nonempty(row, "LINK", "link", "ADS_REDIRECT")
+        image = first_nonempty(row, "IMAGE_LINK", "image_link")
+
+        # Ha nincs cím vagy URL, akkor nem fogjuk tudni listázni → skip
+        if not (title and url):
             continue
 
-        description = first_nonempty(row, "DESCRIPTION") or ""
-        url = first_nonempty(row, "LINK", "ADS_REDIRECT")
-        image = first_nonempty(row, "IMAGE_LINK", "IMAGE_URL")
+        row_currency = first_nonempty(row, "CURRENCY", "currency")
 
-        row_currency = None
-
-        raw_sale = first_nonempty(row, "SALE_PRICE")
-        raw_price = first_nonempty(row, "PRICE")
+        raw_sale = first_nonempty(row, "SALE_PRICE", "sale_price")
+        raw_price = first_nonempty(row, "PRICE", "price")
 
         sale_val, currency = parse_price(raw_sale, row_currency)
         price_val, currency2 = parse_price(raw_price, row_currency or currency)
@@ -90,12 +95,13 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         if original_price and final_price and final_price < original_price:
             discount = round((original_price - final_price) / original_price * 100)
 
-        brand = first_nonempty(row, "BRAND")
+        brand = first_nonempty(row, "BRAND", "brand")
         category = first_nonempty(
             row,
             "GOOGLE_PRODUCT_CATEGORY_NAME",
             "GOOGLE_PRODUCT_CATEGORY",
             "PRODUCT_TYPE",
+            "product_type",
         )
 
         item = {
@@ -117,6 +123,7 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
 total = len(items)
 pages = max(1, math.ceil(total / PAGE_SIZE))
 
+# ---- OLDALAK ÍRÁSA ----
 for i in range(pages):
     page_num = i + 1
     chunk = items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]
@@ -133,6 +140,7 @@ for i in range(pages):
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False)
 
+# ---- META ÍRÁSA ----
 meta = {
     "ok": True,
     "partner": "cj-eoptika",
