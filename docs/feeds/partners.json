@@ -16,19 +16,20 @@
     }
   },
   {
-    "id": "cj-karcher",
-    "name": "Kärcher",
-    "group": "otthon",
-    "meta": "feeds/cj-karcher/meta.json",
-    "pagePattern": "feeds/cj-karcher/page-{NNNN}.json",
-    "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
-      "otthon": {
-        "enabled": true,
-        "pageSize": 6,
-        "full": { "enabled": true, "pageSize": 20 }
-      }
+  "id": "cj-karcher",
+  "name": "Kärcher",
+  "group": "otthon",
+  "meta": "feeds/cj-karcher/meta.json",
+  "pagePattern": "feeds/cj-karcher/page-{NNNN}.json",
+  "deeplinkPartner": "cj-karcher",
+  "placements": {
+    "home": { "enabled": true, "pageSize": 6 },
+    "otthon": {
+      "enabled": true,
+      "pageSize": 6,
+      "full": { "enabled": true, "pageSize": 20 }
     }
+  }
 },
   {
     "id": "jateksziget",
