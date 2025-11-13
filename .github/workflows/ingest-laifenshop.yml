@@ -12,7 +12,6 @@ permissions:
 jobs:
   ingest:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout (full)
         uses: actions/checkout@v4
@@ -27,9 +26,6 @@ jobs:
       - name: Install deps
         run: pip install requests
 
-      # --------------------------------------------------
-      # FEED BUILD
-      # --------------------------------------------------
       - name: Build Laifenshop feed pages
         env:
           FEED_LAIFENSHOP_URL: ${{ secrets.FEED_LAIFENSHOP_URL }}
@@ -40,7 +36,6 @@ jobs:
           fi
 
           mkdir -p docs/feeds/laifenshop
-
           python scripts/build_laifenshop.py
 
           echo "Sanity check (first item):"
@@ -52,47 +47,43 @@ jobs:
 
           ls -la docs/feeds/laifenshop
 
-      # --------------------------------------------------
-      # CLEAN BRANCH (FIX: always delete old branch)
-      # --------------------------------------------------
       - name: Prepare clean branch
         run: |
           set -e
-
           git rebase --abort || true
           git merge --abort || true
           git reset --hard
           git clean -fd
 
           git fetch origin
-
-          # always start from fresh main
           git checkout main
           git reset --hard origin/main
 
-          # delete old remote branch if exists
-          git push origin --delete bot/update-laifenshop || true
+          BR="bot/update-laifenshop"
+          git checkout -B "$BR"
 
-          # create fresh clean branch
-          git checkout -b bot/update-laifenshop
-
-      # --------------------------------------------------
-      # COMMIT + PUSH
-      # --------------------------------------------------
       - name: Commit feed updates
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          set -e
 
           git add docs/feeds/laifenshop
 
-          git commit -m "laifenshop: update feed pages" || echo "No changes"
-          git push origin bot/update-laifenshop
+          # Ha nincs változás, ne push-oljunk, ne legyen PR
+          if git diff --cached --quiet; then
+            echo "No changes in laifenshop feed."
+            echo "NO_CHANGES=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
 
-      # --------------------------------------------------
-      # PR CREATION
-      # --------------------------------------------------
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git commit -m "laifenshop: update feed pages"
+
+          git push --force-with-lease origin HEAD:bot/update-laifenshop
+
       - name: Create pull request
+        if: env.NO_CHANGES != '1'
         uses: peter-evans/create-pull-request@v6
         with:
           branch: bot/update-laifenshop
