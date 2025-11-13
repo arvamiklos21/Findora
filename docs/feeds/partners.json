@@ -21,7 +21,6 @@
     "group": "otthon",
     "meta": "feeds/cj-karcher/meta.json",
     "pagePattern": "feeds/cj-karcher/page-{NNNN}.json",
-    "deeplinkPartner": "cj-karcher",
     "placements": {
       "home": { "enabled": true, "pageSize": 6 },
       "otthon": {
