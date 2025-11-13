@@ -144,18 +144,13 @@
     }
   },
   {
-    "id": "laifenshop",
-    "name": "Laifenshop",
-    "group": "otthon",
-    "meta": "feeds/laifenshop/meta.json",
-    "pagePattern": "feeds/laifenshop/page-{NNNN}.json",
-    "deeplinkPartner": "laifenshop",
-    "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
-      "otthon": {
-        "enabled": true,
-        "pageSize": 6,
-        "full": { "enabled": true, "pageSize": 20 }
+    "id": "Laifen Wave",
+  "title": "Laifen Wave",
+  "img": "https://LAIFEN_SHOP_KÉP_LINKJE.jpg",
+  "desc": "Egy innovatív elektromos fogkefe...",
+  "price": 34999,
+  "discount": null,
+  "url": "https://LAIFEN_SHOP_TERMÉK_URLJE"
       }
     }
   },
