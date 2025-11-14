@@ -87,10 +87,10 @@
     "pagePattern": "feeds/regiojatek/page-{NNNN}.json",
     "deeplinkPartner": "regiojatek",
     "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
+      "home": { "enabled": true, "pageSize": 3 },
       "games": {
         "enabled": true,
-        "pageSize": 6,
+        "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -103,10 +103,10 @@
     "pagePattern": "feeds/decathlon/page-{NNNN}.json",
     "deeplinkPartner": "decathlon",
     "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
+      "home": { "enabled": true, "pageSize": 3 },
       "sport": {
         "enabled": true,
-        "pageSize": 6,
+        "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -119,10 +119,10 @@
     "pagePattern": "feeds/alza/page-{NNNN}.json",
     "deeplinkPartner": "alza",
     "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
+      "home": { "enabled": true, "pageSize": 3 },
       "travel": {
         "enabled": true,
-        "pageSize": 6,
+        "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -135,10 +135,10 @@
     "pagePattern": "feeds/kozmetikaotthon/page-{NNNN}.json",
     "deeplinkPartner": "kozmetikaotthon",
     "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
+      "home": { "enabled": true, "pageSize": 3 },
       "vision": {
         "enabled": true,
-        "pageSize": 6,
+        "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -151,10 +151,10 @@
     "pagePattern": "feeds/pepita/page-{NNNN}.json",
     "deeplinkPartner": "pepita",
     "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
+      "home": { "enabled": true, "pageSize": 3 },
       "travel": {
         "enabled": true,
-        "pageSize": 6,
+        "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -167,10 +167,10 @@
     "pagePattern": "feeds/ekszereshop/page-{NNNN}.json",
     "deeplinkPartner": "ekszereshop",
     "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
+      "home": { "enabled": true, "pageSize": 3 },
       "vision": {
         "enabled": true,
-        "pageSize": 6,
+        "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -183,10 +183,10 @@
     "pagePattern": "feeds/karacsonydekor/page-{NNNN}.json",
     "deeplinkPartner": "karacsonydekor",
     "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
+      "home": { "enabled": true, "pageSize": 3 },
       "otthon": {
         "enabled": true,
-        "pageSize": 6,
+        "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -199,10 +199,10 @@
     "pagePattern": "feeds/otthonmarket/page-{NNNN}.json",
     "deeplinkPartner": "otthonmarket",
     "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
+      "home": { "enabled": true, "pageSize": 3 },
       "otthon": {
         "enabled": true,
-        "pageSize": 6,
+        "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
@@ -215,10 +215,10 @@
     "pagePattern": "feeds/onlinemarkabolt/page-{NNNN}.json",
     "deeplinkPartner": "onlinemarkabolt",
     "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
+      "home": { "enabled": true, "pageSize": 3 },
       "tech": {
         "enabled": true,
-        "pageSize": 6,
+        "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
     }
