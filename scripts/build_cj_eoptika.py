@@ -3,8 +3,12 @@ import json
 import math
 from pathlib import Path
 
+# BEMENET: CJ txt feed kicsomagolva ide
 IN_DIR = Path("cj-eoptika-feed")
+
+# KIMENET: GitHub Pages alá, innen megy ki: https://www.findora.hu/feeds/cj-eoptika/...
 OUT_DIR = Path("docs/feeds/cj-eoptika")
+
 PAGE_SIZE = 200
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -21,7 +25,7 @@ def first_nonempty(row, *keys):
     """Adj vissza az első nem üres mezőt a kulcsok közül."""
     for key in keys:
         if key in row and row[key]:
-            return row[key].strip()
+            return str(row[key]).strip()
     return None
 
 
@@ -35,7 +39,7 @@ def parse_price(raw_value, row_currency=None):
     if not raw_value:
         return None, row_currency or "HUF"
 
-    raw_value = raw_value.strip()
+    raw_value = str(raw_value).strip()
     parts = raw_value.split()
 
     if len(parts) >= 2:
@@ -161,8 +165,8 @@ meta = {
     "partner": "cj-eoptika",
     "total": total,
     "pages": pages,
-    "page_size": PAGE_SIZE,  # backend oldali konvenció
-    "pageSize": PAGE_SIZE,   # frontend JS-nek is kényelmes
+    "page_size": PAGE_SIZE,  # backend oldali név
+    "pageSize": PAGE_SIZE,   # frontend JS is tudja olvasni
 }
 
 with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
