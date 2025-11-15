@@ -34,7 +34,7 @@
 {
   "id": "cj-eoptika",
   "name": "eOptika",
-  "group": "latas",
+  "group": "vision",
   "meta": "feeds/cj-eoptika/meta.json",
   "pagePattern": "feeds/cj-eoptika/page-{NNNN}.json",
   "deeplinkPartner": "cj-eoptika",
@@ -50,7 +50,7 @@
 {
   "id": "cj-jateknet",
   "name": "JátékNet",
-  "group": "jatekok",
+  "group": "games",
   "meta": "feeds/cj-jateknet/meta.json",
   "pagePattern": "feeds/cj-jateknet/page-{NNNN}.json",
   "deeplinkPartner": "cj-jateknet",
