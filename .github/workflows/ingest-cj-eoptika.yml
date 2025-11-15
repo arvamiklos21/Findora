@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # FONTOS: először tiszta branch, utána build
+      # Tiszta main, külön bot branch
       - name: Prepare clean branch
         run: |
           set -e
@@ -61,7 +61,7 @@ jobs:
           set -e
           mkdir -p docs/feeds/cj-eoptika
           python scripts/build_cj_eoptika.py
-          echo "Sanity check (first page):"
+          echo "Sanity check (first page, if exists):"
           head -c 800 docs/feeds/cj-eoptika/page-0001.json || true
 
       - name: Commit feed updates
@@ -69,18 +69,15 @@ jobs:
           set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/feeds/cj-eoptika
+          git add docs/feeds/cj-eoptika || true
           git status
           git commit -m "cj-eoptika: update feed pages" || echo "No changes"
 
-      - name: Force delete stale remote branch (error-tolerant)
-        run: |
-          git push origin :bot/update-cj-eoptika || true
-
-      - name: Push update branch
+      # 🔴 FONTOS: régi PR-branch törlése, hogy ne legyen "stale info" hiba
+      - name: Delete remote PR branch if exists
         run: |
           set -e
-          git push --force-with-lease origin HEAD:bot/update-cj-eoptika
+          git push origin :bot/update-cj-eoptika || true
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
