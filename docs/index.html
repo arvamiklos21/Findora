@@ -19,8 +19,14 @@
   <meta name="twitter:description" content="A legjobb akciók és kuponok egy helyen." />
   <meta name="twitter:image" content="assets/img/findora-header.png" />
 
+  <!-- Fonts – render-blocking minimalizálása -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  </noscript>
 
   <style>
     :root{
@@ -113,7 +119,14 @@
     @media (max-width:640px){ .card{ flex:1 1 calc(50% - 12px); max-width:calc(50% - 12px); } }
     @media (max-width:420px){ .card{ flex:1 1 100%; max-width:100%; } }
 
-    .thumb{height:130px;background:#eef2f7;display:flex;align-items:center;justify-content:center}
+    .thumb{
+      height:130px;
+      aspect-ratio:4/3;
+      background:#eef2f7;
+      display:flex;
+      align-items:center;
+      justify-content:center
+    }
     .title{font-weight:800;margin:10px;font-size:14px;line-height:1.25;text-align:center;color:#475569}
     .price{margin:6px 12px 0; font-weight:900; text-align:center}
     .cta{display:inline-block; margin:10px auto 12px; background:linear-gradient(90deg,var(--brand),var(--brand2)); color:#fff; padding:8px 12px; border-radius:10px; font-weight:800; text-decoration:none}
@@ -138,7 +151,16 @@
     <span class="dev-badge">Folyamatos fejlesztés</span>
     <div class="hero-inner">
       <div class="brand">
-        <img id="brandLogo" src="assets/img/findora-header.png" alt="Findora logó" />
+        <img
+          id="brandLogo"
+          src="assets/img/findora-header.png"
+          alt="Findora logó"
+          width="176"
+          height="44"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+        />
         <div>
           <h1>Findora</h1>
           <p>Irányt mutat a legjobb ajánlatokhoz</p>
@@ -505,7 +527,7 @@
         return (
           '<div class="card">' +
             '<div class="thumb">' +
-              (img ? '<img src="'+img+'" alt="" loading="lazy" style="max-width:100%;max-height:100%">' : '🛍️') +
+              (img ? '<img src="'+img+'" alt="" loading="lazy" decoding="async" width="240" height="160" style="max-width:100%;max-height:100%;object-fit:contain">' : '🛍️') +
             '</div>' +
             '<div class="title">' + ((it && it.title) ? it.title : '') + '</div>' +
             '<div class="price">' + priceText(it && it.price) + '</div>' +
@@ -525,7 +547,7 @@
         return (
           '<div class="card">' +
             '<div class="thumb">' +
-              (img ? '<img src="'+img+'" alt="" loading="lazy" style="max-width:100%;max-height:100%">' : '🛍️') +
+              (img ? '<img src="'+img+'" alt="" loading="lazy" decoding="async" width="240" height="160" style="max-width:100%;max-height:100%;object-fit:contain">' : '🛍️') +
             '</div>' +
             '<div class="title">' + ((it && it.title) ? it.title : '') + '</div>' +
             '<div class="price">' + priceText(it && it.price) + '</div>' +
