@@ -1,4 +1,6 @@
-import csv, json, math
+import csv
+import json
+import math
 from pathlib import Path
 
 IN_DIR = Path("cj-eoptika-feed")
@@ -7,12 +9,11 @@ PAGE_SIZE = 200
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-txt_files = list(IN_DIR.glob("*.txt"))
+txt_files = sorted(IN_DIR.glob("*.txt"))
 if not txt_files:
     raise SystemExit("Nincs .txt fájl a CJ eOptika feedben :(")
 
 feed_file = txt_files[0]
-
 items = []
 
 
@@ -25,7 +26,12 @@ def first_nonempty(row, *keys):
 
 
 def parse_price(raw_value, row_currency=None):
-    """Kezeli a '1234.56 HUF' és '1234.56' + külön currency mezőt."""
+    """
+    Kezeli a:
+      - '1234.56 HUF'
+      - '1234,56 HUF'
+      - '1234.56' + külön currency mezőt.
+    """
     if not raw_value:
         return None, row_currency or "HUF"
 
@@ -107,7 +113,7 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         item = {
             "id": pid,
             "title": title,
-            "description": description,
+            "desc": description,
             "url": url,
             "image": image,
             "price": final_price,
@@ -121,7 +127,16 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         items.append(item)
 
 total = len(items)
-pages = max(1, math.ceil(total / PAGE_SIZE))
+print(f"DEBUG CJ EOPTIKA: összes termék: {total}")
+
+# Ha 0 termék születik, NE írjuk felül a régi JSON-t,
+# inkább álljon le hibával (így a workflow is fail lesz).
+if total == 0:
+    raise SystemExit(
+        "❌ CJ eOptika feed feldolgozva, de 0 termék született – nem frissítem a JSON oldalakat."
+    )
+
+pages = math.ceil(total / PAGE_SIZE)
 
 # ---- OLDALAK ÍRÁSA ----
 for i in range(pages):
@@ -146,7 +161,8 @@ meta = {
     "partner": "cj-eoptika",
     "total": total,
     "pages": pages,
-    "page_size": PAGE_SIZE,
+    "page_size": PAGE_SIZE,  # backend oldali konvenció
+    "pageSize": PAGE_SIZE,   # frontend JS-nek is kényelmes
 }
 
 with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
