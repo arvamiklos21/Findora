@@ -23,7 +23,7 @@
   "pagePattern": "feeds/cj-karcher/page-{NNNN}.json",
   "deeplinkPartner": "cj-karcher",
   "placements": {
-    "home": { "enabled": true, "pageSize": 3 },
+    "home":   { "enabled": true, "pageSize": 3 },
     "otthon": {
       "enabled": true,
       "pageSize": 3,
@@ -39,8 +39,8 @@
   "pagePattern": "feeds/cj-eoptika/page-{NNNN}.json",
   "deeplinkPartner": "cj-eoptika",
   "placements": {
-    "home": { "enabled": true, "pageSize": 3 },
-    "latas": {
+    "home":   { "enabled": true, "pageSize": 3 },
+    "vision": {
       "enabled": true,
       "pageSize": 3,
       "full": { "enabled": true, "pageSize": 20 }
@@ -55,8 +55,8 @@
   "pagePattern": "feeds/cj-jateknet/page-{NNNN}.json",
   "deeplinkPartner": "cj-jateknet",
   "placements": {
-    "home": { "enabled": true, "pageSize": 3 },
-    "jatekok": {
+    "home":  { "enabled": true, "pageSize": 3 },
+    "games": {
       "enabled": true,
       "pageSize": 3,
       "full": { "enabled": true, "pageSize": 20 }
