@@ -1,0 +1,81 @@
+<!DOCTYPE html><html lang="hu"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Alza laptop akció – notebook, ultrabook, gamer | Findora</title>
+<meta name="description" content="Alza laptop akciók: notebook, ultrabook, gamer laptop, diák laptop – friss árak és kedvezmények a Findora.hu-n.">
+<link rel="canonical" href="https://www.findora.hu/alza-laptop-akcio.html"/>
+<link rel="icon" href="assets/img/findora_mark.png"/>
+<link rel="stylesheet" href="assets/css/style.css"/>
+<style>
+:root{--pad-bottom:80px}body{margin:0;background:#f3f4f6;padding-bottom:var(--pad-bottom);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:16px}
+.topbar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:8px}
+.menu{display:flex;gap:14px;flex-wrap:wrap}
+.menu a,.back{color:#1a73e8;text-decoration:none;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:12px}
+.card{background:#fff;padding:12px;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.06);display:flex;flex-direction:column}
+.thumb{height:180px;display:flex;justify-content:center;align-items:center;margin-bottom:8px}
+.thumb img{max-height:100%;max-width:100%;object-fit:contain}
+.title{font-weight:600;margin-bottom:6px;font-size:.95rem}
+.muted{color:#64748b;font-size:.85rem;margin-bottom:6px}
+.price{font-weight:700;margin-top:auto}
+.cta a{display:inline-block;margin-top:10px;padding:9px 14px;border-radius:12px;background:#1a73e8;color:#fff;text-decoration:none}
+.pager{font-size:.85rem;margin-top:16px;color:#64748b}
+.aff-disclosure{position:fixed;left:0;right:0;bottom:0;background:#0f172a;color:#e2e8f0;padding:10px 16px;font-size:.85rem;line-height:1.4;box-shadow:0 -6px 18px rgba(0,0,0,.15)}
+</style>
+</head><body>
+<div class="wrap">
+  <div class="topbar">
+      <nav class="menu">
+        <a href="https://www.findora.hu/">🏠 Főoldal</a>
+        <a href="https://www.findora.hu/#otthon">Otthon</a>
+        <a href="https://www.findora.hu/#sport">Sport</a>
+        <a href="https://www.findora.hu/#jatekok">Játékok</a>
+        <a href="https://www.findora.hu/#tech">Tech</a>
+        <a href="https://www.findora.hu/#akciok">Akciók</a>
+      </nav>
+      <a href="https://www.findora.hu" class="back">← Vissza</a>
+  </div>
+
+  <h1>Alza laptop akciók</h1>
+  <p class="muted">Notebook, ultrabook, gamer laptopok – az árak 2 óránként frissülnek.</p>
+
+  <div id="grid" class="grid"></div>
+  <div id="pager" class="pager"></div>
+</div>
+
+<div class="aff-disclosure">
+  © 2025 A Findora.hu oldal affiliate linkeket tartalmaz. A 🔗 linkekre kattintva — vásárlás esetén — jutalékot kaphatunk. A vásárlónak ez nem jelent pluszköltséget.
+</div>
+
+<script>
+const FEED="/feeds/alza",SIZE=20;
+const KW=["laptop","notebook","ultrabook","gamer","gaming","pc","asus","lenovo","hp","acer","msi","macbook","windows","ryzen","intel"];
+const low=s=>(s||"").toLowerCase("hu-HU");
+const grid=document.getElementById("grid"),pager=document.getElementById("pager");
+const priceNum=p=>Number((p||"").replace(/[^\d]/g,""))||NaN;
+const priceFmt=p=>isNaN(priceNum(p))?"":new Intl.NumberFormat("hu-HU").format(priceNum(p))+" Ft";
+const dl=u=>`/api/dl?u=${encodeURIComponent(u||"")}&p=alza`;
+const isHit=p=>KW.some(k=>`${low(p.title)} ${low(p.category||"")} ${(p.tags||[]).map(low).join(" ")}`.includes(k));
+
+function card(p){
+  const img=p.image||p.img||p.imageUrl||"",price=p.price||p.final_price||"",d=p.discount||0;
+  return `<div class="card">
+    <div class="thumb"><img loading="lazy" src="${img}" alt=""></div>
+    <div class="title">${p.title}</div>
+    <div class="muted">${p.partner||"Alza"}${d?` • −${d}%`:""}</div>
+    <div class="price">${priceFmt(price)}</div>
+    <div class="cta"><a href="${dl(p.url||p.link)}" target="_blank" rel="nofollow sponsored noopener">Megnézem🔗</a></div>
+  </div>`;
+}
+
+async function load(){
+  const r=await fetch(`${FEED}/page-0001.json`,{cache:"no-store"});
+  if(!r.ok){grid.innerHTML="Nem elérhető.";return;}
+  let items=(await r.json()).items||[];
+  items=items.filter(isHit).slice(0,SIZE);
+  grid.innerHTML=items.map(card).join("")||"Nincs találat.";
+  pager.textContent=`1. oldal • ${items.length} termék`;
+}
+load();
+</script>
+</body></html>
