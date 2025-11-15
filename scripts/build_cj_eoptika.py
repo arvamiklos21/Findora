@@ -140,12 +140,24 @@ if total == 0:
         "❌ CJ eOptika feed feldolgozva, de 0 termék született – nem frissítem a JSON oldalakat."
     )
 
-pages = math.ceil(total / PAGE_SIZE)
+# ---- OLDALAK KÉSZÍTÉSE (NINCS ÜRES page-0001) ----
+chunks = []
+for start in range(0, total, PAGE_SIZE):
+    chunk = items[start : start + PAGE_SIZE]
+    if not chunk:
+        continue
+    chunks.append(chunk)
 
-# ---- OLDALAK ÍRÁSA ----
-for i in range(pages):
-    page_num = i + 1
-    chunk = items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]
+pages = len(chunks)
+
+# Biztonság kedvéért: ha valamiért mégis üres lista lenne (elméletileg nem),
+# akkor itt is megállunk.
+if pages == 0:
+    raise SystemExit("❌ CJ eOptika: üres pages lista – nem írok ki JSON-t.")
+
+# ---- OLDALAK ÍRÁSA: mindig az első nem üres chunk lesz page-0001 ----
+for idx, chunk in enumerate(chunks):
+    page_num = idx + 1
     out_path = OUT_DIR / f"page-{page_num:04d}.json"
 
     payload = {
