@@ -13,6 +13,13 @@ PAGE_SIZE = 200
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# ---- RÉGI OLDALAK TÖRLÉSE, HOGY NE MARADJON ROSSZ page-0001.json ----
+for old in OUT_DIR.glob("page-*.json"):
+    try:
+        old.unlink()
+    except OSError:
+        pass
+
 txt_files = sorted(IN_DIR.glob("*.txt"))
 if not txt_files:
     raise SystemExit("Nincs .txt fájl a CJ eOptika feedben :(")
@@ -133,32 +140,42 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
 total = len(items)
 print(f"DEBUG CJ EOPTIKA: összes termék: {total}")
 
-# Ha 0 termék születik, NE írjuk felül a régi JSON-t,
-# inkább álljon le hibával (így a workflow is fail lesz).
+# Ha tényleg nincs egyetlen termék sem: generáljunk egy üres 1. oldalt, hogy ne legyen 404
 if total == 0:
-    raise SystemExit(
-        "❌ CJ eOptika feed feldolgozva, de 0 termék született – nem frissítem a JSON oldalakat."
-    )
+    empty_payload = {
+        "ok": True,
+        "partner": "cj-eoptika",
+        "page": 1,
+        "total": 0,
+        "items": [],
+    }
+    with (OUT_DIR / "page-0001.json").open("w", encoding="utf-8") as f:
+        json.dump(empty_payload, f, ensure_ascii=False)
 
-# ---- OLDALAK KÉSZÍTÉSE (NINCS ÜRES page-0001) ----
-chunks = []
-for start in range(0, total, PAGE_SIZE):
-    chunk = items[start : start + PAGE_SIZE]
+    meta = {
+        "ok": True,
+        "partner": "cj-eoptika",
+        "total": 0,
+        "pages": 1,
+        "page_size": PAGE_SIZE,
+        "pageSize": PAGE_SIZE,
+    }
+    with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False)
+
+    print("⚠️ CJ eOptika: nincs termék → üres page-0001.json létrehozva.")
+    raise SystemExit(0)
+
+# ---- NEM ÜRES FEED: normál lapozás, page-0001.json MINDIG TELE LESZ ----
+pages = math.ceil(total / PAGE_SIZE)
+
+for page_num in range(1, pages + 1):
+    start = (page_num - 1) * PAGE_SIZE
+    end = start + PAGE_SIZE
+    chunk = items[start:end]
+
     if not chunk:
-        continue
-    chunks.append(chunk)
-
-pages = len(chunks)
-
-# Biztonság kedvéért: ha valamiért mégis üres lista lenne (elméletileg nem),
-# akkor itt is megállunk.
-if pages == 0:
-    raise SystemExit("❌ CJ eOptika: üres pages lista – nem írok ki JSON-t.")
-
-# ---- OLDALAK ÍRÁSA: mindig az első nem üres chunk lesz page-0001 ----
-for idx, chunk in enumerate(chunks):
-    page_num = idx + 1
-    out_path = OUT_DIR / f"page-{page_num:04d}.json"
+        continue  # elvileg nem fordulhat elő, de biztos ami biztos
 
     payload = {
         "ok": True,
@@ -168,6 +185,7 @@ for idx, chunk in enumerate(chunks):
         "items": chunk,
     }
 
+    out_path = OUT_DIR / f"page-{page_num:04d}.json"
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False)
 
