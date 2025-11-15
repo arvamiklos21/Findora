@@ -59,8 +59,12 @@ jobs:
       - name: Build CJ eOptika JSON feed pages
         run: |
           set -e
+          # RÉGI JSONOK KIDOBÁSA, HOGY NE MARADJON ÜRES page-0001.json
+          rm -rf docs/feeds/cj-eoptika
           mkdir -p docs/feeds/cj-eoptika
+
           python scripts/build_cj_eoptika.py
+
           echo "Sanity check (first page, if exists):"
           head -c 800 docs/feeds/cj-eoptika/page-0001.json || true
 
@@ -73,7 +77,7 @@ jobs:
           git status
           git commit -m "cj-eoptika: update feed pages" || echo "No changes"
 
-      # 🔴 FONTOS: régi PR-branch törlése, hogy ne legyen "stale info" hiba
+      # Régi PR-branch törlése, hogy ne legyen "stale info" hiba
       - name: Delete remote PR branch if exists
         run: |
           set -e
