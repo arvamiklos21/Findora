@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   ingest:
@@ -19,8 +18,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Tiszta main, külön bot branch
-      - name: Prepare clean branch
+      - name: Prepare clean main
         run: |
           set -e
           git rebase --abort || true
@@ -31,9 +29,6 @@ jobs:
           git fetch origin
           git checkout main
           git reset --hard origin/main
-
-          BR="bot/update-cj-eoptika"
-          git checkout -B "$BR"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -59,12 +54,8 @@ jobs:
       - name: Build CJ eOptika JSON feed pages
         run: |
           set -e
-          # RÉGI JSONOK KIDOBÁSA, HOGY NE MARADJON ÜRES page-0001.json
-          rm -rf docs/feeds/cj-eoptika
           mkdir -p docs/feeds/cj-eoptika
-
           python scripts/build_cj_eoptika.py
-
           echo "Sanity check (first page, if exists):"
           head -c 800 docs/feeds/cj-eoptika/page-0001.json || true
 
@@ -77,19 +68,7 @@ jobs:
           git status
           git commit -m "cj-eoptika: update feed pages" || echo "No changes"
 
-      # Régi PR-branch törlése, hogy ne legyen "stale info" hiba
-      - name: Delete remote PR branch if exists
+      - name: Push to main
         run: |
           set -e
-          git push origin :bot/update-cj-eoptika || true
-
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: bot/update-cj-eoptika
-          delete-branch: true
-          title: "cj-eoptika: update feed pages"
-          commit-message: "cj-eoptika: update feed pages"
-          body: |
-            Automated update of CJ eOptika feed pages (JSON pagination).
-          base: main
+          git push origin HEAD:main
