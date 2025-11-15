@@ -1,4 +1,4 @@
-name: ingest-cj-eoptika
+name: ingest-cj-jateknet
 
 on:
   workflow_dispatch:
