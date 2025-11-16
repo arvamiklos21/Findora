@@ -104,7 +104,7 @@
       const img = it.image || it.img || it.imageUrl || '';
       const d = it.discount || it.sale_percent || it.salePercent || 0;
       const price = it.price || it.price_huf || it.final_price || '';
-      return `<div class="card"><div class="thumb"><img loading="lazy" src="${img}" alt="${(it.title||'Termék').replace(/"/g,'&quot;')}"/></div><div class="title">${it.title||'Termék'}</div><div class="muted">${it.partner||'RegioJáték'}${d?` • −${d}%`:''}</div><div class="price">${priceFmt(price)}</div><div class="cta"><a href="${deeplink(it.url||it.link||'')}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a></div></div>`;
+      return `<div class="card"><div class="thumb"><img loading="lazy" src="${img}" alt="${(it.title||'Termék').replace(/"/g,'&quot;')}"/></div><div class="title">${it.title||'Termék'}</div><div class="muted">${it.partner||'RegioJáték'}${d?` • −${d}%`:''}</div><div class="price">${priceFmt(price)}</div><div class="cta"><a href="${deeplink(it.url||it.link||'')}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem🔗</a></div></div>`;
     }
     async function fetchFeedPage(n){
       const res = await fetch(`${FEED_BASE}/page-${String(n).padStart(4,'0')}.json`,{cache:'no-store'});
