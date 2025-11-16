@@ -97,7 +97,7 @@ function matchCat(p,k){if(k==='osszes')return true;const h=`${low(p.title)} ${lo
 const dl=u=>`/api/dl?u=${encodeURIComponent(u)}&p=jateksziget`;
 const pNum=p=>{if(p==null||p==='')return NaN;const n=String(p).replace(/[^\d.]/g,'');return n?Number(n):NaN}
 const pFmt=p=>{const n=pNum(p);return isNaN(n)?'':new Intl.NumberFormat('hu-HU').format(n)+' Ft'}
-const card=it=>`<div class="card"><div class="thumb"><img loading="lazy" src="${it.image||it.img||it.imageUrl||''}" alt="${(it.title||'Termék').replace(/"/g,'&quot;')}"/></div><div class="title">${it.title||'Termék'}</div><div class="muted">${it.partner||'Játéksziget'}${it.discount?` • −${it.discount}%`:''}</div><div class="price">${pFmt(it.price||it.price_huf||it.final_price||'')}</div><div class="cta"><a href="${dl(it.url||it.link||'')}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a></div></div>`;
+const card=it=>`<div class="card"><div class="thumb"><img loading="lazy" src="${it.image||it.img||it.imageUrl||''}" alt="${(it.title||'Termék').replace(/"/g,'&quot;')}"/></div><div class="title">${it.title||'Termék'}</div><div class="muted">${it.partner||'Játéksziget'}${it.discount?` • −${it.discount}%`:''}</div><div class="price">${pFmt(it.price||it.price_huf||it.final_price||'')}</div><div class="cta"><a href="${dl(it.url||it.link||'')}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem🔗</a></div></div>`;
 
 async function getPage(n){const r=await fetch(`${FEED_BASE}/page-${String(n).padStart(4,'0')}.json`,{cache:'no-store'});if(!r.ok)return null;try{return await r.json()}catch{return null}}
 async function render(dir){
