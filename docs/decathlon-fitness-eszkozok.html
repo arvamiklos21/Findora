@@ -114,7 +114,7 @@ const card=it=>`<div class="card">
   <div class="title">${it.title||'Termék'}</div>
   <div class="muted">${it.partner||'Decathlon'}${it.discount?` • −${it.discount}%`:''}</div>
   <div class="price">${pFmt(it.price||it.price_huf||it.final_price||'')}</div>
-  <div class="cta"><a href="${dl(it.url||it.link||'')}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem</a></div>
+  <div class="cta"><a href="${dl(it.url||it.link||'')}" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem🔗</a></div>
 </div>`;
 
 async function page(n){
