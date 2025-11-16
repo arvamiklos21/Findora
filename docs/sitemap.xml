@@ -9,6 +9,11 @@
   </url>
 
   <url>
+    <loc>https://www.findora.hu/brands.html</loc>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
     <loc>https://www.findora.hu/alza-laptop-akcio.html</loc>
     <lastmod>2025-11-15</lastmod>
     <changefreq>weekly</changefreq>
