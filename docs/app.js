@@ -9,9 +9,7 @@ const PAGES = new Map();
 // Deeplink építése – minden gomb: Megnézem🔗
 function dlUrl(partnerId, rawUrl) {
   if (!rawUrl) return "#";
-  return (
-    FEEDS_BASE + "/api/dl?u=" + encodeURIComponent(rawUrl) + "&p=" + partnerId
-  );
+  return FEEDS_BASE + "/api/dl?u=" + encodeURIComponent(rawUrl) + "&p=" + partnerId;
 }
 
 // ===== Kisegítő függvények =====
@@ -60,10 +58,7 @@ function normalizeTitleNoSize(t) {
   if (!t) return "";
   return String(t)
     .replace(SIZE_TOKENS, " ")
-    .replace(
-      /\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi,
-      " "
-    )
+    .replace(/\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi, " ")
     .replace(/\s{2,}/g, " ")
     .trim()
     .toLowerCase();
@@ -111,7 +106,7 @@ function dedupeStrong(items) {
   return out;
 }
 
-// Ugyanez, de { pid, item } sorokra (kártya-sor dedup)
+// Sor-szintű dedup (kategória / partner listákra) – ugyanaz a logika, mint dedupeStrong, csak {pid,item} sorokra
 function dedupeRowsStrong(rows) {
   const out = [];
   const seen = new Set();
@@ -124,24 +119,13 @@ function dedupeRowsStrong(rows) {
       "|" +
       imgPath(itemImg(it)) +
       "|" +
-      normalizeTitleNoSize(it && it.title);
+      normalizeTitleNoSize(it.title || "");
     if (!seen.has(key)) {
       seen.add(key);
       out.push(row);
     }
   });
   return out;
-}
-
-// BF / akciós blokk partnerenkénti konfiguráció (partners.json -> cfg.bf)
-function getBfConfigForPartner(cfg) {
-  const bf = (cfg && cfg.bf) || {};
-  // Alapértelmezés: BF engedélyezve, hogy a régi működés megmaradjon,
-  // de ha bf.enabled === false, akkor kikapcsoljuk.
-  const enabled = bf.enabled === false ? false : true;
-  const scanPages = Number.isFinite(bf.scanPages) ? bf.scanPages : 2;
-  const minDiscount = Number.isFinite(bf.minDiscount) ? bf.minDiscount : 10;
-  return { enabled, scanPages, minDiscount };
 }
 
 // ===== Diszkont százalék kinyerése =====
@@ -194,11 +178,7 @@ async function getMeta(pid) {
 }
 
 function pageUrl(cfg, n) {
-  return (
-    FEEDS_BASE +
-    "/" +
-    cfg.pagePattern.replace("{NNNN}", String(n).padStart(4, "0"))
-  );
+  return FEEDS_BASE + "/" + cfg.pagePattern.replace("{NNNN}", String(n).padStart(4, "0"));
 }
 
 async function getPageItems(pid, pageNum) {
@@ -251,12 +231,6 @@ function baseCategoryForPartner(pid, cfg) {
       return "kat-otthon";
     case "travel":
       return "kat-utazas";
-    case "beauty":
-      return "kat-szepseg";
-    case "pets":
-      return "kat-allatok";
-    case "books":
-      return "kat-konyv";
     default:
       return "kat-multi";
   }
@@ -271,138 +245,134 @@ function getCategoriesForItem(pid, it) {
     (it && it.title ? it.title : "") +
     " " +
     (it && it.desc ? it.desc : "")
-  )
-    .toLowerCase()
-    .trim();
+  ).toLowerCase();
 
   const hasAny = (words) => words.some((w) => text.includes(w));
 
-  const CLOTHES_WORDS = [
-    "alsó",
-    "alsónemű",
-    "alsonemu",
-    "bugyi",
-    "melltartó",
-    "melltarto",
-    "fehérnemű",
-    "fehernemu",
-    "pizsama",
-    "hálóing",
-    "haloing",
-    "köntös",
-    "kontos",
-    "zokni",
-    "harisnya",
-    "leggings",
-    "top",
-    "póló",
-    "polo",
-    "t-shirt",
-    "t shirt",
-    "pulóver",
-    "pulover",
-    "pulcsi",
-    "ruha",
-    "szoknya",
-    "blúz",
-    "bluz",
-    "ing",
-    "nadrág",
-    "nadrag",
-    "farmer",
-    "felső",
-    "felso",
-    "overall",
-  ];
-
-  const SHOES_WORDS = [
-    "cipő",
-    "cipo",
-    "csizma",
-    "bakancs",
-    "szandál",
-    "szandal",
-    "papucs",
-    "mokaszin",
-    "mokasszin",
-    "loafer",
-  ];
-
-  const APPLIANCE_WORDS = [
-    "mosógép",
-    "mosogep",
-    "mosogatógép",
-    "mosogatogep",
-    "mosó-szárító",
-    "moso-szarito",
-    "szárítógép",
-    "szaritogep",
-    "hűtőszekrény",
-    "hutoszekreny",
-    "fagyasztó",
-    "fagyaszto",
-    "sütő",
-    "suto",
-    "tűzhely",
-    "tuzhely",
-    "mikrohullámú",
-    "mikrohullamu",
-    "mikro",
-    "porszívó",
-    "porszivo",
-    "robotporszívó",
-    "robotporszivo",
-    "gőztisztító",
-    "goztisztito",
-    "kávéfőző",
-    "kavefozo",
-    "turmix",
-    "botmixer",
-    "konyhagép",
-    "konyhagep",
-  ];
-
-  const GARDEN_WORDS = [
-    "kert",
-    "kerti",
-    "locsoló",
-    "locsolo",
-    "slag",
-    "fűnyíró",
-    "funyiro",
-    "fűkasza",
-    "fukasza",
-    "láncfűrész",
-    "lancfuresz",
-    "metszőolló",
-    "metszoollo",
-    "gereblye",
-    "ásó",
-    "aso",
-    "lapát",
-    "lapat",
-    "kerti szerszám",
-    "magasnyomású mosó",
-    "magasnyomasu moso",
-  ];
-
-  // Alap: partnerhez rendelt bázis kategória
   if (cat === "kat-otthon") {
-    // Ruházat → Divat
-    if (hasAny(CLOTHES_WORDS) || hasAny(SHOES_WORDS)) {
+    if (
+      hasAny([
+        "alsó",
+        "alsónemű",
+        "alsonemu",
+        "bugyi",
+        "melltartó",
+        "melltarto",
+        "fehérnemű",
+        "fehernemu",
+        "pizsama",
+        "hálóing",
+        "haloing",
+        "köntös",
+        "kontos",
+        "zokni",
+        "harisnya",
+        "leggings",
+        "top",
+        "póló",
+        "polo",
+        "pulóver",
+        "pulover",
+        "ruha",
+        "szoknya",
+        "blúz",
+        "bluz",
+      ])
+    ) {
       cat = "kat-divat";
-    } else if (hasAny(APPLIANCE_WORDS)) {
-      // Háztartási gép → Gépek
+    } else if (
+      hasAny([
+        "cipő",
+        "cipo",
+        "csizma",
+        "bakancs",
+        "szandál",
+        "szandal",
+        "papucs",
+        "mokaszin",
+        "mokasszin",
+        "loafer",
+      ])
+    ) {
+      cat = "kat-divat";
+    } else if (
+      hasAny([
+        "mosógép",
+        "mosogep",
+        "mosogatógép",
+        "mosogatogep",
+        "mosó-szárító",
+        "moso-szarito",
+        "hűtőszekrény",
+        "hutoszekreny",
+        "fagyasztó",
+        "fagyaszto",
+        "sütő",
+        "sutő",
+        "tűzhely",
+        "tuzhely",
+        "mikrohullámú",
+        "mikro",
+        "mikrohullamu",
+        "porszívó",
+        "porszivo",
+        "robotporszívó",
+        "robotporszivo",
+        "gőztisztító",
+        "goztisztito",
+        "kávéfőző",
+        "kavefozo",
+        "turmix",
+        "botmixer",
+        "konyhagép",
+        "konyhagep",
+      ])
+    ) {
       cat = "kat-gepek";
-    } else if (hasAny(GARDEN_WORDS)) {
-      // Kerti cucc → Kert
+    } else if (
+      hasAny([
+        "kert",
+        "kerti",
+        "locsoló",
+        "locsolo",
+        "slag",
+        "fűnyíró",
+        "funyiro",
+        "fűkasza",
+        "fukasza",
+        "láncfűrész",
+        "lancfuresz",
+        "metszőolló",
+        "metszoollo",
+        "gereblye",
+        "ásó",
+        "aso",
+        "lapát",
+        "lapat",
+        "kerti szerszám",
+        "magasnyomású mosó",
+        "magasnyomasu moso",
+      ])
+    ) {
       cat = "kat-kert";
     }
   }
 
   if (cat === "kat-elektronika") {
-    // Nagygépek elektronika helyett → Gépek
-    if (hasAny(APPLIANCE_WORDS)) {
+    if (
+      hasAny([
+        "mosógép",
+        "mosogep",
+        "mosogatógép",
+        "mosogatogep",
+        "hűtőszekrény",
+        "hutoszekreny",
+        "mosó-szárító",
+        "moso-szarito",
+        "szárítógép",
+        "szaritogep",
+      ])
+    ) {
       cat = "kat-gepek";
     }
   }
@@ -512,6 +482,7 @@ async function buildAkciosBlokk() {
     if (nav) nav.innerHTML = "";
 
     const collected = [];
+    const scanPagesMax = 2;
 
     for (const [pid, cfg] of PARTNERS.entries()) {
       const plc = cfg.placements || {};
@@ -521,34 +492,54 @@ async function buildAkciosBlokk() {
       });
       if (!anyEnabled) continue;
 
-      // BF / akció konfiguráció partnerenként
-      const bfCfg = getBfConfigForPartner(cfg);
-      if (!bfCfg.enabled) continue;
-
       const meta = await getMeta(pid);
       const pageSize = meta.pageSize || 300;
       const totalPages =
         meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
-      const scanPages = Math.min(bfCfg.scanPages, totalPages);
-      const minDiscount = bfCfg.minDiscount;
+      const scanPages = Math.min(scanPagesMax, totalPages);
 
       for (let pg = 1; pg <= scanPages; pg++) {
         const arr = await getPageItems(pid, pg);
         for (const it of arr) {
           const d = getDiscountNumber(it);
-          if (d !== null && d >= minDiscount) {
+          if (d !== null && d >= 10) {
             collected.push({ pid, item: it });
           }
         }
       }
     }
 
-    // Sor-szintű dedup (méret-variánsok összevonása)
-    const merged = dedupeRowsStrong(collected).sort((a, b) => {
-      const da = getDiscountNumber(a.item) || 0;
-      const db = getDiscountNumber(b.item) || 0;
-      return db - da;
+    const dedItems = dedupeStrong(collected.map((r) => r.item));
+    const backMap = new Map();
+    collected.forEach((r) => {
+      const raw = itemUrl(r.item);
+      if (!raw) return;
+      const key =
+        basePath(stripVariantParams(raw)) +
+        "|" +
+        imgPath(itemImg(r.item)) +
+        "|" +
+        normalizeTitleNoSize(r.item.title || "");
+      if (!backMap.has(key)) backMap.set(key, r.pid);
     });
+
+    const merged = dedItems
+      .map((it) => {
+        const raw = itemUrl(it);
+        const key =
+          basePath(stripVariantParams(raw)) +
+          "|" +
+          imgPath(itemImg(it)) +
+          "|" +
+          normalizeTitleNoSize(it.title || "");
+        const pid = backMap.get(key) || "unknown";
+        return { pid, item: it };
+      })
+      .sort((a, b) => {
+        const da = getDiscountNumber(a.item) || 0;
+        const db = getDiscountNumber(b.item) || 0;
+        return db - da;
+      });
 
     const PAGE_SIZE = 12;
     AKCIO_PAGES = [];
@@ -740,7 +731,7 @@ function renderCategory(catId, page) {
   };
 }
 
-// ÚJ: Kategória-nézet a felső menüből – minden partner külön blokkban, max 6 termék/partner
+// Kategória-nézet a felső menüből – minden partner külön blokkban, max 6 termék/partner
 function renderCategoryFull(catId) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
@@ -919,7 +910,6 @@ async function hydratePartnerCategoryItems(pid, catId) {
         }
       }
 
-      // TELJES PARTNER+KATEGÓRIA LISTA DEDUP (MÉRET-VARIÁNSOK ÖSSZEVONÁSA)
       const allRows = dedupeRowsStrong(allRowsRaw);
 
       if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
