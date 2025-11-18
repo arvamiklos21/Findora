@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Keresés – Findora</title>
+  <meta name="description" content="Globális keresés a Findora partnereinek ajánlatai között.">
+  <link rel="canonical" href="https://www.findora.hu/search.html" />
+  <link rel="icon" href="assets/img/findora_mark.png" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+
+  <!-- Algolia kliens -->
+  <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4.23.3/dist/algoliasearch-lite.umd.js" crossorigin="anonymous"></script>
+
+  <style>
+    .search-wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .search-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .search-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .search-logo img {
+      width: 32px;
+      height: 32px;
+    }
+    .search-title-block {
+      display: flex;
+      flex-direction: column;
+    }
+    .search-title-block small {
+      font-size: 11px;
+      color: #666;
+    }
+    .search-main {
+      margin-top: 8px;
+    }
+    .search-bar-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .search-bar-row form {
+      flex: 1 1 260px;
+      display: flex;
+      gap: 8px;
+    }
+    .search-bar-row input[type="text"] {
+      flex: 1 1 auto;
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .search-bar-row button[type="submit"] {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .search-bar-row .back-link {
+      align-self: center;
+      font-size: 13px;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .search-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .search-controls select {
+      padding: 4px 8px;
+      font-size: 13px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    .search-controls label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+    .search-meta {
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 8px;
+    }
+    .search-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .search-empty {
+      padding: 16px;
+      font-size: 14px;
+    }
+    .search-nav {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin: 16px 0 8px;
+    }
+    .search-nav button {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .search-nav button[disabled] {
+      cursor: default;
+      opacity: 0.5;
+    }
+    .search-nav span {
+      font-size: 13px;
+    }
+    .card-desc {
+      font-size: 12px;
+      color: #555;
+      margin-top: 4px;
+      max-height: 40px;
+      overflow: hidden;
+    }
+    @media (max-width: 600px) {
+      .search-header {
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="search-wrap">
+      <div class="search-header">
+        <a href="./" class="search-logo">
+          <img src="assets/img/findora_mark.png" alt="Findora logó" />
+          <div class="search-title-block">
+            <strong>Findora</strong>
+            <small>Irányt mutat a legjobb ajánlatokhoz</small>
+          </div>
+        </a>
+        <a href="./" class="back-link">← Vissza a főoldalra</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="search-main">
+    <div class="search-wrap">
+      <div class="search-bar-row">
+        <form id="searchPageForm">
+          <input
+            type="text"
+            id="searchPageInput"
+            name="q"
+            placeholder="Mit keresel? (pl. laptop, porszívó, LEGO...)"
+            autocomplete="off"
+          />
+          <button type="submit" class="btn-megnez">Keresés</button>
+        </form>
+      </div>
+
+      <div class="search-controls">
+        <div>
+          Rendezés:
+          <select id="search-sort">
+            <option value="relevance">Relevancia (ajánlott)</option>
+            <option value="name-asc">Név A–Z</option>
+            <option value="name-desc">Név Z–A</option>
+            <option value="price-asc">Ár szerint növekvő</option>
+            <option value="price-desc">Ár szerint csökkenő</option>
+          </select>
+        </div>
+        <label>
+          <input type="checkbox" id="search-akcios" />
+          Csak akciós
+        </label>
+        <div id="search-meta" class="search-meta"></div>
+      </div>
+
+      <div id="search-results-grid" class="search-grid"></div>
+      <div id="search-results-nav" class="search-nav"></div>
+    </div>
+  </main>
+
+  <script>
+    // ===== Algolia beállítások =====
+    const ALGOLIA_APP_ID = "W95VUS9HJ8";
+    const ALGOLIA_SEARCH_KEY = "8b8bb69fcf22aa3c5d4637c7bbf7157c";
+    const ALGOLIA_INDEX_NAME = "findora_products";
+
+    const algoliaClient = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
+    const algoliaIndex = algoliaClient.initIndex(ALGOLIA_INDEX_NAME);
+
+    // ===== Közös helper – Ft formázás =====
+    function formatPrice(v) {
+      if (typeof v === "number" && isFinite(v)) {
+        return v.toLocaleString("hu-HU") + " Ft";
+      }
+      if (typeof v === "string" && v.trim()) return v;
+      return "—";
+    }
+
+    // Deeplink /api/dl segítségével
+    function buildDlUrl(hit) {
+      const rawUrl = hit && (hit.url || hit.link || hit.deeplink);
+      if (!rawUrl) return "#";
+      const partnerId = (hit.partnerId || hit.partner || "").toString().toLowerCase();
+      const base = "/api/dl?u=" + encodeURIComponent(rawUrl);
+      if (partnerId) {
+        return base + "&p=" + encodeURIComponent(partnerId);
+      }
+      return base;
+    }
+
+    // ===== Keresés állapot =====
+    const SEARCH_STATE = {
+      q: "",
+      sort: "relevance",
+      onlyAkcios: false,
+      page: 1,           // 1-alapú UI
+      pageSize: 24,
+      allHits: []
+    };
+
+    function getInitialQueryFromUrl() {
+      try {
+        const url = new URL(window.location.href);
+        const q = url.searchParams.get("q") || "";
+        return q;
+      } catch (_) {
+        return "";
+      }
+    }
+
+    function updateUrlQuery(q) {
+      // Csak az URL-t frissítjük, oldal újratöltés nélkül
+      try {
+        const url = new URL(window.location.href);
+        if (q) {
+          url.searchParams.set("q", q);
+        } else {
+          url.searchParams.delete("q");
+        }
+        window.history.replaceState({}, "", url.toString());
+      } catch (_) {
+        // ha nem megy, nem baj
+      }
+    }
+
+    // ===== Kártyák renderelése =====
+    function renderHitsPage() {
+      const grid = document.getElementById("search-results-grid");
+      const nav  = document.getElementById("search-results-nav");
+      const metaEl = document.getElementById("search-meta");
+      if (!grid || !nav) return;
+
+      const total = SEARCH_STATE.allHits.length || 0;
+      const pageSize = SEARCH_STATE.pageSize;
+      const maxPage = Math.max(1, Math.ceil(total / pageSize));
+
+      let page = SEARCH_STATE.page;
+      if (page < 1) page = 1;
+      if (page > maxPage) page = maxPage;
+      SEARCH_STATE.page = page;
+
+      if (!total) {
+        grid.innerHTML = '<div class="search-empty">Nincs találat erre a keresésre.</div>';
+        nav.innerHTML = "";
+        if (metaEl) {
+          const qtxt = SEARCH_STATE.q ? ' – „' + SEARCH_STATE.q + '”' : "";
+          metaEl.textContent = "0 találat" + qtxt + ".";
+        }
+        return;
+      }
+
+      const start = (page - 1) * pageSize;
+      const slice = SEARCH_STATE.allHits.slice(start, start + pageSize);
+
+      grid.innerHTML = slice.map((hit) => {
+        const img = hit.image || hit.img || hit.image_link || hit.thumbnail || "";
+        const title = hit.title || hit.name || "";
+        const desc = hit.desc || hit.description || "";
+        const price = formatPrice(hit.price);
+        const partnerName = hit.partnerName || hit.partner || hit.partnerId || "";
+        const dl = buildDlUrl(hit);
+        const disc = (typeof hit.discountPercent === "number" && isFinite(hit.discountPercent))
+          ? Math.round(hit.discountPercent)
+          : null;
+
+        return (
+          '<div class="card">' +
+            '<div class="thumb">' +
+              (img
+                ? '<img src="' + img + '" alt="" loading="lazy" decoding="async" style="max-width:100%;max-height:100%;object-fit:contain">'
+                : "🛍️") +
+            "</div>" +
+            '<div class="title">' + (title || "") + "</div>" +
+            '<div class="price">' +
+              price +
+              (disc ? " (-" + disc + "%)" : "") +
+            "</div>" +
+            (partnerName
+              ? '<div class="partner">• ' + partnerName + "</div>"
+              : "") +
+            (desc
+              ? '<div class="card-desc">' + desc + "</div>"
+              : "") +
+            (dl && dl !== "#"
+              ? '<a class="btn-megnez" href="' + dl + '" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem🔗</a>'
+              : "") +
+          "</div>"
+        );
+      }).join("");
+
+      nav.innerHTML =
+        '<button class="btn-megnez" ' +
+        (page <= 1 ? "disabled" : "") +
+        ' data-page="' + (page - 1) + '">Előző</button>' +
+        '<span>' + page + "/" + maxPage + "</span>" +
+        '<button class="btn-megnez" ' +
+        (page >= maxPage ? "disabled" : "") +
+        ' data-page="' + (page + 1) + '">Következő</button>';
+
+      if (metaEl) {
+        const qtxt = SEARCH_STATE.q ? ' – „' + SEARCH_STATE.q + '”' : "";
+        const akcioTxt = SEARCH_STATE.onlyAkcios ? " (csak akciós szűrve)" : "";
+        metaEl.textContent = total + " találat" + qtxt + akcioTxt + ".";
+      }
+    }
+
+    function applySortAndFilters(rawHits) {
+      let hits = Array.isArray(rawHits) ? rawHits.slice() : [];
+
+      if (SEARCH_STATE.onlyAkcios) {
+        hits = hits.filter((h) => {
+          const d = h && typeof h.discountPercent === "number" ? h.discountPercent : null;
+          if (d !== null && isFinite(d) && d >= 10 && d <= 90) return true;
+          if (h && typeof h.isAkcios === "boolean") return h.isAkcios;
+          return false;
+        });
+      }
+
+      const sort = SEARCH_STATE.sort;
+      if (sort === "name-asc" || sort === "name-desc") {
+        hits.sort((a, b) => {
+          const ta = ((a && a.title) || (a && a.name) || "").toLowerCase();
+          const tb = ((b && b.title) || (b && b.name) || "").toLowerCase();
+          if (ta < tb) return sort === "name-asc" ? -1 : 1;
+          if (ta > tb) return sort === "name-asc" ? 1 : -1;
+          return 0;
+        });
+      } else if (sort === "price-asc" || sort === "price-desc") {
+        hits.sort((a, b) => {
+          const pa = typeof a.price === "number" && isFinite(a.price) ? a.price : Infinity;
+          const pb = typeof b.price === "number" && isFinite(b.price) ? b.price : Infinity;
+          if (pa === pb) return 0;
+          if (sort === "price-asc") return pa - pb;
+          return pb - pa;
+        });
+      } else {
+        // "relevance" → Algolia sorrend, nem változtatunk
+      }
+
+      return hits;
+    }
+
+    // ===== Algolia keresés futtatása =====
+    async function runSearch() {
+      const grid = document.getElementById("search-results-grid");
+      const nav  = document.getElementById("search-results-nav");
+      const metaEl = document.getElementById("search-meta");
+      if (grid) {
+        grid.innerHTML = '<div class="search-empty">Keresés folyamatban…</div>';
+      }
+      if (nav) nav.innerHTML = "";
+      if (metaEl) metaEl.textContent = "";
+
+      const q = (SEARCH_STATE.q || "").trim();
+      if (!q) {
+        if (grid) {
+          grid.innerHTML = '<div class="search-empty">Írj be egy keresési kifejezést a mezőbe.</div>';
+        }
+        return;
+      }
+
+      try {
+        const res = await algoliaIndex.search(q, {
+          hitsPerPage: 1000, // egyben kérjük le, a lapozást mi intézzük
+        });
+        const rawHits = res && Array.isArray(res.hits) ? res.hits : [];
+        SEARCH_STATE.allHits = applySortAndFilters(rawHits);
+        SEARCH_STATE.page = 1;
+        renderHitsPage();
+      } catch (e) {
+        console.error("Algolia keresési hiba:", e);
+        if (grid) {
+          grid.innerHTML = '<div class="search-empty">Hiba történt a keresés során. Próbáld meg később újra.</div>';
+        }
+        if (nav) nav.innerHTML = "";
+      }
+    }
+
+    // ===== Event handlerek =====
+    function attachSearchPageHandlers() {
+      const form = document.getElementById("searchPageForm");
+      const input = document.getElementById("searchPageInput");
+      const sortSelect = document.getElementById("search-sort");
+      const akciosCb = document.getElementById("search-akcios");
+      const nav = document.getElementById("search-results-nav");
+
+      if (form && input) {
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          SEARCH_STATE.q = (input.value || "").trim();
+          updateUrlQuery(SEARCH_STATE.q);
+          runSearch();
+        });
+      }
+
+      if (sortSelect) {
+        sortSelect.addEventListener("change", function () {
+          SEARCH_STATE.sort = this.value || "relevance";
+          // rendezés + lapozás újraszámítása a már lekért találatokon
+          SEARCH_STATE.allHits = applySortAndFilters(SEARCH_STATE.allHits);
+          SEARCH_STATE.page = 1;
+          renderHitsPage();
+        });
+      }
+
+      if (akciosCb) {
+        akciosCb.addEventListener("change", function () {
+          SEARCH_STATE.onlyAkcios = !!this.checked;
+          SEARCH_STATE.allHits = applySortAndFilters(SEARCH_STATE.allHits);
+          SEARCH_STATE.page = 1;
+          renderHitsPage();
+        });
+      }
+
+      if (nav) {
+        nav.addEventListener("click", function (e) {
+          const btn = e.target.closest("button[data-page]");
+          if (!btn || btn.disabled) return;
+          const p = parseInt(btn.getAttribute("data-page"), 10);
+          if (!Number.isFinite(p)) return;
+          SEARCH_STATE.page = p;
+          renderHitsPage();
+        });
+      }
+    }
+
+    // ===== INIT – oldal betöltésekor =====
+    (function initSearchPage() {
+      const input = document.getElementById("searchPageInput");
+      const initialQ = getInitialQueryFromUrl();
+      SEARCH_STATE.q = initialQ;
+      if (input) input.value = initialQ;
+      attachSearchPageHandlers();
+      if (initialQ) {
+        runSearch();
+      }
+    })();
+  </script>
+</body>
+</html>
