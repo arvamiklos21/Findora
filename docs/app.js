@@ -1,4 +1,4 @@
-// ===== Beállítások – éles Findora feedek használata =====
+// ===== KONFIG – feedek, partnerek =====
 const FEEDS_BASE = "";
 const PARTNERS_URL = FEEDS_BASE + "/feeds/partners.json";
 
@@ -6,7 +6,7 @@ const PARTNERS = new Map();
 const META = new Map();
 const PAGES = new Map();
 
-// Deeplink építése – minden gomb: Megnézem🔗
+// Deeplink – minden Megnézem🔗 gomb
 function dlUrl(partnerId, rawUrl) {
   if (!rawUrl) return "#";
   return (
@@ -14,7 +14,7 @@ function dlUrl(partnerId, rawUrl) {
   );
 }
 
-// ===== Kisegítő függvények =====
+// ===== Kisegítő függvények (ár, kép, URL, path) =====
 function priceText(v) {
   if (typeof v === "number" && isFinite(v)) {
     return v.toLocaleString("hu-HU") + " Ft";
@@ -44,14 +44,14 @@ function imgPath(u) {
   return String(u || "").split("#")[0].split("?")[0];
 }
 
-// Méret / szín variánsok erős deduplikálása (TITLE alapú)
+// ===== Variáns (méret / szín) erős dedup – ITEM szinten =====
 const SIZE_TOKENS = new RegExp(
   [
     "\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\b",
     "\\b(?:\\d{2,3}[\\/-]\\d{2,3})\\b",
     "\\bEU\\s?\\d{2,3}\\b",
     "[\\(\\[]\\s*(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|EU\\s?\\d{2,3}|\\d{2,3}[\\/-]\\d{2,3})\\s*[\\)\\]]",
-    "\\b(?:méret|meret)\\b\\s*[:\\-]?\\s*[A-Za-z0-9\\/-]+",
+    "\\b(?:méret|meret)\\b\\s*[:\\-]?\\s*[A-Za-z0-9\\/-]+"
   ].join("|"),
   "gi"
 );
@@ -81,7 +81,7 @@ function stripVariantParams(u) {
       "size_id",
       "meret_id",
       "option",
-      "variant",
+      "variant"
     ];
     for (const k of Array.from(x.searchParams.keys())) {
       if (drop.indexOf(k.toLowerCase()) > -1) x.searchParams.delete(k);
@@ -92,7 +92,7 @@ function stripVariantParams(u) {
   }
 }
 
-// Dedup: csak item objektumokra
+// ITEM listán dedup (pl. akciós blokk)
 function dedupeStrong(items) {
   const out = [];
   const seen = new Set();
@@ -112,22 +112,20 @@ function dedupeStrong(items) {
   return out;
 }
 
-// Dedup: { pid, item } sorokra (kategória, partner-nézet)
+// ROW ( { pid, item } ) listán dedup – kategóriákhoz
 function dedupeRowsStrong(rows) {
   const out = [];
   const seen = new Set();
   (rows || []).forEach((row) => {
-    const pid = row.pid || "";
-    const it = row.item || {};
+    if (!row || !row.item) return;
+    const it = row.item;
     const raw = itemUrl(it);
     const key =
-      pid +
-      "|" +
       basePath(stripVariantParams(raw)) +
       "|" +
       imgPath(itemImg(it)) +
       "|" +
-      normalizeTitleNoSize(it && it.title);
+      normalizeTitleNoSize(it.title || "");
     if (!seen.has(key)) {
       seen.add(key);
       out.push(row);
@@ -154,7 +152,6 @@ function getDiscountNumber(it) {
   const d = parseInt(m[1], 10);
   if (!Number.isFinite(d)) return null;
   if (d < 5 || d > 90) return null;
-
   return d;
 }
 
@@ -208,7 +205,7 @@ async function getPageItems(pid, pageNum) {
   return arr;
 }
 
-// ===== Partner-alapú bázis kategória hozzárendelés =====
+// ===== Partner → alap kategória hozzárendelés =====
 const BASE_CATEGORY_BY_PARTNER = {
   tchibo: "kat-otthon",
   "cj-karcher": "kat-kert",
@@ -223,7 +220,7 @@ const BASE_CATEGORY_BY_PARTNER = {
   ekszereshop: "kat-szepseg",
   karacsonydekor: "kat-otthon",
   otthonmarket: "kat-otthon",
-  onlinemarkabolt: "kat-elektronika",
+  onlinemarkabolt: "kat-elektronika"
 };
 
 function baseCategoryForPartner(pid, cfg) {
@@ -248,7 +245,7 @@ function baseCategoryForPartner(pid, cfg) {
   }
 }
 
-// ===== Kategória meghatározás egy termékre =====
+// Termék kategória meghatározás (kulcsszavas finomhangolás)
 function getCategoriesForItem(pid, it) {
   const cfg = PARTNERS.get(pid) || {};
   let cat = baseCategoryForPartner(pid, cfg);
@@ -262,6 +259,7 @@ function getCategoriesForItem(pid, it) {
   const hasAny = (words) => words.some((w) => text.includes(w));
 
   if (cat === "kat-otthon") {
+    // Divat
     if (
       hasAny([
         "alsó",
@@ -288,7 +286,7 @@ function getCategoriesForItem(pid, it) {
         "ruha",
         "szoknya",
         "blúz",
-        "bluz",
+        "bluz"
       ])
     ) {
       cat = "kat-divat";
@@ -303,11 +301,12 @@ function getCategoriesForItem(pid, it) {
         "papucs",
         "mokaszin",
         "mokasszin",
-        "loafer",
+        "loafer"
       ])
     ) {
       cat = "kat-divat";
     } else if (
+      // Gépek
       hasAny([
         "mosógép",
         "mosogep",
@@ -324,8 +323,8 @@ function getCategoriesForItem(pid, it) {
         "tűzhely",
         "tuzhely",
         "mikrohullámú",
-        "mikro",
         "mikrohullamu",
+        "mikro",
         "porszívó",
         "porszivo",
         "robotporszívó",
@@ -337,11 +336,12 @@ function getCategoriesForItem(pid, it) {
         "turmix",
         "botmixer",
         "konyhagép",
-        "konyhagep",
+        "konyhagep"
       ])
     ) {
       cat = "kat-gepek";
     } else if (
+      // Kert
       hasAny([
         "kert",
         "kerti",
@@ -363,7 +363,7 @@ function getCategoriesForItem(pid, it) {
         "lapat",
         "kerti szerszám",
         "magasnyomású mosó",
-        "magasnyomasu moso",
+        "magasnyomasu moso"
       ])
     ) {
       cat = "kat-kert";
@@ -382,7 +382,7 @@ function getCategoriesForItem(pid, it) {
         "mosó-szárító",
         "moso-szarito",
         "szárítógép",
-        "szaritogep",
+        "szaritogep"
       ])
     ) {
       cat = "kat-gepek";
@@ -393,7 +393,7 @@ function getCategoriesForItem(pid, it) {
   return [cat];
 }
 
-// ===== Akciós blokk =====
+// ===== AKCIÓS BLOKK =====
 let AKCIO_PAGES = [];
 let AKCIO_CURRENT = 1;
 
@@ -480,7 +480,7 @@ function renderAkcioPage(page) {
   window.akciokPager = {
     go: function (p) {
       renderAkcioPage(p);
-    },
+    }
   };
 }
 
@@ -521,7 +521,9 @@ async function buildAkciosBlokk() {
       }
     }
 
-    const dedItems = dedupeStrong(collected.map((r) => r.item));
+    const onlyItems = collected.map((r) => r.item);
+    const dedItems = dedupeStrong(onlyItems);
+
     const backMap = new Map();
     collected.forEach((r) => {
       const raw = itemUrl(r.item);
@@ -569,7 +571,7 @@ async function buildAkciosBlokk() {
   }
 }
 
-// ===== KATEGÓRIA BLOKKOK – FŐOLDAL + KÜLÖN KATEGÓRIA NÉZET =====
+// ===== KATEGÓRIA BLOKKOK – konstansok =====
 const CATEGORY_IDS = [
   "kat-elektronika",
   "kat-gepek",
@@ -583,18 +585,16 @@ const CATEGORY_IDS = [
   "kat-allatok",
   "kat-konyv",
   "kat-utazas",
-  "kat-multi",
+  "kat-multi"
 ];
 
 const CATEGORY_PAGES = {};
 const CATEGORY_CURRENT = {};
 window.catPager = window.catPager || {};
 
-// Partner + kategória mátrix
 const PARTNER_CATEGORY_ITEMS = {};
 const PARTNER_CATEGORY_LOAD_PROMISES = {};
 
-// Partner nézet állapot
 let PARTNER_VIEW_STATE = {
   pid: null,
   catId: null,
@@ -604,10 +604,10 @@ let PARTNER_VIEW_STATE = {
   pageSize: 20,
   sort: "default",
   query: "",
-  loading: false,
+  loading: false
 };
 
-// Kártyák renderelése
+// Kártyák renderelése (közös)
 function renderCategoryCards(itemsWithPartner, catId, showPartnerRow) {
   const list = itemsWithPartner || [];
   if (!list.length) {
@@ -656,7 +656,7 @@ function renderCategoryCards(itemsWithPartner, catId, showPartnerRow) {
     .join("");
 }
 
-// FŐOLDALI kategória-render (lapozóval, mixelve)
+// FŐOLDALI kategória-render (mixelt, lapozható)
 function renderCategory(catId, page) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
@@ -741,11 +741,11 @@ function renderCategory(catId, page) {
   window.catPager[catId] = {
     go: function (p) {
       renderCategory(catId, p);
-    },
+    }
   };
 }
 
-// KATEGÓRIA NÉZET (felső menü) – minden partner külön blokkban, max 6 termék/partner
+// Kategória nézet: minden partner külön blokkban, max 6 termék / partner
 function renderCategoryFull(catId) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
@@ -767,7 +767,7 @@ function renderCategoryFull(catId) {
     hasAny = true;
     const partnerName = getPartnerName(pid);
     const titleText = partnerName + (catName ? " – " + catName : "");
-    const slice = perCat.slice(0, 6); // max 6 / partner
+    const slice = perCat.slice(0, 6); // max 6 termék / partner
 
     html +=
       '<div class="partner-block" data-partner="' +
@@ -798,32 +798,10 @@ function renderCategoryFull(catId) {
   }
 
   grid.innerHTML = html;
-  nav.innerHTML = ""; // külön kategória nézetben nincs lapozó
+  nav.innerHTML = "";
 }
 
-// ===== KATEGÓRIA ROW DEDUP – { pid, item } szinten =====
-function dedupeRowsStrong(rows) {
-  const out = [];
-  const seen = new Set();
-  (rows || []).forEach((row) => {
-    if (!row || !row.item) return;
-    const it = row.item;
-    const raw = itemUrl(it);
-    const key =
-      basePath(stripVariantParams(raw)) +
-      "|" +
-      imgPath(itemImg(it)) +
-      "|" +
-      normalizeTitleNoSize(it.title || "");
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push(row);
-    }
-  });
-  return out;
-}
-
-// ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL + KATEGÓRIA-NÉZET ALAP) =====
+// Teljes kategória-struktúra felépítése (főoldal)
 async function buildCategoryBlocks() {
   const buffers = {};
   const scanPagesMax = 2;
@@ -864,10 +842,10 @@ async function buildCategoryBlocks() {
 
   CATEGORY_IDS.forEach((catId) => {
     const rawList = buffers[catId] || [];
-    const list = dedupeRowsStrong(rawList); // MÉRET-variáns dedup kategórián
+    const list = dedupeRowsStrong(rawList);
 
     const pages = [];
-    for (let i = 0; i < list.length; i += PAGE_SIZE; i++) {
+    for (let i = 0; i < list.length; i += PAGE_SIZE) {
       pages.push(list.slice(i, i + PAGE_SIZE));
     }
 
@@ -888,7 +866,7 @@ async function buildCategoryBlocks() {
   });
 }
 
-// ===== Helper a partner/kategória címekhez =====
+// ===== Helper a címekhez =====
 function getPartnerName(pid) {
   const cfg = PARTNERS.get(pid);
   return (cfg && cfg.name) || pid;
@@ -899,18 +877,7 @@ function getCategoryName(catId) {
   return el ? el.textContent.trim() : "";
 }
 
-// ===== Helper a partner/kategória címekhez =====
-function getPartnerName(pid) {
-  const cfg = PARTNERS.get(pid);
-  return (cfg && cfg.name) || pid;
-}
-
-function getCategoryName(catId) {
-  const el = document.querySelector("#" + catId + " .section-header h2");
-  return el ? el.textContent.trim() : "";
-}
-
-// ===== 4/C – Partner + kategória teljes feed háttérbetöltés =====
+// ===== Partner + kategória teljes feed háttérbetöltés =====
 async function hydratePartnerCategoryItems(pid, catId) {
   const key = pid + "||" + catId;
   if (PARTNER_CATEGORY_LOAD_PROMISES[key]) {
@@ -1095,15 +1062,15 @@ function openPartnerView(pid, catId) {
     (PARTNER_CATEGORY_ITEMS[pid] && PARTNER_CATEGORY_ITEMS[pid][catId]) || [];
 
   PARTNER_VIEW_STATE = {
-    pid,
-    catId,
+    pid: pid,
+    catId: catId,
     items: itemsForCombo.slice(),
     filtered: [],
     page: 1,
     pageSize: 20,
     sort: "default",
     query: "",
-    loading: true,
+    loading: true
   };
 
   const searchInput = document.getElementById("partner-search");
@@ -1142,7 +1109,7 @@ function openPartnerView(pid, catId) {
   hydratePartnerCategoryItems(pid, catId);
 }
 
-// ===== Hero kereső → Algolia keresőoldalra irányítás =====
+// ===== Hero kereső → search.html (Algolia / saját kereső) =====
 function attachSearchForm() {
   const form = document.getElementById("searchFormAll");
   const input = document.getElementById("qAll");
@@ -1165,7 +1132,7 @@ function attachSearchForm() {
   });
 }
 
-// ===== Menü & kategória pill görgetés =====
+// ===== Menü & kategória pill görgetés (FŐOLDAL nézet) =====
 function smoothScrollTo(selector) {
   const el = document.querySelector(selector);
   if (!el) return;
@@ -1175,8 +1142,8 @@ function smoothScrollTo(selector) {
   const top = rect.top + offset - 70;
 
   window.scrollTo({
-    top,
-    behavior: "smooth",
+    top: top,
+    behavior: "smooth"
   });
 }
 
@@ -1224,9 +1191,7 @@ function showCategoryOnly(catId) {
     }
   });
 
-  // Kategória nézet: minden partner külön blokkban, max 6 termék/partner
   renderCategoryFull(catId);
-
   smoothScrollTo("#" + catId);
 }
 
@@ -1290,77 +1255,80 @@ function handlePartnerUiClick(event) {
     }
     return;
   }
-
-  const backBtn = event.target.closest(".btn-back-partner");
-  if (backBtn) {
-    event.preventDefault();
-    if (PARTNER_VIEW_STATE && PARTNER_VIEW_STATE.catId) {
-      showCategoryOnly(PARTNER_VIEW_STATE.catId);
-    } else {
-      showAllSections();
-    }
-    return;
-  }
-
-  const homeBtn = event.target.closest(".btn-home-partner");
-  if (homeBtn) {
-    event.preventDefault();
-    showAllSections();
-    return;
-  }
-
-  const pagerBtn = event.target.closest("[data-partner-page]");
-  if (pagerBtn) {
-    event.preventDefault();
-    const p = parseInt(pagerBtn.getAttribute("data-partner-page"), 10);
-    if (Number.isFinite(p)) {
-      renderPartnerViewPage(p);
-    }
-    return;
-  }
 }
 
-function attachPartnerViewHandlers() {
-  const searchInput = document.getElementById("partner-search");
-  const sortSelect = document.getElementById("partner-sort");
+function handlePartnerPagerClick(event) {
+  const btn = event.target.closest("#partner-view-nav [data-partner-page]");
+  if (!btn) return;
+  if (btn.disabled) return;
 
-  if (searchInput) {
-    searchInput.addEventListener("input", function () {
-      PARTNER_VIEW_STATE.query = this.value || "";
-      applyPartnerFilters();
-      renderPartnerViewPage(1);
-    });
-  }
+  event.preventDefault();
+  const pageAttr = btn.getAttribute("data-partner-page");
+  if (!pageAttr) return;
 
-  if (sortSelect) {
-    sortSelect.addEventListener("change", function () {
-      PARTNER_VIEW_STATE.sort = this.value || "default";
-      applyPartnerFilters();
-      renderPartnerViewPage(1);
-    });
-  }
+  const pageNum = parseInt(pageAttr, 10);
+  if (!Number.isFinite(pageNum) || pageNum < 1) return;
 
+  renderPartnerViewPage(pageNum);
+}
+
+function attachPartnerUiHandlers() {
   document.addEventListener("click", handlePartnerUiClick);
+  document.addEventListener("click", handlePartnerPagerClick);
+
+  const backBtn = document.querySelector(".btn-back-partner");
+  if (backBtn) {
+    backBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      if (PARTNER_VIEW_STATE && PARTNER_VIEW_STATE.catId) {
+        showCategoryOnly(PARTNER_VIEW_STATE.catId);
+      } else {
+        showAllSections();
+      }
+    });
+  }
+
+  const homeBtn = document.querySelector(".btn-home-partner");
+  if (homeBtn) {
+    homeBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      showAllSections();
+    });
+  }
+
+  const searchInput = document.getElementById("partner-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", function (e) {
+      PARTNER_VIEW_STATE.query = e.target.value || "";
+      applyPartnerFilters();
+      renderPartnerViewPage(1);
+    });
+  }
+
+  const sortSelect = document.getElementById("partner-sort");
+  if (sortSelect) {
+    sortSelect.addEventListener("change", function (e) {
+      PARTNER_VIEW_STATE.sort = e.target.value || "default";
+      applyPartnerFilters();
+      renderPartnerViewPage(1);
+    });
+  }
 }
 
 // ===== INIT =====
-async function init() {
+async function initData() {
   try {
-    attachScrollHandlers();
-    attachNavHandlers();
-    attachSearchForm();
-    attachPartnerViewHandlers();
     await loadPartners();
-    await buildAkciosBlokk();
-    await buildCategoryBlocks();
+    await Promise.all([buildAkciosBlokk(), buildCategoryBlocks()]);
   } catch (e) {
     console.error("Init hiba:", e);
   }
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
-  init();
-}
-
+document.addEventListener("DOMContentLoaded", function () {
+  attachSearchForm();
+  attachScrollHandlers();
+  attachNavHandlers();
+  attachPartnerUiHandlers();
+  initData();
+});
