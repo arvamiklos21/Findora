@@ -1298,21 +1298,20 @@ async function buildCategoryBlocks() {
     }
   }
 
-const PAGE_SIZE = 6; // főoldali kategória 6 termék / oldal (mixelt)
+  const PAGE_SIZE = 6; // főoldali kategória 6 termék / oldal (mixelt)
 
-CATEGORY_IDS.forEach((catid) => {
-  const rawlist = buffers[catid] || [];
-  const list = dedupeRowsStrong(rawlist);
-  const pages = [];
+  CATEGORY_IDS.forEach((catId) => {
+    const rawList = buffers[catId] || [];
+    const list = dedupeRowsStrong(rawList);
+    const pages = [];
 
-  for (let i = 0; i < list.length; i += PAGE_SIZE) {
-    pages.push(list.slice(i, i + PAGE_SIZE));
-  }
+    for (let i = 0; i < list.length; i += PAGE_SIZE) {
+      pages.push(list.slice(i, i + PAGE_SIZE));
+    }
 
-  CATEGORY_PAGES[catid] = pages;
-  CATEGORY_CURRENT[catid] = pages.length ? 1 : 0;
-});
-});
+    CATEGORY_PAGES[catId] = pages;
+    CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
+  });
 }
 
 // ===== INIT =====
@@ -1335,4 +1334,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
