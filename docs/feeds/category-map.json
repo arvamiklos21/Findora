@@ -17,6 +17,7 @@
   { "pattern": "gyerek", "catId": "kat-divat" },
   { "pattern": "sport", "catId": "kat-sport" },
   { "pattern": "gyerekzokni", "catId": "kat-divat" },
+  { "pattern": "mellény", "catId": "kat-divat" },
 
   { "pattern": "konyha", "catId": "kat-otthon" },
   { "pattern": "konyhai", "catId": "kat-otthon" },
@@ -32,6 +33,9 @@
     { "pattern": "mosogep", "catId": "kat-gepek" },
     { "pattern": "mikrofon", "catId": "kat-elektronika" },
     { "pattern": "headset", "catId": "kat-elektronika" },
+    { "pattern": "Bery Jones", "catId": "kat-otthon" },
+     { "pattern": "xbox", "catId": "kat-elektronika" },
+     { "pattern": "ps", "catId": "kat-elektronika" },
 
     { "pattern": "jatek", "catId": "kat-jatekok" },
     { "pattern": "jatekok", "catId": "kat-jatekok" },
@@ -65,10 +69,22 @@
   "onlinemarkabolt": [
     { "pattern": "csaptelep", "catId": "kat-otthon" },
     { "pattern": "mosogato", "catId": "kat-otthon" },
-    { "pattern": "konyha", "catId": "kat-otthon" }
+    { "pattern": "konyha", "catId": "kat-otthon" },
+    { "pattern": "mellény", "catId": "kat-divat" },
+    { "pattern": "Baseballsapka", "catId": "kat-divat" },
+   { "pattern": "fürdőnadrág", "catId": "kat-divat" },
   ],
 
   "pepita": [
-    { "pattern": "jatek", "catId": "kat-jatekok" }
+    { "pattern": "jatek", "catId": "kat-jatekok" },
+    { "pattern": "Televízió", "catId": "kat-elektronika" },
+    { "pattern": "kamera", "catId": "kat-elektronika" },
+    { "pattern": "szivattyú", "catId": "kat-kert" },
+    { "pattern": "Sövénynyíró", "catId": "kat-kert" },
+    { "pattern": "Pizzasütő", "catId": "kat-gepek" },
+    { "pattern": "TRouter", "catId": "kat-elektronika" },
+    
+
+    
   ]
 }
