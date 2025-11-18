@@ -1,0 +1,55 @@
+{
+  "tchibo": [
+    { "pattern": "noi divat", "catId": "kat-divat" },
+    { "pattern": "ferfi divat", "catId": "kat-divat" },
+    { "pattern": "gyerek divat", "catId": "kat-divat" },
+    { "pattern": "fehernemu", "catId": "kat-divat" },
+    { "pattern": "ruhazat", "catId": "kat-divat" },
+    { "pattern": "halo ruhazat", "catId": "kat-divat" },
+
+    { "pattern": "otthon", "catId": "kat-otthon" },
+    { "pattern": "lakberendezes", "catId": "kat-otthon" },
+    { "pattern": "konyha", "catId": "kat-otthon" }
+  ],
+
+  "alza": [
+    { "pattern": "jatek", "catId": "kat-jatekok" },
+    { "pattern": "jatekok", "catId": "kat-jatekok" },
+
+    { "pattern": "sport", "catId": "kat-sport" },
+    { "pattern": "szabadido", "catId": "kat-sport" },
+
+    { "pattern": "konyv", "catId": "kat-konyv" },
+    { "pattern": "konyvek", "catId": "kat-konyv" },
+
+    { "pattern": "haztartasi gep", "catId": "kat-gepek" },
+    { "pattern": "haztartas", "catId": "kat-otthon" }
+  ],
+
+  "cj-eoptika": [
+    { "pattern": "kontaktlencse", "catId": "kat-latas" },
+    { "pattern": "szemuveg", "catId": "kat-latas" },
+    { "pattern": "napszemuveg", "catId": "kat-latas" }
+  ],
+
+  "jateksziget": [
+    { "pattern": "", "catId": "kat-jatekok" }
+  ],
+  "regiojatek": [
+    { "pattern": "", "catId": "kat-jatekok" }
+  ],
+  "cj-jateknet": [
+    { "pattern": "", "catId": "kat-jatekok" }
+  ],
+
+  "onlinemarkabolt": [
+    { "pattern": "csaptelep", "catId": "kat-otthon" },
+    { "pattern": "mosogato", "catId": "kat-otthon" },
+    { "pattern": "konyha", "catId": "kat-otthon" }
+  ],
+
+  "pepita": [
+    { "pattern": "jatek", "catId": "kat-jatekok" },
+    { "pattern": "black weekend", "catId": "kat-elektronika" }
+  ]
+}
