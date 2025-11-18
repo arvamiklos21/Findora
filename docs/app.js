@@ -9,7 +9,9 @@ const PAGES = new Map();
 // Deeplink építése – minden gomb: Megnézem🔗
 function dlUrl(partnerId, rawUrl) {
   if (!rawUrl) return "#";
-  return FEEDS_BASE + "/api/dl?u=" + encodeURIComponent(rawUrl) + "&p=" + partnerId;
+  return (
+    FEEDS_BASE + "/api/dl?u=" + encodeURIComponent(rawUrl) + "&p=" + partnerId
+  );
 }
 
 // ===== Kisegítő függvények =====
@@ -42,7 +44,7 @@ function imgPath(u) {
   return String(u || "").split("#")[0].split("?")[0];
 }
 
-// Méret / szín variánsok erős deduplikálása
+// Méret / szín variánsok erős deduplikálása (TITLE alapú)
 const SIZE_TOKENS = new RegExp(
   [
     "\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\b",
@@ -58,7 +60,10 @@ function normalizeTitleNoSize(t) {
   if (!t) return "";
   return String(t)
     .replace(SIZE_TOKENS, " ")
-    .replace(/\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi, " ")
+    .replace(
+      /\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi,
+      " "
+    )
     .replace(/\s{2,}/g, " ")
     .trim()
     .toLowerCase();
@@ -87,6 +92,7 @@ function stripVariantParams(u) {
   }
 }
 
+// Dedup: csak item objektumokra
 function dedupeStrong(items) {
   const out = [];
   const seen = new Set();
@@ -106,20 +112,22 @@ function dedupeStrong(items) {
   return out;
 }
 
-// Sor-szintű dedup (kategória / partner listákra) – ugyanaz a logika, mint dedupeStrong, csak {pid,item} sorokra
+// Dedup: { pid, item } sorokra (kategória, partner-nézet)
 function dedupeRowsStrong(rows) {
   const out = [];
   const seen = new Set();
   (rows || []).forEach((row) => {
-    const it = row && row.item;
-    if (!it) return;
+    const pid = row.pid || "";
+    const it = row.item || {};
     const raw = itemUrl(it);
     const key =
+      pid +
+      "|" +
       basePath(stripVariantParams(raw)) +
       "|" +
       imgPath(itemImg(it)) +
       "|" +
-      normalizeTitleNoSize(it.title || "");
+      normalizeTitleNoSize(it && it.title);
     if (!seen.has(key)) {
       seen.add(key);
       out.push(row);
@@ -178,7 +186,11 @@ async function getMeta(pid) {
 }
 
 function pageUrl(cfg, n) {
-  return FEEDS_BASE + "/" + cfg.pagePattern.replace("{NNNN}", String(n).padStart(4, "0"));
+  return (
+    FEEDS_BASE +
+    "/" +
+    cfg.pagePattern.replace("{NNNN}", String(n).padStart(4, "0"))
+  );
 }
 
 async function getPageItems(pid, pageNum) {
@@ -557,7 +569,7 @@ async function buildAkciosBlokk() {
   }
 }
 
-// ===== KATEGÓRIA BLOKKOK – LAPOZHATÓ GRID (FŐOLDAL) =====
+// ===== KATEGÓRIA BLOKKOK – FŐOLDAL + KÜLÖN KATEGÓRIA NÉZET =====
 const CATEGORY_IDS = [
   "kat-elektronika",
   "kat-gepek",
@@ -578,9 +590,11 @@ const CATEGORY_PAGES = {};
 const CATEGORY_CURRENT = {};
 window.catPager = window.catPager || {};
 
+// Partner + kategória mátrix
 const PARTNER_CATEGORY_ITEMS = {};
 const PARTNER_CATEGORY_LOAD_PROMISES = {};
 
+// Partner nézet állapot
 let PARTNER_VIEW_STATE = {
   pid: null,
   catId: null,
@@ -731,7 +745,7 @@ function renderCategory(catId, page) {
   };
 }
 
-// Kategória-nézet a felső menüből – minden partner külön blokkban, max 6 termék/partner
+// KATEGÓRIA NÉZET (felső menü) – minden partner külön blokkban, max 6 termék/partner
 function renderCategoryFull(catId) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
@@ -753,7 +767,7 @@ function renderCategoryFull(catId) {
     hasAny = true;
     const partnerName = getPartnerName(pid);
     const titleText = partnerName + (catName ? " – " + catName : "");
-    const slice = perCat.slice(0, 6); // max 6 termék / partner
+    const slice = perCat.slice(0, 6); // max 6 / partner
 
     html +=
       '<div class="partner-block" data-partner="' +
@@ -784,7 +798,7 @@ function renderCategoryFull(catId) {
   }
 
   grid.innerHTML = html;
-  nav.innerHTML = ""; // kategória nézetben nincs lapozó, 1 oldalon minden partner
+  nav.innerHTML = ""; // külön kategória nézetben nincs lapozó
 }
 
 async function buildCategoryBlocks() {
@@ -826,7 +840,7 @@ async function buildCategoryBlocks() {
 
   CATEGORY_IDS.forEach((catId) => {
     const rawList = buffers[catId] || [];
-    const list = dedupeRowsStrong(rawList); // MÉRET-VARIÁNS DEDUP KATEGÓRIÁN
+    const list = dedupeRowsStrong(rawList); // dedup kategórián
 
     const pages = [];
     for (let i = 0; i < list.length; i += PAGE_SIZE; i++) {
