@@ -1,6 +1,15 @@
-import os, re, json, math, xml.etree.ElementTree as ET, requests
+from category_assign import assign_category
+
+import os
+import re
+import json
+import math
+import xml.etree.ElementTree as ET
+import requests  # ha eddig req-et használtál, akkor itt legyen az, amit ténylegesen importálsz
+
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+
 
 FEED_URL  = os.environ.get("FEED_TCHIBO_URL")
 OUT_DIR   = "docs/feeds/tchibo"
@@ -81,45 +90,65 @@ def parse_items(xml_text):
     if not candidates:
         candidates = [n for n in root.iter() if strip_ns(n.tag) in ("item","product","shopitem","entry")]
 
-    items = []
+       items = []
     for n in candidates:
         m = collect_node(n)
-        m = { (k.lower() if isinstance(k,str) else k): v for k,v in m.items() }
+        m = {(k.lower() if isinstance(k, str) else k): v for k, v in m.items()}
 
-        pid   = first(m, ("g:id","id","item_id","sku","product_id","itemid"))
+        pid   = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid"))
         title = first(m, TITLE_KEYS) or "Ismeretlen termék"
         link  = first(m, LINK_KEYS)
 
         img = first(m, IMG_KEYS)
         if not img:
             alt = first(m, IMG_ALT_KEYS)
-            if isinstance(alt, list) and alt: img = alt[0]
-            elif isinstance(alt, str): img = alt
+            if isinstance(alt, list) and alt:
+                img = alt[0]
+            elif isinstance(alt, str):
+                img = alt
 
-        desc  = short_desc(first(m, DESC_KEYS))
+        desc = short_desc(first(m, DESC_KEYS))
 
+        # Új ár
         price_new = None
         for k in NEW_PRICE_KEYS:
             price_new = norm_price(m.get(k))
-            if price_new: break
+            if price_new:
+                break
 
+        # Régi ár (akció előtti)
         old = None
         for k in OLD_PRICE_KEYS:
             old = norm_price(m.get(k))
-            if old: break
+            if old:
+                break
 
-        discount = round((1 - price_new/old)*100) if old and price_new and old > price_new else None
+        discount = (
+            round((1 - price_new / old) * 100)
+            if old and price_new and old > price_new
+            else None
+        )
 
-        items.append({
+        # 1) Először felépítjük az item dictet
+        item = {
             "id": pid or link or title,
             "title": title,
             "img": img or "",
             "desc": desc,
             "price": price_new,
             "discount": discount,
-            "url": link or ""
-        })
+            "url": link or "",
+        }
+
+        # 2) Kategória hozzárendelés Tchibo-hoz
+        item["cat"] = assign_category("tchibo", item)
+
+        # 3) Utána fűzzük hozzá a listához
+        items.append(item)
+
     return items
+
+
 
 # ===== dedup: méret összevonás, szín marad =====
 SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
