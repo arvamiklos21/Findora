@@ -552,16 +552,11 @@ const CATEGORY_IDS = [
   "kat-multi",
 ];
 
-// FONTOS: most már partnerenként van lapozás
 // catId -> { pid -> [ [ {pid,item}, ... ], ... ] }
 const CATEGORY_PAGES = {};
 // catId -> { pid -> currentPage }
 const CATEGORY_CURRENT = {};
-// csak helper, ha valahol kellene:
 window.catPager = window.catPager || {};
-
-// Kategória → mely partnerek jelennek meg ott
-const CATEGORY_PARTNERS = {}; // catId -> Set(pid)
 
 // Partner + kategória mátrix a partner-nézethez
 const PARTNER_CATEGORY_ITEMS = {};
@@ -640,47 +635,6 @@ function renderCategoryCards(itemsWithPartner, catId, showPartnerRow) {
     .join("");
 }
 
-// Kategória partner-sáv (Elérhető partnerek: JátékNet, Játéksziget…)
-function renderCategoryPartnerStrip(catId) {
-  const sec = document.getElementById(catId);
-  if (!sec) return;
-
-  const set = CATEGORY_PARTNERS[catId];
-  if (!set || !set.size) return;
-
-  let strip = sec.querySelector(".cat-partner-strip");
-  if (!strip) {
-    strip = document.createElement("div");
-    strip.className = "cat-partner-strip";
-    const header = sec.querySelector(".section-header");
-    if (header && header.parentNode) {
-      header.parentNode.insertBefore(strip, header.nextSibling);
-    } else {
-      sec.insertBefore(strip, sec.firstChild);
-    }
-  }
-
-  const partners = Array.from(set).map((pid) => ({
-    pid,
-    name: getPartnerName(pid),
-  }));
-
-  strip.innerHTML =
-    '<span class="cat-partner-strip-label">Elérhető partnerek:</span>' +
-    partners
-      .map(
-        ({ pid, name }) =>
-          '<button type="button" class="partner-pill" data-partner="' +
-          pid +
-          '" data-cat="' +
-          catId +
-          '">' +
-          name +
-          "</button>"
-      )
-      .join("");
-}
-
 // Kategória renderelése: partnerenként külön blokk, külön 6/lap nav
 function renderCategory(catId) {
   const grid = document.getElementById(catId + "-grid");
@@ -740,10 +694,8 @@ function renderCategory(catId) {
   });
 
   grid.innerHTML = html;
-  // kategória szintű nav-ot most üresen hagyjuk
+  // Kategória szintű nav-ot nem használjuk
   nav.innerHTML = "";
-
-  renderCategoryPartnerStrip(catId);
 }
 
 async function buildCategoryBlocks() {
@@ -777,9 +729,6 @@ async function buildCategoryBlocks() {
           if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
           if (!PARTNER_CATEGORY_ITEMS[pid][catId]) PARTNER_CATEGORY_ITEMS[pid][catId] = [];
           PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
-
-          if (!CATEGORY_PARTNERS[catId]) CATEGORY_PARTNERS[catId] = new Set();
-          CATEGORY_PARTNERS[catId].add(pid);
         });
       }
     }
@@ -797,7 +746,7 @@ async function buildCategoryBlocks() {
     partnerIds.forEach((pid) => {
       const list = byPartner[pid] || [];
       const pages = [];
-      for (let i = 0; i < list.length; i += PAGE_SIZE) {
+      for (let i = 0; i < list.length; i += PAGE_SIZE; i++) {
         pages.push(list.slice(i, i + PAGE_SIZE));
       }
       catPages[pid] = pages;
@@ -1185,18 +1134,6 @@ function handlePartnerUiClick(event) {
     return;
   }
 
-  // Kategória partner-pill (Elérhető partnerek sáv)
-  const pill = event.target.closest(".partner-pill");
-  if (pill) {
-    event.preventDefault();
-    const pid = pill.getAttribute("data-partner");
-    const catId = pill.getAttribute("data-cat") || null;
-    if (pid && catId) {
-      openPartnerView(pid, catId);
-    }
-    return;
-  }
-
   // Vissza gomb partner-nézetben
   const backBtn = event.target.closest(".btn-back-partner");
   if (backBtn) {
@@ -1226,10 +1163,8 @@ function handlePartnerUiClick(event) {
 
     const inPartnerView = !!pagerBtn.closest("#partner-view");
     if (inPartnerView) {
-      // partner-nézet lapozás
       renderPartnerViewPage(p);
     } else {
-      // kategória-blokkban: partnerenkénti lapozás
       const pid = pagerBtn.getAttribute("data-partner");
       const catId = pagerBtn.getAttribute("data-cat");
       if (!pid || !catId) return;
