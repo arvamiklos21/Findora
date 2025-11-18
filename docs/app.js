@@ -801,6 +801,29 @@ function renderCategoryFull(catId) {
   nav.innerHTML = ""; // külön kategória nézetben nincs lapozó
 }
 
+// ===== KATEGÓRIA ROW DEDUP – { pid, item } szinten =====
+function dedupeRowsStrong(rows) {
+  const out = [];
+  const seen = new Set();
+  (rows || []).forEach((row) => {
+    if (!row || !row.item) return;
+    const it = row.item;
+    const raw = itemUrl(it);
+    const key =
+      basePath(stripVariantParams(raw)) +
+      "|" +
+      imgPath(itemImg(it)) +
+      "|" +
+      normalizeTitleNoSize(it.title || "");
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(row);
+    }
+  });
+  return out;
+}
+
+// ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL + KATEGÓRIA-NÉZET ALAP) =====
 async function buildCategoryBlocks() {
   const buffers = {};
   const scanPagesMax = 2;
@@ -828,8 +851,9 @@ async function buildCategoryBlocks() {
           buffers[catId].push({ pid, item: it });
 
           if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-          if (!PARTNER_CATEGORY_ITEMS[pid][catId])
+          if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
             PARTNER_CATEGORY_ITEMS[pid][catId] = [];
+          }
           PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
         });
       }
@@ -840,14 +864,16 @@ async function buildCategoryBlocks() {
 
   CATEGORY_IDS.forEach((catId) => {
     const rawList = buffers[catId] || [];
-    const list = dedupeRowsStrong(rawList); // dedup kategórián
+    const list = dedupeRowsStrong(rawList); // MÉRET-variáns dedup kategórián
 
     const pages = [];
     for (let i = 0; i < list.length; i += PAGE_SIZE; i++) {
       pages.push(list.slice(i, i + PAGE_SIZE));
     }
+
     CATEGORY_PAGES[catId] = pages;
     CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
+
     if (pages.length) {
       renderCategory(catId, 1);
     } else {
@@ -860,6 +886,17 @@ async function buildCategoryBlocks() {
       if (nav) nav.innerHTML = "";
     }
   });
+}
+
+// ===== Helper a partner/kategória címekhez =====
+function getPartnerName(pid) {
+  const cfg = PARTNERS.get(pid);
+  return (cfg && cfg.name) || pid;
+}
+
+function getCategoryName(catId) {
+  const el = document.querySelector("#" + catId + " .section-header h2");
+  return el ? el.textContent.trim() : "";
 }
 
 // ===== Helper a partner/kategória címekhez =====
@@ -1326,3 +1363,4 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
