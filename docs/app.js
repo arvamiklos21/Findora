@@ -976,7 +976,8 @@ function renderPartnerViewPage(page) {
     if (PARTNER_VIEW_STATE.loading) {
       grid.innerHTML = '<div class="empty">Termékek betöltése…</div>';
     } else {
-      grid.innerHTML = '<div class="empty">Nincs találat ennél a partnernél.</div>';
+      grid.innerHTML =
+        '<div class="empty">Nincs találat ennél a partnernél.</div>';
     }
     nav.innerHTML = "";
     return;
@@ -997,5 +998,300 @@ function renderPartnerViewPage(page) {
 
   nav.innerHTML =
     '<button class="btn-megnez" ' +
+    (page <= 1 ? "disabled" : "") +
+    ' data-partner-page="' +
+    (page - 1) +
+    '">Előző</button>' +
+    '<span style="align-self:center;font-size:13px;margin:0 8px;">' +
+    page +
+    "/" +
+    maxPage +
+    "</span>" +
+    '<button class="btn-megnez" ' +
+    (page >= maxPage ? "disabled" : "") +
+    ' data-partner-page="' +
+    (page + 1) +
+    '">Következő</button>';
+}
 
-::contentReference[oaicite:0]{index=0}
+function openPartnerView(pid, catId) {
+  const sec = document.getElementById("partner-view");
+  const titleEl = document.getElementById("partner-view-title");
+  const subEl = document.getElementById("partner-view-subtitle");
+  if (!sec || !titleEl || !subEl) return;
+
+  const name = getPartnerName(pid);
+  const catName = getCategoryName(catId);
+
+  const itemsForCombo =
+    (PARTNER_CATEGORY_ITEMS[pid] && PARTNER_CATEGORY_ITEMS[pid][catId]) || [];
+
+  PARTNER_VIEW_STATE = {
+    pid,
+    catId,
+    items: itemsForCombo.slice(),
+    filtered: [],
+    page: 1,
+    pageSize: 20,
+    sort: "default",
+    query: "",
+    loading: true,
+  };
+
+  const searchInput = document.getElementById("partner-search");
+  const sortSelect = document.getElementById("partner-sort");
+  if (searchInput) searchInput.value = "";
+  if (sortSelect) sortSelect.value = "default";
+
+  titleEl.textContent = name + (catName ? " – " + catName : "");
+  subEl.textContent = itemsForCombo.length
+    ? "Ebben a nézetben a(z) " +
+      name +
+      " " +
+      (catName || "") +
+      " ajánlatai látszanak. A teljes lista betöltése folyamatban…"
+    : "A teljes lista betöltése folyamatban ennél a partner–kategória kombinációnál.";
+
+  const hero = document.querySelector(".hero");
+  const catbarWrap = document.querySelector(".catbar-wrap");
+  const bf = document.getElementById("black-friday");
+  const akciok = document.getElementById("akciok");
+
+  [hero, catbarWrap, bf, akciok].forEach((el) => {
+    if (el) el.classList.add("hidden");
+  });
+
+  CATEGORY_IDS.forEach((id) => {
+    const s = document.getElementById(id);
+    if (s) s.classList.add("hidden");
+  });
+
+  sec.classList.remove("hidden");
+
+  applyPartnerFilters();
+  renderPartnerViewPage(1);
+
+  hydratePartnerCategoryItems(pid, catId);
+}
+
+// ===== Hero kereső → Algolia keresőoldalra irányítás =====
+function attachSearchForm() {
+  const form = document.getElementById("searchFormAll");
+  const input = document.getElementById("qAll");
+  if (!form || !input) return;
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const q = (input.value || "").trim();
+    if (!q) return;
+
+    const current = window.location.href;
+    try {
+      const url = new URL(current);
+      const base = url.origin + "/search.html";
+      const target = base + "?q=" + encodeURIComponent(q);
+      window.location.href = target;
+    } catch (_) {
+      window.location.href = "search.html?q=" + encodeURIComponent(q);
+    }
+  });
+}
+
+// ===== Menü & kategória pill görgetés =====
+function smoothScrollTo(selector) {
+  const el = document.querySelector(selector);
+  if (!el) return;
+
+  const rect = el.getBoundingClientRect();
+  const offset = window.scrollY || window.pageYOffset || 0;
+  const top = rect.top + offset - 70;
+
+  window.scrollTo({
+    top,
+    behavior: "smooth",
+  });
+}
+
+function handleScrollClick(event) {
+  const trigger = event.target.closest("[data-scroll]");
+  if (!trigger) return;
+
+  const target = trigger.getAttribute("data-scroll");
+  if (!target) return;
+
+  event.preventDefault();
+  smoothScrollTo(target);
+
+  if (trigger.classList.contains("cat-pill")) {
+    document.querySelectorAll(".cat-pill").forEach((el) => {
+      el.classList.toggle("active", el === trigger);
+    });
+  }
+}
+
+function attachScrollHandlers() {
+  document.addEventListener("click", handleScrollClick);
+}
+
+// ===== FELSŐ NAV – FŐOLDAL vs KATEGÓRIA NÉZET =====
+function showCategoryOnly(catId) {
+  const hero = document.querySelector(".hero");
+  const catbarWrap = document.querySelector(".catbar-wrap");
+  const bf = document.getElementById("black-friday");
+  const akciok = document.getElementById("akciok");
+  const pv = document.getElementById("partner-view");
+
+  [hero, catbarWrap, bf, akciok].forEach((el) => {
+    if (el) el.classList.add("hidden");
+  });
+  if (pv) pv.classList.add("hidden");
+
+  CATEGORY_IDS.forEach((id) => {
+    const sec = document.getElementById(id);
+    if (!sec) return;
+    if (id === catId) {
+      sec.classList.remove("hidden");
+    } else {
+      sec.classList.add("hidden");
+    }
+  });
+
+  // Kategória nézet: minden partner külön blokkban, max 6 termék/partner
+  renderCategoryFull(catId);
+
+  smoothScrollTo("#" + catId);
+}
+
+function showAllSections() {
+  const hero = document.querySelector(".hero");
+  const catbarWrap = document.querySelector(".catbar-wrap");
+  const bf = document.getElementById("black-friday");
+  const akciok = document.getElementById("akciok");
+  const pv = document.getElementById("partner-view");
+
+  [hero, catbarWrap, bf, akciok].forEach((el) => {
+    if (el) el.classList.remove("hidden");
+  });
+  if (pv) pv.classList.add("hidden");
+
+  CATEGORY_IDS.forEach((id) => {
+    const sec = document.getElementById(id);
+    if (sec) sec.classList.remove("hidden");
+
+    if (CATEGORY_PAGES[id] && CATEGORY_PAGES[id].length) {
+      const current = CATEGORY_CURRENT[id] || 1;
+      renderCategory(id, current);
+    }
+  });
+
+  smoothScrollTo("#akciok");
+}
+
+function handleNavClick(event) {
+  const btn = event.target.closest(".nav-btn[data-view]");
+  if (!btn) return;
+
+  const view = btn.getAttribute("data-view");
+  if (view === "home") {
+    event.preventDefault();
+    showAllSections();
+    return;
+  }
+
+  if (view === "category") {
+    const catId = btn.getAttribute("data-cat");
+    if (!catId) return;
+    event.preventDefault();
+    showCategoryOnly(catId);
+  }
+}
+
+function attachNavHandlers() {
+  document.addEventListener("click", handleNavClick);
+}
+
+// ===== PARTNER NÉZET – UI EVENTEK =====
+function handlePartnerUiClick(event) {
+  const headerBtn = event.target.closest(".partner-block-title");
+  if (headerBtn) {
+    event.preventDefault();
+    const pid = headerBtn.getAttribute("data-partner");
+    const catId = headerBtn.getAttribute("data-cat") || null;
+    if (pid && catId) {
+      openPartnerView(pid, catId);
+    }
+    return;
+  }
+
+  const backBtn = event.target.closest(".btn-back-partner");
+  if (backBtn) {
+    event.preventDefault();
+    if (PARTNER_VIEW_STATE && PARTNER_VIEW_STATE.catId) {
+      showCategoryOnly(PARTNER_VIEW_STATE.catId);
+    } else {
+      showAllSections();
+    }
+    return;
+  }
+
+  const homeBtn = event.target.closest(".btn-home-partner");
+  if (homeBtn) {
+    event.preventDefault();
+    showAllSections();
+    return;
+  }
+
+  const pagerBtn = event.target.closest("[data-partner-page]");
+  if (pagerBtn) {
+    event.preventDefault();
+    const p = parseInt(pagerBtn.getAttribute("data-partner-page"), 10);
+    if (Number.isFinite(p)) {
+      renderPartnerViewPage(p);
+    }
+    return;
+  }
+}
+
+function attachPartnerViewHandlers() {
+  const searchInput = document.getElementById("partner-search");
+  const sortSelect = document.getElementById("partner-sort");
+
+  if (searchInput) {
+    searchInput.addEventListener("input", function () {
+      PARTNER_VIEW_STATE.query = this.value || "";
+      applyPartnerFilters();
+      renderPartnerViewPage(1);
+    });
+  }
+
+  if (sortSelect) {
+    sortSelect.addEventListener("change", function () {
+      PARTNER_VIEW_STATE.sort = this.value || "default";
+      applyPartnerFilters();
+      renderPartnerViewPage(1);
+    });
+  }
+
+  document.addEventListener("click", handlePartnerUiClick);
+}
+
+// ===== INIT =====
+async function init() {
+  try {
+    attachScrollHandlers();
+    attachNavHandlers();
+    attachSearchForm();
+    attachPartnerViewHandlers();
+    await loadPartners();
+    await buildAkciosBlokk();
+    await buildCategoryBlocks();
+  } catch (e) {
+    console.error("Init hiba:", e);
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
