@@ -232,7 +232,7 @@
     },
     "bf": {
       "enabled": true,
-      "scanPages": 2,
+      "scanPages": 5,
       "minDiscount": 10
     },
     "itemCount": 0,
