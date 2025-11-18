@@ -6,6 +6,75 @@ const PARTNERS = new Map();
 const META = new Map();
 const PAGES = new Map();
 
+// ===== Kategória-mapping külső JSON-ből =====
+const CATEGORY_MAP_URL = FEEDS_BASE + "/feeds/category-map.json";
+const CATEGORY_MAP = {}; // { partnerId: [ { pattern, catId }, ... ] }
+
+function normalizeCategoryText(str) {
+  return (str || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // ékezet le
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function loadCategoryMap() {
+  try {
+    const r = await fetch(CATEGORY_MAP_URL, { cache: "no-cache" });
+    if (!r.ok) {
+      console.warn("category-map.json nem elérhető:", r.status);
+      return;
+    }
+    const data = await r.json();
+    if (!data || typeof data !== "object") {
+      console.warn("category-map.json formátum hiba");
+      return;
+    }
+    Object.keys(data).forEach((pid) => {
+      const rules = data[pid];
+      if (!Array.isArray(rules)) return;
+      CATEGORY_MAP[pid] = rules
+        .map((rule) => ({
+          pattern: normalizeCategoryText(rule.pattern || ""),
+          catId: rule.catId || "",
+        }))
+        .filter((r) => r.catId);
+    });
+    console.log(
+      "Kategória-mapping betöltve partnerekhez:",
+      Object.keys(CATEGORY_MAP)
+    );
+  } catch (e) {
+    console.warn("category-map betöltési hiba:", e);
+  }
+}
+
+function mapCategoryByPartner(pid, it) {
+  const rules = CATEGORY_MAP[pid];
+  if (!rules || !rules.length) return null;
+
+  const raw =
+    (it && (it.categoryPath || it.category_path || it.category || it.cat)) ||
+    "";
+  const text = normalizeCategoryText(raw);
+
+  // ha nincs kategória szöveg, de van üres patternes szabály: "mindent ide"
+  if (!text) {
+    const fallback = rules.find((r) => !r.pattern);
+    return fallback ? fallback.catId : null;
+  }
+
+  for (const rule of rules) {
+    if (!rule.pattern) continue; // üres pattern csak fallbacknek jó
+    if (text.includes(rule.pattern)) {
+      return rule.catId;
+    }
+  }
+  return null;
+}
+
 // Deeplink építése – minden gomb: Megnézem🔗
 function dlUrl(partnerId, rawUrl) {
   if (!rawUrl) return "#";
@@ -43,365 +112,6 @@ function basePath(u) {
 function imgPath(u) {
   return String(u || "").split("#")[0].split("?")[0];
 }
-
-// ===== Szöveg normalizálás + kategória-szabályok =====
-function normalizeText(str) {
-  return (str || "")
-    .toString()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function buildItemSearchText(it) {
-  const raw = [
-    it && it.title,
-    it && it.desc,
-    it && it.description,
-    it && it.category,
-    it && it.categoryPath,
-    Array.isArray(it && it.tags) ? it.tags.join(" ") : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-  return normalizeText(raw);
-}
-
-function textHasWord(text, word) {
-  if (!text || !word) return false;
-  const w = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp("\\b" + w + "\\b", "i");
-  return re.test(text);
-}
-
-function matchCategoryRule(text, rule) {
-  for (const kw of rule.keywords) {
-    if (textHasWord(text, kw)) return true;
-  }
-  return false;
-}
-
-// Normalizált kulcsszavak (ékezet nélkül!)
-const CATEGORY_RULES = [
-  {
-    catId: "kat-divat",
-    keywords: [
-      "kabat",
-      "dzseki",
-      "parka",
-      "ballonkabat",
-      "ruha",
-      "szoknya",
-      "bluz",
-      "tunika",
-      "dress",
-      "polo",
-      "tshirt",
-      "t shirt",
-      "triko",
-      "pulover",
-      "hoodie",
-      "nadrag",
-      "farmer",
-      "leggings",
-      "fehernemu",
-      "bugyi",
-      "melltarto",
-      "pizsama",
-      "haloing",
-      "harisnya",
-      "zokni",
-      "sapka",
-      "sapka",
-      "sal",
-      "kesztyu",
-      "kostum",
-      "szabadidoszett",
-      "cipő",
-      "cipo",
-      "csizma",
-      "bakancs",
-      "szandal",
-      "papucs",
-      "sneaker",
-      "shoe",
-      "boots",
-      "sandals",
-      "bikini",
-      "swimwear",
-      "swimsuit",
-      "coat",
-      "jacket",
-      "jeans",
-      "skirt",
-    ],
-  },
-  {
-    catId: "kat-jatekok",
-    keywords: [
-      "jatek",
-      "jatekok",
-      "lego",
-      "playmobil",
-      "tarsasjatek",
-      "board game",
-      "puzzle",
-      "kirako",
-      "baba",
-      "barbie",
-      "pluss",
-      "plussjatek",
-      "jatekszett",
-      "playset",
-      "figura",
-      "figuraszett",
-      "hot wheels",
-      "matchbox",
-      "keszsegfejleszto",
-      "babajatek",
-      "gyerekjatek",
-    ],
-  },
-  {
-    catId: "kat-gepek",
-    keywords: [
-      "mosogep",
-      "mosogatogep",
-      "moso szarito",
-      "szaritogep",
-      "fagyaszto",
-      "hutoszekreny",
-      "huto",
-      "sutogep",
-      "suto",
-      "tuzhely",
-      "mikrohullamu",
-      "mikro",
-      "porszivo",
-      "robotporszivo",
-      "goztisztito",
-      "kavefozo",
-      "eszpresszo",
-      "espresso",
-      "kavegep",
-      "turmix",
-      "botmixer",
-      "konyhagep",
-      "konyhai robotgep",
-      "szenkimoso",
-      "légkondi",
-      "legkondi",
-      "klima",
-    ],
-  },
-  {
-    catId: "kat-kert",
-    keywords: [
-      "kert",
-      "kerti",
-      "funyiro",
-      "fukasza",
-      "lancfuresz",
-      "locsolo",
-      "ontozorendszer",
-      "magasnyomasu",
-      "magasnyomasu moso",
-      "gereblye",
-      "aso",
-      "lapat",
-      "metszoollo",
-      "novenyapolo",
-      "slag",
-    ],
-  },
-  {
-    catId: "kat-szepseg",
-    keywords: [
-      "parfum",
-      "parfume",
-      "dezodor",
-      "deo",
-      "smink",
-      "alapozo",
-      "korrektor",
-      "puder",
-      "szempillaspiral",
-      "szajfeny",
-      "ruzs",
-      "ajakbalzsam",
-      "krem",
-      "arckrem",
-      "arcapolas",
-      "borapolas",
-      "testapolo",
-      "sampon",
-      "kondicionalo",
-      "hajbalzsam",
-      "hajolaj",
-      "hajpakolas",
-    ],
-  },
-  {
-    catId: "kat-sport",
-    keywords: [
-      "futocipo",
-      "futonaladrag",
-      "edzocipo",
-      "edzoruha",
-      "fitnessz",
-      "fitnesz",
-      "edzopad",
-      "ellipszis",
-      "futopad",
-      "kerekpar",
-      "bicikli",
-      "foci",
-      "kosarlabda",
-      "kezilabda",
-      "tenisz",
-      "pingpong",
-      "sportszer",
-      "sportmelltarto",
-      "sporttaska",
-    ],
-  },
-  {
-    catId: "kat-latas",
-    keywords: [
-      "kontaktlencse",
-      "kontaklencse",
-      "szemuveg",
-      "szemüveg",
-      "szemuvegkeret",
-      "napszemuveg",
-      "dioptria",
-      "optika",
-      "opti",
-      "lencse",
-      "multifokalis",
-    ],
-  },
-  {
-    catId: "kat-allatok",
-    keywords: [
-      "kutya",
-      "kutyatap",
-      "kutyatáp",
-      "macska",
-      "cica",
-      "macskatap",
-      "alom",
-      "kaparofa",
-      "kisallat",
-      "terrarium",
-      "akvarium",
-      "pet",
-      "petfood",
-      "dog",
-      "cat",
-    ],
-  },
-  {
-    catId: "kat-konyv",
-    keywords: [
-      "konyv",
-      "regeny",
-      "novella",
-      "szakkonyv",
-      "tankonyv",
-      "szotar",
-      "album",
-      "kepeskonyv",
-    ],
-  },
-  {
-    catId: "kat-utazas",
-    keywords: [
-      "utazas",
-      "utazasi",
-      "hotel",
-      "szallas",
-      "foglalas",
-      "repulojegy",
-      "repjegy",
-      "city break",
-      "wellness",
-      "nyaralas",
-    ],
-  },
-  {
-    catId: "kat-elektronika",
-    keywords: [
-      "tv",
-      "televizio",
-      "smart tv",
-      "laptop",
-      "notebook",
-      "pc",
-      "szamitogep",
-      "monitor",
-      "telefon",
-      "okostelefon",
-      "mobiltelefon",
-      "tablet",
-      "konzol",
-      "ps5",
-      "xbox",
-      "switch",
-      "kamera",
-      "webkamera",
-      "headset",
-      "fulhallgato",
-      "hangszoro",
-      "soundbar",
-      "eger",
-      "billentyuzet",
-      "router",
-      "wifi",
-      "ssd",
-      "hdd",
-      "memoria",
-      "videokartya",
-    ],
-  },
-  {
-    catId: "kat-otthon",
-    keywords: [
-      "parna",
-      "parna",
-      "takaro",
-      "agyterito",
-      "agynemu",
-      "lepedo",
-      "fuggony",
-      "draperia",
-      "diszparna",
-      "szonyeg",
-      "furdozonyeg",
-      "toro",
-      "torolkozo",
-      "agykere",
-      "kanape",
-      "fotel",
-      "asztal",
-      "szekreny",
-      "polc",
-      "komod",
-      "szek",
-      "konyhai felszereles",
-      "edeny",
-      "serpenyo",
-      "fazek",
-      "sutolap",
-      "sutokeszlet",
-      "dekoracio",
-      "gyertya",
-      "disztargy",
-    ],
-  },
-];
 
 // Méret / szín variánsok erős deduplikálása (TITLE alapú)
 const SIZE_TOKENS = new RegExp(
@@ -506,9 +216,13 @@ function getDiscountNumber(it) {
   const txt =
     ((it && it.title ? it.title : "") +
       " " +
-      (it && it.desc ? it.desc : "")).toLowerCase();
+      (it && it.desc ? it.desc : "") +
+      " " +
+      (it && it.description ? it.description : ""))
+      .toLowerCase();
 
-  const m = txt.match(/-\s?(\d{1,3})\s?%/);
+  // Elfogadjuk: "-20%", "20%", "20 % kedvezmény" stb., de csak 5–90 között
+  const m = txt.match(/(?:-\s*)?(\d{1,3})\s*%/);
   if (!m) return null;
 
   const d = parseInt(m[1], 10);
@@ -583,7 +297,7 @@ const BASE_CATEGORY_BY_PARTNER = {
   ekszereshop: "kat-szepseg",
   karacsonydekor: "kat-otthon",
   otthonmarket: "kat-otthon",
-  onlinemarkabolt: "kat-elektronika",
+  onlinemarkabolt: "kat-otthon", // ne Elektronikában legyenek a csaptelepek
 };
 
 function baseCategoryForPartner(pid, cfg) {
@@ -608,143 +322,22 @@ function baseCategoryForPartner(pid, cfg) {
   }
 }
 
-// ===== Kategória meghatározás egy termékre (új, kulcsszavas + finomhangolt) =====
+// ===== Kategória meghatározás egy termékre – mapping + partner default =====
 function getCategoriesForItem(pid, it) {
   const cfg = PARTNERS.get(pid) || {};
-  const baseCat = baseCategoryForPartner(pid, cfg); // pl. kat-elektronika
-  const text = buildItemSearchText(it);
 
-  let cat = null;
-
-  // 1) Kulcsszabályok alapján elsődleges kategória
-  for (const rule of CATEGORY_RULES) {
-    if (matchCategoryRule(text, rule)) {
-      cat = rule.catId;
-      break;
-    }
+  // 1) Külső category-map.json alapján (partner kategória mezőiből)
+  const mapped = mapCategoryByPartner(pid, it);
+  if (mapped) {
+    return [mapped];
   }
 
-  // 2) Ha nincs szabálytalálat, partner alapú bázis
-  if (!cat) {
-    cat = baseCat;
-  }
+  // 2) Ha nincs mapping találat, partner-alapú default
+  let cat = baseCategoryForPartner(pid, cfg);
 
-  // 3) Ha így sincs, próbáljuk a partner által adott kategóriaszöveget
-  if (!cat) {
-    const rawCat = normalizeText(
-      (it && (it.category || it.categoryPath || "")) || ""
-    );
-    if (rawCat.includes("ruhazat") || rawCat.includes("divat")) {
-      cat = "kat-divat";
-    } else if (rawCat.includes("jatek")) {
-      cat = "kat-jatekok";
-    } else if (
-      rawCat.includes("haztartasi") ||
-      rawCat.includes("konyhagep") ||
-      rawCat.includes("mosogep") ||
-      rawCat.includes("mosogatogep")
-    ) {
-      cat = "kat-gepek";
-    } else if (rawCat.includes("kert")) {
-      cat = "kat-kert";
-    } else if (rawCat.includes("optika") || rawCat.includes("latas")) {
-      cat = "kat-latas";
-    }
-  }
-
-  // 4) Utófinomítás – divat / gépek / kert a szöveg alapján,
-  //    még akkor is, ha a bázis kategória pl. kat-otthon vagy kat-elektronika
-  const hasAny = (words) => words.some((w) => textHasWord(text, w));
-
-  // Divat jellegű találatok: bármilyen alapból átnyomjuk kat-divat-ba
-  const fashionWords = [
-    "kabat",
-    "dzseki",
-    "parka",
-    "ruha",
-    "szoknya",
-    "bluz",
-    "polo",
-    "triko",
-    "pulover",
-    "nadrag",
-    "farmer",
-    "leggings",
-    "fehernemu",
-    "bugyi",
-    "melltarto",
-    "pizsama",
-    "haloing",
-    "harisnya",
-    "zokni",
-    "cipő",
-    "cipo",
-    "csizma",
-    "bakancs",
-    "szandal",
-    "papucs",
-    "sneaker",
-    "shoe",
-    "boots",
-    "sandals",
-    "bikini",
-    "swimwear",
-  ];
-
-  // Háztartási nagygépek
-  const applianceWords = [
-    "mosogep",
-    "mosogatogep",
-    "szaritogep",
-    "moso szarito",
-    "fagyaszto",
-    "hutoszekreny",
-    "huto",
-    "sutogep",
-    "suto",
-    "tuzhely",
-    "mikrohullamu",
-    "mikro",
-    "porszivo",
-    "robotporszivo",
-    "goztisztito",
-    "kavefozo",
-    "kavegep",
-    "turmix",
-    "botmixer",
-    "konyhagep",
-    "konyhai robotgep",
-  ];
-
-  // Kerti eszközök
-  const gardenWords = [
-    "kert",
-    "kerti",
-    "funyiro",
-    "fukasza",
-    "lancfuresz",
-    "locsolo",
-    "ontozorendszer",
-    "magasnyomasu",
-    "gereblye",
-    "aso",
-    "lapat",
-    "metszoollo",
-    "novenyapolo",
-    "slag",
-  ];
-
-  // Ha egyértelműen divat – akár alza, akár tchibo – legyen kat-divat
-  if (hasAny(fashionWords)) {
-    cat = "kat-divat";
-  } else if (hasAny(applianceWords)) {
-    // Nagygépek: rángassuk át kat-gepek-be
-    cat = "kat-gepek";
-  } else if (hasAny(gardenWords)) {
-    cat = "kat-kert";
-  }
-
+  // 3) Ha valamiért így sincs, menjen "multi"-ba
   if (!cat) cat = "kat-multi";
+
   return [cat];
 }
 
@@ -759,7 +352,7 @@ function getCategoryName(catId) {
   return el ? el.textContent.trim() : "";
 }
 
-// ===== Akciós blokk =====
+// ===== Akciós blokk (Black Friday / Black Weekend / általános akciók) =====
 let AKCIO_PAGES = [];
 let AKCIO_CURRENT = 1;
 
@@ -863,6 +456,7 @@ async function buildAkciosBlokk() {
     if (nav) nav.innerHTML = "";
 
     const collected = [];
+    const partnerTasks = [];
 
     for (const [pid, cfg] of PARTNERS.entries()) {
       const plc = cfg.placements || {};
@@ -872,35 +466,64 @@ async function buildAkciosBlokk() {
       });
       if (!anyEnabled) continue;
 
-      const bfCfg = cfg.bf || {};
-      if (bfCfg.enabled === false) continue;
+      const task = (async () => {
+        const bfCfg = cfg.bf || {};
+        if (bfCfg.enabled === false) return;
 
-      let scanPagesMax = parseInt(bfCfg.scanPages, 10);
-      if (!Number.isFinite(scanPagesMax) || scanPagesMax <= 0) {
-        scanPagesMax = DEFAULT_BF_SCAN_PAGES;
-      }
+        let scanPagesMax = parseInt(bfCfg.scanPages, 10);
+        if (!Number.isFinite(scanPagesMax) || scanPagesMax <= 0) {
+          scanPagesMax = DEFAULT_BF_SCAN_PAGES;
+        }
 
-      let minDiscount = parseInt(bfCfg.minDiscount, 10);
-      if (!Number.isFinite(minDiscount) || minDiscount < 5 || minDiscount > 90) {
-        minDiscount = DEFAULT_BF_MIN_DISCOUNT;
-      }
+        let minDiscount = parseInt(bfCfg.minDiscount, 10);
+        if (
+          !Number.isFinite(minDiscount) ||
+          minDiscount < 5 ||
+          minDiscount > 90
+        ) {
+          minDiscount = DEFAULT_BF_MIN_DISCOUNT;
+        }
 
-      const meta = await getMeta(pid);
-      const pageSize = meta.pageSize || 300;
-      const totalPages =
-        meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
-      const scanPages = Math.min(scanPagesMax, totalPages);
+        const meta = await getMeta(pid);
+        const pageSize = meta.pageSize || 300;
+        const totalPages =
+          meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
+        const scanPages = Math.min(scanPagesMax, totalPages);
 
-      for (let pg = 1; pg <= scanPages; pg++) {
-        const arr = await getPageItems(pid, pg);
-        for (const it of arr) {
-          const d = getDiscountNumber(it);
-          if (d !== null && d >= minDiscount) {
-            collected.push({ pid, item: it });
+        for (let pg = 1; pg <= scanPages; pg++) {
+          const arr = await getPageItems(pid, pg);
+          for (const it of arr) {
+            const text =
+              ((it && it.title ? it.title : "") +
+                " " +
+                (it && it.desc ? it.desc : "") +
+                " " +
+                (it && it.description ? it.description : ""))
+                .toLowerCase();
+
+            let d = getDiscountNumber(it);
+
+            const isBFText =
+              text.includes("black friday") ||
+              text.includes("black weekend") ||
+              text.includes("blackweekend");
+
+            // Ha Black Friday/Weekend jelölés van, legalább minDiscount-nak tekintjük
+            if (isBFText && (d === null || d < minDiscount)) {
+              d = minDiscount;
+            }
+
+            if (d !== null && d >= minDiscount) {
+              collected.push({ pid, item: it });
+            }
           }
         }
-      }
+      })();
+
+      partnerTasks.push(task);
     }
+
+    await Promise.all(partnerTasks);
 
     const dedItems = dedupeStrong(collected.map((r) => r.item));
     const backMap = new Map();
@@ -1620,6 +1243,8 @@ async function buildCategoryBlocks() {
   const buffers = {};
   const scanPagesMax = 2;
 
+  const partnerTasks = [];
+
   for (const [pid, cfg] of PARTNERS.entries()) {
     const plc = cfg.placements || {};
     const anyEnabled = Object.keys(plc).some((k) => {
@@ -1628,29 +1253,36 @@ async function buildCategoryBlocks() {
     });
     if (!anyEnabled) continue;
 
-    const meta = await getMeta(pid);
-    const pageSize = meta.pageSize || 300;
-    const totalPages =
-      meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
-    const scanPages = Math.min(scanPagesMax, totalPages);
+    const task = (async () => {
+      const meta = await getMeta(pid);
+      const pageSize = meta.pageSize || 300;
+      const totalPages =
+        meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
+      const scanPages = Math.min(scanPagesMax, totalPages);
 
-    for (let pg = 1; pg <= scanPages; pg++) {
-      const arr = await getPageItems(pid, pg);
-      for (const it of arr) {
-        const cats = getCategoriesForItem(pid, it) || [];
-        cats.forEach((catId) => {
-          if (!buffers[catId]) buffers[catId] = [];
-          buffers[catId].push({ pid, item: it });
+      for (let pg = 1; pg <= scanPages; pg++) {
+        const arr = await getPageItems(pid, pg);
+        for (const it of arr) {
+          const cats = getCategoriesForItem(pid, it) || [];
+          cats.forEach((catId) => {
+            if (!buffers[catId]) buffers[catId] = [];
+            buffers[catId].push({ pid, item: it });
 
-          if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-          if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
-            PARTNER_CATEGORY_ITEMS[pid][catId] = [];
-          }
-          PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
-        });
+            if (!PARTNER_CATEGORY_ITEMS[pid])
+              PARTNER_CATEGORY_ITEMS[pid] = {};
+            if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
+              PARTNER_CATEGORY_ITEMS[pid][catId] = [];
+            }
+            PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
+          });
+        }
       }
-    }
+    })();
+
+    partnerTasks.push(task);
   }
+
+  await Promise.all(partnerTasks);
 
   const PAGE_SIZE = 6; // főoldali kategória 6 termék / oldal (mixelt)
 
@@ -1675,7 +1307,11 @@ async function init() {
     attachNavHandlers();
     attachSearchForm();
     attachPartnerViewHandlers();
+
+    // kategória-map + partnerek betöltése egymás után (biztos legyen meg a map a kategóriázás előtt)
+    await loadCategoryMap();
     await loadPartners();
+
     await buildAkciosBlokk();
     await buildCategoryBlocks();
   } catch (e) {
