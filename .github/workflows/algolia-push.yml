@@ -22,8 +22,9 @@ jobs:
           npm install algoliasearch
 
       - name: Algolia index feltöltése
-        run: node algolia_push.js
+        run: node docs/algolia_push.js
         env:
           ALGOLIA_APP_ID: W95VUS9HJ8
           ALGOLIA_ADMIN_API_KEY: ${{ secrets.ALGOLIA_ADMIN_API_KEY }}
           ALGOLIA_INDEX_NAME: findora_products
+
