@@ -1308,12 +1308,12 @@ async function init() {
     attachSearchForm();
     attachPartnerViewHandlers();
 
-    // kategória-map + partnerek betöltése egymás után (biztos legyen meg a map a kategóriázás előtt)
-    await loadCategoryMap();
     await loadPartners();
-
     await buildAkciosBlokk();
     await buildCategoryBlocks();
+
+    // FONTOS: első betöltéskor is rajzoljuk ki a főoldalt
+    showAllSections();
   } catch (e) {
     console.error("Init hiba:", e);
   }
