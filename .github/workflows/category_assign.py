@@ -29,7 +29,7 @@ BASE_BY_PARTNER = {
 FASHION = [
     "nadrag", "legging", "ruha", "polo", "szoknya", "kabát", "kabat",
     "dzseki", "melltarto", "fehernemu", "alsó", "also", "cipo", "csizma",
-    "papucs", "pulover", "pizsama", "gyerek", "sportnadrag"
+    "papucs", "pulover", "pizsama", "gyerek", "sportnadrag", "kendo", "kesztyu",
 ]
 
 APPLIANCES = [
@@ -37,7 +37,7 @@ APPLIANCES = [
     "hutoszekreny", "huto", "suto", "sutogep", "tuzhely",
     "fozolap", "főzőlap", "főzolap", "robotporszivo", "porszivo",
     "mikro", "mikrohullamu", "kavefozo", "kavegep", "turmix",
-    "botmixer", "konyhagep"
+    "botmixer", "konyhagep", 
 ]
 
 TOYS = [
@@ -58,7 +58,7 @@ VISION = [
 HOME = [
     "parna", "takaro", "agynemu", "lepedo", "szonyeg", "fuggony",
     "kanape", "fotel", "asztal", "szekreny", "komod",
-    "dekoracio", "gyertya"
+    "dekoracio", "gyertya", "polc", "asztak", "szek", 
 ]
 
 def assign_category(partner_id: str, item: dict) -> str:
