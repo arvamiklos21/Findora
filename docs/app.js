@@ -2,6 +2,12 @@
 const FEEDS_BASE = "";
 const PARTNERS_URL = FEEDS_BASE + "/feeds/partners.json";
 
+// Mobil detektálás – kisebb terhelés mobilon
+const IS_MOBILE =
+  typeof window !== "undefined" &&
+  window.matchMedia &&
+  window.matchMedia("(max-width: 768px)").matches;
+
 const PARTNERS = new Map();
 const META = new Map();
 const PAGES = new Map();
@@ -9,7 +15,13 @@ const PAGES = new Map();
 // Deeplink építése – minden gomb: Megnézem🔗
 function dlUrl(partnerId, rawUrl) {
   if (!rawUrl) return "#";
-  return FEEDS_BASE + "/api/dl?u=" + encodeURIComponent(rawUrl) + "&p=" + partnerId;
+  return (
+    FEEDS_BASE +
+    "/api/dl?u=" +
+    encodeURIComponent(rawUrl) +
+    "&p=" +
+    partnerId
+  );
 }
 
 // ===== Kisegítő függvények =====
@@ -58,7 +70,10 @@ function normalizeTitleNoSize(t) {
   if (!t) return "";
   return String(t)
     .replace(SIZE_TOKENS, " ")
-    .replace(/\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi, " ")
+    .replace(
+      /\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi,
+      " "
+    )
     .replace(/\s{2,}/g, " ")
     .trim()
     .toLowerCase();
@@ -156,7 +171,11 @@ async function getMeta(pid) {
 }
 
 function pageUrl(cfg, n) {
-  return FEEDS_BASE + "/" + cfg.pagePattern.replace("{NNNN}", String(n).padStart(4, "0"));
+  return (
+    FEEDS_BASE +
+    "/" +
+    cfg.pagePattern.replace("{NNNN}", String(n).padStart(4, "0"))
+  );
 }
 
 async function getPageItems(pid, pageNum) {
@@ -185,11 +204,12 @@ const BASE_CATEGORY_BY_PARTNER = {
   decathlon: "kat-sport",
   alza: "kat-elektronika",
   kozmetikaotthon: "kat-szepseg",
-  pepita: "kat-utazas",
+  // Pepita: ne kényszerítsük utazásba, mert vegyes áruházi termékek
+  pepita: "kat-multi",
   ekszereshop: "kat-szepseg",
   karacsonydekor: "kat-otthon",
   otthonmarket: "kat-otthon",
-  onlinemarkabolt: "kat-elektronika"
+  onlinemarkabolt: "kat-elektronika",
 };
 
 function baseCategoryForPartner(pid, cfg) {
@@ -220,139 +240,174 @@ function getCategoriesForItem(pid, it) {
   let cat = baseCategoryForPartner(pid, cfg);
 
   const text = (
-    ((it && it.title) ? it.title : "") +
+    (it && it.title ? it.title : "") +
     " " +
-    ((it && it.desc) ? it.desc : "")
+    (it && it.desc ? it.desc : "")
   ).toLowerCase();
 
   const hasAny = (words) => words.some((w) => text.includes(w));
 
-  if (cat === "kat-otthon") {
-    if (
-      hasAny([
-        "alsó",
-        "alsónemű",
-        "alsonemu",
-        "bugyi",
-        "melltartó",
-        "melltarto",
-        "fehérnemű",
-        "fehernemu",
-        "pizsama",
-        "hálóing",
-        "haloing",
-        "köntös",
-        "kontos",
-        "zokni",
-        "harisnya",
-        "leggings",
-        "top",
-        "póló",
-        "polo",
-        "pulóver",
-        "pulover",
-        "ruha",
-        "szoknya",
-        "blúz",
-        "bluz",
-      ])
-    ) {
+  // Divat / cipő – bővített lista, hogy a Tchibo cipők ne az Otthonban landoljanak
+  const divatWords = [
+    "alsó",
+    "alsónemű",
+    "alsonemu",
+    "bugyi",
+    "melltartó",
+    "melltarto",
+    "fehérnemű",
+    "fehernemu",
+    "pizsama",
+    "hálóing",
+    "haloing",
+    "köntös",
+    "kontos",
+    "zokni",
+    "harisnya",
+    "leggings",
+    "top",
+    "póló",
+    "polo",
+    "pulóver",
+    "pulover",
+    "ruha",
+    "szoknya",
+    "blúz",
+    "bluz",
+    "kabát",
+    "kabat",
+    "dzseki",
+    "ing",
+    "farmernadrág",
+    "farmernadrag",
+    // cipő-specifikus
+    "cipő",
+    "cipo",
+    "sportcipő",
+    "sportcipo",
+    "edzőcipő",
+    "edzocipo",
+    "sneaker",
+    "sneakers",
+    "csizma",
+    "bakancs",
+    "félcipő",
+    "felcipo",
+    "szandál",
+    "szandal",
+    "papucs",
+    "mokaszin",
+    "mokasszin",
+    "loafer",
+    "shoe",
+    "shoes",
+    "boot",
+    "boots",
+  ];
+
+  // Háztartási gép kulcsszavak
+  const gepekWords = [
+    "mosógép",
+    "mosogep",
+    "mosogatógép",
+    "mosogatogep",
+    "mosó-szárító",
+    "moso-szarito",
+    "hűtőszekrény",
+    "hutoszekreny",
+    "fagyasztó",
+    "fagyaszto",
+    "sütő",
+    "sutő",
+    "tűzhely",
+    "tuzhely",
+    "mikrohullámú",
+    "mikro",
+    "mikrohullamu",
+    "porszívó",
+    "porszivo",
+    "robotporszívó",
+    "robotporszivo",
+    "gőztisztító",
+    "goztisztito",
+    "kávéfőző",
+    "kavefozo",
+    "turmix",
+    "botmixer",
+    "konyhagép",
+    "konyhagep",
+    "mosogatógép",
+  ];
+
+  // Kerti eszközök
+  const kertWords = [
+    "kert",
+    "kerti",
+    "locsoló",
+    "locsolo",
+    "slag",
+    "fűnyíró",
+    "funyiro",
+    "fűkasza",
+    "fukasza",
+    "láncfűrész",
+    "lancfuresz",
+    "metszőolló",
+    "metszoollo",
+    "gereblye",
+    "ásó",
+    "aso",
+    "lapát",
+    "lapat",
+    "kerti szerszám",
+    "magasnyomású mosó",
+    "magasnyomasu moso",
+  ];
+
+  // Utazás jellegű szavak – ha nincs ilyen, ne tegyük kat-utazasba
+  const travelWords = [
+    "szállás",
+    "szallas",
+    "hotel",
+    "panzió",
+    "panzio",
+    "repülőjegy",
+    "repulojegy",
+    "buszjegy",
+    "vonatjegy",
+    "utazási csomag",
+    "utazasi csomag",
+    "nyaralás",
+    "nyaralas",
+    "üdülés",
+    "udules",
+    "hajóút",
+    "hajout",
+    "körutazás",
+    "korutazas",
+  ];
+
+  // Finomítás otthon jellegű partnereknél
+  if (cat === "kat-otthon" || cat === "kat-multi") {
+    if (hasAny(divatWords)) {
       cat = "kat-divat";
-    } else if (
-      hasAny([
-        "cipő",
-        "cipo",
-        "csizma",
-        "bakancs",
-        "szandál",
-        "szandal",
-        "papucs",
-        "mokaszin",
-        "mokasszin",
-        "loafer",
-      ])
-    ) {
-      cat = "kat-divat";
-    } else if (
-      hasAny([
-        "mosógép",
-        "mosogep",
-        "mosogatógép",
-        "mosogatogep",
-        "mosó-szárító",
-        "moso-szarito",
-        "hűtőszekrény",
-        "hutoszekreny",
-        "fagyasztó",
-        "fagyaszto",
-        "sütő",
-        "sutő",
-        "tűzhely",
-        "tuzhely",
-        "mikrohullámú",
-        "mikro",
-        "mikrohullamu",
-        "porszívó",
-        "porszivo",
-        "robotporszívó",
-        "robotporszivo",
-        "gőztisztító",
-        "goztisztito",
-        "kávéfőző",
-        "kavefozo",
-        "turmix",
-        "botmixer",
-        "konyhagép",
-        "konyhagep",
-      ])
-    ) {
+    } else if (hasAny(gepekWords)) {
       cat = "kat-gepek";
-    } else if (
-      hasAny([
-        "kert",
-        "kerti",
-        "locsoló",
-        "locsolo",
-        "slag",
-        "fűnyíró",
-        "funyiro",
-        "fűkasza",
-        "fukasza",
-        "láncfűrész",
-        "lancfuresz",
-        "metszőolló",
-        "metszoollo",
-        "gereblye",
-        "ásó",
-        "aso",
-        "lapát",
-        "lapat",
-        "kerti szerszám",
-        "magasnyomású mosó",
-        "magasnyomasu moso",
-      ])
-    ) {
+    } else if (hasAny(kertWords)) {
       cat = "kat-kert";
     }
   }
 
+  // Elektronika partnerek: nagy gép → kat-gepek
   if (cat === "kat-elektronika") {
-    if (
-      hasAny([
-        "mosógép",
-        "mosogep",
-        "mosogatógép",
-        "mosogatogep",
-        "hűtőszekrény",
-        "hutoszekreny",
-        "mosó-szárító",
-        "moso-szarito",
-        "szárítógép",
-        "szaritogep",
-      ])
-    ) {
+    if (hasAny(gepekWords)) {
       cat = "kat-gepek";
     }
+  }
+
+  // Utazás: csak akkor maradjon, ha tényleg utazás jellegű
+  if (cat === "kat-utazas" && !hasAny(travelWords)) {
+    cat = "kat-multi";
   }
 
   if (!cat) cat = "kat-multi";
@@ -460,7 +515,7 @@ async function buildAkciosBlokk() {
     if (nav) nav.innerHTML = "";
 
     const collected = [];
-    const scanPagesMax = 2;
+    const scanPagesMax = IS_MOBILE ? 1 : 2;
 
     for (const [pid, cfg] of PARTNERS.entries()) {
       const plc = cfg.placements || {};
@@ -519,10 +574,14 @@ async function buildAkciosBlokk() {
         return db - da;
       });
 
+    // Mobilon kevesebb akciót tartunk meg
+    const MAX_RESULTS = IS_MOBILE ? 60 : 120;
+    const limited = merged.slice(0, MAX_RESULTS);
+
     const PAGE_SIZE = 12;
     AKCIO_PAGES = [];
-    for (let i = 0; i < merged.length; i += PAGE_SIZE) {
-      AKCIO_PAGES.push(merged.slice(i, i + PAGE_SIZE));
+    for (let i = 0; i < limited.length; i += PAGE_SIZE) {
+      AKCIO_PAGES.push(limited.slice(i, i + PAGE_SIZE));
     }
 
     renderAkcioPage(1);
@@ -535,7 +594,7 @@ async function buildAkciosBlokk() {
   }
 }
 
-// ===== KATEGÓRIA BLOKKOK – partnerenként 6/lap =====
+// ===== KATEGÓRIA BLOKKOK – partnerenként lapozható =====
 const CATEGORY_IDS = [
   "kat-elektronika",
   "kat-gepek",
@@ -572,7 +631,7 @@ let PARTNER_VIEW_STATE = {
   pageSize: 20,
   sort: "default",
   query: "",
-  loading: false
+  loading: false,
 };
 
 function getPartnerName(pid) {
@@ -603,8 +662,7 @@ function renderCategoryCards(itemsWithPartner, catId, showPartnerRow) {
       let partnerRowHtml = "";
       if (showPartnerRow) {
         const partnerName = getPartnerName(pid);
-        partnerRowHtml =
-          '<div class="partner">• ' + partnerName + "</div>";
+        partnerRowHtml = '<div class="partner">• ' + partnerName + "</div>";
       }
 
       return (
@@ -635,7 +693,7 @@ function renderCategoryCards(itemsWithPartner, catId, showPartnerRow) {
     .join("");
 }
 
-// Kategória renderelése: partnerenként külön blokk, 6/lap, saját nav
+// Kategória renderelése: partnerenként külön blokk, saját nav
 function renderCategory(catId) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
@@ -670,37 +728,59 @@ function renderCategory(catId) {
     const titleText = partnerName + (catName ? " – " + catName : "");
 
     html +=
-      '<div class="partner-block" data-partner="' + pid + '" data-cat="' + catId + '">' +
-        '<div class="partner-block-header">' +
-          '<button type="button" class="partner-block-title" data-partner="' + pid + '" data-cat="' + catId + '">' +
-            titleText +
-          "</button>" +
-        "</div>" +
-        '<div class="grid partner-block-grid">' +
-          renderCategoryCards(items, catId, false) +
-        "</div>" +
-        '<div class="partner-block-nav">' +
-          '<button class="btn-megnez" ' +
-            (currentPage <= 1 ? "disabled" : "") +
-            ' data-cat="' + catId + '" data-partner="' + pid + '" data-partner-page="' + (currentPage - 1) + '">Előző</button>' +
-          '<span style="align-self:center;font-size:13px;margin:0 8px;">' +
-            currentPage + "/" + pages.length +
-          "</span>" +
-          '<button class="btn-megnez" ' +
-            (currentPage >= pages.length ? "disabled" : "") +
-            ' data-cat="' + catId + '" data-partner="' + pid + '" data-partner-page="' + (currentPage + 1) + '">Következő</button>' +
-        "</div>" +
+      '<div class="partner-block" data-partner="' +
+      pid +
+      '" data-cat="' +
+      catId +
+      '">' +
+      '<div class="partner-block-header">' +
+      '<button type="button" class="partner-block-title" data-partner="' +
+      pid +
+      '" data-cat="' +
+      catId +
+      '">' +
+      titleText +
+      "</button>" +
+      "</div>" +
+      '<div class="grid partner-block-grid">' +
+      renderCategoryCards(items, catId, false) +
+      "</div>" +
+      '<div class="partner-block-nav">' +
+      '<button class="btn-megnez" ' +
+      (currentPage <= 1 ? "disabled" : "") +
+      ' data-cat="' +
+      catId +
+      '" data-partner="' +
+      pid +
+      '" data-partner-page="' +
+      (currentPage - 1) +
+      '">Előző</button>' +
+      '<span style="align-self:center;font-size:13px;margin:0 8px;">' +
+      currentPage +
+      "/" +
+      pages.length +
+      "</span>" +
+      '<button class="btn-megnez" ' +
+      (currentPage >= pages.length ? "disabled" : "") +
+      ' data-cat="' +
+      catId +
+      '" data-partner="' +
+      pid +
+      '" data-partner-page="' +
+      (currentPage + 1) +
+      '">Következő</button>' +
+      "</div>" +
       "</div>";
   });
 
   grid.innerHTML = html;
-  nav.innerHTML = ""; // nincs kategória-szintű lapozó
+  nav.innerHTML = ""; // kategória szintű lapozó nem kell
 }
 
 async function buildCategoryBlocks() {
   // buffers: catId -> pid -> [ {pid,item}, ... ]
   const buffers = {};
-  const scanPagesMax = 2;
+  const scanPagesMax = IS_MOBILE ? 1 : 2;
 
   for (const [pid, cfg] of PARTNERS.entries()) {
     const plc = cfg.placements || {};
@@ -726,14 +806,15 @@ async function buildCategoryBlocks() {
           buffers[catId][pid].push({ pid, item: it });
 
           if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-          if (!PARTNER_CATEGORY_ITEMS[pid][catId]) PARTNER_CATEGORY_ITEMS[pid][catId] = [];
+          if (!PARTNER_CATEGORY_ITEMS[pid][catId])
+            PARTNER_CATEGORY_ITEMS[pid][catId] = [];
           PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
         });
       }
     }
   }
 
-  const PAGE_SIZE = 6;
+  const PAGE_SIZE = IS_MOBILE ? 3 : 6;
 
   CATEGORY_IDS.forEach((catId) => {
     const byPartner = buffers[catId] || {};
@@ -823,7 +904,10 @@ async function hydratePartnerCategoryItems(pid, catId) {
       if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
       PARTNER_CATEGORY_ITEMS[pid][catId] = allRows;
 
-      if (PARTNER_VIEW_STATE.pid === pid && PARTNER_VIEW_STATE.catId === catId) {
+      if (
+        PARTNER_VIEW_STATE.pid === pid &&
+        PARTNER_VIEW_STATE.catId === catId
+      ) {
         PARTNER_VIEW_STATE.items = allRows.slice();
         PARTNER_VIEW_STATE.loading = false;
         applyPartnerFilters();
@@ -837,7 +921,10 @@ async function hydratePartnerCategoryItems(pid, catId) {
       }
     } catch (e) {
       console.error("hydratePartnerCategoryItems hiba:", pid, catId, e);
-      if (PARTNER_VIEW_STATE.pid === pid && PARTNER_VIEW_STATE.catId === catId) {
+      if (
+        PARTNER_VIEW_STATE.pid === pid &&
+        PARTNER_VIEW_STATE.catId === catId
+      ) {
         PARTNER_VIEW_STATE.loading = false;
         applyPartnerFilters();
         renderPartnerViewPage(1);
@@ -901,7 +988,8 @@ function renderPartnerViewPage(page) {
     if (PARTNER_VIEW_STATE.loading) {
       grid.innerHTML = '<div class="empty">Termékek betöltése…</div>';
     } else {
-      grid.innerHTML = '<div class="empty">Nincs találat ennél a partnernél.</div>';
+      grid.innerHTML =
+        '<div class="empty">Nincs találat ennél a partnernél.</div>';
     }
     nav.innerHTML = "";
     return;
@@ -923,12 +1011,19 @@ function renderPartnerViewPage(page) {
   nav.innerHTML =
     '<button class="btn-megnez" ' +
     (page <= 1 ? "disabled" : "") +
-    ' data-partner-page="' + (page - 1) + '">Előző</button>' +
+    ' data-partner-page="' +
+    (page - 1) +
+    '">Előző</button>' +
     '<span style="align-self:center;font-size:13px;margin:0 8px;">' +
-    page + "/" + maxPage + "</span>" +
+    page +
+    "/" +
+    maxPage +
+    "</span>" +
     '<button class="btn-megnez" ' +
     (page >= maxPage ? "disabled" : "") +
-    ' data-partner-page="' + (page + 1) + '">Következő</button>';
+    ' data-partner-page="' +
+    (page + 1) +
+    '">Következő</button>';
 }
 
 function openPartnerView(pid, catId) {
@@ -1162,10 +1257,8 @@ function handlePartnerUiClick(event) {
 
     const inPartnerView = !!pagerBtn.closest("#partner-view");
     if (inPartnerView) {
-      // partner-nézet lapozás
       renderPartnerViewPage(p);
     } else {
-      // kategória-blokk: partnerenkénti lapozás
       const pid = pagerBtn.getAttribute("data-partner");
       const catId = pagerBtn.getAttribute("data-cat");
       if (!pid || !catId) return;
