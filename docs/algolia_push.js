@@ -4,7 +4,7 @@
 // 1) Külső függőségek
 const fs = require("fs");
 const path = require("path");
-const algoliasearch = require("algoliasearch");
+const { algoliasearch } = require('algoliasearch');
 
 // 2) Algolia config – alapértelmezésben env változókból olvasunk
 const APP_ID = process.env.ALGOLIA_APP_ID || "W95VUS9HJ8";
@@ -170,3 +170,4 @@ main().catch((err) => {
   console.error("[FATAL] Algolia push hiba:", err);
   process.exit(1);
 });
+
