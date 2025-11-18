@@ -6,6 +6,8 @@
 User-Agent: *
 Content-signal: search=yes,ai-input=no,ai-train=no
 Allow: /
+# API útvonalak tiltása minden botnak
+Disallow: /api/
 
 # ===== Tiltások bizonyos AI és nemkívánatos botokra =====
 User-agent: Amazonbot
