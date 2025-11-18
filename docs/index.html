@@ -100,13 +100,20 @@
     }
 
     .hero{
-      max-width:1200px;
-      margin:0 auto;
-      padding:18px 12px 20px;
-      display:grid;
-      grid-template-columns: minmax(0,2.2fr) minmax(0,1.6fr);
-      gap:16px;
-    }
+  max-width:1200px;
+  margin:0 auto;
+  padding:18px 12px 20px;
+  display:grid;
+  grid-template-columns: minmax(0,2.2fr) minmax(0,1.6fr);
+  gap:16px;
+
+  /* háttérkép a teljes hero blokk mögé */
+  border-radius:18px;
+  background-image:url("assets/img/findora-xmas-header.png");
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+}
     @media (max-width:900px){
       .hero{grid-template-columns:1fr}
     }
@@ -199,19 +206,7 @@
       color:#9ca3af;
       margin-top:8px;
     }
-    .header-banner{
-      max-width:1200px;
-      margin:0 auto;
-      padding:0 12px 8px;
-    }
-    .header-banner img{
-      width:100%;
-      display:block;
-      border-radius:18px;
-      border:1px solid var(--border);
-      box-shadow:0 8px 22px rgba(15,23,42,.08);
-    }
-
+    
     /* KATEGÓRIA SÁV (nem görgetős, mindig látszik desktopon) */
     .catbar-wrap{
       border-top:1px solid #e5e7eb;
@@ -543,11 +538,6 @@
       </nav>
     </div>
 
-     <!-- FEJLÉC KÉP – HELYES HELY -->
-  <div class="header-banner">
-    <img src="assets/img/findora-xmas-header.png" alt="Findora – ajánlatok egy helyen">
-  </div>
-
     <!-- HERO -->
     <div class="hero">
       <div class="hero-left">
@@ -782,6 +772,7 @@
   <script src="app.js" defer></script>
 </body>
 </html>
+
 
 
 
