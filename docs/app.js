@@ -6,7 +6,7 @@ const PARTNERS = new Map();
 const META = new Map();
 const PAGES = new Map();
 
-// ===== Kategória-mapping külső JSON-ből =====
+// ===== Kategória-mapping külső JSON-ből (fallback a backend cat mező mellé) =====
 const CATEGORY_MAP_URL = FEEDS_BASE + "/feeds/category-map.json";
 const CATEGORY_MAP = {}; // { partnerId: [ { pattern, catId }, ... ] }
 
@@ -206,30 +206,15 @@ function dedupeRowsStrong(rows) {
   return out;
 }
 
-// ===== Diszkont százalék kinyerése =====
+// ===== Diszkont százalék kinyerése – CSAK a backend numeric mezőt fogadjuk el =====
 function getDiscountNumber(it) {
   if (it && typeof it.discount === "number" && isFinite(it.discount)) {
     const d = Math.round(it.discount);
-    if (d >= 5 && d <= 90) return d;
+    // csak 10–70% közti kedvezményt tekintünk valósnak
+    if (d >= 10 && d <= 70) return d;
   }
-
-  const txt =
-    ((it && it.title ? it.title : "") +
-      " " +
-      (it && it.desc ? it.desc : "") +
-      " " +
-      (it && it.description ? it.description : ""))
-      .toLowerCase();
-
-  // Elfogadjuk: "-20%", "20%", "20 % kedvezmény" stb., de csak 5–90 között
-  const m = txt.match(/(?:-\s*)?(\d{1,3})\s*%/);
-  if (!m) return null;
-
-  const d = parseInt(m[1], 10);
-  if (!Number.isFinite(d)) return null;
-  if (d < 5 || d > 90) return null;
-
-  return d;
+  // NINCS több szövegben keresgélés, regex, „felkerekített” kamukedvezmény
+  return null;
 }
 
 // ===== partners.json, meta, page betöltés =====
@@ -322,23 +307,44 @@ function baseCategoryForPartner(pid, cfg) {
   }
 }
 
-// ===== Kategória meghatározás egy termékre – mapping + partner default =====
+// ===== Fő kategória lista =====
+const CATEGORY_IDS = [
+  "kat-elektronika",
+  "kat-gepek",
+  "kat-otthon",
+  "kat-kert",
+  "kat-jatekok",
+  "kat-divat",
+  "kat-szepseg",
+  "kat-sport",
+  "kat-latas",
+  "kat-allatok",
+  "kat-konyv",
+  "kat-utazas",
+  "kat-multi",
+];
+
+// ===== Kategória meghatározás egy termékre – BACKEND cat + category-map + partner default =====
 function getCategoriesForItem(pid, it) {
   const cfg = PARTNERS.get(pid) || {};
 
+  // 0) Backend (Python) által kitöltött cat mező – EZ A FŐ
+  if (it && it.cat && CATEGORY_IDS.includes(it.cat)) {
+    return [it.cat];
+  }
+
   // 1) Külső category-map.json alapján (partner kategória mezőiből)
   const mapped = mapCategoryByPartner(pid, it);
-  if (mapped) {
+  if (mapped && CATEGORY_IDS.includes(mapped)) {
     return [mapped];
   }
 
-  // 2) Ha nincs mapping találat, partner-alapú default
-  let cat = baseCategoryForPartner(pid, cfg);
+  // 2) Partner default kategória
+  const base = baseCategoryForPartner(pid, cfg);
+  if (CATEGORY_IDS.includes(base)) return [base];
 
-  // 3) Ha valamiért így sincs, menjen "multi"-ba
-  if (!cat) cat = "kat-multi";
-
-  return [cat];
+  // 3) Fallback
+  return ["kat-multi"];
 }
 
 // ===== Helper a partner/kategória címekhez =====
@@ -352,7 +358,7 @@ function getCategoryName(catId) {
   return el ? el.textContent.trim() : "";
 }
 
-// ===== Akciós blokk (Black Friday / Black Weekend / általános akciók) =====
+// ===== Akciós blokk (általános akciók – korrekt % kijelzéssel) =====
 let AKCIO_PAGES = [];
 let AKCIO_CURRENT = 1;
 
@@ -478,8 +484,8 @@ async function buildAkciosBlokk() {
         let minDiscount = parseInt(bfCfg.minDiscount, 10);
         if (
           !Number.isFinite(minDiscount) ||
-          minDiscount < 5 ||
-          minDiscount > 90
+          minDiscount < 10 ||
+          minDiscount > 70
         ) {
           minDiscount = DEFAULT_BF_MIN_DISCOUNT;
         }
@@ -493,29 +499,9 @@ async function buildAkciosBlokk() {
         for (let pg = 1; pg <= scanPages; pg++) {
           const arr = await getPageItems(pid, pg);
           for (const it of arr) {
-            const text =
-              ((it && it.title ? it.title : "") +
-                " " +
-                (it && it.desc ? it.desc : "") +
-                " " +
-                (it && it.description ? it.description : ""))
-                .toLowerCase();
-
-            let d = getDiscountNumber(it);
-
-            const isBFText =
-              text.includes("black friday") ||
-              text.includes("black weekend") ||
-              text.includes("blackweekend");
-
-            // Ha Black Friday/Weekend jelölés van, legalább minDiscount-nak tekintjük
-            if (isBFText && (d === null || d < minDiscount)) {
-              d = minDiscount;
-            }
-
-            if (d !== null && d >= minDiscount) {
-              collected.push({ pid, item: it });
-            }
+            const d = getDiscountNumber(it);
+            if (d === null || d < minDiscount) continue;
+            collected.push({ pid, item: it });
           }
         }
       })();
@@ -563,33 +549,48 @@ async function buildAkciosBlokk() {
       AKCIO_PAGES.push(merged.slice(i, i + PAGE_SIZE));
     }
 
+    // Akciós blokk
     renderAkcioPage(1);
+
+    // Külön Black Friday blokk – csak „black friday / black weekend” szöveggel
+    const bfGrid = document.getElementById("bf-grid");
+    if (bfGrid) {
+      const bfItems = merged.filter(({ item }) => {
+        const txt =
+          ((item && item.title ? item.title : "") +
+            " " +
+            (item && item.desc ? item.desc : "") +
+            " " +
+            (item && item.description ? item.description : "")).toLowerCase();
+        return (
+          txt.includes("black friday") ||
+          txt.includes("black weekend") ||
+          txt.includes("blackweekend")
+        );
+      });
+
+      if (!bfItems.length) {
+        bfGrid.innerHTML =
+          '<div class="empty">Jelenleg nincs kifejezetten Black Friday / Black Weekend jelölésű ajánlat.</div>';
+      } else {
+        bfGrid.innerHTML = renderAkcioCards(bfItems.slice(0, 12));
+      }
+    }
   } catch (e) {
     console.error("Akciós blokk hiba:", e);
     host.innerHTML =
       '<div class="empty">Hiba történt az akciók betöltése közben.</div>';
     const nav = document.getElementById("akciok-nav");
     if (nav) nav.innerHTML = "";
+    const bfGrid = document.getElementById("bf-grid");
+    if (bfGrid) {
+      bfGrid.innerHTML =
+        '<div class="empty">Hiba történt a Black Friday ajánlatok betöltése közben.</div>';
+    }
   }
 }
 
 // ===== KATEGÓRIA BLOKKOK – FŐOLDAL + KÜLÖN KATEGÓRIA NÉZET =====
-const CATEGORY_IDS = [
-  "kat-elektronika",
-  "kat-gepek",
-  "kat-otthon",
-  "kat-kert",
-  "kat-jatekok",
-  "kat-divat",
-  "kat-szepseg",
-  "kat-sport",
-  "kat-latas",
-  "kat-allatok",
-  "kat-konyv",
-  "kat-utazas",
-  "kat-multi",
-];
-
 const CATEGORY_PAGES = {};
 const CATEGORY_CURRENT = {};
 window.catPager = window.catPager || {};
@@ -660,7 +661,7 @@ function renderCategoryCards(itemsWithPartner, catId, showPartnerRow) {
     .join("");
 }
 
-// FŐOLDALI kategória-render (lapozóval, mixelve)
+// FŐOLDALI kategória-render (lapozóval, mixelve, max 5 lap / kategória)
 function renderCategory(catId, page) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
@@ -834,25 +835,24 @@ async function hydratePartnerCategoryItems(pid, catId) {
 
       const allRowsRaw = [];
 
+      const processPage = (arr) => {
+        for (const it of arr) {
+          const cats = getCategoriesForItem(pid, it) || [];
+          if (cats.includes(catId)) {
+            allRowsRaw.push({ pid, item: it });
+          }
+        }
+      };
+
       if (pagesToScan && pagesToScan.length) {
         for (const pg of pagesToScan) {
           const arr = await getPageItems(pid, pg);
-          for (const it of arr) {
-            const cats = getCategoriesForItem(pid, it) || [];
-            if (cats.includes(catId)) {
-              allRowsRaw.push({ pid, item: it });
-            }
-          }
+          processPage(arr);
         }
       } else {
         for (let pg = 1; pg <= totalPages; pg++) {
           const arr = await getPageItems(pid, pg);
-          for (const it of arr) {
-            const cats = getCategoriesForItem(pid, it) || [];
-            if (cats.includes(catId)) {
-              allRowsRaw.push({ pid, item: it });
-            }
-          }
+          processPage(arr);
         }
       }
 
@@ -1241,7 +1241,7 @@ function attachPartnerViewHandlers() {
 // ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL + KATEGÓRIA-NÉZET ALAP) =====
 async function buildCategoryBlocks() {
   const buffers = {};
-  const scanPagesMax = 2;
+  const scanPagesMax = 1; // csak 1 oldal / partner a főoldalhoz – gyors betöltés
 
   const partnerTasks = [];
 
@@ -1264,17 +1264,16 @@ async function buildCategoryBlocks() {
         const arr = await getPageItems(pid, pg);
         for (const it of arr) {
           const cats = getCategoriesForItem(pid, it) || [];
-          cats.forEach((catId) => {
-            if (!buffers[catId]) buffers[catId] = [];
-            buffers[catId].push({ pid, item: it });
+          const catId = cats[0] || "kat-multi";
 
-            if (!PARTNER_CATEGORY_ITEMS[pid])
-              PARTNER_CATEGORY_ITEMS[pid] = {};
-            if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
-              PARTNER_CATEGORY_ITEMS[pid][catId] = [];
-            }
-            PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
-          });
+          if (!buffers[catId]) buffers[catId] = [];
+          buffers[catId].push({ pid, item: it });
+
+          if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
+          if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
+            PARTNER_CATEGORY_ITEMS[pid][catId] = [];
+          }
+          PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
         }
       }
     })();
@@ -1284,14 +1283,19 @@ async function buildCategoryBlocks() {
 
   await Promise.all(partnerTasks);
 
-  const PAGE_SIZE = 6; // főoldali kategória 6 termék / oldal (mixelt)
+  const PAGE_SIZE = 6; // főoldali kategória 6 termék / lap (mixelt)
+  const MAX_PAGES_PER_CAT = 5; // max 5 lap / kategória a főoldalon
 
   CATEGORY_IDS.forEach((catId) => {
     const rawList = buffers[catId] || [];
     const list = dedupeRowsStrong(rawList);
     const pages = [];
 
-    for (let i = 0; i < list.length; i += PAGE_SIZE) {
+    for (
+      let i = 0;
+      i < list.length && pages.length < MAX_PAGES_PER_CAT;
+      i += PAGE_SIZE
+    ) {
       pages.push(list.slice(i, i + PAGE_SIZE));
     }
 
@@ -1309,8 +1313,9 @@ async function init() {
     attachPartnerViewHandlers();
 
     await loadPartners();
-    await buildAkciosBlokk();
-    await buildCategoryBlocks();
+    await loadCategoryMap();      // category-map.json belövése
+    await buildAkciosBlokk();     // akciók + BF blokk
+    await buildCategoryBlocks();  // főoldali kategória blokkok
 
     // FONTOS: első betöltéskor is rajzoljuk ki a főoldalt
     showAllSections();
