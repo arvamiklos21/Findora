@@ -9,9 +9,7 @@ const PAGES = new Map();
 // Deeplink építése – minden gomb: Megnézem🔗
 function dlUrl(partnerId, rawUrl) {
   if (!rawUrl) return "#";
-  return (
-    FEEDS_BASE + "/api/dl?u=" + encodeURIComponent(rawUrl) + "&p=" + partnerId
-  );
+  return FEEDS_BASE + "/api/dl?u=" + encodeURIComponent(rawUrl) + "&p=" + partnerId;
 }
 
 // ===== Kisegítő függvények =====
@@ -44,7 +42,7 @@ function imgPath(u) {
   return String(u || "").split("#")[0].split("?")[0];
 }
 
-// Méret / szín variánsok erős deduplikálása (TITLE alapú)
+// Méret / szín variánsok erős deduplikálása
 const SIZE_TOKENS = new RegExp(
   [
     "\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\b",
@@ -60,10 +58,7 @@ function normalizeTitleNoSize(t) {
   if (!t) return "";
   return String(t)
     .replace(SIZE_TOKENS, " ")
-    .replace(
-      /\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi,
-      " "
-    )
+    .replace(/\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi, " ")
     .replace(/\s{2,}/g, " ")
     .trim()
     .toLowerCase();
@@ -92,7 +87,6 @@ function stripVariantParams(u) {
   }
 }
 
-// Dedup: csak item objektumokra
 function dedupeStrong(items) {
   const out = [];
   const seen = new Set();
@@ -107,6 +101,28 @@ function dedupeStrong(items) {
     if (!seen.has(key)) {
       seen.add(key);
       out.push(it);
+    }
+  });
+  return out;
+}
+
+// Sor-szintű dedup (kategória / partner listákra) – ugyanaz a logika, mint dedupeStrong, csak {pid,item} sorokra
+function dedupeRowsStrong(rows) {
+  const out = [];
+  const seen = new Set();
+  (rows || []).forEach((row) => {
+    const it = row && row.item;
+    if (!it) return;
+    const raw = itemUrl(it);
+    const key =
+      basePath(stripVariantParams(raw)) +
+      "|" +
+      imgPath(itemImg(it)) +
+      "|" +
+      normalizeTitleNoSize(it.title || "");
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(row);
     }
   });
   return out;
@@ -162,11 +178,7 @@ async function getMeta(pid) {
 }
 
 function pageUrl(cfg, n) {
-  return (
-    FEEDS_BASE +
-    "/" +
-    cfg.pagePattern.replace("{NNNN}", String(n).padStart(4, "0"))
-  );
+  return FEEDS_BASE + "/" + cfg.pagePattern.replace("{NNNN}", String(n).padStart(4, "0"));
 }
 
 async function getPageItems(pid, pageNum) {
@@ -545,7 +557,7 @@ async function buildAkciosBlokk() {
   }
 }
 
-// ===== KATEGÓRIA BLOKKOK – FŐOLDAL + KÜLÖN KATEGÓRIA NÉZET =====
+// ===== KATEGÓRIA BLOKKOK – LAPOZHATÓ GRID (FŐOLDAL) =====
 const CATEGORY_IDS = [
   "kat-elektronika",
   "kat-gepek",
@@ -566,11 +578,9 @@ const CATEGORY_PAGES = {};
 const CATEGORY_CURRENT = {};
 window.catPager = window.catPager || {};
 
-// Partner + kategória mátrix
 const PARTNER_CATEGORY_ITEMS = {};
 const PARTNER_CATEGORY_LOAD_PROMISES = {};
 
-// Partner nézet állapot
 let PARTNER_VIEW_STATE = {
   pid: null,
   catId: null,
@@ -721,7 +731,7 @@ function renderCategory(catId, page) {
   };
 }
 
-// KATEGÓRIA NÉZET (felső menü) – minden partner külön blokkban, max 6 termék/partner
+// Kategória-nézet a felső menüből – minden partner külön blokkban, max 6 termék/partner
 function renderCategoryFull(catId) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
@@ -743,7 +753,7 @@ function renderCategoryFull(catId) {
     hasAny = true;
     const partnerName = getPartnerName(pid);
     const titleText = partnerName + (catName ? " – " + catName : "");
-    const slice = perCat.slice(0, 6); // max 6 / partner
+    const slice = perCat.slice(0, 6); // max 6 termék / partner
 
     html +=
       '<div class="partner-block" data-partner="' +
@@ -774,32 +784,9 @@ function renderCategoryFull(catId) {
   }
 
   grid.innerHTML = html;
-  nav.innerHTML = ""; // külön kategória nézetben nincs lapozó
+  nav.innerHTML = ""; // kategória nézetben nincs lapozó, 1 oldalon minden partner
 }
 
-// ===== KATEGÓRIA ROW DEDUP – { pid, item } szinten =====
-function dedupeRowsStrong(rows) {
-  const out = [];
-  const seen = new Set();
-  (rows || []).forEach((row) => {
-    if (!row || !row.item) return;
-    const it = row.item;
-    const raw = itemUrl(it);
-    const key =
-      basePath(stripVariantParams(raw)) +
-      "|" +
-      imgPath(itemImg(it)) +
-      "|" +
-      normalizeTitleNoSize(it.title || "");
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push(row);
-    }
-  });
-  return out;
-}
-
-// ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL + KATEGÓRIA-NÉZET ALAP) =====
 async function buildCategoryBlocks() {
   const buffers = {};
   const scanPagesMax = 2;
@@ -827,9 +814,8 @@ async function buildCategoryBlocks() {
           buffers[catId].push({ pid, item: it });
 
           if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-          if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
+          if (!PARTNER_CATEGORY_ITEMS[pid][catId])
             PARTNER_CATEGORY_ITEMS[pid][catId] = [];
-          }
           PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
         });
       }
@@ -840,16 +826,14 @@ async function buildCategoryBlocks() {
 
   CATEGORY_IDS.forEach((catId) => {
     const rawList = buffers[catId] || [];
-    const list = dedupeRowsStrong(rawList); // MÉRET-variáns dedup kategórián
+    const list = dedupeRowsStrong(rawList); // MÉRET-VARIÁNS DEDUP KATEGÓRIÁN
 
     const pages = [];
     for (let i = 0; i < list.length; i += PAGE_SIZE; i++) {
       pages.push(list.slice(i, i + PAGE_SIZE));
     }
-
     CATEGORY_PAGES[catId] = pages;
     CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
-
     if (pages.length) {
       renderCategory(catId, 1);
     } else {
