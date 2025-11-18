@@ -13,56 +13,68 @@
         "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
-    }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
-  "id": "cj-karcher",
-  "name": "Kärcher",
-  "group": "otthon",
-  "meta": "feeds/cj-karcher/meta.json",
-  "pagePattern": "feeds/cj-karcher/page-{NNNN}.json",
-  "deeplinkPartner": "cj-karcher",
-  "placements": {
-    "home":   { "enabled": true, "pageSize": 3 },
-    "otthon": {
-      "enabled": true,
-      "pageSize": 3,
-      "full": { "enabled": true, "pageSize": 20 }
-    }
-  }
-},
-{
-  "id": "cj-eoptika",
-  "name": "eOptika",
-  "group": "vision",
-  "meta": "feeds/cj-eoptika/meta.json",
-  "pagePattern": "feeds/cj-eoptika/page-{NNNN}.json",
-  "deeplinkPartner": "cj-eoptika",
-  "placements": {
-    "home":   { "enabled": true, "pageSize": 3 },
-    "vision": {
-      "enabled": true,
-      "pageSize": 3,
-      "full": { "enabled": true, "pageSize": 20 }
-    }
-  }
-},
-{
-  "id": "cj-jateknet",
-  "name": "JátékNet",
-  "group": "games",
-  "meta": "feeds/cj-jateknet/meta.json",
-  "pagePattern": "feeds/cj-jateknet/page-{NNNN}.json",
-  "deeplinkPartner": "cj-jateknet",
-  "placements": {
-    "home":  { "enabled": true, "pageSize": 3 },
-    "games": {
-      "enabled": true,
-      "pageSize": 3,
-      "full": { "enabled": true, "pageSize": 20 }
-    }
-  }
-},
+    "id": "cj-karcher",
+    "name": "Kärcher",
+    "group": "otthon",
+    "meta": "feeds/cj-karcher/meta.json",
+    "pagePattern": "feeds/cj-karcher/page-{NNNN}.json",
+    "deeplinkPartner": "cj-karcher",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
+  },
+  {
+    "id": "cj-eoptika",
+    "name": "eOptika",
+    "group": "vision",
+    "meta": "feeds/cj-eoptika/meta.json",
+    "pagePattern": "feeds/cj-eoptika/page-{NNNN}.json",
+    "deeplinkPartner": "cj-eoptika",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "vision": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
+  },
+  {
+    "id": "cj-jateknet",
+    "name": "JátékNet",
+    "group": "games",
+    "meta": "feeds/cj-jateknet/meta.json",
+    "pagePattern": "feeds/cj-jateknet/page-{NNNN}.json",
+    "deeplinkPartner": "cj-jateknet",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "games": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
+  },
   {
     "id": "jateksziget",
     "name": "Játéksziget",
@@ -77,7 +89,10 @@
         "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
-    }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "regiojatek",
@@ -93,7 +108,10 @@
         "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
-    }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "decathlon",
@@ -109,7 +127,10 @@
         "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
-    }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "alza",
@@ -125,7 +146,10 @@
         "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
-    }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "kozmetikaotthon",
@@ -141,7 +165,10 @@
         "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
-    }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "pepita",
@@ -157,7 +184,10 @@
         "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
-    }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "ekszereshop",
@@ -173,7 +203,10 @@
         "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
-    }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "karacsonydekor",
@@ -189,7 +222,10 @@
         "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
-    }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "otthonmarket",
@@ -205,7 +241,10 @@
         "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
-    }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "onlinemarkabolt",
@@ -221,6 +260,9 @@
         "pageSize": 3,
         "full": { "enabled": true, "pageSize": 20 }
       }
-    }
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   }
 ]
