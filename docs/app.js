@@ -1260,7 +1260,6 @@ function attachPartnerViewHandlers() {
 
   document.addEventListener("click", handlePartnerUiClick);
 }
-
 // ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL + KATEGÓRIA-NÉZET ALAP) =====
 async function buildCategoryBlocks() {
   const buffers = {};
