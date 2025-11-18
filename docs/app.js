@@ -44,6 +44,365 @@ function imgPath(u) {
   return String(u || "").split("#")[0].split("?")[0];
 }
 
+// ===== Szöveg normalizálás + kategória-szabályok =====
+function normalizeText(str) {
+  return (str || "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function buildItemSearchText(it) {
+  const raw = [
+    it && it.title,
+    it && it.desc,
+    it && it.description,
+    it && it.category,
+    it && it.categoryPath,
+    Array.isArray(it && it.tags) ? it.tags.join(" ") : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return normalizeText(raw);
+}
+
+function textHasWord(text, word) {
+  if (!text || !word) return false;
+  const w = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp("\\b" + w + "\\b", "i");
+  return re.test(text);
+}
+
+function matchCategoryRule(text, rule) {
+  for (const kw of rule.keywords) {
+    if (textHasWord(text, kw)) return true;
+  }
+  return false;
+}
+
+// Normalizált kulcsszavak (ékezet nélkül!)
+const CATEGORY_RULES = [
+  {
+    catId: "kat-divat",
+    keywords: [
+      "kabat",
+      "dzseki",
+      "parka",
+      "ballonkabat",
+      "ruha",
+      "szoknya",
+      "bluz",
+      "tunika",
+      "dress",
+      "polo",
+      "tshirt",
+      "t shirt",
+      "triko",
+      "pulover",
+      "hoodie",
+      "nadrag",
+      "farmer",
+      "leggings",
+      "fehernemu",
+      "bugyi",
+      "melltarto",
+      "pizsama",
+      "haloing",
+      "harisnya",
+      "zokni",
+      "sapka",
+      "sapka",
+      "sal",
+      "kesztyu",
+      "kostum",
+      "szabadidoszett",
+      "cipő",
+      "cipo",
+      "csizma",
+      "bakancs",
+      "szandal",
+      "papucs",
+      "sneaker",
+      "shoe",
+      "boots",
+      "sandals",
+      "bikini",
+      "swimwear",
+      "swimsuit",
+      "coat",
+      "jacket",
+      "jeans",
+      "skirt",
+    ],
+  },
+  {
+    catId: "kat-jatekok",
+    keywords: [
+      "jatek",
+      "jatekok",
+      "lego",
+      "playmobil",
+      "tarsasjatek",
+      "board game",
+      "puzzle",
+      "kirako",
+      "baba",
+      "barbie",
+      "pluss",
+      "plussjatek",
+      "jatekszett",
+      "playset",
+      "figura",
+      "figuraszett",
+      "hot wheels",
+      "matchbox",
+      "keszsegfejleszto",
+      "babajatek",
+      "gyerekjatek",
+    ],
+  },
+  {
+    catId: "kat-gepek",
+    keywords: [
+      "mosogep",
+      "mosogatogep",
+      "moso szarito",
+      "szaritogep",
+      "fagyaszto",
+      "hutoszekreny",
+      "huto",
+      "sutogep",
+      "suto",
+      "tuzhely",
+      "mikrohullamu",
+      "mikro",
+      "porszivo",
+      "robotporszivo",
+      "goztisztito",
+      "kavefozo",
+      "eszpresszo",
+      "espresso",
+      "kavegep",
+      "turmix",
+      "botmixer",
+      "konyhagep",
+      "konyhai robotgep",
+      "szenkimoso",
+      "légkondi",
+      "legkondi",
+      "klima",
+    ],
+  },
+  {
+    catId: "kat-kert",
+    keywords: [
+      "kert",
+      "kerti",
+      "funyiro",
+      "fukasza",
+      "lancfuresz",
+      "locsolo",
+      "ontozorendszer",
+      "magasnyomasu",
+      "magasnyomasu moso",
+      "gereblye",
+      "aso",
+      "lapat",
+      "metszoollo",
+      "novenyapolo",
+      "slag",
+    ],
+  },
+  {
+    catId: "kat-szepseg",
+    keywords: [
+      "parfum",
+      "parfume",
+      "dezodor",
+      "deo",
+      "smink",
+      "alapozo",
+      "korrektor",
+      "puder",
+      "szempillaspiral",
+      "szajfeny",
+      "ruzs",
+      "ajakbalzsam",
+      "krem",
+      "arckrem",
+      "arcapolas",
+      "borapolas",
+      "testapolo",
+      "sampon",
+      "kondicionalo",
+      "hajbalzsam",
+      "hajolaj",
+      "hajpakolas",
+    ],
+  },
+  {
+    catId: "kat-sport",
+    keywords: [
+      "futocipo",
+      "futonaladrag",
+      "edzocipo",
+      "edzoruha",
+      "fitnessz",
+      "fitnesz",
+      "edzopad",
+      "ellipszis",
+      "futopad",
+      "kerekpar",
+      "bicikli",
+      "foci",
+      "kosarlabda",
+      "kezilabda",
+      "tenisz",
+      "pingpong",
+      "sportszer",
+      "sportmelltarto",
+      "sporttaska",
+    ],
+  },
+  {
+    catId: "kat-latas",
+    keywords: [
+      "kontaktlencse",
+      "kontaklencse",
+      "szemuveg",
+      "szemüveg",
+      "szemuvegkeret",
+      "napszemuveg",
+      "dioptria",
+      "optika",
+      "opti",
+      "lencse",
+      "multifokalis",
+    ],
+  },
+  {
+    catId: "kat-allatok",
+    keywords: [
+      "kutya",
+      "kutyatap",
+      "kutyatáp",
+      "macska",
+      "cica",
+      "macskatap",
+      "alom",
+      "kaparofa",
+      "kisallat",
+      "terrarium",
+      "akvarium",
+      "pet",
+      "petfood",
+      "dog",
+      "cat",
+    ],
+  },
+  {
+    catId: "kat-konyv",
+    keywords: [
+      "konyv",
+      "regeny",
+      "novella",
+      "szakkonyv",
+      "tankonyv",
+      "szotar",
+      "album",
+      "kepeskonyv",
+    ],
+  },
+  {
+    catId: "kat-utazas",
+    keywords: [
+      "utazas",
+      "utazasi",
+      "hotel",
+      "szallas",
+      "foglalas",
+      "repulojegy",
+      "repjegy",
+      "city break",
+      "wellness",
+      "nyaralas",
+    ],
+  },
+  {
+    catId: "kat-elektronika",
+    keywords: [
+      "tv",
+      "televizio",
+      "smart tv",
+      "laptop",
+      "notebook",
+      "pc",
+      "szamitogep",
+      "monitor",
+      "telefon",
+      "okostelefon",
+      "mobiltelefon",
+      "tablet",
+      "konzol",
+      "ps5",
+      "xbox",
+      "switch",
+      "kamera",
+      "webkamera",
+      "headset",
+      "fulhallgato",
+      "hangszoro",
+      "soundbar",
+      "eger",
+      "billentyuzet",
+      "router",
+      "wifi",
+      "ssd",
+      "hdd",
+      "memoria",
+      "videokartya",
+    ],
+  },
+  {
+    catId: "kat-otthon",
+    keywords: [
+      "parna",
+      "parna",
+      "takaro",
+      "agyterito",
+      "agynemu",
+      "lepedo",
+      "fuggony",
+      "draperia",
+      "diszparna",
+      "szonyeg",
+      "furdozonyeg",
+      "toro",
+      "torolkozo",
+      "agykere",
+      "kanape",
+      "fotel",
+      "asztal",
+      "szekreny",
+      "polc",
+      "komod",
+      "szek",
+      "konyhai felszereles",
+      "edeny",
+      "serpenyo",
+      "fazek",
+      "sutolap",
+      "sutokeszlet",
+      "dekoracio",
+      "gyertya",
+      "disztargy",
+    ],
+  },
+];
+
 // Méret / szín variánsok erős deduplikálása (TITLE alapú)
 const SIZE_TOKENS = new RegExp(
   [
@@ -249,145 +608,140 @@ function baseCategoryForPartner(pid, cfg) {
   }
 }
 
-// ===== Kategória meghatározás egy termékre =====
+// ===== Kategória meghatározás egy termékre (új, kulcsszavas + finomhangolt) =====
 function getCategoriesForItem(pid, it) {
   const cfg = PARTNERS.get(pid) || {};
-  let cat = baseCategoryForPartner(pid, cfg);
+  const baseCat = baseCategoryForPartner(pid, cfg); // pl. kat-elektronika
+  const text = buildItemSearchText(it);
 
-  const text = (
-    (it && it.title ? it.title : "") +
-    " " +
-    (it && it.desc ? it.desc : "")
-  ).toLowerCase();
+  let cat = null;
 
-  const hasAny = (words) => words.some((w) => text.includes(w));
-
-  if (cat === "kat-otthon") {
-    if (
-      hasAny([
-        "alsó",
-        "alsónemű",
-        "alsonemu",
-        "bugyi",
-        "melltartó",
-        "melltarto",
-        "fehérnemű",
-        "fehernemu",
-        "pizsama",
-        "hálóing",
-        "haloing",
-        "köntös",
-        "kontos",
-        "zokni",
-        "harisnya",
-        "leggings",
-        "top",
-        "póló",
-        "polo",
-        "pulóver",
-        "pulover",
-        "ruha",
-        "szoknya",
-        "blúz",
-        "bluz",
-      ])
-    ) {
-      cat = "kat-divat";
-    } else if (
-      hasAny([
-        "cipő",
-        "cipo",
-        "csizma",
-        "bakancs",
-        "szandál",
-        "szandal",
-        "papucs",
-        "mokaszin",
-        "mokasszin",
-        "loafer",
-      ])
-    ) {
-      cat = "kat-divat";
-    } else if (
-      hasAny([
-        "mosógép",
-        "mosogep",
-        "mosogatógép",
-        "mosogatogep",
-        "mosó-szárító",
-        "moso-szarito",
-        "hűtőszekrény",
-        "hutoszekreny",
-        "fagyasztó",
-        "fagyaszto",
-        "sütő",
-        "sutő",
-        "tűzhely",
-        "tuzhely",
-        "mikrohullámú",
-        "mikro",
-        "mikrohullamu",
-        "porszívó",
-        "porszivo",
-        "robotporszívó",
-        "robotporszivo",
-        "gőztisztító",
-        "goztisztito",
-        "kávéfőző",
-        "kavefozo",
-        "turmix",
-        "botmixer",
-        "konyhagép",
-        "konyhagep",
-      ])
-    ) {
-      cat = "kat-gepek";
-    } else if (
-      hasAny([
-        "kert",
-        "kerti",
-        "locsoló",
-        "locsolo",
-        "slag",
-        "fűnyíró",
-        "funyiro",
-        "fűkasza",
-        "fukasza",
-        "láncfűrész",
-        "lancfuresz",
-        "metszőolló",
-        "metszoollo",
-        "gereblye",
-        "ásó",
-        "aso",
-        "lapát",
-        "lapat",
-        "kerti szerszám",
-        "magasnyomású mosó",
-        "magasnyomasu moso",
-      ])
-    ) {
-      cat = "kat-kert";
+  // 1) Kulcsszabályok alapján elsődleges kategória
+  for (const rule of CATEGORY_RULES) {
+    if (matchCategoryRule(text, rule)) {
+      cat = rule.catId;
+      break;
     }
   }
 
-  if (cat === "kat-elektronika") {
-    if (
-      hasAny([
-        "mosógép",
-        "mosogep",
-        "mosogatógép",
-        "mosogatogep",
-        "hűtőszekrény",
-        "hutoszekreny",
-        "mosó-szárító",
-        "moso-szarito",
-        "szárítógép",
-        "szaritogep",
-      ])
+  // 2) Ha nincs szabálytalálat, partner alapú bázis
+  if (!cat) {
+    cat = baseCat;
+  }
+
+  // 3) Ha így sincs, próbáljuk a partner által adott kategóriaszöveget
+  if (!cat) {
+    const rawCat = normalizeText(
+      (it && (it.category || it.categoryPath || "")) || ""
+    );
+    if (rawCat.includes("ruhazat") || rawCat.includes("divat")) {
+      cat = "kat-divat";
+    } else if (rawCat.includes("jatek")) {
+      cat = "kat-jatekok";
+    } else if (
+      rawCat.includes("haztartasi") ||
+      rawCat.includes("konyhagep") ||
+      rawCat.includes("mosogep") ||
+      rawCat.includes("mosogatogep")
     ) {
       cat = "kat-gepek";
+    } else if (rawCat.includes("kert")) {
+      cat = "kat-kert";
+    } else if (rawCat.includes("optika") || rawCat.includes("latas")) {
+      cat = "kat-latas";
     }
+  }
+
+  // 4) Utófinomítás – divat / gépek / kert a szöveg alapján,
+  //    még akkor is, ha a bázis kategória pl. kat-otthon vagy kat-elektronika
+  const hasAny = (words) => words.some((w) => textHasWord(text, w));
+
+  // Divat jellegű találatok: bármilyen alapból átnyomjuk kat-divat-ba
+  const fashionWords = [
+    "kabat",
+    "dzseki",
+    "parka",
+    "ruha",
+    "szoknya",
+    "bluz",
+    "polo",
+    "triko",
+    "pulover",
+    "nadrag",
+    "farmer",
+    "leggings",
+    "fehernemu",
+    "bugyi",
+    "melltarto",
+    "pizsama",
+    "haloing",
+    "harisnya",
+    "zokni",
+    "cipő",
+    "cipo",
+    "csizma",
+    "bakancs",
+    "szandal",
+    "papucs",
+    "sneaker",
+    "shoe",
+    "boots",
+    "sandals",
+    "bikini",
+    "swimwear",
+  ];
+
+  // Háztartási nagygépek
+  const applianceWords = [
+    "mosogep",
+    "mosogatogep",
+    "szaritogep",
+    "moso szarito",
+    "fagyaszto",
+    "hutoszekreny",
+    "huto",
+    "sutogep",
+    "suto",
+    "tuzhely",
+    "mikrohullamu",
+    "mikro",
+    "porszivo",
+    "robotporszivo",
+    "goztisztito",
+    "kavefozo",
+    "kavegep",
+    "turmix",
+    "botmixer",
+    "konyhagep",
+    "konyhai robotgep",
+  ];
+
+  // Kerti eszközök
+  const gardenWords = [
+    "kert",
+    "kerti",
+    "funyiro",
+    "fukasza",
+    "lancfuresz",
+    "locsolo",
+    "ontozorendszer",
+    "magasnyomasu",
+    "gereblye",
+    "aso",
+    "lapat",
+    "metszoollo",
+    "novenyapolo",
+    "slag",
+  ];
+
+  // Ha egyértelműen divat – akár alza, akár tchibo – legyen kat-divat
+  if (hasAny(fashionWords)) {
+    cat = "kat-divat";
+  } else if (hasAny(applianceWords)) {
+    // Nagygépek: rángassuk át kat-gepek-be
+    cat = "kat-gepek";
+  } else if (hasAny(gardenWords)) {
+    cat = "kat-kert";
   }
 
   if (!cat) cat = "kat-multi";
@@ -1260,6 +1614,7 @@ function attachPartnerViewHandlers() {
 
   document.addEventListener("click", handlePartnerUiClick);
 }
+
 // ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL + KATEGÓRIA-NÉZET ALAP) =====
 async function buildCategoryBlocks() {
   const buffers = {};
