@@ -21,72 +21,68 @@ BASE_BY_PARTNER = {
     "cj-jateknet": "kat-jatekok",
     "jateksziget": "kat-jatekok",
     "regiojatek": "kat-jatekok",
-    "decathlon": "kat-sport",
     "onlinemarkabolt": "kat-otthon",
     "otthonmarket": "kat-otthon",
     "pepita": "kat-multi",
 }
 
-FASHION_WORDS = [
-    "nadrag", "ruha", "polo", "szoknya", "kabát", "kabat", "dzseki",
-    "melltarto", "fehernemu", "zokni", "cipo", "csizma", "papucs",
+FASHION = [
+    "nadrag", "legging", "ruha", "polo", "szoknya", "kabát", "kabat",
+    "dzseki", "melltarto", "fehernemu", "alsó", "also", "cipo", "csizma",
+    "papucs", "pulover", "pizsama", "gyerek", "sportnadrag"
 ]
 
-APPLIANCE_WORDS = [
+APPLIANCES = [
     "mosogep", "mosogatogep", "szaritogep", "fagyaszto",
-    "hutoszekreny", "huto", "sutogep", "tuzhely", "főzőlap", "fozőlapp", "fozolap",
-    "porszivo", "robotporszivo", "mikrohullamu", "mikro",
-    "kavefozo", "kavegep", "turmix", "botmixer", "konyhagep",
+    "hutoszekreny", "huto", "suto", "sutogep", "tuzhely",
+    "fozolap", "főzőlap", "főzolap", "robotporszivo", "porszivo",
+    "mikro", "mikrohullamu", "kavefozo", "kavegep", "turmix",
+    "botmixer", "konyhagep"
 ]
 
-TOY_WORDS = [
-    "jatek", "jatekszett", "lego", "tarsasjatek", "baba", "pluss",
+TOYS = [
+    "jatek", "jatekszett", "lego", "tarsasjatek", "baba",
+    "pluss", "jarmu", "jarmű"
 ]
 
-SPORT_WORDS = [
-    "futocipo", "foci", "kosarlabda", "tenisz", "sport", "edzopad",
+SPORT = [
+    "sport", "labda", "foci", "kosar", "kosarlabda",
+    "tenisz", "edzopad", "futocipo"
 ]
 
-VISION_WORDS = [
-    "szemuveg", "napszemuveg", "kontaktlencse", "optika", "lencse",
+VISION = [
+    "szemuveg", "szemüveg", "napszemuveg", "kontaktlencse",
+    "optika", "lencse"
 ]
 
-HOME_WORDS = [
+HOME = [
     "parna", "takaro", "agynemu", "lepedo", "szonyeg", "fuggony",
-    "kanape", "fotel", "asztal", "szekreny", "komod", "dekoracio", "gyertya",
+    "kanape", "fotel", "asztal", "szekreny", "komod",
+    "dekoracio", "gyertya"
 ]
 
 def assign_category(partner_id: str, item: dict) -> str:
     base = BASE_BY_PARTNER.get(partner_id, "kat-multi")
 
-    text_raw = " ".join(
+    text_src = " ".join(
         str(x) for x in [
             item.get("title", ""),
-            item.get("desc", ""),
-            item.get("description", ""),
             item.get("category", ""),
             item.get("categoryPath", ""),
+            item.get("desc", ""),
+            item.get("description", "")
         ]
         if x
     )
-    text = normalize_text(text_raw)
+    text = normalize_text(text_src)
 
-    def has_any(words):
-        return any(w in text for w in words)
+    def has(words): return any(w in text for w in words)
 
-    # 1) erős jel: látás, játék, gép, divat, stb.
-    if has_any(VISION_WORDS):
-        return "kat-latas"
-    if has_any(TOY_WORDS):
-        return "kat-jatekok"
-    if has_any(APPLIANCE_WORDS):
-        return "kat-gepek"
-    if has_any(FASHION_WORDS):
-        return "kat-divat"
-    if has_any(SPORT_WORDS):
-        return "kat-sport"
-    if has_any(HOME_WORDS):
-        return "kat-otthon"
+    if has(VISION): return "kat-latas"
+    if has(TOYS): return "kat-jatekok"
+    if has(APPLIANCES): return "kat-gepek"
+    if has(FASHION): return "kat-divat"
+    if has(SPORT): return "kat-sport"
+    if has(HOME): return "kat-otthon"
 
-    # 2) fallback: partner alap csoport
     return base
