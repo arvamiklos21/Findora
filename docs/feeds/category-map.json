@@ -1,11 +1,13 @@
 {
   "tchibo": [
-    { "pattern": "noi divat", "catId": "kat-divat" },
-    { "pattern": "ferfi divat", "catId": "kat-divat" },
-    { "pattern": "gyerek divat", "catId": "kat-divat" },
-    { "pattern": "fehernemu", "catId": "kat-divat" },
-    { "pattern": "ruhazat", "catId": "kat-divat" },
-    { "pattern": "halo ruhazat", "catId": "kat-divat" },
+    { "pattern": "noi", "catId": "kat-divat" },
+    { "pattern": "ferfi", "catId": "kat-divat" },
+    { "pattern": "ruha", "catId": "kat-divat" },
+    { "pattern": "polo", "catId": "kat-divat" },
+    { "pattern": "nadrag", "catId": "kat-divat" },
+    { "pattern": "szoknya", "catId": "kat-divat" },
+    { "pattern": "kabat", "catId": "kat-divat" },
+    { "pattern": "dzseki", "catId": "kat-divat" },
 
     { "pattern": "otthon", "catId": "kat-otthon" },
     { "pattern": "lakberendezes", "catId": "kat-otthon" },
@@ -13,6 +15,13 @@
   ],
 
   "alza": [
+    { "pattern": "tv", "catId": "kat-elektronika" },
+    { "pattern": "laptop", "catId": "kat-elektronika" },
+    { "pattern": "porszivo", "catId": "kat-gepek" },
+    { "pattern": "mosogep", "catId": "kat-gepek" },
+    { "pattern": "mikrofon", "catId": "kat-elektronika" },
+    { "pattern": "headset", "catId": "kat-elektronika" },
+
     { "pattern": "jatek", "catId": "kat-jatekok" },
     { "pattern": "jatekok", "catId": "kat-jatekok" },
 
@@ -49,7 +58,6 @@
   ],
 
   "pepita": [
-    { "pattern": "jatek", "catId": "kat-jatekok" },
-    { "pattern": "black weekend", "catId": "kat-elektronika" }
+    { "pattern": "jatek", "catId": "kat-jatekok" }
   ]
 }
