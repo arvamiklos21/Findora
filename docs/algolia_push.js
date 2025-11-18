@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 
 // FONTOS: .default kell, különben "algoliasearch is not a function" hibát kapsz
-const algoliasearch = require("algoliasearch").default;
+const algoliasearch = require("algoliasearch");
 
 // ===== KÖRNYEZETI VÁLTOZÓK =====
 const APP_ID = process.env.ALGOLIA_APP_ID;
@@ -210,3 +210,4 @@ main().catch((err) => {
   console.error("[FATAL] Algolia push hiba:", err);
   process.exit(1);
 });
+
