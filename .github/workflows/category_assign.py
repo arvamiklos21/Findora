@@ -60,6 +60,48 @@ HOME = [
     "kanape", "fotel", "asztal", "szekreny", "komod",
     "dekoracio", "gyertya", "polc", "asztak", "szek", 
 ]
+ELECTRONICS = [
+    # fő termékcsoportok
+    "tv", "televizio", "televízió", "monitor",
+    "laptop", "notebook", "tablet", "okostelefon",
+    "telefon", "smartphone", "okos telefon",
+
+    # konzol / gaming
+    "konzol", "playstation", "ps4", "ps5",
+    "xbox", "nintendo", "switch", "jatekgep", "játékgép",
+
+    # hang / audio
+    "hangfal", "hangszoro", "hangszóró",
+    "bluetooth hangszoro", "soundbar",
+    "fejhallgato", "fejhallgató", "headset",
+    "fulhallgato", "fülhallgató",
+
+    # kamera / foto
+    "kamera", "fenykepezo", "fényképező",
+    "akcijkamera", "action camera", "gopro",
+    "webkamera", "webkamera",
+
+    # számtech / hálózat
+    "router", "wifi router", "mesh", "modem",
+    "hdd", "ssd", "memoriakartya", "memóriakártya",
+    "nyomtato", "nyomtató", "szkenner", "scanner",
+    "projektor", "projektor",
+
+    # okoseszközök
+    "okosora", "okos óra", "fitneszora", "fitnesz ora",
+    "fitneszkarkoto", "fitnesz karkoto", "activity tracker",
+]
+
+BOOKS = [
+    "konyv", "könyv", "konyvek", "könyvek",
+    "regeny", "regény", "roman", "novella",
+    "szakkonyv", "szakkönyv", "tankonyv", "tankönyv",
+    "kepregeny", "képregény",
+    "mesekonyv", "mesekönyv", "gyerekkonyv", "gyerekkönyv",
+    "ifjusagi konyv", "ifjúsági könyv", "ifjusagi",
+    "verseskotet", "verseskötet",
+    "album", "lexikon", "enciklopedia", "enciklopédia",
+]
 
 def assign_category(partner_id: str, item: dict) -> str:
     base = BASE_BY_PARTNER.get(partner_id, "kat-multi")
