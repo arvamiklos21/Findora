@@ -16,6 +16,7 @@
   { "pattern": "pizsama", "catId": "kat-divat" },
   { "pattern": "gyerek", "catId": "kat-divat" },
   { "pattern": "sport", "catId": "kat-sport" },
+  { "pattern": "gyerekzokni", "catId": "kat-divat" },
 
   { "pattern": "konyha", "catId": "kat-otthon" },
   { "pattern": "konyhai", "catId": "kat-otthon" },
