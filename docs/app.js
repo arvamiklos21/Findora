@@ -133,6 +133,17 @@ function dedupeRowsStrong(rows) {
   return out;
 }
 
+// BF / akciós blokk partnerenkénti konfiguráció (partners.json -> cfg.bf)
+function getBfConfigForPartner(cfg) {
+  const bf = (cfg && cfg.bf) || {};
+  // Alapértelmezés: BF engedélyezve, hogy a régi működés megmaradjon,
+  // de ha bf.enabled === false, akkor kikapcsoljuk.
+  const enabled = bf.enabled === false ? false : true;
+  const scanPages = Number.isFinite(bf.scanPages) ? bf.scanPages : 2;
+  const minDiscount = Number.isFinite(bf.minDiscount) ? bf.minDiscount : 10;
+  return { enabled, scanPages, minDiscount };
+}
+
 // ===== Diszkont százalék kinyerése =====
 function getDiscountNumber(it) {
   if (it && typeof it.discount === "number" && isFinite(it.discount)) {
@@ -501,7 +512,6 @@ async function buildAkciosBlokk() {
     if (nav) nav.innerHTML = "";
 
     const collected = [];
-    const scanPagesMax = 2;
 
     for (const [pid, cfg] of PARTNERS.entries()) {
       const plc = cfg.placements || {};
@@ -511,54 +521,34 @@ async function buildAkciosBlokk() {
       });
       if (!anyEnabled) continue;
 
+      // BF / akció konfiguráció partnerenként
+      const bfCfg = getBfConfigForPartner(cfg);
+      if (!bfCfg.enabled) continue;
+
       const meta = await getMeta(pid);
       const pageSize = meta.pageSize || 300;
       const totalPages =
         meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
-      const scanPages = Math.min(scanPagesMax, totalPages);
+      const scanPages = Math.min(bfCfg.scanPages, totalPages);
+      const minDiscount = bfCfg.minDiscount;
 
       for (let pg = 1; pg <= scanPages; pg++) {
         const arr = await getPageItems(pid, pg);
         for (const it of arr) {
           const d = getDiscountNumber(it);
-          if (d !== null && d >= 10) {
+          if (d !== null && d >= minDiscount) {
             collected.push({ pid, item: it });
           }
         }
       }
     }
 
-    const dedItems = dedupeStrong(collected.map((r) => r.item));
-    const backMap = new Map();
-    collected.forEach((r) => {
-      const raw = itemUrl(r.item);
-      if (!raw) return;
-      const key =
-        basePath(stripVariantParams(raw)) +
-        "|" +
-        imgPath(itemImg(r.item)) +
-        "|" +
-        normalizeTitleNoSize(r.item.title || "");
-      if (!backMap.has(key)) backMap.set(key, r.pid);
+    // Sor-szintű dedup (méret-variánsok összevonása)
+    const merged = dedupeRowsStrong(collected).sort((a, b) => {
+      const da = getDiscountNumber(a.item) || 0;
+      const db = getDiscountNumber(b.item) || 0;
+      return db - da;
     });
-
-    const merged = dedItems
-      .map((it) => {
-        const raw = itemUrl(it);
-        const key =
-          basePath(stripVariantParams(raw)) +
-          "|" +
-          imgPath(itemImg(it)) +
-          "|" +
-          normalizeTitleNoSize(it.title || "");
-        const pid = backMap.get(key) || "unknown";
-        return { pid, item: it };
-      })
-      .sort((a, b) => {
-        const da = getDiscountNumber(a.item) || 0;
-        const db = getDiscountNumber(b.item) || 0;
-        return db - da;
-      });
 
     const PAGE_SIZE = 12;
     AKCIO_PAGES = [];
@@ -848,7 +838,7 @@ async function buildCategoryBlocks() {
     const list = dedupeRowsStrong(rawList); // MÉRET-VARIÁNS DEDUP KATEGÓRIÁN
 
     const pages = [];
-    for (let i = 0; i < list.length; i += PAGE_SIZE) {
+    for (let i = 0; i < list.length; i += PAGE_SIZE; i++) {
       pages.push(list.slice(i, i + PAGE_SIZE));
     }
     CATEGORY_PAGES[catId] = pages;
