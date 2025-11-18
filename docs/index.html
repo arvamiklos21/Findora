@@ -3,1405 +3,763 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Findora – Ne állj sorba 🛍️ Vásárolj kényelmesen otthonról! 🌐 Akciók egy helyen!🔥</title>
-  <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat." />
-  <meta name="robots" content="index,follow,max-image-preview:large" />
-    <!-- IDE KELL A CANONICAL -->
-  <link rel="canonical" href="https://www.findora.hu/" />
+  <title>Findora – Irányt mutat a legjobb ajánlatokhoz</title>
+  <meta name="description" content="A Findora segít megtalálni a legjobb akciókat és ajánlatokat.">
+  <meta name="robots" content="noindex,nofollow">
   <link rel="icon" href="assets/img/findora_mark.png" />
-
-  <!-- OG/Twitter -->
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Findora" />
-  <meta property="og:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
-  <meta property="og:description" content="Válogatott akciók és ajánlatok." />
-  <meta property="og:image" content="assets/img/findora-header.png" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Findora – Irányt mutat a legjobb ajánlatokhoz" />
-  <meta name="twitter:description" content="A legjobb akciók és kuponok egy helyen." />
-  <meta name="twitter:image" content="assets/img/findora-header.png" />
-
-  <!-- Fonts – render-blocking minimalizálása -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <noscript>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  </noscript>
 
   <style>
     :root{
-      --brand:#0077FF; --brand2:#00BBFF; --bg:#f7f9fc; --text:#0f172a; --muted:#64748b;
-      --card:#ffffff; --panel:#ffffffee; --border:#e2e8f0; --panel-blur: 12px;
-      --pine-row:url("data:image/svg+xml;utf8,<?xml version='1.0'?><svg xmlns='http://www.w3.org/2000/svg' width='480' height='120' viewBox='0 0 480 120'><defs><linearGradient id='fog' x1='0' x2='0' y1='0' y2='1'><stop offset='0' stop-color='%230b1a33' stop-opacity='0.0'/><stop offset='1' stop-color='%230b1a33' stop-opacity='0.35'/></linearGradient></defs><rect width='480' height='120' fill='url(%23fog)'/><g fill='%23152a4a' opacity='0.75'><path d='M10,110 l20,-40 l20,40 z'/><path d='M60,110 l22,-44 l22,44 z'/><path d='M120,110 l18,-36 l18,36 z'/><path d='M170,110 l24,-48 l24,48 z'/><path d='M230,110 l20,-42 l20,42 z'/><path d='M290,110 l22,-44 l22,44 z'/><path d='M350,110 l18,-36 l18,36 z'/><path d='M400,110 l24,-48 l24,48 z'/></g></svg>");
+      --brand:#0077ff;
+      --brand-soft:#e0f2ff;
+      --accent:#ff7a00;
+      --bg:#f5f7fb;
+      --text:#0f172a;
+      --muted:#64748b;
+      --card:#ffffff;
+      --border:#e2e8f0;
     }
     *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%}
     body{
-      font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);
-      background:
-        radial-gradient(1200px 700px at 12% -10%, rgba(0,119,255,.08), transparent 60%),
-        radial-gradient(900px 600px at 110% -10%, rgba(0,187,255,.06), transparent 60%),
-        var(--pine-row) bottom center/900px 220px repeat-x,
-        var(--bg);
-      background-attachment: fixed,fixed,fixed,fixed;
-      overflow-x:hidden;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      background:radial-gradient(1200px 700px at 12% -10%, rgba(0,119,255,.08), transparent 60%), var(--bg);
+      color:var(--text);
     }
-    @media (max-width:640px){ body{ background-attachment: scroll,scroll,scroll,scroll; } }
+    a{color:inherit;text-decoration:none}
+    main{max-width:1200px;margin:0 auto;padding:16px 12px 40px}
+
+    /* rejtés single nézethez */
+    .hidden{
+      display:none !important;
+    }
+
+    /* FELSŐ NAV + HERO */
+    header{
+      background:#ffffff;
+      box-shadow:0 2px 8px rgba(15,23,42,.06);
+      border-bottom:1px solid var(--border);
+    }
+    .topbar{
+      max-width:1200px;
+      margin:0 auto;
+      padding:8px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .brand img{
+      height:40px;
+      border-radius:10px;
+      background:#fff;
+      border:1px solid var(--border);
+    }
+    .brand-title{
+      font-weight:800;
+      font-size:18px;
+    }
+    .brand-sub{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .main-nav{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .nav-btn{
+      border-radius:999px;
+      border:1px solid #dbeafe;
+      padding:6px 10px;
+      font-size:13px;
+      background:#ffffff;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .nav-btn.primary{
+      background:linear-gradient(90deg,var(--brand),#00bbff);
+      color:#ffffff;
+      border-color:transparent;
+      font-weight:700;
+    }
+    .nav-btn.legal{
+      border-color:transparent;
+      background:#0b3a6a;
+      color:#fff;
+      font-weight:700;
+    }
 
     .hero{
-      position:relative; z-index:3; color:#0f172a; text-align:center; padding:58px 10px 22px;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,.85) 0%, rgba(255,255,255,.78) 60%, rgba(255,255,255,.75) 100%),
-        url('assets/img/findora-header.png') center/cover no-repeat;
-      border-bottom:1px solid rgba(226,232,240,.7);
+      max-width:1200px;
+      margin:0 auto;
+      padding:18px 12px 20px;
+      display:grid;
+      grid-template-columns: minmax(0,2.2fr) minmax(0,1.6fr);
+      gap:16px;
     }
-    .hero-inner{max-width:1100px;margin:0 auto}
-    .brand{display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:10px}
-    .brand img{height:44px;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(2,6,23,.08);border:1px solid var(--border)}
-    .hero h1{font-size:clamp(20px,3.5vw,32px);font-weight:800}
-    .hero p{font-size:clamp(13px,1.7vw,16px); color:#334155}
-    .dev-badge{position:absolute;left:12px;top:12px;background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:13px;box-shadow:0 4px 14px rgba(0,119,255,.25)}
-    .promo{margin:10px auto;background:#ffffffcc;color:#0f172a;padding:8px 12px;border-radius:14px;max-width:860px;font-weight:700;border:1px solid rgba(2,6,23,.06);backdrop-filter:saturate(140%) blur(6px)}
+    @media (max-width:900px){
+      .hero{grid-template-columns:1fr}
+    }
+    .hero-left h1{
+      font-size: clamp(22px,3.2vw,30px);
+      font-weight:800;
+      margin-bottom:8px;
+    }
+    .hero-left p{
+      font-size:14px;
+      color:var(--muted);
+      margin-bottom:14px;
+    }
+    .searchbar{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-bottom:8px;
+    }
+    .searchbar input{
+      flex:1;
+      min-width:220px;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      font-size:14px;
+    }
+    .searchbar button{
+      padding:10px 14px;
+      border-radius:10px;
+      border:none;
+      font-size:14px;
+      font-weight:700;
+      background:linear-gradient(90deg,var(--brand),#00bbff);
+      color:#ffffff;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .hero-tags{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .hero-tag{
+      padding:4px 8px;
+      border-radius:999px;
+      background:var(--brand-soft);
+    }
 
-    .gift-row{display:flex;gap:8px;justify-content:center;margin-top:10px}
-    .gift{width:26px;height:26px;position:relative;transform:rotate(3deg);filter:drop-shadow(0 6px 10px rgba(0,0,0,.12))}
-    .gift:before,.gift:after{content:"";position:absolute;inset:0;border-radius:4px}
-    .gift:before{background:linear-gradient(145deg,#fff,#ddd)}
-    .gift:after{
-      background:
-        linear-gradient(0deg,transparent 45%, rgba(0,0,0,.06) 46% 54%, transparent 55%),
-        linear-gradient(90deg,#e11d48,#e11d48);
-      border-radius:4px}
-    .gift .bow{position:absolute;top:-9px;left:50%;width:18px;height:10px;transform:translateX(-50%);border-radius:10px;background:radial-gradient(circle at 30% 40%, #ff7096, #e11d48)}
+    .hero-right{
+      background:radial-gradient(circle at 0 0, #1f2937 0, #020617 60%);
+      border-radius:18px;
+      padding:14px 14px 12px;
+      color:#e5e7eb;
+      position:relative;
+      overflow:hidden;
+    }
+    .hero-right h2{
+      font-size:15px;
+      font-weight:700;
+      margin-bottom:6px;
+    }
+    .hero-right p{
+      font-size:13px;
+      color:#cbd5f5;
+      margin-bottom:8px;
+    }
+    .hero-steps{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      font-size:12px;
+    }
+    .hero-step{
+      display:flex;
+      gap:6px;
+      align-items:flex-start;
+    }
+    .hero-step span{
+      font-weight:700;
+      color:#fbbf24;
+      font-size:11px;
+      margin-top:1px;
+    }
+    .hero-note{
+      font-size:11px;
+      color:#9ca3af;
+      margin-top:8px;
+    }
 
-    .promo-banners{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:1100px;margin:10px auto 0;padding:0 10px}
-    .pb-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;text-decoration:none;background:#fff;border:1px solid rgba(2,6,23,.06);box-shadow:0 6px 14px rgba(2,6,23,.08);color:#0f172a}
-    .pb-eyebrow{display:block;font-size:12px;letter-spacing:.06em;opacity:.85}
-    .pb-title{display:block;font-weight:900;font-size:18px;line-height:1}
-    .pb-cta{font-weight:800;font-size:13px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.9)}
-    .pb-card.xmas{background:linear-gradient(90deg,#e11d48,#ef4444);color:#fff;border-color:transparent}
-    .pb-card.bf{background:radial-gradient(120% 120% at 0% 0%, #111 0%, #000 60%);color:#e5e7eb;border-color:#111}
-    .pb-card.bf .pb-cta{background:#111;color:#fff;border:1px solid #222}
-    .pb-card.bf .pb-count{font-variant-numeric:tabular-nums;font-weight:900;letter-spacing:.02em;background:#0a0a0a;border:1px solid #1f2937;padding:6px 8px;border-radius:8px}
-    @media (max-width:760px){ .promo-banners{grid-template-columns:1fr} }
+    /* KATEGÓRIA SÁV (nem görgetős, mindig látszik desktopon) */
+    .catbar-wrap{
+      border-top:1px solid #e5e7eb;
+      border-bottom:1px solid #e5e7eb;
+      background:#f9fafb;
+    }
+    .catbar{
+      max-width:1200px;
+      margin:0 auto;
+      padding:8px 12px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      justify-content:flex-start;
+    }
+    .cat-pill{
+      font-size:13px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid #dbeafe;
+      background:#ffffff;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .cat-pill.active{
+      background:linear-gradient(90deg,var(--brand),#00bbff);
+      color:#ffffff;
+      border-color:transparent;
+      font-weight:700;
+    }
 
-    .topbar-wrap{position:sticky; top:0; z-index:40; backdrop-filter: blur(var(--panel-blur)); background:rgba(255,255,255,.7); border-bottom:1px solid rgba(226,232,240,.8)}
-    .topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:0 auto;max-width:1100px;padding:8px 6px}
-    .categories{display:flex;gap:8px;justify-content:center;overflow-x:auto;padding:0 6px}
-    .catbtn{border:1px solid #dbeafe;background:#ffffffc9;border-radius:999px;padding:8px 12px;cursor:pointer;font-weight:700;font-size:14px;white-space:nowrap}
-    .catbtn.active{background:linear-gradient(90deg,var(--brand),var(--brand2));color:#fff;border-color:#cfe6ff}
-
-    .searchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin:8px 0 0}
-    .searchbar input,.searchbar button{padding:10px;border:none;border-radius:10px;font-size:14px}
-    .searchbar input{min-width:220px;max-width:360px;flex:1;padding-left:36px;background:#fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="%2399a1ad"><path d="M21 20l-5.6-5.6a7 7 0 10-1.4 1.4L20 21l1-1zM10 16a6 6 0 110-12 6 6 0 010 12z"/></svg>') no-repeat 10px center;background-size:18px 18px; border:1px solid var(--border)}
-    .searchbar button{background:linear-gradient(90deg,var(--brand),var(--brand2));color:#ffffff;font-weight:800;cursor:pointer;box-shadow:0 8px 18px rgba(0,119,255,.18)}
-
-    /* mini nav */
-    .nav-mini{position:fixed;right:12px;bottom:70px;display:flex;gap:8px;z-index:60}
-    .nav-mini button{background:#ffffff;border:1px solid #e2e8f0;border-radius:999px;padding:8px 12px;font-weight:800;box-shadow:0 8px 22px rgba(2,6,23,.22);cursor:pointer}
-
-    main{max-width:1200px;margin:22px auto;padding:0 12px; position:relative; z-index:2}
+    /* SZEKCIÓK & KÁRTYÁK */
     .section{
-      background:var(--panel); border:1px solid rgba(226,232,240,.85); border-radius:18px; margin-bottom:24px; box-shadow:0 10px 24px rgba(2,6,23,.10); overflow:hidden;
-      content-visibility:auto; contain-intrinsic-size: 1000px 800px;
+      background:var(--card);
+      border-radius:18px;
+      border:1px solid var(--border);
+      box-shadow:0 8px 22px rgba(15,23,42,.08);
+      margin-top:18px;
+      overflow:hidden;
     }
-    .section h2{font-size:18px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:linear-gradient(90deg,#eef6ff,#fff)}
-    .section h3{font-size:16px;padding:8px 12px 0;color:#0f172a}
+    .section-header{
+      padding:10px 14px;
+      border-bottom:1px solid var(--border);
+      background:linear-gradient(90deg,#eef6ff,#ffffff);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .section-header h2{
+      font-size:16px;
+      font-weight:700;
+    }
+    .section-header small{
+      font-size:12px;
+      color:var(--muted);
+    }
 
-    .grid{display:flex; flex-wrap:wrap; gap:12px; padding:12px}
-    .card{
-      background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden;
-      display:flex; flex-direction:column; min-width:220px;
-      flex:1 1 calc(25% - 12px); max-width:calc(25% - 12px)
+    .grid{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      padding:12px;
     }
-    .card:hover{transform:translateY(-3px); box-shadow:0 14px 26px rgba(2,6,23,.16)}
-    @media (max-width:900px){ .card{ flex:1 1 calc(33.333% - 12px); max-width:calc(33.333% - 12px); } }
-    @media (max-width:640px){ .card{ flex:1 1 calc(50% - 12px); max-width:calc(50% - 12px); } }
-    @media (max-width:420px){ .card{ flex:1 1 100%; max-width:100%; } }
+    .card{
+      background:#ffffff;
+      border-radius:14px;
+      border:1px solid var(--border);
+      flex:1 1 calc(25% - 12px);
+      max-width:calc(25% - 12px);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    @media (max-width:900px){
+      .card{flex:1 1 calc(33.333% - 12px);max-width:calc(33.333% - 12px);}
+    }
+    @media (max-width:640px){
+      .card{flex:1 1 calc(50% - 12px);max-width:calc(50% - 12px);}
+    }
+    @media (max-width:420px){
+      .card{flex:1 1 100%;max-width:100%;}
+    }
 
     .thumb{
       height:130px;
-      aspect-ratio:4/3;
-      background:#eef2f7;
+      background:#f1f5f9;
       display:flex;
       align-items:center;
-      justify-content:center
+      justify-content:center;
+      font-size:24px;
     }
-    .title{font-weight:800;margin:10px;font-size:14px;line-height:1.25;text-align:center;color:#475569}
-    .price{margin:6px 12px 0; font-weight:900; text-align:center}
-    .cta{display:inline-block; margin:10px auto 12px; background:linear-gradient(90deg,var(--brand),var(--brand2)); color:#fff; padding:8px 12px; border-radius:10px; font-weight:800; text-decoration:none}
-    .empty{padding:18px;color:#64748b}
-
-    footer{text-align:center;padding:20px;background:#0b3a6a;color:#fff;margin-top:24px;font-size:14px;border-top:1px solid rgba(255,255,255,.15)}
-
-    .snow{pointer-events:none;position:fixed;inset:0;overflow:hidden;z-index:1}
-    .flake{position:absolute;top:-10px;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.9);filter:blur(.5px);animation:fall linear infinite}
-    @keyframes fall{
-      0%{transform:translateY(-10px)}
-      100%{transform:translateY(110vh)}
+    .title{
+      font-size:13px;
+      font-weight:700;
+      margin:8px 10px 4px;
+      text-align:center;
+      color:#475569;
+    }
+    .price{
+      font-size:14px;
+      font-weight:800;
+      margin:4px 10px 0;
+      text-align:center;
+    }
+    .partner{
+      font-size:11px;
+      color:var(--muted);
+      text-align:center;
+      margin-top:2px;
     }
 
-    #searchProgress{display:none; margin:6px auto 0; font-size:12px; color:#334155; background:#fff; border:1px solid var(--border); border-radius:10px; padding:6px 10px; width:max-content}
+    .btn-megnez{
+      display:inline-block;
+      margin:10px auto 12px;
+      padding:7px 12px;
+      border-radius:10px;
+      font-size:13px;
+      font-weight:800;
+      text-decoration:none;
+      background:linear-gradient(90deg,var(--brand),#00bbff);
+      color:#ffffff;
+    }
+    .btn-megnez.akcios{
+      background:linear-gradient(90deg,var(--accent),#ffb200);
+      color:#111827;
+    }
+
+    .empty{
+      padding:16px;
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    /* PARTNER LINK (régi – most nem használjuk, de maradhat) */
+    .partner-link{
+      border:none;
+      background:none;
+      padding:0;
+      margin:0;
+      font:inherit;
+      color:var(--brand);
+      cursor:pointer;
+      text-decoration:underline;
+    }
+    .partner-link:hover{
+      text-decoration:none;
+    }
+
+    /* BLACK FRIDAY BLOKK */
+    .bf-section{
+      background:radial-gradient(circle at 0 0,#111827 0,#020617 60%);
+      color:#e5e7eb;
+      border-radius:18px;
+      border:1px solid #111827;
+      box-shadow:0 10px 26px rgba(0,0,0,.5);
+      margin-top:18px;
+      overflow:hidden;
+    }
+    .bf-header{
+      padding:10px 14px;
+      border-bottom:1px solid #1f2937;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+    }
+    .bf-header h2{
+      font-size:16px;
+      font-weight:800;
+    }
+    .bf-header span{
+      font-size:12px;
+      color:#9ca3af;
+    }
+    .bf-grid{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      padding:12px;
+    }
+
+    /* PARTNER NÉZET – FEJLÉC, SZŰRŐK, VISSZA / HOME GOMB */
+    .partner-view-header{
+      align-items:flex-start;
+    }
+    .partner-header-main{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .partner-filters{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      justify-content:flex-end;
+    }
+    .partner-filters input{
+      padding:6px 8px;
+      border-radius:8px;
+      border:1px solid var(--border);
+      font-size:13px;
+    }
+    .partner-filters select{
+      padding:6px 8px;
+      border-radius:8px;
+      border:1px solid var(--border);
+      font-size:13px;
+      background:#ffffff;
+    }
+    .btn-back-partner{
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid #dbeafe;
+      background:#eff6ff;
+      font-size:12px;
+      cursor:pointer;
+      margin-bottom:4px;
+    }
+    .btn-home-partner{
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid #dbeafe;
+      background:#ffffff;
+      font-size:13px;
+      cursor:pointer;
+      font-weight:600;
+      white-space:nowrap;
+    }
+
+    /* KATEGÓRIA ALATTI PARTNER-BLOKKOK */
+    .partner-block{
+      border-top:1px solid var(--border);
+      margin-top:8px;
+      padding-top:4px;
+      width:100%;
+      display:block;
+    }
+    .partner-block-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:4px 12px 0 12px;
+    }
+    .partner-block-title{
+      border:none;
+      background:none;
+      padding:0;
+      margin:0;
+      font-size:14px;
+      font-weight:700;
+      color:var(--brand);
+      cursor:pointer;
+      text-align:left;
+    }
+    .partner-block-title:hover{
+      text-decoration:underline;
+    }
+    .partner-block-sub{
+      font-size:11px;
+      color:var(--muted);
+      margin-left:12px;
+      margin-top:2px;
+    }
+    .partner-block-grid{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      padding:4px 12px 8px;
+    }
+
+    footer{
+      margin-top:24px;
+      padding:16px 12px 20px;
+      background:#0b3a6a;
+      color:#ffffff;
+      font-size:13px;
+      text-align:center;
+    }
+    footer a{
+      color:#ffffff;
+      text-decoration:underline;
+    }
+    footer .links{
+      margin-top:6px;
+    }
+
   </style>
 </head>
 <body>
-  <div class="snow" aria-hidden="true"></div>
 
-  <header class="hero">
-    <span class="dev-badge">Folyamatos fejlesztés</span>
-    <div class="hero-inner">
+  <!-- FELSŐ NAV -->
+  <header>
+    <div class="topbar">
       <div class="brand">
-        <img
-          id="brandLogo"
-          src="assets/img/findora-header.png"
-          alt="Findora logó"
-          width="176"
-          height="44"
-          loading="eager"
-          fetchpriority="high"
-          decoding="async"
-        />
+        <img src="assets/img/findora-header.png" alt="Findora logó">
         <div>
-          <h1>Findora</h1>
-          <p>Irányt mutat a legjobb ajánlatokhoz</p>
+          <div class="brand-title">Findora</div>
+          <div class="brand-sub">Irányt mutat a legjobb ajánlatokhoz</div>
+        </div>
+      </div>
+      <nav class="main-nav">
+        <!-- Főoldal (Akciók + hero + minden kategória együtt) -->
+        <button class="nav-btn primary" data-view="home">Főoldal / Akciók</button>
+
+        <!-- Kategória nézetek (külön-külön oldalérzet) -->
+        <button class="nav-btn" data-view="category" data-cat="kat-elektronika">Elektronika</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-gepek">Háztartási gépek</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-otthon">Otthon</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-kert">Kert</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-jatekok">Játékok</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-divat">Divat</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-szepseg">Szépség</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-sport">Sport</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-latas">Látás</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-allatok">Állatok</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-konyv">Könyv</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-utazas">Utazás</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-multi">Multi</button>
+
+        <a class="nav-btn legal" href="nyilatkozat.html" rel="nofollow">Nyilatkozat</a>
+      </nav>
+    </div>
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-left">
+        <h1>Találd meg a legjobb ajánlatokat egy helyen</h1>
+        <p>Elektronika, háztartási gépek, otthon, kert, játékok, divat, szépség, látás, sport – különböző boltok ajánlatai egy helyen, sorban állás nélkül.</p>
+
+        <form id="searchFormAll" class="searchbar">
+          <input id="qAll" type="search" placeholder="Keresés az összes partner termékében…">
+          <button type="submit">Keresés</button>
+        </form>
+
+        <div class="hero-tags">
+          <div class="hero-tag">Laptopok</div>
+          <div class="hero-tag">TV-k</div>
+          <div class="hero-tag">LEGO®</div>
+          <div class="hero-tag">Kávéfőzők</div>
+          <div class="hero-tag">Porszívók</div>
+          <div class="hero-tag">Szemüvegkeretek</div>
         </div>
       </div>
 
-      <div class="gift-row" aria-hidden="true">
-        <div class="gift"><div class="bow"></div></div>
-        <div class="gift" style="transform:rotate(-4deg)"><div class="bow"></div></div>
-        <div class="gift" style="transform:rotate(2deg)"><div class="bow"></div></div>
-        <div class="gift" style="transform:rotate(-6deg)"><div class="bow"></div></div>
-      </div>
-
-      <div class="promo" role="note">🎄 Ünnepi hangulat, friss ajánlatokkal! – A partnerek statikus feedről töltenek, gyors betöltéssel.</div>
-
-      <div class="promo-banners" role="region" aria-label="Kiemelt akciók">
-        <a class="pb-card xmas" href="#akciok" aria-label="Karácsonyi ötletek">
-          <div><span class="pb-eyebrow">Merry</span><span class="pb-title">Christmas</span></div>
-          <div><span class="pb-cta">Ajándék-ötletek »</span></div>
-        </a>
-        <a class="pb-card bf" href="#akciok" aria-label="Black Friday">
-          <div><span class="pb-eyebrow">Black</span><span class="pb-title">Friday</span></div>
-          <div><span class="pb-count" id="bfCountdown">Betöltés…</span><span class="pb-cta">Legjobb árak »</span></div>
-        </a>
+      <div class="hero-right">
+        <h2>Hogyan működik a Findora röviden?</h2>
+        <p>A Findora nem webshop. Különböző boltok akcióit gyűjti egy helyre, és átirányít a partner oldalára.</p>
+        <div class="hero-steps">
+          <div class="hero-step"><span>•</span><div>Válassz kategóriát vagy keress termékre.</div></div>
+          <div class="hero-step"><span>•</span><div>Összehasonlíthatod a különböző boltok ajánlatait.</div></div>
+          <div class="hero-step"><span>•</span><div>A „Megnézem🔗” gombra kattintva mindig a partner oldalán fejezed be a vásárlást.</div></div>
+        </div>
+        <div class="hero-note">
+          A részletes jogi és működési tájékoztatót a <strong>Nyilatkozat</strong> menüpontban találod.
+        </div>
       </div>
     </div>
 
-    <div class="topbar-wrap">
-      <div class="topbar">
-        <nav class="categories" aria-label="Kategóriák">
-          <button class="catbtn active" data-cat="all">Főoldal</button>
-          <button class="catbtn" data-cat="home">🏠 Otthon & Kert 🌿 </button>
-          <button class="catbtn" data-cat="games">🕹️ Játékok</button>
-          <button class="catbtn" data-cat="sport">🏃‍♂️ Sport és Fitness 🤸‍♀️ </button>
-          <button class="catbtn" data-cat="tech">💻 Tech & Elektronika ⚡️ </button>
-          <button class="catbtn" data-cat="vision">👗 Divat & Látás 👓</button>
-          <button class="catbtn" data-cat="travel"> 🛒 Multishop 🛍 </button>
-          <a class="catbtn" href="nyilatkozat.html" rel="nofollow">📜 Nyilatkozatok</a>
-        </nav>
-
-        <form id="searchFormAll" class="searchbar" role="search" action="">
-          <input id="qAll" name="q" type="search" placeholder="Keresés az összes partnerben…" aria-label="Keresés (globális)" />
-          <button type="submit" aria-label="Keresés indítása">Keresés</button>
-        </form>
-        <div id="searchProgress">Keresés…</div>
+    <!-- KATEGÓRIA SÁV – EZ MARAD GÖRGETÉSRE A FŐOLDALON -->
+    <div class="catbar-wrap">
+      <div class="catbar">
+        <button class="cat-pill active" data-scroll="#akciok">Akciók</button>
+        <button class="cat-pill" data-scroll="#kat-elektronika">Elektronika</button>
+        <button class="cat-pill" data-scroll="#kat-gepek">Háztartási gépek</button>
+        <button class="cat-pill" data-scroll="#kat-otthon">Otthon</button>
+        <button class="cat-pill" data-scroll="#kat-kert">Kert</button>
+        <button class="cat-pill" data-scroll="#kat-jatekok">Játékok</button>
+        <button class="cat-pill" data-scroll="#kat-divat">Divat</button>
+        <button class="cat-pill" data-scroll="#kat-szepseg">Szépség</button>
+        <button class="cat-pill" data-scroll="#kat-sport">Sport</button>
+        <button class="cat-pill" data-scroll="#kat-latas">Látás</button>
+        <button class="cat-pill" data-scroll="#kat-allatok">Állatok</button>
+        <button class="cat-pill" data-scroll="#kat-konyv">Könyv</button>
+        <button class="cat-pill" data-scroll="#kat-utazas">Utazás</button>
+        <button class="cat-pill" data-scroll="#kat-multi">Multi</button>
       </div>
     </div>
   </header>
 
-  <!-- mini nav -->
-  <div class="nav-mini">
-    <button id="homeBtn" title="Főoldal">Home</button>
-    <button id="backBtn" title="Vissza">Vissza</button>
-  </div>
-
   <main>
-    <!-- ========= AKCIÓS BLOKKOK – MINDEN PARTNERBŐL ========= -->
+
+    <!-- AKCIÓK BLOKK (hot deals) -->
     <section class="section" id="akciok">
-      <h2>Akciók (minden partner)</h2>
-
-      <div class="section">
-        <h2>🎁 Ünnepi ajánlatok Boltoktól</h2>
-        <div class="grid" id="xmas-list"></div>
-        <div class="grid" id="xmas-nav" style="padding-top:0"></div>
+      <div class="section-header">
+        <h2>Akciós ajánlatok</h2>
+        <small>Kiemelt kedvezmények több boltból</small>
       </div>
+      <div class="grid" id="akciok-grid"></div>
+      <div class="grid" id="akciok-nav" style="padding-top:0"></div>
+    </section>
 
-      <div class="section">
-        <h2>−10–24% leértékelés</h2>
-        <div class="grid" id="sale10-list"></div>
-        <div class="grid" id="sale10-nav" style="padding-top:0"></div>
+    <!-- BLACK FRIDAY BLOKK (később flaggel ki/be kapcsoljuk) -->
+    <section class="bf-section" id="black-friday">
+      <div class="bf-header">
+        <h2>Black Friday ajánlatok</h2>
+        <span>Csak BF jelölésű, nagy kedvezményű termékek</span>
       </div>
+      <div class="bf-grid" id="bf-grid"></div>
+    </section>
 
-      <div class="section">
-        <h2>⚡ −25–49% leárazás</h2>
-        <div class="grid" id="sale25-list"></div>
-        <div class="grid" id="sale25-nav" style="padding-top:0"></div>
+    <!-- PARTNER NÉZET (egy partner + kategória, 20 termék / oldal) -->
+    <section class="section hidden" id="partner-view">
+      <div class="section-header partner-view-header">
+        <div class="partner-header-main">
+          <button type="button" class="btn-back-partner">&larr; Vissza</button>
+          <h2 id="partner-view-title">Partner nézet</h2>
+          <small id="partner-view-subtitle"></small>
+        </div>
+        <div class="partner-filters">
+          <button type="button" class="btn-home-partner">Főoldal</button>
+          <input type="search" id="partner-search" placeholder="Keresés ebben a partnerben…">
+          <select id="partner-sort">
+            <option value="default">Alapértelmezett</option>
+            <option value="name-asc">Név A–Z</option>
+            <option value="name-desc">Név Z–A</option>
+            <option value="price-asc">Ár: alacsonyabb elöl</option>
+            <option value="price-desc">Ár: magasabb elöl</option>
+          </select>
+        </div>
       </div>
+      <div class="grid" id="partner-view-grid"></div>
+      <div class="grid" id="partner-view-nav" style="padding-top:0"></div>
+    </section>
 
-      <div class="section">
-        <h2>💥 Hihetetlen −50%+</h2>
-        <div class="grid" id="sale50-list"></div>
-        <div class="grid" id="sale50-nav" style="padding-top:0"></div>
+    <!-- KATEGÓRIA BLOKKOK – ezek alatt jelennek meg a partner-blokkok -->
+    <section class="section" id="kat-elektronika">
+      <div class="section-header">
+        <h2>Elektronika</h2>
+        <small>Laptopok, TV-k, kütyük</small>
       </div>
+      <div class="grid" id="kat-elektronika-grid"></div>
+      <div class="grid" id="kat-elektronika-nav" style="padding-top:0"></div>
     </section>
 
-    <!-- ========= FŐOLDAL – MULTI-PARTNER AJÁNLATOK (6/lap / partner) ========= -->
-    <section class="section" id="osszes">
-      <h2>Ajánlatok</h2>
-      <div id="home-multi">
-        <div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div>
+    <section class="section" id="kat-gepek">
+      <div class="section-header">
+        <h2>Háztartási gépek</h2>
+        <small>Mosógép, hűtő, konyhai kisgépek</small>
       </div>
+      <div class="grid" id="kat-gepek-grid"></div>
+      <div class="grid" id="kat-gepek-nav" style="padding-top:0"></div>
     </section>
 
-    <!-- ========= OTTHON – TÖBB PARTNER ========= -->
-    <section class="section" id="otthon">
-      <h2>Otthon & Kert</h2>
-      <div id="otthon-partners">
-        <div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div>
+    <section class="section" id="kat-otthon">
+      <div class="section-header">
+        <h2>Otthon</h2>
+        <small>Bútor, dekor, lakáskiegészítők</small>
       </div>
+      <div class="grid" id="kat-otthon-grid"></div>
+      <div class="grid" id="kat-otthon-nav" style="padding-top:0"></div>
     </section>
 
-    <!-- ========= JÁTÉKOK ========= -->
-    <section class="section" id="games">
-      <h2>Játékok</h2>
-      <div id="games-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
+    <section class="section" id="kat-kert">
+      <div class="section-header">
+        <h2>Kert</h2>
+        <small>Szerszámok, kerti eszközök</small>
+      </div>
+      <div class="grid" id="kat-kert-grid"></div>
+      <div class="grid" id="kat-kert-nav" style="padding-top:0"></div>
     </section>
 
-    <!-- ========= SPORT ========= -->
-    <section class="section" id="sport" style="display:none">
-      <h2>Sport</h2>
-      <div id="sport-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
+    <section class="section" id="kat-jatekok">
+      <div class="section-header">
+        <h2>Játékok</h2>
+        <small>Gyerekjátékok, társasok, LEGO®</small>
+      </div>
+      <div class="grid" id="kat-jatekok-grid"></div>
+      <div class="grid" id="kat-jatekok-nav" style="padding-top:0"></div>
     </section>
 
-    <!-- ========= TECH ========= -->
-    <section class="section" id="tech" style="display:none">
-      <h2>Tech & Elektronika</h2>
-      <div id="tech-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
+    <section class="section" id="kat-divat">
+      <div class="section-header">
+        <h2>Divat</h2>
+        <small>Ruházat, cipők, kiegészítők</small>
+      </div>
+      <div class="grid" id="kat-divat-grid"></div>
+      <div class="grid" id="kat-divat-nav" style="padding-top:0"></div>
     </section>
 
-    <!-- ========= DIVAT & LÁTÁS ========= -->
-    <section class="section" id="vision" style="display:none">
-      <h2>Divat & Látás</h2>
-      <div id="vision-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
+    <section class="section" id="kat-szepseg">
+      <div class="section-header">
+        <h2>Szépség</h2>
+        <small>Parfümök, kozmetikumok</small>
+      </div>
+      <div class="grid" id="kat-szepseg-grid"></div>
+      <div class="grid" id="kat-szepseg-nav" style="padding-top:0"></div>
     </section>
 
-    <!-- ========= MULTISHOP / TRAVEL ========= -->
-    <section class="section" id="travel" style="display:none">
-      <h2>Multishop</h2>
-      <div id="travel-partners"><div class="grid"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div></div>
+    <section class="section" id="kat-sport">
+      <div class="section-header">
+        <h2>Sport</h2>
+        <small>Sporteszközök, kiegészítők</small>
+      </div>
+      <div class="grid" id="kat-sport-grid"></div>
+      <div class="grid" id="kat-sport-nav" style="padding-top:0"></div>
     </section>
+
+    <section class="section" id="kat-latas">
+      <div class="section-header">
+        <h2>Látás</h2>
+        <small>Szemüvegkeretek, kontaktlencsék</small>
+      </div>
+      <div class="grid" id="kat-latas-grid"></div>
+      <div class="grid" id="kat-latas-nav" style="padding-top:0"></div>
+    </section>
+
+    <section class="section" id="kat-allatok">
+      <div class="section-header">
+        <h2>Állatok</h2>
+        <small>Állateledel, felszerelés</small>
+      </div>
+      <div class="grid" id="kat-allatok-grid"></div>
+      <div class="grid" id="kat-allatok-nav" style="padding-top:0"></div>
+    </section>
+
+    <section class="section" id="kat-konyv">
+      <div class="section-header">
+        <h2>Könyv</h2>
+        <small>Könyvek, magazinok</small>
+      </div>
+      <div class="grid" id="kat-konyv-grid"></div>
+      <div class="grid" id="kat-konyv-nav" style="padding-top:0"></div>
+    </section>
+
+    <section class="section" id="kat-utazas">
+      <div class="section-header">
+        <h2>Utazás</h2>
+        <small>Szállások, közlekedés, csomagok</small>
+      </div>
+      <div class="grid" id="kat-utazas-grid"></div>
+      <div class="grid" id="kat-utazas-nav" style="padding-top:0"></div>
+    </section>
+
+    <section class="section" id="kat-multi">
+      <div class="section-header">
+        <h2>Multi</h2>
+        <small>Vegyes, nehezen besorolható ajánlatok</small>
+      </div>
+      <div class="grid" id="kat-multi-grid"></div>
+      <div class="grid" id="kat-multi-nav" style="padding-top:0"></div>
+    </section>
+
   </main>
 
   <footer>
-    © 2025 A Findora.hu oldal affiliate linkeket tartalmaz.
-    Az oldalon megjelenő 🔗 linkek partnerlinkek lehetnek, amelyekre kattintva — vásárlás esetén — a Findora jutalékot kaphat.
-    Ez a vásárló számára nem jelent semmilyen pluszköltséget.
-    <div style="margin-top:8px">
-      <a href="nyilatkozat.html#impresszum" style="color:#fff; text-decoration:underline">Impresszum</a> •
-      <a href="nyilatkozat.html#adatvedelem" style="color:#fff; text-decoration:underline">Adatvédelem</a> •
-      <a href="nyilatkozat.html#jogi-nyilatkozat" style="color:#fff; text-decoration:underline">Jogi nyilatkozat</a> •
-      <a href="nyilatkozat.html#affiliate-nyilatkozat" style="color:#fff; text-decoration:underline">Affiliate nyilatkozat</a>
+    © 2025 A Findora.hu oldal affiliate linkeket tartalmaz. Az oldalon megjelenő 🔗 linkek partnerlinkek lehetnek, amelyekre kattintva — vásárlás esetén — a Findora jutalékot kaphat. Ez a vásárló számára nem jelent semmilyen pluszköltséget.
+    <div class="links">
+      <a href="nyilatkozat.html#impresszum">Impresszum</a> •
+      <a href="nyilatkozat.html#adatvedelem">Adatvédelem</a> •
+      <a href="nyilatkozat.html#jogi-nyilatkozat">Jogi nyilatkozat</a> •
+      <a href="nyilatkozat.html#affiliate-nyilatkozat">Affiliate nyilatkozat</a>
     </div>
   </footer>
 
-  <script>
-    // ===== apró vizuálok =====
-    (function snow(){
-      var wrap=document.querySelector('.snow');
-      var isMobile = matchMedia('(max-width: 640px)').matches;
-      var prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      var COUNT = prefersReduced ? 0 : (isMobile ? 14 : 28);
-      for(var i=0;i<COUNT;i++){
-        var f=document.createElement('div');
-        f.className='flake';
-        f.style.left = Math.random()*100 + 'vw';
-        var dur = (isMobile ? 10 : 8) + Math.random()*10;
-        f.style.animationDuration = dur + 's';
-        f.style.animationDelay = (Math.random()*-dur) + 's';
-        f.style.opacity = (0.45 + Math.random()*0.35).toFixed(2);
-        var size = (isMobile ? 1.5 : 2) + Math.random()*4;
-        f.style.width = f.style.height = size + 'px';
-        wrap.appendChild(f);
-      }
-    })();
-
-    document.getElementById('homeBtn').onclick = function(){ location.href = location.origin + location.pathname; };
-    document.getElementById('backBtn').onclick = function(){ history.back(); };
-
-    (function promoLogicTZ(){
-      function lastFridayOfNovember(year){
-        var d = new Date(year, 10, 30);
-        while(d.getDay() !== 5){ d.setDate(d.getDate()-1); }
-        d.setHours(0,0,0,0);
-        return d;
-      }
-      var now = new Date();
-      var y = now.getFullYear();
-      var bfDate = lastFridayOfNovember(y);
-      var el = document.getElementById('bfCountdown');
-      if(el){
-        function pad(n){ return String(n).padStart(2,'0'); }
-        function tick(){
-          var now2 = new Date();
-          var diff = bfDate - now2;
-          if(diff <= 0){ el.textContent = "Ma!"; return; }
-          var d = Math.floor(diff/86400000);
-          var h = Math.floor((diff%86400000)/3600000);
-          var m = Math.floor((diff%3600000)/60000);
-          el.textContent = pad(d) + " nap " + pad(h) + ":" + pad(m);
-          setTimeout(tick, 20000);
-        }
-        tick();
-      }
-    })();
-
-    // ===== helpers & state =====
-    var API_BASE = location.hostname.endsWith('findora.hu') ? 'https://www.findora.hu' : location.origin;
-    var partnersUrl = 'feeds/partners.json';
-
-    function showFatal(msg) {
-      var b = document.createElement('div');
-      b.style.cssText = "position:fixed;left:12px;bottom:12px;max-width:90vw;background:#fee2e2;color:#7f1d1d;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;z-index:9999;font:14px/1.3 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.15)";
-      b.innerHTML = "❌ Hiba: " + msg + "<br><small>Részletek: F12 → Console/Network.</small>";
-      document.body.appendChild(b);
-    }
-
-    var partnersCandidates = [
-      partnersUrl,
-      (location.pathname.replace(/\/[^/]*$/, '') || '') + '/feeds/partners.json',
-      (location.pathname.indexOf('/Findora') === 0 ? '/Findora/feeds/partners.json' : null)
-    ].filter(function(x){ return !!x; });
-
-    function fetchFirstAvailable(urls){
-      var v = Date.now();
-      return new Promise(function(resolve, reject){
-        (function loop(i){
-          if(i>=urls.length) return reject(new Error('Egyik partners.json útvonal sem érhető el: ' + urls.join(', ')));
-          var u = urls[i];
-          fetch(u + (u.indexOf('?')>-1 ? '&' : '?') + 'v=' + v, { cache:'no-cache' })
-            .then(function(r){
-              if(!r.ok){ console.warn('partners.json státusz:', r.status, u); return loop(i+1); }
-              return r.json().then(resolve);
-            })
-            .catch(function(){ console.warn('partners.json fetch hiba:', u); loop(i+1); });
-        })(0);
-      });
-    }
-
-    var PARTNERS = new Map();
-    var META     = new Map();
-    var PAGES    = new Map();
-    function DL(partner, raw){ return API_BASE + "/api/dl?u=" + encodeURIComponent(raw) + "&p=" + partner; }
-
-    var GAMES_STATE = new Map();
-    var SPORT_STATE = new Map();
-    var GENERIC_STATE = {
-      tech:   new Map(),
-      vision: new Map(),
-      travel: new Map(),
-      otthon: new Map()
-    };
-
-    var HOME_PARTNERS = [];
-    var DEFAULT_PARTNER = null;
-    var SCAN_PAGES_FOR_SALES = 2;
-
-    function pageUrl(partnerCfg, n){ return partnerCfg.pagePattern.replace('{NNNN}', String(n).padStart(4,'0')); }
-    function priceText(v){ return (typeof v==='number' && isFinite(v)) ? (v.toLocaleString('hu-HU') + ' Ft') : ((typeof v==='string' && v.trim()) ? v : '—'); }
-    function firstUrl(it){ return (it && (it.url || it.link || it.deeplink)) || ''; }
-
-    // ===== ERŐS DEDUP =====
-    var SIZE_TOKENS = new RegExp([
-      '\\\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\\\b',
-      '\\\\b(?:\\\\d{2,3}[\\\\/-]\\\\d{2,3})\\\\b',
-      '\\\\bEU\\\\s?\\\\d{2,3}\\\\b',
-      '[\\\\(\\\\[]\\\\s*(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|EU\\\\s?\\\\d{2,3}|\\\\d{2,3}[\\\\/-]\\\\d{2,3})\\\\s*[\\\\)\\\\]]',
-      '\\\\b(?:méret|meret)\\\\b\\\\s*[:\\\\-]?\\\\s*[A-Za-z0-9\\\\/-]+'
-    ].join('|'), 'gi');
-
-    function normalizeTitleNoSize(t){
-      if(!t) return '';
-      return String(t)
-        .replace(SIZE_TOKENS,' ')
-        .replace(/\\b(?:szín|szin|color)\\s*[:\\-]?\\s*[a-záéíóöőúüű0-9\\-]+/gi, ' ')
-        .replace(/\\s{2,}/g,' ')
-        .trim()
-        .toLowerCase();
-    }
-
-    function basePath(u){
-      try{ var x=new URL(u); return x.origin + x.pathname; }catch(_){ return String(u||'').split('#')[0].split('?')[0]; }
-    }
-    function imgPath(u){ return String(u||'').split('#')[0].split('?')[0]; }
-
-    // ÚJ: egységes képmező kiválasztása (image / img / image_link / thumbnail)
-    function itemImg(it){
-      return (it && (it.image || it.img || it.image_link || it.thumbnail)) || '';
-    }
-
-    function stripVariantParams(u){
-      if(!u) return u;
-      try{
-        var x=new URL(u);
-        var drop=['size','meret','merete','variant_size','size_id','meret_id','option','variant'];
-        var keys = Array.from(x.searchParams.keys());
-        for(var i=0;i<keys.length;i++){
-          var k = keys[i];
-          if(drop.indexOf(k.toLowerCase())>-1) x.searchParams.delete(k);
-        }
-        return x.toString();
-      }catch(_){ return u; }
-    }
-    function dedupeStrong(items){
-      var out=[], seen=new Set();
-      (items||[]).forEach(function(it){
-        var raw = firstUrl(it);
-        var key = basePath(stripVariantParams(raw)) + '|' + imgPath(itemImg(it)) + '|' + normalizeTitleNoSize(it && it.title || '');
-        if(!seen.has(key)){ seen.add(key); out.push(it); }
-      });
-      return out;
-    }
-
-    async function getMeta(partnerId){
-      if(META.has(partnerId)) return META.get(partnerId);
-      var cfg = PARTNERS.get(partnerId);
-      var r = await fetch(cfg.meta, {cache:'no-cache'});
-      if(!r.ok) throw new Error(partnerId + " meta.json nem elérhető");
-      var m = await r.json();
-      META.set(partnerId, m);
-      return m;
-    }
-    async function getPageItems(partnerId, pageNum){
-      if(!PAGES.has(partnerId)) PAGES.set(partnerId, new Map());
-      var store = PAGES.get(partnerId);
-      var key = 'page-' + String(pageNum).padStart(4,'0');
-      if(store.has(key)) return store.get(key);
-      var cfg = PARTNERS.get(partnerId);
-      var r = await fetch(pageUrl(cfg, pageNum), {cache:'no-cache'});
-      if(!r.ok) throw new Error(partnerId + " " + key + " nem elérhető");
-      var d = await r.json();
-      var arr = (d && d.items) ? d.items : [];
-      store.set(key, arr);
-      return arr;
-    }
-
-    // VISSZATÖLTŐS gyűjtés
-    async function collectUnique(partnerId, offset, want){
-      var meta = await getMeta(partnerId);
-      var srcSize = meta.pageSize || 300;
-      var total   = (meta.total!==undefined && meta.total!==null) ? meta.total : ((meta.pages*srcSize) || 0);
-      var startIndex = Math.max(0, offset|0);
-      var uniques = [];
-      var seen = new Set();
-      var index = startIndex;
-      var safety = 0;
-
-      while(uniques.length < want && index < total && safety < 500){
-        var pageNum = Math.floor(index/srcSize) + 1;
-        var arr = await getPageItems(partnerId, pageNum);
-        var inner = index % srcSize;
-
-        for(var k=inner; k<arr.length; k++){
-          var it = arr[k];
-          var raw = firstUrl(it);
-          var key = basePath(stripVariantParams(raw)) + '|' + imgPath(itemImg(it)) + '|' + normalizeTitleNoSize(it && it.title || '');
-          if(!seen.has(key)){
-            seen.add(key);
-            uniques.push(it);
-            if(uniques.length === want) break;
-          }
-        }
-        index = pageNum * srcSize;
-        safety++;
-      }
-      return uniques;
-    }
-
-    function renderCards(partnerId, items){
-      var cfg = PARTNERS.get(partnerId);
-      var list = dedupeStrong(items);
-      return list.map(function(it){
-        var raw = firstUrl(it);
-        var img = itemImg(it);
-        return (
-          '<div class="card">' +
-            '<div class="thumb">' +
-              (img ? '<img src="'+img+'" alt="" loading="lazy" decoding="async" width="240" height="160" style="max-width:100%;max-height:100%;object-fit:contain">' : '🛍️') +
-            '</div>' +
-            '<div class="title">' + ((it && it.title) ? it.title : '') + '</div>' +
-            '<div class="price">' + priceText(it && it.price) + '</div>' +
-            (raw ? '<a class="cta" href="'+ DL(cfg.deeplinkPartner, raw) +'" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem🔗</a>' : '') +
-          '</div>'
-        );
-      }).join('');
-    }
-
-    function renderMixedCards(itemsWithPid){
-      var list = itemsWithPid || [];
-      return list.map(function(r){
-        var cfg = PARTNERS.get(r.pid);
-        var it  = r.item;
-        var raw = firstUrl(it);
-        var img = itemImg(it);
-        return (
-          '<div class="card">' +
-            '<div class="thumb">' +
-              (img ? '<img src="'+img+'" alt="" loading="lazy" decoding="async" width="240" height="160" style="max-width:100%;max-height:100%;object-fit:contain">' : '🛍️') +
-            '</div>' +
-            '<div class="title">' + ((it && it.title) ? it.title : '') + '</div>' +
-            '<div class="price">' + priceText(it && it.price) + '</div>' +
-            '<div class="title" style="color:#64748b;font-weight:700;font-size:12px;margin-top:0">• ' + ((cfg && cfg.name) ? cfg.name : r.pid) + '</div>' +
-            (raw ? '<a class="cta" href="'+ DL(cfg ? cfg.deeplinkPartner : r.pid, raw) +'" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem🔗</a>' : '') +
-          '</div>'
-        );
-      }).join('');
-    }
-
-    function enabledPartners(){
-      var arr = Array.from(PARTNERS.values());
-      return arr.filter(function(p){
-        var plc = p.placements || {};
-        var vals = Object.keys(plc).map(function(k){ return plc[k]; });
-        return vals.some(function(v){
-          return (v && v.enabled) || (v && v.full && v.full.enabled);
-        });
-      });
-    }
-
-    // ===== Akció blokkok – all partners =====
-    function getDiscountNumber(it){
-      if(it && typeof it.discount==='number' && isFinite(it.discount)) return it.discount;
-      var txt = ((it && it.title ? it.title : '') + ' ' + (it && it.desc ? it.desc : '')).toLowerCase();
-      var m = txt.match(/-?\s?(\d{1,3})\s?%/);
-      return m ? parseInt(m[1],10) : null;
-    }
-    function paginate(arr, size){ var pages=[]; for(var i=0;i<arr.length;i+=size) pages.push(arr.slice(i,i+size)); return pages.length?pages:[[]]; }
-    function renderPagedBlockMixed(itemsWithPid, listElId, navElId){
-      var PAGE=6;
-      var ded = dedupeStrong(itemsWithPid.map(function(x){ return x.item; })).map(function(it){
-        var raw = firstUrl(it);
-        var pid = 'unknown';
-        for(var i=0;i<itemsWithPid.length;i++){
-          if(firstUrl(itemsWithPid[i].item)===raw){ pid = itemsWithPid[i].pid; break; }
-        }
-        return {pid:pid, item:it};
-      });
-      var pages = paginate(ded, PAGE);
-      var cur=1;
-      function draw(){
-        var list=document.getElementById(listElId);
-        var nav =document.getElementById(navElId);
-        list.innerHTML = pages[cur-1].length ? renderMixedCards(pages[cur-1]) : '<div class="empty">Sajnos nincsennek Akciók !! :(</div>';
-        var fnName = listElId.replace(/-/g,'_')+'_pager';
-        nav.innerHTML =
-          '<button class="cta" '+(cur<=1?'disabled':'')+' onclick="'+fnName+'.go('+(cur-1)+')">Előző</button>' +
-          '<span class="cta" style="pointer-events:none">'+cur+'/'+pages.length+'</span>' +
-          '<button class="cta" '+(cur>=pages.length?'disabled':'')+' onclick="'+fnName+'.go('+(cur+1)+')">Következő</button>';
-        window[fnName] = { go:function(n){ cur=n; draw(); } };
-      }
-      draw();
-    }
-    async function buildSaleBlocksAll(){
-      try{
-        var actives = enabledPartners();
-        var collected = [];
-        for(var i=0;i<actives.length;i++){
-          var p = actives[i];
-          var meta = await getMeta(p.id);
-          var srcSize = meta.pageSize || 300;
-          var scanPages = Math.min(SCAN_PAGES_FOR_SALES, meta.pages || Math.ceil((meta.total||0)/srcSize) || 1);
-          for(var pg=1; pg<=scanPages; pg++){
-            var arr = await getPageItems(p.id, pg);
-            for(var j=0;j<arr.length;j++){
-              collected.push({ pid:p.id, item: arr[j] });
-            }
-          }
-        }
-        var in10 = collected.filter(function(r){ var d=getDiscountNumber(r.item); return d!==null && d>=10 && d<=24; });
-        var in25 = collected.filter(function(r){ var d=getDiscountNumber(r.item); return d!==null && d>=25 && d<=49; });
-        var in50 = collected.filter(function(r){ var d=getDiscountNumber(r.item); return d!==null && d>=50;  });
-        var xmas = collected.filter(function(r){
-          var it=r.item;
-          var txt=((it && it.title ? it.title : '')+' '+(it && it.desc ? it.desc : '')).toLowerCase();
-          return /karácsony|xmas|ünnepi|ajándék/.test(txt);
-        });
-        renderPagedBlockMixed(xmas, 'xmas-list','xmas-nav');
-        renderPagedBlockMixed(in10, 'sale10-list','sale10-nav');
-        renderPagedBlockMixed(in25, 'sale25-list','sale25-nav');
-        renderPagedBlockMixed(in50, 'sale50-list','sale50-nav');
-      }catch(e){
-        console.warn('Akció blokkok hiba', e);
-        ['xmas-list','sale10-list','sale25-list','sale50-list'].forEach(function(id){
-          var el=document.getElementById(id);
-          if(el) el.innerHTML = '<div class="empty">Sajnos nincsennek Akciók !! :(</div>';
-        });
-      }
-    }
-
-    // ===== partners betöltés =====
-    async function loadPartners(){
-      try{
-        var arr = await fetchFirstAvailable(partnersCandidates);
-        if (!Array.isArray(arr) || !arr.length) {
-          throw new Error('partners.json üres vagy hibás formátum');
-        }
-        PARTNERS.clear();
-        for(var i=0;i<arr.length;i++){
-          var p = arr[i];
-          if(!p.id || !p.meta || !p.pagePattern || !p.deeplinkPartner){
-            console.error('Hibás partner objektum:', p);
-            throw new Error('Hibás partner (kötelező: id, meta, pagePattern, deeplinkPartner)');
-          }
-          PARTNERS.set(p.id, p);
-        }
-        HOME_PARTNERS = arr.filter(function(p){ return p.placements && p.placements.home && p.placements.home.enabled; });
-        DEFAULT_PARTNER = (HOME_PARTNERS[0] && HOME_PARTNERS[0].id) ||
-                          (arr.find(function(p){ return p.placements && p.placements.home && p.placements.home.enabled; }) || {}).id ||
-                          (arr[0] && arr[0].id) || null;
-        console.log('PARTNEREK BETÖLTVE:', PARTNERS);
-      }catch(e){
-        showFatal(e.message);
-        throw e;
-      }
-    }
-
-    // ===== Főoldal dobozok =====
-    function homeBoxTemplate(p){
-      var pid = p.id;
-      return (
-        '<div class="section" id="home-box-'+pid+'">' +
-          '<h3>'+p.name+'</h3>' +
-          '<div class="grid" id="home-'+pid+'-list">' +
-            '<div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div>' +
-          '</div>' +
-          '<div class="grid" id="home-'+pid+'-nav" style="padding-top:0"></div>' +
-        '</div>'
-      );
-    }
-    async function drawHomeOverviewFor(pid, page){
-      page = page || 1;
-      var p = PARTNERS.get(pid);
-      if(!p) return;
-      var PAGE = (p.placements && p.placements.home ? p.placements.home.pageSize : 6) || 6;
-      try{
-        var items = await collectUnique(pid, (page-1)*PAGE, PAGE);
-        var meta = await getMeta(pid);
-        var totalPages = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
-        var listEl = document.getElementById('home-'+pid+'-list');
-        var navEl  = document.getElementById('home-'+pid+'-nav');
-        listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-        navEl.innerHTML =
-          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawHomeOverviewFor(\''+pid+'\','+(page-1)+')">Előző</button>' +
-          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
-          '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawHomeOverviewFor(\''+pid+'\','+(page+1)+')">Következő</button>';
-      }catch(e){
-        console.error(e);
-        document.getElementById('home-'+pid+'-list').innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
-      }
-    }
-    async function drawHomeTab(){
-      var host = document.getElementById('home-multi');
-      var list = HOME_PARTNERS.length ? HOME_PARTNERS : enabledPartners();
-      if(!list.length){
-        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Főoldal” partner konfigurálva.</div></div>';
-        return;
-      }
-      host.innerHTML = list.map(function(p){ return homeBoxTemplate(p); }).join('');
-      for(var i=0;i<list.length;i++){
-        await drawHomeOverviewFor(list[i].id, 1);
-      }
-    }
-
-    // ===== Otthon – több partner (generic alapokon) =====
-    async function drawOtthonTab(){
-      var list = Array.from(PARTNERS.values()).filter(function(p){
-        return p.group === 'otthon' && p.placements && p.placements.otthon && p.placements.otthon.enabled;
-      });
-      var host = document.getElementById('otthon-partners');
-      if(!host) return;
-      if(!list.length){
-        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Otthon & Kert” partner konfigurálva.</div></div>';
-        return;
-      }
-      host.innerHTML = list.map(function(p){ return genericBoxTemplate(p, 'otthon'); }).join('');
-
-      host.querySelectorAll('.generic-head').forEach(function(a){
-        a.addEventListener('click', function(e){
-          e.preventDefault();
-          var grp = e.currentTarget.getAttribute('data-group');
-          var pid = e.currentTarget.getAttribute('data-partner');
-          var p = PARTNERS.get(pid);
-          if(!(p && p.placements && p.placements[grp] && p.placements[grp].full && p.placements[grp].full.enabled)) return;
-          showGenericFull(grp, pid);
-          if(!GENERIC_STATE[grp].has(pid)) GENERIC_STATE[grp].set(pid, { filter:'', page:1 });
-          drawGenericFullFor(grp, pid, 1);
-        });
-      });
-
-      host.querySelectorAll('form.generic-search').forEach(function(form){
-        var grp = form.getAttribute('data-group');
-        var pid = form.getAttribute('data-partner');
-        form.addEventListener('submit', function(e){
-          e.preventDefault();
-          var input = document.getElementById('q-'+grp+'-'+pid);
-          var q = (input && input.value || '').trim();
-          GENERIC_STATE[grp].set(pid, { filter:q, page:1 });
-          showGenericFull(grp, pid);
-          drawGenericFullFor(grp, pid, 1);
-        });
-      });
-
-      for(var i=0;i<list.length;i++){
-        var p = list[i];
-        showGenericOverview('otthon', p.id);
-        await drawGenericOverviewFor('otthon', p.id, 1);
-      }
-    }
-
-    // ===== Games (overview + full) =====
-    function gamesBoxTemplate(p){
-      var pid = p.id;
-      return (
-        '<div class="section" id="games-box-'+pid+'">' +
-          '<h2><a href="#games-'+pid+'-full" class="games-head" data-partner="'+pid+'" style="text-decoration:underline;font-weight:900;">'+p.name+'</a></h2>' +
-          '<div class="grid" id="games-'+pid+'-list"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div>' +
-          '<div class="grid" id="games-'+pid+'-nav" style="padding-top:0"></div>' +
-          '<div id="games-'+pid+'-full-wrap" style="display:none; padding:12px;">' +
-            '<form class="searchbar games-search" data-partner="'+pid+'" role="search" action="" style="margin:0 0 8px">' +
-              '<input id="qGames-'+pid+'" type="search" placeholder="Keresés a termékek között…" aria-label="Keresés ('+p.name+')" />' +
-              '<button type="submit" aria-label="Keresés indítása">Keresés</button>' +
-            '</form>' +
-            '<div class="grid" id="games-'+pid+'-full-list"></div>' +
-            '<div class="grid" id="games-'+pid+'-full-nav" style="padding-top:0"></div>' +
-          '</div>' +
-        '</div>'
-      );
-    }
-    function showGamesOverview(pid){
-      document.getElementById('games-'+pid+'-list').style.display='';
-      document.getElementById('games-'+pid+'-nav').style.display='';
-      document.getElementById('games-'+pid+'-full-wrap').style.display='none';
-    }
-    function showGamesFull(pid){
-      document.getElementById('games-'+pid+'-list').style.display='none';
-      document.getElementById('games-'+pid+'-nav').style.display='none';
-      document.getElementById('games-'+pid+'-full-wrap').style.display='';
-    }
-    async function drawGamesOverviewFor(pid, page){
-      page = page || 1;
-      var p = PARTNERS.get(pid);
-      if(!p) return;
-      var PAGE = (p.placements && p.placements.games ? p.placements.games.pageSize : 6) || 6;
-      try{
-        var items = await collectUnique(pid, (page-1)*PAGE, PAGE);
-        var meta  = await getMeta(pid);
-        var totalPages = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
-        var listEl = document.getElementById('games-'+pid+'-list');
-        var navEl  = document.getElementById('games-'+pid+'-nav');
-        listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-        navEl.innerHTML =
-          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawGamesOverviewFor(\''+pid+'\','+(page-1)+')">Előző</button>' +
-          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
-          '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawGamesOverviewFor(\''+pid+'\','+(page+1)+')">Következő</button>';
-      }catch(e){
-        console.error(e);
-        document.getElementById('games-'+pid+'-list').innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
-      }
-    }
-    async function drawGamesFullFor(pid, page){
-      page = page || 1;
-      var p = PARTNERS.get(pid);
-      if(!p || !(p.placements && p.placements.games && p.placements.games.full && p.placements.games.full.enabled)) return;
-      if(!GAMES_STATE.has(pid)) GAMES_STATE.set(pid, { filter:'', page:1 });
-
-      var state = GAMES_STATE.get(pid);
-      var PAGE = (p.placements && p.placements.games && p.placements.games.full ? p.placements.games.full.pageSize : 20) || 20;
-      try{
-        var meta = await getMeta(pid);
-        var offset = (page-1)*PAGE;
-
-        var items = await collectUnique(pid, offset, PAGE);
-
-        if(state.filter){
-          var q = state.filter.toLowerCase();
-          var ok = function(it){
-            return (((it && it.title) ? it.title : '') + ' ' + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
-          };
-          if(!items.some(ok)){
-            var buffer = [];
-            var totalPages = meta.pages || Math.ceil(((meta.total||0))/ (meta.pageSize||300)) || 1;
-            for(var pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
-              var arr = await getPageItems(pid, pg);
-              buffer.push.apply(buffer, arr);
-            }
-            items = dedupeStrong(buffer).filter(ok).slice(0,PAGE);
-          }else{
-            items = dedupeStrong(items.filter(ok)).slice(0,PAGE);
-          }
-        }
-
-        document.getElementById('games-'+pid+'-full-list').innerHTML =
-          renderCards(pid, items) || '<div class="empty">Nincs találat.</div>';
-        var totalPages2 = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
-        document.getElementById('games-'+pid+'-full-nav').innerHTML =
-          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawGamesFullFor(\''+pid+'\','+(page-1)+')">Előző</button>' +
-          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages2+' </span>' +
-          '<button class="cta" '+(page>=totalPages2?'disabled':'')+' onclick="drawGamesFullFor(\''+pid+'\','+(page+1)+')">Következő</button>';
-      }catch(e){
-        console.error(e);
-        document.getElementById('games-'+pid+'-full-list').innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
-      }
-    }
-    async function drawGamesTab(){
-      var games = Array.from(PARTNERS.values()).filter(function(p){
-        return p.group==='games' && p.placements && p.placements.games && p.placements.games.enabled;
-      });
-      var host = document.getElementById('games-partners');
-      if(games.length===0){
-        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Játékok” partner konfigurálva.</div></div>';
-        return;
-      }
-      host.innerHTML = games.map(function(g){ return gamesBoxTemplate(g); }).join('');
-
-      host.querySelectorAll('.games-head').forEach(function(a){
-        a.addEventListener('click', function(e){
-          e.preventDefault();
-          var pid = e.currentTarget.getAttribute('data-partner');
-          var p = PARTNERS.get(pid);
-          if(!(p && p.placements && p.placements.games && p.placements.games.full && p.placements.games.full.enabled)) return;
-          showGamesFull(pid);
-          drawGamesFullFor(pid, 1);
-        });
-      });
-
-      host.querySelectorAll('form.games-search').forEach(function(form){
-        var pid = form.getAttribute('data-partner');
-        form.addEventListener('submit', function(e){
-          e.preventDefault();
-          var q = (document.getElementById('qGames-'+pid).value||'').trim();
-          if(!GAMES_STATE.has(pid)) GAMES_STATE.set(pid, { filter:'', page:1 });
-          var st = GAMES_STATE.get(pid);
-          st.filter = q;
-          st.page = 1;
-          showGamesFull(pid);
-          drawGamesFullFor(pid, 1);
-        });
-      });
-
-      for(var i=0;i<games.length;i++){
-        var p = games[i];
-        showGamesOverview(p.id);
-        await drawGamesOverviewFor(p.id, 1);
-      }
-    }
-
-    // ===== SPORT (overview + full) =====
-    function sportBoxTemplate(p){
-      var pid = p.id;
-      return (
-        '<div class="section" id="sport-box-'+pid+'">' +
-          '<h2><a href="#sport-'+pid+'-full" class="sport-head" data-partner="'+pid+'" style="text-decoration:underline;font-weight:900;">'+p.name+'</a></h2>' +
-          '<div class="grid" id="sport-'+pid+'-list"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div>' +
-          '<div class="grid" id="sport-'+pid+'-nav" style="padding-top:0"></div>' +
-          '<div id="sport-'+pid+'-full-wrap" style="display:none; padding:12px;">' +
-            '<form class="searchbar sport-search" data-partner="'+pid+'" role="search" action="" style="margin:0 0 8px">' +
-              '<input id="qSport-'+pid+'" type="search" placeholder="Keresés a termékek között…" aria-label="Keresés ('+p.name+')" />' +
-              '<button type="submit" aria-label="Keresés indítása">Keresés</button>' +
-            '</form>' +
-            '<div class="grid" id="sport-'+pid+'-full-list"></div>' +
-            '<div class="grid" id="sport-'+pid+'-full-nav" style="padding-top:0"></div>' +
-          '</div>' +
-        '</div>'
-      );
-    }
-    function showSportOverview(pid){
-      document.getElementById('sport-'+pid+'-list').style.display='';
-      document.getElementById('sport-'+pid+'-nav').style.display='';
-      document.getElementById('sport-'+pid+'-full-wrap').style.display='none';
-    }
-    function showSportFull(pid){
-      document.getElementById('sport-'+pid+'-list').style.display='none';
-      document.getElementById('sport-'+pid+'-nav').style.display='none';
-      document.getElementById('sport-'+pid+'-full-wrap').style.display='';
-    }
-    async function drawSportOverviewFor(pid, page){
-      page = page || 1;
-      var p = PARTNERS.get(pid);
-      if(!p) return;
-      var PAGE = (p.placements && p.placements.sport ? p.placements.sport.pageSize : 6) || 6;
-      try{
-        var items = await collectUnique(pid, (page-1)*PAGE, PAGE);
-        var meta  = await getMeta(pid);
-        var totalPages = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
-        var listEl = document.getElementById('sport-'+pid+'-list');
-        var navEl  = document.getElementById('sport-'+pid+'-nav');
-        listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-        navEl.innerHTML =
-          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawSportOverviewFor(\''+pid+'\','+(page-1)+')">Előző</button>' +
-          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
-          '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawSportOverviewFor(\''+pid+'\','+(page+1)+')">Következő</button>';
-      }catch(e){
-        console.error(e);
-        document.getElementById('sport-'+pid+'-list').innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
-      }
-    }
-    async function drawSportFullFor(pid, page){
-      page = page || 1;
-      var p = PARTNERS.get(pid);
-      if(!p || !(p.placements && p.placements.sport && p.placements.sport.full && p.placements.sport.full.enabled)) return;
-      if(!SPORT_STATE.has(pid)) SPORT_STATE.set(pid, { filter:'', page:1 });
-
-      var state = SPORT_STATE.get(pid);
-      var PAGE = (p.placements && p.placements.sport && p.placements.sport.full ? p.placements.sport.full.pageSize : 20) || 20;
-      try{
-        var meta = await getMeta(pid);
-        var offset = (page-1)*PAGE;
-
-        var items = await collectUnique(pid, offset, PAGE);
-
-        if(state.filter){
-          var q = state.filter.toLowerCase();
-          var ok = function(it){
-            return (((it && it.title) ? it.title : '') + ' ' + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
-          };
-          if(!items.some(ok)){
-            var buffer = [];
-            var totalPages = meta.pages || Math.ceil(((meta.total||0))/ (meta.pageSize||300)) || 1;
-            for(var pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
-              var arr = await getPageItems(pid, pg);
-              buffer.push.apply(buffer, arr);
-            }
-            items = dedupeStrong(buffer).filter(ok).slice(0,PAGE);
-          }else{
-            items = dedupeStrong(items.filter(ok)).slice(0,PAGE);
-          }
-        }
-
-        document.getElementById('sport-'+pid+'-full-list').innerHTML =
-          renderCards(pid, items) || '<div class="empty">Nincs találat.</div>';
-        var totalPages2 = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
-        document.getElementById('sport-'+pid+'-full-nav').innerHTML =
-          '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawSportFullFor(\''+pid+'\','+(page-1)+')">Előző</button>' +
-          '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages2+' </span>' +
-          '<button class="cta" '+(page>=totalPages2?'disabled':'')+' onclick="drawSportFullFor(\''+pid+'\','+(page+1)+')">Következő</button>';
-      }catch(e){
-        console.error(e);
-        document.getElementById('sport-'+pid+'-full-list').innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
-      }
-    }
-    async function drawSportTab(){
-      var sports = Array.from(PARTNERS.values()).filter(function(p){
-        return p.group==='sport' && p.placements && p.placements.sport && p.placements.sport.enabled;
-      });
-      var host = document.getElementById('sport-partners');
-      if(sports.length===0){
-        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Sport” partner konfigurálva.</div></div>';
-        return;
-      }
-      host.innerHTML = sports.map(function(g){ return sportBoxTemplate(g); }).join('');
-
-      host.querySelectorAll('.sport-head').forEach(function(a){
-        a.addEventListener('click', function(e){
-          e.preventDefault();
-          var pid = e.currentTarget.getAttribute('data-partner');
-          var p = PARTNERS.get(pid);
-          if(!(p && p.placements && p.placements.sport && p.placements.sport.full && p.placements.sport.full.enabled)) return;
-          showSportFull(pid);
-          drawSportFullFor(pid, 1);
-        });
-      });
-
-      host.querySelectorAll('form.sport-search').forEach(function(form){
-        var pid = form.getAttribute('data-partner');
-        form.addEventListener('submit', function(e){
-          e.preventDefault();
-          var q = (document.getElementById('qSport-'+pid).value||'').trim();
-          if(!SPORT_STATE.has(pid)) SPORT_STATE.set(pid, { filter:'', page:1 });
-          var st = SPORT_STATE.get(pid);
-          st.filter = q;
-          st.page = 1;
-          showSportFull(pid);
-          drawSportFullFor(pid, 1);
-        });
-      });
-
-      for(var i=0;i<sports.length;i++){
-        var p = sports[i];
-        showSportOverview(p.id);
-        await drawSportOverviewFor(p.id, 1);
-      }
-    }
-
-    // ===== GENERIKUS doboz sablon (Tech / Vision / Travel / Otthon) =====
-    function genericBoxTemplate(p, grp){
-      var pid = p.id;
-      return (
-        '<div class="section" id="'+grp+'-box-'+pid+'">' +
-          '<h2><a href="#'+grp+'-'+pid+'-full" class="generic-head" data-group="'+grp+'" data-partner="'+pid+'" style="text-decoration:underline;font-weight:900;">'+p.name+'</a></h2>' +
-          '<div class="grid" id="'+grp+'-'+pid+'-list"><div class="card"><div class="thumb">⏳</div><div class="title">Töltés…</div></div></div>' +
-          '<div class="grid" id="'+grp+'-'+pid+'-nav" style="padding-top:0"></div>' +
-          '<div id="'+grp+'-'+pid+'-full-wrap" style="display:none; padding:12px;">' +
-            '<form class="searchbar generic-search" data-group="'+grp+'" data-partner="'+pid+'" role="search" action="" style="margin:0 0 8px">' +
-              '<input id="q-'+grp+'-'+pid+'" type="search" placeholder="Keresés a termékek között…" aria-label="Keresés ('+p.name+')" />' +
-              '<button type="submit" aria-label="Keresés indítása">Keresés</button>' +
-            '</form>' +
-            '<div class="grid" id="'+grp+'-'+pid+'-full-list"></div>' +
-            '<div class="grid" id="'+grp+'-'+pid+'-full-nav" style="padding-top:0"></div>' +
-          '</div>' +
-        '</div>'
-      );
-    }
-    function showGenericOverview(grp, pid){
-      var base = grp+'-'+pid;
-      var list = document.getElementById(base+'-list');
-      var nav  = document.getElementById(base+'-nav');
-      var wrap = document.getElementById(base+'-full-wrap');
-      if(list) list.style.display='';
-      if(nav)  nav.style.display='';
-      if(wrap) wrap.style.display='none';
-    }
-    function showGenericFull(grp, pid){
-      var base = grp+'-'+pid;
-      var list = document.getElementById(base+'-list');
-      var nav  = document.getElementById(base+'-nav');
-      var wrap = document.getElementById(base+'-full-wrap');
-      if(list) list.style.display='none';
-      if(nav)  nav.style.display='none';
-      if(wrap) wrap.style.display='';
-    }
-    async function drawGenericOverviewFor(grp, pid, page){
-      page = page || 1;
-      var p = PARTNERS.get(pid);
-      if(!p) return;
-      var PAGE = (p.placements && p.placements[grp] ? p.placements[grp].pageSize : 6) || 6;
-      try{
-        var items = await collectUnique(pid, (page-1)*PAGE, PAGE);
-        var meta  = await getMeta(pid);
-        var totalPages = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
-        var listEl = document.getElementById(grp+'-'+pid+'-list');
-        var navEl  = document.getElementById(grp+'-'+pid+'-nav');
-        if(listEl) listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs megjeleníthető ajánlat.</div>';
-        if(navEl){
-          navEl.innerHTML =
-            '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawGenericOverviewFor(\''+grp+'\', \''+pid+'\','+(page-1)+')">Előző</button>' +
-            '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages+' </span>' +
-            '<button class="cta" '+(page>=totalPages?'disabled':'')+' onclick="drawGenericOverviewFor(\''+grp+'\', \''+pid+'\','+(page+1)+')">Következő</button>';
-        }
-      }catch(e){
-        console.error(e);
-        var listEl2 = document.getElementById(grp+'-'+pid+'-list');
-        if(listEl2) listEl2.innerHTML = '<div class="empty">Nem sikerült betölteni.</div>';
-      }
-    }
-    async function drawGenericFullFor(grp, pid, page){
-      page = page || 1;
-      var p = PARTNERS.get(pid);
-      if(!p || !(p.placements && p.placements[grp] && p.placements[grp].full && p.placements[grp].full.enabled)) return;
-      if(!GENERIC_STATE[grp].has(pid)) GENERIC_STATE[grp].set(pid, { filter:'', page:1 });
-      var state = GENERIC_STATE[grp].get(pid);
-      var PAGE = (p.placements && p.placements[grp] && p.placements[grp].full ? p.placements[grp].full.pageSize : 20) || 20;
-      try{
-        var meta = await getMeta(pid);
-        var offset = (page-1)*PAGE;
-        var items = await collectUnique(pid, offset, PAGE);
-        if(state.filter){
-          var q = state.filter.toLowerCase();
-          var ok = function(it){
-            return (((it && it.title) ? it.title : '') + ' ' + ((it && it.desc) ? it.desc : '')).toLowerCase().indexOf(q)>-1;
-          };
-          if(!items.some(ok)){
-            var buffer = [];
-            var totalPages = meta.pages || Math.ceil(((meta.total||0))/ (meta.pageSize||300)) || 1;
-            for(var pg=1; pg<=totalPages && buffer.length< PAGE*6; pg++){
-              var arr = await getPageItems(pid, pg);
-              buffer.push.apply(buffer, arr);
-            }
-            items = dedupeStrong(buffer).filter(ok).slice(0,PAGE);
-          }else{
-            items = dedupeStrong(items.filter(ok)).slice(0,PAGE);
-          }
-        }
-        var listEl = document.getElementById(grp+'-'+pid+'-full-list');
-        if(listEl) listEl.innerHTML = renderCards(pid, items) || '<div class="empty">Nincs találat.</div>';
-        var totalPages2 = Math.max(1, Math.ceil(((meta.total||0))/PAGE));
-        var navEl = document.getElementById(grp+'-'+pid+'-full-nav');
-        if(navEl){
-          navEl.innerHTML =
-            '<button class="cta" '+(page<=1?'disabled':'')+' onclick="drawGenericFullFor(\''+grp+'\', \''+pid+'\','+(page-1)+')">Előző</button>' +
-            '<span class="cta" style="pointer-events:none"> '+page+'/'+totalPages2+' </span>' +
-            '<button class="cta" '+(page>=totalPages2?'disabled':'')+' onclick="drawGenericFullFor(\''+grp+'\', \''+pid+'\','+(page+1)+')">Következő</button>';
-        }
-      }catch(e){
-        console.error(e);
-        var listEl2 = document.getElementById(grp+'-'+pid+'-full-list');
-        if(listEl2) listEl2.innerHTML = '<div class="empty">Nem sikerült betölteni (teljes).</div>';
-      }
-    }
-    async function drawTechTab(){
-      var list = Array.from(PARTNERS.values()).filter(function(p){
-        return p.group==='tech' && p.placements && p.placements.tech && p.placements.tech.enabled;
-      });
-      var host = document.getElementById('tech-partners');
-      if(!list.length){
-        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Tech & Elektronika” partner konfigurálva.</div></div>';
-        return;
-      }
-      host.innerHTML = list.map(function(p){ return genericBoxTemplate(p, 'tech'); }).join('');
-      host.querySelectorAll('.generic-head').forEach(function(a){
-        a.addEventListener('click', function(e){
-          e.preventDefault();
-          var grp = e.currentTarget.getAttribute('data-group');
-          var pid = e.currentTarget.getAttribute('data-partner');
-          var p = PARTNERS.get(pid);
-          if(!(p && p.placements && p.placements[grp] && p.placements[grp].full && p.placements[grp].full.enabled)) return;
-          showGenericFull(grp, pid);
-          if(!GENERIC_STATE[grp].has(pid)) GENERIC_STATE[grp].set(pid, { filter:'', page:1 });
-          drawGenericFullFor(grp, pid, 1);
-        });
-      });
-      host.querySelectorAll('form.generic-search').forEach(function(form){
-        var grp = form.getAttribute('data-group');
-        var pid = form.getAttribute('data-partner');
-        form.addEventListener('submit', function(e){
-          e.preventDefault();
-          var input = document.getElementById('q-'+grp+'-'+pid);
-          var q = (input && input.value || '').trim();
-          GENERIC_STATE[grp].set(pid, { filter:q, page:1 });
-          showGenericFull(grp, pid);
-          drawGenericFullFor(grp, pid, 1);
-        });
-      });
-      for(var i=0;i<list.length;i++){
-        var p = list[i];
-        showGenericOverview('tech', p.id);
-        await drawGenericOverviewFor('tech', p.id, 1);
-      }
-    }
-    async function drawVisionTab(){
-      var list = Array.from(PARTNERS.values()).filter(function(p){
-        return p.group==='vision' && p.placements && p.placements.vision && p.placements.vision.enabled;
-      });
-      var host = document.getElementById('vision-partners');
-      if(!list.length){
-        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Divat & Látás” partner konfigurálva.</div></div>';
-        return;
-      }
-      host.innerHTML = list.map(function(p){ return genericBoxTemplate(p, 'vision'); }).join('');
-      host.querySelectorAll('.generic-head').forEach(function(a){
-        a.addEventListener('click', function(e){
-          e.preventDefault();
-          var grp = e.currentTarget.getAttribute('data-group');
-          var pid = e.currentTarget.getAttribute('data-partner');
-          var p = PARTNERS.get(pid);
-          if(!(p && p.placements && p.placements[grp] && p.placements[grp].full && p.placements[grp].full.enabled)) return;
-          showGenericFull(grp, pid);
-          if(!GENERIC_STATE[grp].has(pid)) GENERIC_STATE[grp].set(pid, { filter:'', page:1 });
-          drawGenericFullFor(grp, pid, 1);
-        });
-      });
-      host.querySelectorAll('form.generic-search').forEach(function(form){
-        var grp = form.getAttribute('data-group');
-        var pid = form.getAttribute('data-partner');
-        form.addEventListener('submit', function(e){
-          e.preventDefault();
-          var input = document.getElementById('q-'+grp+'-'+pid);
-          var q = (input && input.value || '').trim();
-          GENERIC_STATE[grp].set(pid, { filter:q, page:1 });
-          showGenericFull(grp, pid);
-          drawGenericFullFor(grp, pid, 1);
-        });
-      });
-      for(var i=0;i<list.length;i++){
-        var p = list[i];
-        showGenericOverview('vision', p.id);
-        await drawGenericOverviewFor('vision', p.id, 1);
-      }
-    }
-    async function drawTravelTab(){
-      var list = Array.from(PARTNERS.values()).filter(function(p){
-        return p.group==='travel' && p.placements && p.placements.travel && p.placements.travel.enabled;
-      });
-      var host = document.getElementById('travel-partners');
-      if(!list.length){
-        host.innerHTML = '<div class="grid"><div class="empty">Nincs „Multishop” partner konfigurálva.</div></div>';
-        return;
-      }
-      host.innerHTML = list.map(function(p){ return genericBoxTemplate(p, 'travel'); }).join('');
-      host.querySelectorAll('.generic-head').forEach(function(a){
-        a.addEventListener('click', function(e){
-          e.preventDefault();
-          var grp = e.currentTarget.getAttribute('data-group');
-          var pid = e.currentTarget.getAttribute('data-partner');
-          var p = PARTNERS.get(pid);
-          if(!(p && p.placements && p.placements[grp] && p.placements[grp].full && p.placements[grp].full.enabled)) return;
-          showGenericFull(grp, pid);
-          if(!GENERIC_STATE[grp].has(pid)) GENERIC_STATE[grp].set(pid, { filter:'', page:1 });
-          drawGenericFullFor(grp, pid, 1);
-        });
-      });
-      host.querySelectorAll('form.generic-search').forEach(function(form){
-        var grp = form.getAttribute('data-group');
-        var pid = form.getAttribute('data-partner');
-        form.addEventListener('submit', function(e){
-          e.preventDefault();
-          var input = document.getElementById('q-'+grp+'-'+pid);
-          var q = (input && input.value || '').trim();
-          GENERIC_STATE[grp].set(pid, { filter:q, page:1 });
-          showGenericFull(grp, pid);
-          drawGenericFullFor(grp, pid, 1);
-        });
-      });
-      for(var i=0;i<list.length;i++){
-        var p = list[i];
-        showGenericOverview('travel', p.id);
-        await drawGenericOverviewFor('travel', p.id, 1);
-      }
-    }
-
-    // ===== Globális kereső =====
-    function matchesNeedle(it, needle){
-      var t=((it && it.title) ? it.title : '').toLowerCase();
-      var d=((it && it.desc) ? it.desc : '').toLowerCase();
-      return t.indexOf(needle)>-1 || d.indexOf(needle)>-1;
-    }
-    var SEARCH_RUN_ID = 0;
-    var MAX_RESULTS = 600;
-
-    async function runSearchAcrossPartners(q){
-      var needle=(q||'').trim().toLowerCase();
-      var host = document.getElementById('home-multi');
-      host.innerHTML = '<div class="grid"><div class="card"><div class="thumb">🔎</div><div class="title">Keresés az összes partnerben…</div></div></div>';
-      var progEl=document.getElementById('searchProgress');
-
-      if(!needle){ progEl.style.display='none'; await drawHomeTab(); return; }
-
-      var actives = enabledPartners();
-      var results = [];
-      var seen = new Set();
-      var myRun = ++SEARCH_RUN_ID;
-
-      try{
-        progEl.style.display='inline-block';
-        progEl.textContent = 'Keresés: 0/'+actives.length+' partner…';
-
-        var done=0;
-        for(var i=0;i<actives.length;i++){
-          var p = actives[i];
-          if(myRun!==SEARCH_RUN_ID) return;
-          var meta = await getMeta(p.id);
-          var srcSize = meta.pageSize || 300;
-          var totalPages = meta.pages || Math.ceil(((meta.total||0))/srcSize) || 1;
-
-          for(var pg=1; pg<=totalPages; pg++){
-            if(myRun!==SEARCH_RUN_ID) return;
-            var arr = await getPageItems(p.id, pg);
-            for(var j=0;j<arr.length;j++){
-              if(myRun!==SEARCH_RUN_ID) return;
-              var it = arr[j];
-              if(matchesNeedle(it, needle)){
-                var key = basePath(stripVariantParams(firstUrl(it))) + '|' + imgPath(itemImg(it)) + '|' + normalizeTitleNoSize(it && it.title || '');
-                if(!seen.has(key)){
-                  seen.add(key);
-                  results.push({ pid:p.id, item: it });
-                  if(results.length>=MAX_RESULTS) break;
-                }
-              }
-            }
-            if(results.length>=MAX_RESULTS) break;
-          }
-          done++;
-          progEl.textContent = 'Keresés: '+done+'/'+actives.length+' partner… ('+results.length+' találat)';
-          if(results.length>=MAX_RESULTS) break;
-        }
-
-        progEl.style.display='none';
-        host.innerHTML = '<div class="grid">' + (results.length ? renderMixedCards(results) : '<div class="empty">Nincs találat.</div>') + '</div>';
-      }catch(e){
-        console.error(e);
-        progEl.style.display='none';
-        host.innerHTML = '<div class="grid"><div class="empty">Hiba történt a keresés közben.</div></div>';
-      }
-    }
-
-    // ===== Tab kezelés =====
-    function hideAllSections(){
-      ['akciok','osszes','otthon','games','sport','tech','vision','travel'].forEach(function(id){
-        var s=document.getElementById(id); if(s) s.style.display='none';
-      });
-      document.querySelectorAll('.catbtn').forEach(function(b){ b.classList.remove('active'); });
-    }
-    async function switchTab(tab){
-      hideAllSections();
-      if(tab==='all'){
-        document.getElementById('akciok').style.display='block';
-        document.getElementById('osszes').style.display='block';
-        var allBtn = document.querySelector('.catbtn[data-cat="all"]'); if(allBtn) allBtn.classList.add('active');
-        await drawHomeTab();
-      }else if(tab==='home'){
-        document.getElementById('otthon').style.display='block';
-        var homeBtn = document.querySelector('.catbtn[data-cat="home"]'); if(homeBtn) homeBtn.classList.add('active');
-        await drawOtthonTab();
-      }else if(tab==='games'){
-        var sec = document.getElementById('games');
-        sec.style.display='block';
-        var gBtn = document.querySelector('.catbtn[data-cat="games"]'); if(gBtn) gBtn.classList.add('active');
-        await drawGamesTab();
-      }else if(tab==='sport'){
-        var sec2 = document.getElementById('sport');
-        sec2.style.display='block';
-        var sBtn = document.querySelector('.catbtn[data-cat="sport"]'); if(sBtn) sBtn.classList.add('active');
-        await drawSportTab();
-      }else if(tab==='tech'){
-        var secT = document.getElementById('tech');
-        secT.style.display='block';
-        var tBtn = document.querySelector('.catbtn[data-cat="tech"]'); if(tBtn) tBtn.classList.add('active');
-        await drawTechTab();
-      }else if(tab==='vision'){
-        var secV = document.getElementById('vision');
-        secV.style.display='block';
-        var vBtn = document.querySelector('.catbtn[data-cat="vision"]'); if(vBtn) vBtn.classList.add('active');
-        await drawVisionTab();
-      }else if(tab==='travel'){
-        var secTr = document.getElementById('travel');
-        secTr.style.display='block';
-        var trBtn = document.querySelector('.catbtn[data-cat="travel"]'); if(trBtn) trBtn.classList.add('active');
-        await drawTravelTab();
-      }else{
-        var sec3=document.getElementById(tab); if(sec3) sec3.style.display='block';
-        var btn = document.querySelector('.catbtn[data-cat="'+tab+'"]'); if(btn) btn.classList.add('active');
-      }
-    }
-
-    // ===== események =====
-    document.getElementById('searchFormAll').addEventListener('submit', function(e){
-      e.preventDefault(); runSearchAcrossPartners(document.getElementById('qAll').value||'');
-    });
-    document.querySelectorAll('.categories .catbtn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        var cat = btn.getAttribute('data-cat');
-        if(!cat) return;
-        switchTab(cat);
-      });
-    });
-
-    // ===== indulás =====
-    (async function init(){
-      try{
-        await loadPartners();
-        await buildSaleBlocksAll();
-        await switchTab('all');
-      }catch(e){
-        console.error('Init hiba:', e);
-      }
-    })();
-
-    // Globális hibafogók
-    window.addEventListener('error', function(ev){ showFatal(ev.message || 'Ismeretlen hiba'); });
-    window.addEventListener('unhandledrejection', function(ev){ showFatal((ev.reason && ev.reason.message) || 'Ismeretlen promise hiba'); });
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
-
