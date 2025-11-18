@@ -585,7 +585,7 @@ function getCategoryName(catId) {
   return el ? el.textContent.trim() : "";
 }
 
-// Kártyák renderelése
+// Kártyák renderelése (általános)
 function renderCategoryCards(itemsWithPartner, catId, showPartnerRow) {
   const list = itemsWithPartner || [];
   if (!list.length) {
@@ -635,7 +635,7 @@ function renderCategoryCards(itemsWithPartner, catId, showPartnerRow) {
     .join("");
 }
 
-// Kategória renderelése: partnerenként külön blokk, külön 6/lap nav
+// Kategória renderelése: partnerenként külön blokk, 6/lap, saját nav
 function renderCategory(catId) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
@@ -694,8 +694,7 @@ function renderCategory(catId) {
   });
 
   grid.innerHTML = html;
-  // Kategória szintű nav-ot nem használjuk
-  nav.innerHTML = "";
+  nav.innerHTML = ""; // nincs kategória-szintű lapozó
 }
 
 async function buildCategoryBlocks() {
@@ -746,7 +745,7 @@ async function buildCategoryBlocks() {
     partnerIds.forEach((pid) => {
       const list = byPartner[pid] || [];
       const pages = [];
-      for (let i = 0; i < list.length; i += PAGE_SIZE; i++) {
+      for (let i = 0; i < list.length; i += PAGE_SIZE) {
         pages.push(list.slice(i, i + PAGE_SIZE));
       }
       catPages[pid] = pages;
@@ -992,7 +991,7 @@ function openPartnerView(pid, catId) {
   hydratePartnerCategoryItems(pid, catId);
 }
 
-// ===== Hero kereső → Algolia keresőoldal =====
+// ===== Hero kereső → search.html (Algolia) =====
 function attachSearchForm() {
   const form = document.getElementById("searchFormAll");
   const input = document.getElementById("qAll");
@@ -1154,7 +1153,7 @@ function handlePartnerUiClick(event) {
     return;
   }
 
-  // Lapozó gombok – lehet kategória-blokkban VAGY partner-nézetben
+  // Lapozó gombok – kategória-blokk VAGY partner-nézet
   const pagerBtn = event.target.closest("[data-partner-page]");
   if (pagerBtn) {
     event.preventDefault();
@@ -1163,8 +1162,10 @@ function handlePartnerUiClick(event) {
 
     const inPartnerView = !!pagerBtn.closest("#partner-view");
     if (inPartnerView) {
+      // partner-nézet lapozás
       renderPartnerViewPage(p);
     } else {
+      // kategória-blokk: partnerenkénti lapozás
       const pid = pagerBtn.getAttribute("data-partner");
       const catId = pagerBtn.getAttribute("data-cat");
       if (!pid || !catId) return;
