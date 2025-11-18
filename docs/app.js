@@ -1298,32 +1298,21 @@ async function buildCategoryBlocks() {
     }
   }
 
-  const PAGE_SIZE = 6; // főoldali kategória: 6 termék / oldal (mixelt)
+const PAGE_SIZE = 6; // főoldali kategória 6 termék / oldal (mixelt)
 
-  CATEGORY_IDS.forEach((catId) => {
-    const rawList = buffers[catId] || [];
-    const list = dedupeRowsStrong(rawList);
+CATEGORY_IDS.forEach((catid) => {
+  const rawlist = buffers[catid] || [];
+  const list = dedupeRowsStrong(rawlist);
+  const pages = [];
 
-    const pages = [];
-    for (let i = 0; i < list.length; i += PAGE_SIZE; i++) {
-      pages.push(list.slice(i, i + PAGE_SIZE));
-    }
+  for (let i = 0; i < list.length; i += PAGE_SIZE) {
+    pages.push(list.slice(i, i + PAGE_SIZE));
+  }
 
-    CATEGORY_PAGES[catId] = pages;
-    CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
-
-    if (pages.length) {
-      renderCategory(catId, 1);
-    } else {
-      const grid = document.getElementById(catId + "-grid");
-      const nav = document.getElementById(catId + "-nav");
-      if (grid) {
-        grid.innerHTML =
-          '<div class="empty">Jelenleg nincs termék ebben a kategóriában.</div>';
-      }
-      if (nav) nav.innerHTML = "";
-    }
-  });
+  CATEGORY_PAGES[catid] = pages;
+  CATEGORY_CURRENT[catid] = pages.length ? 1 : 0;
+});
+});
 }
 
 // ===== INIT =====
@@ -1346,3 +1335,4 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
