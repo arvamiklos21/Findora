@@ -1,173 +1,141 @@
-// algolia_push.js
-// Algolia index feltöltése Node.js-ből (GitHub Actions-ből futtatva)
+#!/usr/bin/env node
 
-// 1) Külső függőségek
+// ===========================
+//  Algolia push – Findora
+// ===========================
 const fs = require("fs");
 const path = require("path");
-const { algoliasearch } = require('algoliasearch');
+const algoliasearch = require("algoliasearch");
 
-// 2) Algolia config – alapértelmezésben env változókból olvasunk
-const APP_ID = process.env.ALGOLIA_APP_ID || "W95VUS9HJ8";
-const ADMIN_API_KEY =
-  process.env.ALGOLIA_ADMIN_API_KEY || "IDE_NEM_HAGYUNK_ÉLES_KEYT";
+// --- env változók ---
+const APP_ID = process.env.ALGOLIA_APP_ID;
+const ADMIN_KEY = process.env.ALGOLIA_ADMIN_API_KEY;
 const INDEX_NAME = process.env.ALGOLIA_INDEX_NAME || "findora_products";
 
-// 3) Feedek helye a repo-ban
-// Ha nálad a JSON-ok a docs/feeds/... alatt vannak (GitHub Pages),
-// akkor így jó. Ha nem, akkor állítsd át pl. path.join(__dirname, "feeds")-re.
-const FEEDS_ROOT = path.join(__dirname, "docs", "feeds");
+if (!APP_ID || !ADMIN_KEY) {
+  console.error(
+    "[FATAL] Hiányzik ALGOLIA_APP_ID vagy ALGOLIA_ADMIN_API_KEY a környezeti változók közül."
+  );
+  process.exit(1);
+}
 
-// 4) Partnerek listája – ugyanaz, mint a partners.json-ból
-const PARTNERS = [
-  "tchibo",
-  "cj-karcher",
-  "cj-eoptika",
-  "cj-jateknet",
-  "jateksziget",
-  "regiojatek",
-  "decathlon",
-  "alza",
-  "kozmetikaotthon",
-  "pepita",
-  "ekszereshop",
-  "karacsonydekor",
-  "otthonmarket",
-  "onlinemarkabolt",
-];
+// --- feed-ek beolvasása: docs/feeds/<partner>/page-*.json ---
+function getFeedsRoot() {
+  // Ez a script a docs mappában van, innen megyünk a feeds-hez
+  return path.join(__dirname, "feeds");
+}
 
-// Kisegítő: biztonságos JSON betöltés
-function readJsonSafe(p) {
-  if (!fs.existsSync(p)) {
-    return null;
-  }
+function safeReadJson(filePath) {
   try {
-    const txt = fs.readFileSync(p, "utf8");
+    const txt = fs.readFileSync(filePath, "utf8");
     return JSON.parse(txt);
   } catch (e) {
-    console.error("[HIBA] JSON parse hiba:", p, e.message);
+    console.warn("[WARN] JSON hiba:", filePath, e.message);
     return null;
   }
 }
 
-// Egy partner összes page-*.json fájljának beolvasása
-function loadPartnerItems(partnerId, maxPages) {
-  const partnerDir = path.join(FEEDS_ROOT, partnerId);
-  if (!fs.existsSync(partnerDir)) {
-    console.warn("[WARN] Nincs ilyen partner mappa:", partnerDir);
-    return [];
+function collectRecordsFromFeeds() {
+  const FEEDS_ROOT = getFeedsRoot();
+  const records = [];
+
+  if (!fs.existsSync(FEEDS_ROOT)) {
+    console.warn("[WARN] Nincs feeds könyvtár:", FEEDS_ROOT);
+    return records;
   }
 
-  const metaPath = path.join(partnerDir, "meta.json");
-  let totalPages = null;
-  const meta = readJsonSafe(metaPath);
-  if (meta && typeof meta.pages === "number") {
-    totalPages = meta.pages;
-  }
+  const partners = fs
+    .readdirSync(FEEDS_ROOT, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name);
 
-  const items = [];
-  let page = 1;
+  console.log("[INFO] Partnerek a feeds alatt:", partners.join(", ") || "(nincs)");
 
-  while (true) {
-    if (maxPages != null && page > maxPages) break;
-    if (totalPages != null && page > totalPages) break;
+  for (const pid of partners) {
+    const dir = path.join(FEEDS_ROOT, pid);
+    const files = fs
+      .readdirSync(dir)
+      .filter((f) => f.startsWith("page-") && f.endsWith(".json"))
+      .sort();
 
-    const pageName = `page-${String(page).padStart(4, "0")}.json`;
-    const pagePath = path.join(partnerDir, pageName);
-    if (!fs.existsSync(pagePath)) {
-      // Ha elfogytak a fájlok, leállunk
-      break;
-    }
+    console.log(`[INFO]  Partner: ${pid}, lapok: ${files.length} db`);
 
-    const data = readJsonSafe(pagePath) || {};
-    const pageItems = Array.isArray(data.items) ? data.items : [];
+    for (const file of files) {
+      const full = path.join(dir, file);
+      const json = safeReadJson(full);
+      if (!json || !Array.isArray(json.items)) continue;
 
-    for (const it of pageItems) {
-      const url =
-        (it.url || it.link || it.deeplink || "").toString().trim();
-      const title = (it.title || "").toString().trim();
-      const desc =
-        (it.desc || it.description || "").toString().trim();
+      for (const item of json.items) {
+        const rawUrl =
+          (item.url || item.link || item.deeplink || "").toString() || "";
+        const title = (item.title || "").toString();
+        const desc = (item.desc || "").toString();
+        const img =
+          item.image ||
+          item.img ||
+          item.image_link ||
+          item.thumbnail ||
+          "";
 
-      if (!title && !url) {
-        continue; // értelmetlen rekord
+        const price =
+          typeof item.price === "number" && isFinite(item.price)
+            ? item.price
+            : null;
+
+        // objectID: stabil, partner + (id / sku / url / fallback)
+        const objectID =
+          `${pid}__` +
+          (item.id ||
+            item.sku ||
+            rawUrl ||
+            `${file}__${Math.random().toString(36).slice(2)}`);
+
+        records.push({
+          objectID,
+          partner: pid,
+          title,
+          desc,
+          price,
+          url: rawUrl,
+          image: img,
+        });
       }
-
-      const baseId =
-        it.id || url || `${partnerId}::no-url::${items.length}`;
-
-      const record = {
-        objectID: `${partnerId}::${baseId}`,
-        partnerId: partnerId,
-        title: title,
-        description: desc,
-        price: typeof it.price === "number" ? it.price : null,
-        currency: it.currency || "HUF",
-        image:
-          it.image ||
-          it.img ||
-          it.image_link ||
-          it.thumbnail ||
-          "",
-        url: url,
-        category:
-          it.category || it.google_product_category || "",
-        discount:
-          typeof it.discount === "number" ? it.discount : null,
-      };
-
-      items.push(record);
     }
-
-    console.log(
-      `[OK] ${partnerId} – ${pageName} beolvasva, ${pageItems.length} termék`
-    );
-    page += 1;
   }
 
-  console.log(
-    `[INFO] ${partnerId}: összesen ${items.length} termék a feedből`
-  );
-  return items;
+  return records;
 }
 
 async function main() {
-  if (!ADMIN_API_KEY || ADMIN_API_KEY === "IDE_NEM_HAGYUNK_ÉLES_KEYT") {
-    console.error(
-      "[HIBA] Nincs beállítva ALGOLIA_ADMIN_API_KEY env változó. (GitHub Secrets-ben add meg!)"
-    );
-    process.exit(1);
-  }
-
   console.log("[INFO] Algolia kliens inicializálása…");
-  const client = algoliasearch(APP_ID, ADMIN_API_KEY);
+  console.log("[DEBUG] APP_ID:", APP_ID);
+  console.log("[DEBUG] INDEX_NAME:", INDEX_NAME);
+
+  // FONTOS: így kell hívni → két paraméter: appId, apiKey
+  const client = algoliasearch(APP_ID, ADMIN_KEY);
+
+  // Itt biztosan van initIndex – a korábbi hiba pont az volt,
+  // hogy a client nem ilyen típusú objektum volt.
   const index = client.initIndex(INDEX_NAME);
 
-  let allRecords = [];
-  for (const pid of PARTNERS) {
-    const items = loadPartnerItems(pid);
-    allRecords = allRecords.concat(items);
+  console.log("[INFO] Rekordok összegyűjtése a feeds mappából…");
+  const records = collectRecordsFromFeeds();
+  console.log("[INFO] Összes rekord:", records.length);
+
+  if (!records.length) {
+    console.log("[INFO] Nincs feltölthető rekord, kilépek.");
+    return;
   }
 
-  console.log(`[INFO] Összes Algolia rekord: ${allRecords.length}`);
+  console.log("[INFO] replaceAllObjects futtatása Algolia-ban…");
+  await index.replaceAllObjects(records, {
+    autoGenerateObjectIDIfNotExist: true,
+  });
 
-  console.log("[INFO] Régi index törlése (clearObjects)…");
-  await index.clearObjects();
-
-  console.log("[INFO] Rekordok feltöltése Algoliába (batch)…");
-  const BATCH = 1000;
-  for (let i = 0; i < allRecords.length; i += BATCH) {
-    const chunk = allRecords.slice(i, i + BATCH);
-    await index.saveObjects(chunk);
-    console.log(
-      `[OK] ${i + chunk.length} / ${allRecords.length} rekord feltöltve`
-    );
-  }
-
-  console.log("[DONE] Algolia index frissítve.");
+  console.log("[OK] Algolia index sikeresen frissítve.");
 }
 
 main().catch((err) => {
   console.error("[FATAL] Algolia push hiba:", err);
   process.exit(1);
 });
-
