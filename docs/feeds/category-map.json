@@ -1,18 +1,28 @@
 {
-  "tchibo": [
-    { "pattern": "noi", "catId": "kat-divat" },
-    { "pattern": "ferfi", "catId": "kat-divat" },
-    { "pattern": "ruha", "catId": "kat-divat" },
-    { "pattern": "polo", "catId": "kat-divat" },
-    { "pattern": "nadrag", "catId": "kat-divat" },
-    { "pattern": "szoknya", "catId": "kat-divat" },
-    { "pattern": "kabat", "catId": "kat-divat" },
-    { "pattern": "dzseki", "catId": "kat-divat" },
+"tchibo": [
+  { "pattern": "nadrág", "catId": "kat-divat" },
+  { "pattern": "legging", "catId": "kat-divat" },
+  { "pattern": "póló", "catId": "kat-divat" },
+  { "pattern": "ruha", "catId": "kat-divat" },
+  { "pattern": "szoknya", "catId": "kat-divat" },
+  { "pattern": "kabát", "catId": "kat-divat" },
+  { "pattern": "dzseki", "catId": "kat-divat" },
+  { "pattern": "melltartó", "catId": "kat-divat" },
+  { "pattern": "alsó", "catId": "kat-divat" },
+  { "pattern": "fehérnemű", "catId": "kat-divat" },
+  { "pattern": "felső", "catId": "kat-divat" },
+  { "pattern": "pulóver", "catId": "kat-divat" },
+  { "pattern": "szvetter", "catId": "kat-divat" },
+  { "pattern": "pizsama", "catId": "kat-divat" },
+  { "pattern": "gyerek", "catId": "kat-divat" },
+  { "pattern": "sport", "catId": "kat-sport" },
 
-    { "pattern": "otthon", "catId": "kat-otthon" },
-    { "pattern": "lakberendezes", "catId": "kat-otthon" },
-    { "pattern": "konyha", "catId": "kat-otthon" }
-  ],
+  { "pattern": "konyha", "catId": "kat-otthon" },
+  { "pattern": "konyhai", "catId": "kat-otthon" },
+  { "pattern": "otthon", "catId": "kat-otthon" },
+  { "pattern": "lakberendez", "catId": "kat-otthon" }
+],
+
 
   "alza": [
     { "pattern": "tv", "catId": "kat-elektronika" },
