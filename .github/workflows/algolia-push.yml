@@ -1,0 +1,29 @@
+name: Algolia – index frissítés
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  algolia-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kód checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js telepítése
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Algolia kliens telepítése
+        run: |
+          npm init -y
+          npm install algoliasearch
+
+      - name: Algolia index feltöltése
+        run: node algolia_push.js
+        env:
+          ALGOLIA_APP_ID: W95VUS9HJ8
+          ALGOLIA_ADMIN_API_KEY: ${{ secrets.ALGOLIA_ADMIN_API_KEY }}
+          ALGOLIA_INDEX_NAME: findora_products
