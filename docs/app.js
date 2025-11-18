@@ -55,12 +55,17 @@ function mapCategoryByPartner(pid, it) {
   const rules = CATEGORY_MAP[pid];
   if (!rules || !rules.length) return null;
 
-  const raw =
-    (it && (it.categoryPath || it.category_path || it.category || it.cat)) ||
-    "";
-  const text = normalizeCategoryText(raw);
+  // Alap: partner által adott kategória mezők
+  const baseCat =
+    (it && (it.categoryPath || it.category_path || it.category || "")) || "";
 
-  // ha nincs kategória szöveg, de van üres patternes szabály: "mindent ide"
+  // Plusz: cím + leírás (hogy a "nadrág", "szoknya", "póló" stb. is számítson)
+  const title = (it && it.title) || "";
+  const desc = (it && (it.desc || it.description)) || "";
+
+  const text = normalizeCategoryText(baseCat + " " + title + " " + desc);
+
+  // ha nincs semmi szöveg, de van üres patternes szabály: "mindent ide"
   if (!text) {
     const fallback = rules.find((r) => !r.pattern);
     return fallback ? fallback.catId : null;
@@ -74,6 +79,7 @@ function mapCategoryByPartner(pid, it) {
   }
   return null;
 }
+
 
 // Deeplink építése – minden gomb: Megnézem🔗
 function dlUrl(partnerId, rawUrl) {
@@ -1329,3 +1335,4 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
