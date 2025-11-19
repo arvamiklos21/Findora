@@ -208,7 +208,8 @@ def parse_items(xml_text):
         }
 
         # Kategória hozzárendelés Tchibo-hoz
-        item["catId"] = assign_category("tchibo", item)
+        # Itt a NYERS m dictet adjuk át, mert abban benne vannak a categoryPath / category mezők is
+        item["cat"] = assign_category("tchibo", m)
 
         items.append(item)
 
