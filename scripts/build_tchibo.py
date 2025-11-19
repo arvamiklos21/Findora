@@ -1,6 +1,5 @@
-from category_assign import assign_category
-
 import os
+import sys
 import re
 import json
 import math
@@ -9,6 +8,13 @@ import requests
 
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+
+# --- hogy a scripts/ alatti category_assign.py-t is lássa, amikor a repo gyökeréből fut ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
+from category_assign import assign_category
 
 
 FEED_URL = os.environ.get("FEED_TCHIBO_URL")
@@ -202,7 +208,7 @@ def parse_items(xml_text):
         }
 
         # Kategória hozzárendelés Tchibo-hoz
-        item["cat"] = assign_category("tchibo", item)
+        item["catId"] = assign_category("tchibo", item)
 
         items.append(item)
 
