@@ -1,22 +1,24 @@
 # category_assign.py
 #
 # Központi kategória-hozzárendelés partnerenként.
-# Első körben csak Tchibo, később bővíthető (Alza, Pepita, stb.).
-#
 # Visszaadott érték: findora_main (elektronika, otthon, divat, jatekok, sport, kert, haztartasi_gepek, multi)
 
 from typing import Optional
 
 
+# =======================================================
+#   TCHIBO → FINDORA MAIN CATEGORY
+# =======================================================
+
 def _tchibo_findora_main(cat_path: str) -> str:
     """
-    Tchibo XML/CSV kategória -> Findora főkategória (findora_main).
-    A bemenet tipikusan a param_category mező, pl.:
+    Tchibo kategória → Findora főkategória.
+    A cat_path tipikusan param_category, pl:
       "Apparel & Accessories > Clothing > Outerwear > Coats & Jackets"
       "Home & Garden > Kitchen & Dining > Kitchen Appliances"
     """
 
-    s = (cat_path or "").lower()
+    s = (cat_path or "").lower().strip()
 
     # ===== DIVAT =====
     if any(k in s for k in [
@@ -32,7 +34,7 @@ def _tchibo_findora_main(cat_path: str) -> str:
         "dresses",
         "baby & toddler clothing",
         "toddler underwear",
-        "socks & tights"
+        "socks & tights",
     ]):
         return "divat"
 
@@ -49,7 +51,7 @@ def _tchibo_findora_main(cat_path: str) -> str:
         "household supplies",
         "cabinets & storage",
         "shelving",
-        "bookcases"
+        "bookcases",
     ]):
         return "otthon"
 
@@ -59,7 +61,7 @@ def _tchibo_findora_main(cat_path: str) -> str:
         "baby toys",
         "toys",
         "board games",
-        "puzzles"
+        "puzzles",
     ]):
         return "jatekok"
 
@@ -71,7 +73,7 @@ def _tchibo_findora_main(cat_path: str) -> str:
         "cycling apparel & accessories",
         "camping & hiking",
         "exercise & fitness",
-        "outdoor recreation"
+        "outdoor recreation",
     ]):
         return "sport"
 
@@ -82,11 +84,11 @@ def _tchibo_findora_main(cat_path: str) -> str:
         "outdoor furniture sets",
         "outdoor furniture covers",
         "birdhouses",
-        "bird & wildlife houses"
+        "bird & wildlife houses",
     ]):
         return "kert"
 
-    # ===== HÁZTARTÁSI GÉPEK / HÁZTARTÁS =====
+    # ===== HÁZTARTÁSI GÉPEK =====
     if any(k in s for k in [
         "kitchen appliances",
         "small appliances",
@@ -94,16 +96,17 @@ def _tchibo_findora_main(cat_path: str) -> str:
         "can openers",
         "colanders & strainers",
         "tableware",
-        "flatware"
+        "flatware",
     ]):
         return "haztartasi_gepek"
 
     # ===== ALAPÉRTELMEZETT =====
-    # Ide esik:
-    # - Luggage & Bags
-    # - bármilyen ismeretlen / új kategória
     return "multi"
 
+
+# =======================================================
+#   ÁLTALÁNOS HOZZÁRENDELÉS (más partnerek később)
+# =======================================================
 
 def assign_category(
     partner_id: str,
@@ -112,20 +115,21 @@ def assign_category(
     desc: str = "",
 ) -> str:
     """
-    Általános belépőpont:
-    - partner_id: 'tchibo', később 'alza', 'pepita', stb.
-    - cat_path: feed kategória útvonal (param_category / CATEGORY_PATH / stb.)
-    - title, desc: később finomhangoláshoz (ha kell kulcsszó)
+    Központi kategória-hozzárendelés.
+    - partner_id: "tchibo", később "alza", "pepita", stb.
+    - cat_path: eredeti partner kategória
+    - title / desc: opcionális kulcsszó figyeléshez
     """
 
     pid = (partner_id or "").lower()
 
+    # ===== TCHIBO =====
     if pid == "tchibo":
         return _tchibo_findora_main(cat_path or "")
 
-    # Később ide jönnek:
+    # ===== további partnerek később =====
     # if pid == "alza": ...
     # if pid == "pepita": ...
 
-    # Ha nincs specifikus szabály, multi
+    # ===== ha nincs specifikus logika =====
     return "multi"
