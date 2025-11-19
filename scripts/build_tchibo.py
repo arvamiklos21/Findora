@@ -145,13 +145,13 @@ def parse_items(xml_text):
     # 1) Megpróbáljuk a tipikus struktúrákat
     candidates = []
     for path in (
-        ".//channel/item",
-        ".//item",
-        ".//products/product",
-        ".//product",
-        ".//SHOPITEM",
-        ".//shopitem",
-        ".//entry",
+            ".//channel/item",
+            ".//item",
+            ".//products/product",
+            ".//product",
+            ".//SHOPITEM",
+            ".//shopitem",
+            ".//entry",
     ):
         nodes = root.findall(path)
         if nodes:
@@ -218,15 +218,9 @@ def parse_items(xml_text):
             else None
         )
 
-        # ===== Tchibo → Findora kategória =====
-        clean_for_cat = {
-            "title": ensure_str(title),
-            "category": ensure_str(cat_path),
-            "categoryPath": ensure_str(cat_path),
-            "desc": ensure_str(raw_desc),
-            "description": ensure_str(raw_desc),
-        }
-        findora_main = assign_category("tchibo", clean_for_cat)
+        # ===== Tchibo → Findora kategória (helyes hívás: cat_path stringgel) =====
+        # category_assign.assign_category(partner_id, cat_path, title, desc)
+        findora_main = assign_category("tchibo", cat_path or "", title or "", raw_desc or "")
 
         # Gyökér kategória kivétele (category_root)
         if cat_path and ">" in cat_path:
@@ -355,7 +349,7 @@ def main():
 
     pages = max(1, math.ceil(len(items) / PAGE_SIZE))
     for i in range(pages):
-        data = {"items": items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]}
+        data = {"items": items[i * PAGE_SIZE: (i + 1) * PAGE_SIZE]}
         with open(
             os.path.join(OUT_DIR, f"page-{str(i + 1).zfill(4)}.json"),
             "w",
