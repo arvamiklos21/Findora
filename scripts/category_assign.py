@@ -1,250 +1,281 @@
-# category_assign.py
-import re
+# scripts/category_assign.py
 
-# Findora kategória ID-k (frontendtel egyezően)
-CATEGORY_IDS = {
-    "kat-elektronika",
-    "kat-gepek",
-    "kat-otthon",
-    "kat-kert",
-    "kat-jatekok",
-    "kat-divat",
-    "kat-szepseg",
-    "kat-sport",
-    "kat-latas",
-    "kat-allatok",
-    "kat-konyv",
-    "kat-utazas",
-    "kat-multi",
+import unicodedata
+
+def normalize_text(s: str) -> str:
+    """Egyszerű normalizálás: kisbetű, ékezet nélkül, felesleges whitespace nélkül."""
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFD", s)
+    # dobjuk a kombináló ékezeteket
+    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+    s = s.lower()
+    for ch in [".", ",", ":", ";", "!", "?", "(", ")", "[", "]", "/", "\\", "-", "_", "–"]:
+        s = s.replace(ch, " ")
+    while "  " in s:
+        s = s.replace("  ", " ")
+    return s.strip()
+
+
+# Alap kategória partner szerint (ha semmi kulcsszó nem talál)
+BASE_BY_PARTNER = {
+    "tchibo": "kat-otthon",
+    "alza": "kat-elektronika",
+    "eoptika": "kat-latas",
+    "cj-eoptika": "kat-latas",
+    "cj-jateknet": "kat-jatekok",
+    "jateksziget": "kat-jatekok",
+    "regiojatek": "kat-jatekok",
+    "onlinemarkabolt": "kat-otthon",
+    "otthonmarket": "kat-otthon",
+    "pepita": "kat-multi",
 }
 
+# Kulcsszó-listák – szabadon bővíthetők később
+FASHION = [
+    "nadrag",
+    "leggings",
+    "ruha",
+    "polo",
+    "szoknya",
+    "kabat",
+    "kabát",
+    "dzseki",
+    "melltarto",
+    "fehernemu",
+    "fehérnemu",
+    "also",
+    "alsó",
+    "cipo",
+    "cipő",
+    "csizma",
+    "papucs",
+    "pulover",
+    "pulóver",
+    "pizsama",
+    "gyerek",
+    "sportnadrag",
+    "kendo",
+    "kendő",
+    "kesztyu",
+    "kesztyű",
+]
 
-def _norm(text: str) -> str:
-    """Kisbetű, ékezet nélkül, egy space-ek."""
-    if not text:
-        return ""
-    t = text.lower()
-    # egyszerű ékezeteltávolítás
-    tr_map = str.maketrans(
-        "áéíóöőúüűÁÉÍÓÖŐÚÜŰ",
-        "aeiooouuuaeiooouuu",
-    )
-    t = t.translate(tr_map)
-    t = re.sub(r"\s+", " ", t)
-    return t.strip()
+APPLIANCES = [
+    "mosogep",
+    "mosógép",
+    "mosogatogep",
+    "szaritogep",
+    "szárítógép",
+    "fagyaszto",
+    "fagyasztó",
+    "hutoszekreny",
+    "hűtőszekrény",
+    "huto",
+    "hűtő",
+    "suto",
+    "sütő",
+    "tuzhely",
+    "tűzhely",
+    "kifozolap",
+    "főzőlapp",
+    "főzőlapp",
+    "fozolap",
+    "robotporszivó",
+    "robotporszivo",
+    "porszivo",
+    "porszívó",
+    "mikrohullamu",
+    "mikrohullámu",
+    "kavefozo",
+    "kávéfőző",
+    "kavegep",
+    "kávégép",
+    "turmix",
+    "botmixer",
+    "konyhagep",
+    "konyhagé",
+]
 
+TOYS = [
+    "jatek",
+    "játék",
+    "jatekszett",
+    "játékszett",
+    "lego",
+    "tarsasjatek",
+    "társasjáték",
+    "baba",
+    "pluss",
+    "plüss",
+    "jarmu",
+    "jármű",
+    "jarmu",
+]
 
-# -------- TCHIBO SZABÁLYOK --------
-# title + category_path + description lesz összefűzve
-TCHIBO_RULES = [
-    # JÁTÉKOK
-    (
-        "kat-jatekok",
-        [
-            "jatek",
-            "tarsasjatek",
-            "tarsas-jatek",
-            "lego",
-            "pluss",
-            "baby born",
-            "barbiebaba",
-            "jatekauto",
-            "jarmu jatek",
-            "kirako",
-            "puzzle",
-            "gyermek jatek",
-            "gyerekjatek",
-        ],
-    ),
-    # DIVAT (ruhák, cipők, kiegészítők)
-    (
-        "kat-divat",
-        [
-            "kabat",
-            "dzseki",
-            "parkas",
-            "melleny",
-            "pulover",
-            "kardigan",
-            "ruha",
-            "szoknya",
-            "bluz",
-            "polo",
-            "polos",
-            "ing",
-            "felsor",
-            "felső",
-            "nadrag",
-            "farmer",
-            "leggings",
-            "cicanadrag",
-            "pizsama",
-            "haloruha",
-            "fehernemu",
-            "melltarto",
-            "alsonadrag",
-            "zokni",
-            "harisnya",
-            "csizma",
-            "cipo",
-            "szandál",
-            "papucs",
-            "cipő",
-            "sapk",
-            "sal",
-            "kesztyu",
-        ],
-    ),
-    # HÁZTARTÁSI GÉPEK
-    (
-        "kat-gepek",
-        [
-            "porszivo",
-            "porszívó",
-            "gőztisztito",
-            "goztisztito",
-            "kavefozo",
-            "kávéfőző",
-            "espresso",
-            "kapszulas kave",
-            "vizforralo",
-            "vizforraló",
-            "mixero",
-            "turmix",
-            "smoothie",
-            "konyhai robot",
-            "kenyersuto",
-            "bagett",
-            "suto",
-            "sütőforma keszlet",
-            "szenzoros koszuro",
-            "melegito parna",
-            "melegito takaro",
-        ],
-    ),
-    # OTTHON (bútordekor, textil)
-    (
-        "kat-otthon",
-        [
-            "parna",
-            "parnacsetlo",
-            "parnatok",
-            "parnacso",
-            "takaró",
-            "takaro",
-            "plaid",
-            "agyterito",
-            "agytextil",
-            "agy nemu",
-            "agynemu",
-            "fuggony",
-            "fuggonyrud",
-            "szonyeg",
-            "futosszonyeg",
-            "lepedo",
-            "torolkozo",
-            "torulkozo",
-            "asztalterito",
-            "asztalfuto",
-            "asztali futó",
-            "lamp",
-            "lampa",
-            "fenylanc",
-            "fenyfüzér",
-            "dekoracio",
-            "karacsonyi dekor",
-            "tarolodoboz",
-            "kosar",
-            "szek",
-            "karpitos szek",
-            "puff",
-            "polc",
-            "szekreny",
-            "akaszto",
-            "szennyestarto",
-        ],
-    ),
-    # SZÉPSÉG / WELLNESS – majd később finomítható
-    (
-        "kat-szepseg",
-        [
-            "arapkolo",
-            "arcapolo",
-            "masszazs",
-            "kozmetikai",
-            "smink",
-            "wellness",
-            "szepito",
-            "borapolo",
-            "krem",
-            "szappan",
-        ],
-    ),
-    # SPORT
-    (
-        "kat-sport",
-        [
-            "futocipo",
-            "futocipő",
-            "sportmelltarto",
-            "sportmelltartó",
-            "joga",
-            "fitnesz",
-            "fitness",
-            "edzokotel",
-            "sulyzo",
-            "kettlebell",
-            "sportszivo",
-            "sporttaska",
-            "futokabat",
-            "futofelső",
-        ],
-    ),
+SPORT = [
+    "futópad",
+    "futopad",
+    "labda",
+    "foci",
+    "kosar",
+    "kosárlabda",
+    "tenisz",
+    "edzopad",
+    "edzőpad",
+    "futocipo",
+    "futócipő",
+]
+
+VISION = [
+    "szemuveg",
+    "szemüveg",
+    "napszemuveg",
+    "napszemüveg",
+    "kontaktlencse",
+    "optika",
+    "lencse",
+]
+
+HOME = [
+    "parna",
+    "párna",
+    "takaro",
+    "takaró",
+    "agyynemu",
+    "agyynemű",
+    "lepedo",
+    "lepedő",
+    "szonyeg",
+    "szőnyeg",
+    "fuggony",
+    "függöny",
+    "kanape",
+    "kanapé",
+    "fotel",
+    "asztal",
+    "szekreny",
+    "szekrény",
+    "komod",
+    "komód",
+    "dekoracio",
+    "dekoráció",
+    "gyertya",
+    "polc",
+    "asztalk",
+    "szek",
+    "szék",
+]
+
+ELECTRONICS = [
+    "tv",
+    "televizio",
+    "televízió",
+    "monitor",
+    "laptop",
+    "tablet",
+    "telefon",
+    "okostelefon",
+    "konzol",
+    "playstation",
+    "ps5",
+    "xbox",
+    "hangfal",
+    "hangszoro",
+    "hangszóró",
+    "soundbar",
+    "headset",
+    "fulhallgato",
+    "fülhallgató",
+    "kamera",
+    "fenykepezo",
+    "fényképező",
+    "router",
+    "nyomtato",
+    "nyomtató",
+    "projektor",
+]
+
+BOOKS = [
+    "konyv",
+    "könyv",
+    "konyvek",
+    "könyvek",
+    "regeny",
+    "regény",
+    "roman",
+    "novella",
+    "tankonyv",
+    "tankönyv",
+    "mesekonyv",
+    "mesekönyv",
+    "gyerekkonyv",
+    "gyerekkönyv",
+    "kepregeny",
+    "képregény",
 ]
 
 
-def _match_rules(text: str, rules) -> str | None:
-    """Végigmegy a (cat_id, [kulcsszó...]) listán, első találatnál visszatér."""
+def assign_category(partner_id: str, item: dict) -> str:
+    """
+    Partner + termék szövege alapján Findora kategória ID-t ad vissza (pl. 'kat-jatekok').
+    item: dict – ugyanaz a struktúra, amit a feed-ben is használunk (title, desc, categoryPath, description…).
+    """
+    base = BASE_BY_PARTNER.get(partner_id, "kat-multi")
+
+    # mindent egy nagy szövegbe: title + category + categoryPath + desc + description
+    text_src = " ".join(
+        str(x)
+        for x in [
+            item.get("title", ""),
+            item.get("category", ""),
+            item.get("categoryPath", ""),
+            item.get("desc", ""),
+            item.get("description", ""),
+        ]
+        if x is not None
+    )
+
+    text = normalize_text(text_src)
+
+    def has(words):
+        return any(w in text for w in words)
+
+    # Ha nincs szöveg, menjen az alap partner-kategória
     if not text:
-        return None
-    for cat_id, needles in rules:
-        for n in needles:
-            if n in text:
-                return cat_id
-    return None
+        return base
 
+    # 1) játékok
+    if has(TOYS):
+        return "kat-jatekok"
 
-def assign_category(
-    partner_id: str,
-    title: str = "",
-    category_path: str = "",
-    description: str = "",
-) -> str:
-    """
-    Egységes belépő – minden partner erre hivatkozik.
+    # 2) háztartási gépek
+    if has(APPLIANCES):
+        return "kat-gepek"
 
-    Visszaad egy Findora cat ID-t (pl. 'kat-otthon', 'kat-jatekok', stb.).
-    Ha semmi nem stimmel, 'kat-multi'.
-    """
-    pid = (partner_id or "").lower().strip()
-    text = _norm(" ".join([title or "", category_path or "", description or ""]))
+    # 3) elektronika
+    if has(ELECTRONICS):
+        return "kat-elektronika"
 
-    # ---- TCHIBO ----
-    if pid == "tchibo":
-        # 1) szabály-alapú besorolás
-        cat = _match_rules(text, TCHIBO_RULES)
-        if cat and cat in CATEGORY_IDS:
-            return cat
+    # 4) divat
+    if has(FASHION):
+        return "kat-divat"
 
-        # 2) ha "gyerek/junior" + ruha → inkább divat, mint játék
-        if ("gyerek" in text or "junior" in text) and (
-            "ruha" in text or "nadrag" in text or "polo" in text or "pulover" in text
-        ):
-            return "kat-divat"
+    # 5) sport
+    if has(SPORT):
+        return "kat-sport"
 
-        # 3) alap fallback Tchibónál: otthon
+    # 6) látás / optika
+    if has(VISION):
+        return "kat-latas"
+
+    # 7) otthon
+    if has(HOME):
         return "kat-otthon"
 
-    # ---- MÁSIK PARTNER (később töltjük fel) ----
-    # ide jön majd: alza, jateksziget, regio, stb.
-    return "kat-multi"
+    # 8) könyv
+    if has(BOOKS):
+        return "kat-konyv"
+
+    # Ha egyik sem, akkor partner alap kategória, vagy multi
+    return base
