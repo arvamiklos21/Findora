@@ -252,7 +252,6 @@ async function loadCategoryMap() {
     console.warn("category-map betöltési hiba:", e);
   }
 }
-
 function mapCategoryByPartner(pid, it) {
   const rules = CATEGORY_MAP[pid];
   if (!rules || !rules.length) return null;
@@ -2430,3 +2429,4 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
