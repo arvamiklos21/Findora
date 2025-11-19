@@ -82,9 +82,6 @@
     { "pattern": "szivattyú", "catId": "kat-kert" },
     { "pattern": "Sövénynyíró", "catId": "kat-kert" },
     { "pattern": "Pizzasütő", "catId": "kat-gepek" },
-    { "pattern": "TRouter", "catId": "kat-elektronika" },
-    
-
-    
+    { "pattern": "TRouter", "catId": "kat-elektronika" }
   ]
 }
