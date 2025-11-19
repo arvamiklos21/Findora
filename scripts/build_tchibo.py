@@ -218,7 +218,23 @@ def parse_items(xml_text):
             else None
         )
 
-        # Alap item struktúra
+        # ===== Tchibo → Findora kategória =====
+        clean_for_cat = {
+            "title": ensure_str(title),
+            "category": ensure_str(cat_path),
+            "categoryPath": ensure_str(cat_path),
+            "desc": ensure_str(raw_desc),
+            "description": ensure_str(raw_desc),
+        }
+        findora_main = assign_category("tchibo", clean_for_cat)
+
+        # Gyökér kategória kivétele (category_root)
+        if cat_path and ">" in cat_path:
+            category_root = cat_path.split(">")[0].strip()
+        else:
+            category_root = (cat_path or "").strip()
+
+        # Alap item struktúra + Findora mezők
         item = {
             "id": pid or link or title,
             "title": title,
@@ -227,17 +243,15 @@ def parse_items(xml_text):
             "price": price_new,
             "discount": discount,
             "url": link or "",
-        }
 
-        # Tchibo → Findora kategória
-        clean_for_cat = {
-            "title": ensure_str(title),
-            "category": ensure_str(cat_path),
-            "categoryPath": ensure_str(cat_path),
-            "desc": ensure_str(raw_desc),
-            "description": ensure_str(raw_desc),
+            # ÚJ FINDORA / ALGOLIA MEZŐK
+            "partner": "tchibo",
+            "category_path": cat_path or "",
+            "category_root": category_root,
+            "findora_main": findora_main,
+            # kompatibilitás a régi kóddal
+            "cat": findora_main,
         }
-        item["cat"] = assign_category("tchibo", clean_for_cat)
 
         items.append(item)
 
