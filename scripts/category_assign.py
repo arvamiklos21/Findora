@@ -13,7 +13,10 @@ from typing import Optional
 def _tchibo_findora_main(cat_path: str) -> str:
     """
     Tchibo kategória → Findora főkategória.
-    A cat_path tipikusan param_category, pl:
+    A cat_path tipikusan:
+      - CATEGORYTEXT
+      - PARAM_CATEGORY
+    pl:
       "Apparel & Accessories > Clothing > Outerwear > Coats & Jackets"
       "Home & Garden > Kitchen & Dining > Kitchen Appliances"
     """
@@ -105,7 +108,7 @@ def _tchibo_findora_main(cat_path: str) -> str:
 
 
 # =======================================================
-#   ÁLTALÁNOS HOZZÁRENDELÉS (más partnerek később)
+#   ÁLTALÁNOS HOZZÁRENDELÉS – több partner támogatása
 # =======================================================
 
 def assign_category(
@@ -116,9 +119,9 @@ def assign_category(
 ) -> str:
     """
     Központi kategória-hozzárendelés.
-    - partner_id: "tchibo", később "alza", "pepita", stb.
-    - cat_path: eredeti partner kategória
-    - title / desc: opcionális kulcsszó figyeléshez
+    - partner_id: 'tchibo', később 'alza', 'pepita', stb.
+    - cat_path: eredeti feed kategória
+    - title / desc: későbbi kulcsszavas finomításra
     """
 
     pid = (partner_id or "").lower()
@@ -131,5 +134,5 @@ def assign_category(
     # if pid == "alza": ...
     # if pid == "pepita": ...
 
-    # ===== ha nincs specifikus logika =====
+    # ===== alapértelmezett =====
     return "multi"
