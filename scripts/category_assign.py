@@ -2,26 +2,24 @@
 
 import unicodedata
 
+
 def normalize_text(s: str) -> str:
-    """Egyszerű normalizálás: kisbetű, ékezet nélkül, felesleges whitespace nélkül."""
     if not s:
         return ""
     s = unicodedata.normalize("NFD", s)
-    # dobjuk a kombináló ékezeteket
     s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
     s = s.lower()
-    for ch in [".", ",", ":", ";", "!", "?", "(", ")", "[", "]", "/", "\\", "-", "_", "–"]:
+    for ch in [",", ".", ":", ";", "!", "?", "(", ")", "[", "]", "/", "\\", "-", "_"]:
         s = s.replace(ch, " ")
     while "  " in s:
         s = s.replace("  ", " ")
     return s.strip()
 
 
-# Alap kategória partner szerint (ha semmi kulcsszó nem talál)
+# Melyik partner alapból melyik fő kategória, ha semmi nem talál
 BASE_BY_PARTNER = {
     "tchibo": "kat-otthon",
     "alza": "kat-elektronika",
-    "eoptika": "kat-latas",
     "cj-eoptika": "kat-latas",
     "cj-jateknet": "kat-jatekok",
     "jateksziget": "kat-jatekok",
@@ -31,40 +29,70 @@ BASE_BY_PARTNER = {
     "pepita": "kat-multi",
 }
 
-# Kulcsszó-listák – szabadon bővíthetők később
+# ---- kulcsszó-listák (NEM teljesek, csak irányt mutatnak) ----
+
 FASHION = [
     "nadrag",
     "leggings",
+    "farmernadrag",
     "ruha",
+    "overal",
+    "overal",
     "polo",
+    "póló",
     "szoknya",
     "kabat",
     "kabát",
     "dzseki",
+    "dzseki",
+    "melleny",
+    "mellény",
+    "dzsekit",
+    "dzsekit",
     "melltarto",
+    "melltartó",
     "fehernemu",
     "fehérnemu",
+    "alsonemű",
+    "alsó",
     "also",
+    "bugyi",
     "alsó",
     "cipo",
     "cipő",
     "csizma",
+    "bakancs",
     "papucs",
+    "szandál",
+    "szandal",
     "pulover",
     "pulóver",
     "pizsama",
-    "gyerek",
-    "sportnadrag",
-    "kendo",
-    "kendő",
+    "hálóruha",
+    "haloruha",
+    "body",
+    "furdoaruha",
+    "furdoruha",
+    "bikini",
+    "zokni",
+    "harisnya",
     "kesztyu",
     "kesztyű",
+    "sapka",
+    "sapkat",
+    "sál",
+    "sal",
+    "kendő",
+    "kendo",
+    "öv",
+    "ov",
 ]
 
 APPLIANCES = [
     "mosogep",
     "mosógép",
     "mosogatogep",
+    "mosogatógép",
     "szaritogep",
     "szárítógép",
     "fagyaszto",
@@ -73,28 +101,26 @@ APPLIANCES = [
     "hűtőszekrény",
     "huto",
     "hűtő",
-    "suto",
+    "sutogep",
     "sütő",
-    "tuzhely",
+    "tuzehely",
     "tűzhely",
-    "kifozolap",
-    "főzőlapp",
-    "főzőlapp",
     "fozolap",
-    "robotporszivó",
+    "főzőlap",
+    "robotgep",
+    "robotgép",
     "robotporszivo",
+    "robotporszívó",
     "porszivo",
     "porszívó",
     "mikrohullamu",
     "mikrohullámu",
+    "mikro",
     "kavefozo",
     "kávéfőző",
     "kavegep",
     "kávégép",
     "turmix",
-    "botmixer",
-    "konyhagep",
-    "konyhagé",
 ]
 
 TOYS = [
@@ -102,29 +128,44 @@ TOYS = [
     "játék",
     "jatekszett",
     "játékszett",
+    "jatekszorakoztato",
+    "játékszórakoztató",
+    "jatekfigura",
+    "játékfigura",
+    "jatekauto",
+    "játékauto",
+    "jatekkonyha",
+    "játékkonyha",
     "lego",
     "tarsasjatek",
     "társasjáték",
+    "tarsas",
+    "társas",
+    "kirako",
+    "kirakó",
+    "puzzle",
+    "kirakos",
+    "kirakós",
     "baba",
+    "babakocsi",
     "pluss",
     "plüss",
-    "jarmu",
-    "jármű",
-    "jarmu",
 ]
 
 SPORT = [
-    "futópad",
-    "futopad",
+    "futocipo",
+    "futócipő",
+    "futás",
+    "edzocipo",
+    "futó",
     "labda",
     "foci",
     "kosar",
     "kosárlabda",
     "tenisz",
-    "edzopad",
-    "edzőpad",
-    "futocipo",
-    "futócipő",
+    "edzopolo",
+    "edzőpóló",
+    "futodzseki",
 ]
 
 VISION = [
@@ -133,7 +174,6 @@ VISION = [
     "napszemuveg",
     "napszemüveg",
     "kontaktlencse",
-    "optika",
     "lencse",
 ]
 
@@ -143,7 +183,7 @@ HOME = [
     "takaro",
     "takaró",
     "agyynemu",
-    "agyynemű",
+    "ágynemű",
     "lepedo",
     "lepedő",
     "szonyeg",
@@ -162,9 +202,8 @@ HOME = [
     "dekoráció",
     "gyertya",
     "polc",
-    "asztalk",
-    "szek",
-    "szék",
+    "asztalka",
+    "szenyestartó",
 ]
 
 ELECTRONICS = [
@@ -188,8 +227,8 @@ ELECTRONICS = [
     "fulhallgato",
     "fülhallgató",
     "kamera",
-    "fenykepezo",
-    "fényképező",
+    "fenykepezogep",
+    "fényképezőgép",
     "router",
     "nyomtato",
     "nyomtató",
@@ -199,83 +238,88 @@ ELECTRONICS = [
 BOOKS = [
     "konyv",
     "könyv",
-    "konyvek",
-    "könyvek",
     "regeny",
     "regény",
     "roman",
     "novella",
     "tankonyv",
-    "tankönyv",
     "mesekonyv",
-    "mesekönyv",
     "gyerekkonyv",
-    "gyerekkönyv",
-    "kepregeny",
     "képregény",
+    "kepregeny",
 ]
+
+
+def has_any(text: str, words) -> bool:
+    return any(w in text for w in words)
 
 
 def assign_category(partner_id: str, item: dict) -> str:
     """
-    Partner + termék szövege alapján Findora kategória ID-t ad vissza (pl. 'kat-jatekok').
-    item: dict – ugyanaz a struktúra, amit a feed-ben is használunk (title, desc, categoryPath, description…).
+    Egységes Findora fő kategória meghatározása egy termékre.
+    Első a ruha vs játék ütközés kezelése, utána háztartási gép, elektronika, stb.
     """
     base = BASE_BY_PARTNER.get(partner_id, "kat-multi")
 
-    # mindent egy nagy szövegbe: title + category + categoryPath + desc + description
-    text_src = " ".join(
-        str(x)
-        for x in [
-            item.get("title", ""),
-            item.get("category", ""),
-            item.get("categoryPath", ""),
-            item.get("desc", ""),
-            item.get("description", ""),
-        ]
-        if x is not None
+    title = (item.get("title") or "") + " " + (item.get("name") or "")
+    category_path = (
+        item.get("categoryPath")
+        or item.get("category_path")
+        or item.get("category")
+        or ""
     )
+    description = item.get("desc") or item.get("description") or ""
 
-    text = normalize_text(text_src)
+    text_all = normalize_text(" ".join([title, category_path, description]))
+    text_title = normalize_text(title)
 
-    def has(words):
-        return any(w in text for w in words)
-
-    # Ha nincs szöveg, menjen az alap partner-kategória
-    if not text:
+    if not text_all:
         return base
 
-    # 1) játékok
-    if has(TOYS):
-        return "kat-jatekok"
+    # Jelzők
+    has_fashion = has_any(text_title, FASHION) or has_any(text_all, FASHION)
+    has_toys = has_any(text_title, TOYS) or (
+        "jatek" in text_all or "játék" in text_all
+    )
+    has_appl = has_any(text_all, APPLIANCES)
+    has_elec = has_any(text_all, ELECTRONICS)
+    has_sport = has_any(text_all, SPORT)
+    has_vision = has_any(text_all, VISION)
+    has_home = has_any(text_all, HOME)
+    has_books = has_any(text_all, BOOKS)
 
-    # 2) háztartási gépek
-    if has(APPLIANCES):
-        return "kat-gepek"
-
-    # 3) elektronika
-    if has(ELECTRONICS):
-        return "kat-elektronika"
-
-    # 4) divat
-    if has(FASHION):
+    # 1) Ruházat mindig fontosabb, mint játék – ha kabát / nadrág / leggings stb. szerepel,
+    #    akkor DIVAT, még ha a Tchibo kategória fában van is "játék" szó.
+    if has_fashion:
         return "kat-divat"
 
-    # 5) sport
-    if has(SPORT):
+    # 2) Játék – csak akkor, ha nincs erős ellentmondó jel (pl. elektronika / háztartási gép)
+    if has_toys and not has_appl and not has_elec:
+        return "kat-jatekok"
+
+    # 3) Háztartási gépek
+    if has_appl:
+        return "kat-gepek"
+
+    # 4) Elektronika
+    if has_elec:
+        return "kat-elektronika"
+
+    # 5) Sport
+    if has_sport:
         return "kat-sport"
 
-    # 6) látás / optika
-    if has(VISION):
+    # 6) Látás (szemüveg, lencse)
+    if has_vision:
         return "kat-latas"
 
-    # 7) otthon
-    if has(HOME):
-        return "kat-otthon"
-
-    # 8) könyv
-    if has(BOOKS):
+    # 7) Könyv
+    if has_books:
         return "kat-konyv"
 
-    # Ha egyik sem, akkor partner alap kategória, vagy multi
+    # 8) Otthon/bútor
+    if has_home:
+        return "kat-otthon"
+
+    # 9) Ha semmi nem talált, menjen a partner-alapértelmezett kategóriába
     return base
