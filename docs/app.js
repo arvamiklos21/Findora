@@ -200,13 +200,6 @@ function getDiscountNumber(it) {
   }
   return null;
 }
-// ===== Beállítások – éles Findora feedek használata =====
-const FEEDS_BASE = "";
-const PARTNERS_URL = "feeds/partners.json";
-
-const PARTNERS = new Map();
-const META = new Map();
-const PAGES = new Map();
 
 // ===== Kategória-mapping külső JSON-ből (fallback a backend cat mező mellé) =====
 const CATEGORY_MAP_URL = FEEDS_BASE + "/feeds/category-map.json";
@@ -2429,4 +2422,5 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
