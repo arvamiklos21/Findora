@@ -308,28 +308,54 @@ const CATEGORY_IDS = [
   "kat-multi",
 ];
 
-// ===== Kategória meghatározás egy termékre =====
+// Backend findora_main / cat → front-end kat-* ID
+const FINDORA_MAIN_TO_CATID = {
+  elektronika: "kat-elektronika",
+  haztartasi_gepek: "kat-gepek",
+  otthon: "kat-otthon",
+  kert: "kat-kert",
+  jatekok: "kat-jatekok",
+  divat: "kat-divat",
+  szepseg: "kat-szepseg",
+  sport: "kat-sport",
+  latas: "kat-latas",
+  allatok: "kat-allatok",
+  konyv: "kat-konyv",
+  utazas: "kat-utazas",
+  multi: "kat-multi",
+};
+
+// ===== Kategória meghatározás egy termékre – BACKEND cat + category-map + partner default =====
 function getCategoriesForItem(pid, it) {
   const cfg = PARTNERS.get(pid) || {};
 
-  const backendCat =
+  // 0) Backend cat / findora_main mező (Python-ból)
+  const backendCatRaw =
     it &&
     (it.cat || it.catid || it.catId || it.categoryId || it.category_id || null);
 
-  if (backendCat && CATEGORY_IDS.includes(backendCat)) {
-    return [backendCat];
+  if (backendCatRaw) {
+    const backendCat = String(backendCatRaw).toLowerCase();
+    const mappedFromBackend = FINDORA_MAIN_TO_CATID[backendCat];
+    if (mappedFromBackend && CATEGORY_IDS.includes(mappedFromBackend)) {
+      return [mappedFromBackend];
+    }
   }
 
+  // 1) Külső category-map.json alapján
   const mapped = mapCategoryByPartner(pid, it);
   if (mapped && CATEGORY_IDS.includes(mapped)) {
     return [mapped];
   }
 
+  // 2) Partner default kategória
   const base = baseCategoryForPartner(pid, cfg);
   if (CATEGORY_IDS.includes(base)) return [base];
 
+  // 3) Fallback
   return ["kat-multi"];
 }
+
 
 // ===== Helper a címekhez =====
 function getPartnerName(pid) {
@@ -1306,3 +1332,4 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
