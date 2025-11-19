@@ -94,15 +94,7 @@ def first(d, keys):
 
 TITLE_KEYS = ("productname", "title", "g:title", "name", "product_name")
 LINK_KEYS = ("url", "link", "g:link", "product_url", "product_link", "deeplink")
-IMG_KEYS = (
-    "imgurl",
-    "image_link",
-    "image",
-    "image_url",
-    "g:image_link",
-    "image1",
-    "main_image_url",
-)
+IMG_KEYS = ("imgurl", "image_link", "image", "image_url", "g:image_link", "image1", "main_image_url")
 IMG_ALT_KEYS = (
     "imgurl_alternative",
     "additional_image_link",
@@ -111,14 +103,7 @@ IMG_ALT_KEYS = (
     "image2",
     "image3",
 )
-DESC_KEYS = (
-    "description",
-    "g:description",
-    "long_description",
-    "short_description",
-    "desc",
-    "popis",
-)
+DESC_KEYS = ("description", "g:description", "long_description", "short_description", "desc", "popis")
 
 NEW_PRICE_KEYS = (
     "price_vat",
@@ -143,6 +128,15 @@ OLD_PRICE_KEYS = (
     "g:price",
     "price",
 )
+
+
+def ensure_str(v):
+    """Bármi jön (lista, dict, szám), legyen belőle egyetlen szöveg."""
+    if isinstance(v, list):
+        return " ".join(str(x) for x in v)
+    if isinstance(v, dict):
+        return " ".join(str(x) for x in v.values())
+    return str(v or "")
 
 
 def parse_items(xml_text):
@@ -175,7 +169,6 @@ def parse_items(xml_text):
     items = []
     for n in candidates:
         m = collect_node(n)
-        # minden kulcs lower-case
         m = {(k.lower() if isinstance(k, str) else k): v for k, v in m.items()}
 
         pid = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid"))
@@ -190,8 +183,20 @@ def parse_items(xml_text):
             elif isinstance(alt, str):
                 img = alt
 
-        desc_full = first(m, DESC_KEYS)
-        desc = short_desc(desc_full)
+        raw_desc = first(m, DESC_KEYS)
+        desc = short_desc(raw_desc)
+
+        # Kategória / categoryPath forrásmezők
+        cat_path = first(
+            m,
+            (
+                "categorypath",
+                "product_type",
+                "g:product_type",
+                "category",
+                "product_category",
+            ),
+        )
 
         # Új ár
         price_new = None
@@ -224,27 +229,14 @@ def parse_items(xml_text):
             "url": link or "",
         }
 
-        # --- CLEAN INPUT A KATEGÓRIA-LOGIKÁHOZ (csak stringek!) ---
-        cat_category = first(m, ("category", "product_type")) or ""
-        cat_path = first(
-            m,
-            (
-                "categorypath",
-                "product_type",
-                "google_product_category",
-                "g:product_type",
-            ),
-        ) or ""
-
+        # Tchibo → Findora kategória
         clean_for_cat = {
-            "title": title or "",
-            "category": cat_category,
-            "categoryPath": cat_path,
-            "desc": desc_full or "",
-            "description": desc_full or "",
+            "title": ensure_str(title),
+            "category": ensure_str(cat_path),
+            "categoryPath": ensure_str(cat_path),
+            "desc": ensure_str(raw_desc),
+            "description": ensure_str(raw_desc),
         }
-
-        # Findora-kategória Tchibo szabályok alapján
         item["cat"] = assign_category("tchibo", clean_for_cat)
 
         items.append(item)
@@ -305,19 +297,10 @@ def strip_size_from_url(u):
         p = urlparse(u)
         q = dict(parse_qsl(p.query, keep_blank_values=True))
         for k in list(q.keys()):
-            if k.lower() in (
-                "size",
-                "meret",
-                "merete",
-                "variant_size",
-                "size_id",
-                "meret_id",
-            ):
+            if k.lower() in ("size", "meret", "merete", "variant_size", "size_id", "meret_id"):
                 q.pop(k, None)
         new_q = urlencode(q, doseq=True)
-        return urlunparse(
-            (p.scheme, p.netloc, p.path, p.params, new_q, p.fragment)
-        )
+        return urlunparse((p.scheme, p.netloc, p.path, p.params, new_q, p.fragment))
     except Exception:
         return u
 
@@ -326,9 +309,7 @@ def dedup_size_variants(items):
     buckets = {}
     for it in items:
         tnorm = normalize_title_for_size(it.get("title"))
-        color = detect_color_token(it.get("title")) or detect_color_token(
-            it.get("desc") or ""
-        )
+        color = detect_color_token(it.get("title")) or detect_color_token(it.get("desc") or "")
         base_url = strip_size_from_url(it.get("url") or "")
         key = (tnorm, color or "", base_url or "")
         cur = buckets.get(key)
@@ -337,9 +318,7 @@ def dedup_size_variants(items):
         else:
             if not cur.get("img") and it.get("img"):
                 cur["img"] = it["img"]
-            if (it.get("price") or 0) and (
-                not cur.get("price") or it["price"] < cur["price"]
-            ):
+            if (it.get("price") or 0) and (not cur.get("price") or it["price"] < cur["price"]):
                 cur["price"] = it["price"]
             if (it.get("discount") or 0) > (cur.get("discount") or 0):
                 cur["discount"] = it["discount"]
