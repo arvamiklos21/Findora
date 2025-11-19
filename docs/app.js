@@ -334,9 +334,13 @@ const CATEGORY_IDS = [
 function getCategoriesForItem(pid, it) {
   const cfg = PARTNERS.get(pid) || {};
 
-  // 0) Backend (Python) által kitöltött cat mező – EZ A FŐ
-  if (it && it.cat && CATEGORY_IDS.includes(it.cat)) {
-    return [it.cat];
+  // 0) Backend (Python) által kitöltött kategória mező – többféle névvel is működjön
+  const backendCat =
+    it &&
+    (it.cat || it.catid || it.catId || it.categoryId || it.category_id || null);
+
+  if (backendCat && CATEGORY_IDS.includes(backendCat)) {
+    return [backendCat];
   }
 
   // 1) Külső category-map.json alapján (partner kategória mezőiből)
@@ -1335,4 +1339,5 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
