@@ -1,220 +1,131 @@
-# scripts/category_assign.py
+# category_assign.py
+#
+# Központi kategória-hozzárendelés partnerenként.
+# Első körben csak Tchibo, később bővíthető (Alza, Pepita, stb.).
+#
+# Visszaadott érték: findora_main (elektronika, otthon, divat, jatekok, sport, kert, haztartasi_gepek, multi)
 
-import unicodedata
-from typing import Dict, Any
-
-
-def normalize_text(s: str) -> str:
-    """Szöveg normalizálása: ékezet le, kisbetű, felesleges jelek kidobása."""
-    if not s:
-        return ""
-    s = unicodedata.normalize("NFD", str(s))
-    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
-    s = s.lower()
-    for ch in [".", ",", ";", ":", "!", "?", "(", ")", "[", "]", "{", "}", "/", "\\", "-", "_", "|", "\"", "'"]:
-        s = s.replace(ch, " ")
-    while "  " in s:
-        s = s.replace("  ", " ")
-    return s.strip()
+from typing import Optional
 
 
-# ===== Partner alapértelmezett Findora-kategória =====
-BASE_BY_PARTNER: Dict[str, str] = {
-    "tchibo": "kat-otthon",
-    "alza": "kat-elektronika",
-    "cj-eoptika": "kat-latas",
-    "cj-jateknet": "kat-jatekok",
-    "jateksziget": "kat-jatekok",
-    "regiojatek": "kat-jatekok",
-    "cj-karcher": "kat-kert",
-    "onlinemarkabolt": "kat-otthon",
-    "otthonmarket": "kat-otthon",
-    "pepita": "kat-multi",
-    "karacsonydekor": "kat-otthon",
-    "kozmetikaotthon": "kat-szepseg",
-    "ekszereshop": "kat-szepseg",
-}
-
-
-# ===== Kulcsszavak kategóriánként (globálisan, minden partnerhez) =====
-
-FASHION = {
-    "ruha", "ruhak", "szoknya", "szoknyak", "nadrag", "leggings", "farmer",
-    "bluz", "ing", "polo", "polok", "pulover", "kardigan", "kabát", "kabat",
-    "dzseki", "dzseki", "dzseki", "melleny", "mellény", "dzseki", "dzseki",
-    "overal", "kezeslabas", "harisnya", "harisnyanadrag", "zokni", "zoknik",
-    "fehernemu", "melltarto", "bugyi", "alsonemu", "alsonadrag", "alsok",
-    "pizsama", "haloing", "hálóing", "haloruha", "halo nadrag",
-    "gyerekruha", "gyerek kabat", "gyerek pulover", "gyerek nadrag",
-    "sapka", "sapkasal", "kendo", "sal", "kesztyu", "csizma", "cipo",
-    "bakancs", "szandal", "papucs", "sportcipo", "edzocipo",
-    "napszemuveg", "ov", "taska", "hatizsak", "borond", "tarisznya",
-    "divatkellek", "divatkiegészítő",
-}
-
-SPORT = {
-    "sport", "fitnesz", "fitness", "edzotermek", "edzes", "edzocipo",
-    "futocipo", "futas", "futó", "foci", "labda", "kosarlabda", "tenisz",
-    "pingpong", "asztalitenisz", "kispad", "sieles", "siszett", "snowboard",
-    "bukosisak", "bicikli", "kerekpar", "roller", "tura", "turabot",
-    "túrazsak", "túrahátizsák", "sportmelltarto", "sportmelltartó",
-    "fitnessz szalag", "sulyzo", "súlyzó", "fitnessz labda",
-}
-
-ELECTRONICS = {
-    "tv", "televizio", "monitor", "laptop", "notebook", "tablet", "okostelefon",
-    "telefon", "smartphone", "konzol", "playstation", "xbox", "switch",
-    "jatek konzol", "kamera", "fényképező", "hangszoro", "hangsugo",
-    "soundbar", "fejhallgato", "fulhallgato", "router", "wifi", "wlan",
-    "szamitogep", "pc", "ssd", "hdd", "memoria kartya", "pendrive",
-    "projektor", "nyomtato", "egér", "billentyu", "billentyuzet", "egerk",
-}
-
-APPLIANCES = {
-    "mosogep", "mosogatogep", "hutogep", "fagyaszto", "porszivo",
-    "robotporszivo", "kavefozo", "mikrohullamu", "mikrohullámu",
-    "suto", "sutogep", "fozolap", "indukcios lap", "légkeveréses sütő",
-    "légkondi", "klima", "klima berendezes", "paratlanito", "parologtato",
-    "levegoparologtato", "légszűrő", "levegőtisztító", "mosogatogép",
-}
-
-TOYS = {
-    "jatek", "jatekok", "jatekszett", "jatekkeszlet",
-    "lego", "duplo", "playmobil", "barbie", "baba", "babakocsi",
-    "tarsasjatek", "tarsas", "tarsasok", "kirakos", "puzzle",
-    "pluss", "pluss allat", "pluss jatek", "kreativkeszlet",
-    "kreativ jatek", "gyerekjatek", "fajatek", "epitojatek",
-    "tarsasjatekok", "tarsasjatek-keszlet",
-}
-
-BOOKS = {
-    "konyv", "konyvek", "regeny", "novella", "mesekonyv",
-    "gyerekkonyv", "tankonyv", "szakkonyv", "kepregeny",
-    "album", "lexikon", "szotar",
-}
-
-VISION = {
-    "szemuveg", "szemuvegkeret", "szemüvegkeret",
-    "napszemuveg", "kontaktlencse", "kontakt lencse",
-    "lencse", "optika", "optikai",
-}
-
-BEAUTY = {
-    "parfum", "parfüm", "illatszer", "smink", "sminkkeszlet",
-    "puder", "alapozó", "spiral", "szempillaspiral", "szempillaspirál",
-    "krem", "arckrem", "testapolo", "dezodor", "borotva", "epilo",
-    "hajvasalo", "hajszaritó", "hajszarito", "hajvasalo", "fodrasz",
-    "kozmetikum", "kozmetika", "szepsegapolas", "szépségápolás",
-}
-
-HOME = {
-    "parna", "parnahuzat", "paplan", "agyruha", "agyruha szett",
-    "takaró", "takarópléd", "pléd", "szonyeg", "fuggony", "fuggonykarnis",
-    "fuggonytarto", "dohanyzoasztal", "fotel", "kanape", "kanapé",
-    "szek", "asztal", "szekreny", "komod", "tarolodoboz", "doboztarolo",
-    "dekoracio", "diszparna", "diszpárna", "gyertya", "fenylanc",
-    "lampasor", "lampafuzer", "lampa", "fali lampa", "asztali lampa",
-    "konyhai kes", "edeny", "serpenyo", "fazek", "sutotepsi",
-}
-
-GARDEN = {
-    "kerti", "kert", "locsolo", "locsolotomeg", "ontozo", "onto rendszer",
-    "fukasza", "funyiro", "lombszivo", "magasnyomasu", "magasnyomású",
-    "karcher", "slag", "kerti szerszam", "metszoollo", "gereblye",
-    "lapat", "cserep", "viragcserép", "kerti dísz", "kerti dekor",
-}
-
-PETS = {
-    "kutya", "macska", "allateledel", "tap", "jutalomfalat",
-    "macskalom", "kaparofa", "póráz", "nyakörv", "kutyajatek",
-    "macskajatek",
-}
-
-TRAVEL = {
-    "utazas", "utazás", "csomag", "szallas", "szállás", "nyaralas",
-    "hotel", "repulojegy", "repulőjegy", "repülőjegy", "kemping",
-    "sator", "hálózsák", "utazotaska", "bőrönd", "bortáska",
-}
-
-
-CATEGORY_IDS = {
-    "kat-elektronika",
-    "kat-gepek",
-    "kat-otthon",
-    "kat-kert",
-    "kat-jatekok",
-    "kat-divat",
-    "kat-szepseg",
-    "kat-sport",
-    "kat-latas",
-    "kat-allatok",
-    "kat-konyv",
-    "kat-utazas",
-    "kat-multi",
-}
-
-
-def has_words(text: str, words: set) -> bool:
-    return any(w in text for w in words)
-
-
-def assign_category(partner_id: str, item: Dict[str, Any]) -> str:
+def _tchibo_findora_main(cat_path: str) -> str:
     """
-    Globális kategória-hozzárendelés.
-    partner_id: pl. "tchibo"
-    item: olyan dict, amiben legalább title / category_path / description lehet.
+    Tchibo XML/CSV kategória -> Findora főkategória (findora_main).
+    A bemenet tipikusan a param_category mező, pl.:
+      "Apparel & Accessories > Clothing > Outerwear > Coats & Jackets"
+      "Home & Garden > Kitchen & Dining > Kitchen Appliances"
     """
-    base = BASE_BY_PARTNER.get(partner_id, "kat-multi")
 
-    if not isinstance(item, dict):
-        return base
+    s = (cat_path or "").lower()
 
-    parts = []
-    for key in [
-        "title",
-        "name",
-        "category",
-        "categoryPath",
-        "category_path",
-        "product_type",
-        "desc",
-        "description",
-    ]:
-        v = item.get(key)
-        if v:
-            parts.append(str(v))
+    # ===== DIVAT =====
+    if any(k in s for k in [
+        "apparel & accessories",
+        "clothing",
+        "outerwear",
+        "bras",
+        "underwear & socks",
+        "shoes",
+        "sleepwear & loungewear",
+        "skirts",
+        "pants",
+        "dresses",
+        "baby & toddler clothing",
+        "toddler underwear",
+        "socks & tights"
+    ]):
+        return "divat"
 
-    text = normalize_text(" ".join(parts))
-    if not text:
-        return base
+    # ===== OTTHON =====
+    if any(k in s for k in [
+        "home & garden",
+        "furniture",
+        "kitchen & dining",
+        "decor",
+        "bedding",
+        "linens & bedding",
+        "lighting",
+        "household cleaning supplies",
+        "household supplies",
+        "cabinets & storage",
+        "shelving",
+        "bookcases"
+    ]):
+        return "otthon"
 
-    # Első a nagyon egyértelműk
-    if has_words(text, BOOKS):
-        return "kat-konyv"
-    if has_words(text, VISION):
-        return "kat-latas"
-    if has_words(text, TOYS):
-        return "kat-jatekok"
-    if has_words(text, ELECTRONICS):
-        return "kat-elektronika"
-    if has_words(text, APPLIANCES):
-        return "kat-gepek"
-    if has_words(text, SPORT):
-        return "kat-sport"
-    if has_words(text, FASHION):
-        return "kat-divat"
-    if has_words(text, BEAUTY):
-        return "kat-szepseg"
-    if has_words(text, PETS):
-        return "kat-allatok"
-    if has_words(text, GARDEN):
-        return "kat-kert"
-    if has_words(text, TRAVEL):
-        return "kat-utazas"
-    if has_words(text, HOME):
-        return "kat-otthon"
+    # ===== JÁTÉKOK =====
+    if any(k in s for k in [
+        "baby toys & activity equipment",
+        "baby toys",
+        "toys",
+        "board games",
+        "puzzles"
+    ]):
+        return "jatekok"
 
-    # Ha semmi nem talált, essen vissza a partner alap kategóriájára
-    if base in CATEGORY_IDS:
-        return base
-    return "kat-multi"
+    # ===== SPORT =====
+    if any(k in s for k in [
+        "sporting goods",
+        "cycling",
+        "bicycle accessories",
+        "cycling apparel & accessories",
+        "camping & hiking",
+        "exercise & fitness",
+        "outdoor recreation"
+    ]):
+        return "sport"
+
+    # ===== KERT =====
+    if any(k in s for k in [
+        "outdoor furniture",
+        "outdoor furniture accessories",
+        "outdoor furniture sets",
+        "outdoor furniture covers",
+        "birdhouses",
+        "bird & wildlife houses"
+    ]):
+        return "kert"
+
+    # ===== HÁZTARTÁSI GÉPEK / HÁZTARTÁS =====
+    if any(k in s for k in [
+        "kitchen appliances",
+        "small appliances",
+        "kitchen tools & utensils",
+        "can openers",
+        "colanders & strainers",
+        "tableware",
+        "flatware"
+    ]):
+        return "haztartasi_gepek"
+
+    # ===== ALAPÉRTELMEZETT =====
+    # Ide esik:
+    # - Luggage & Bags
+    # - bármilyen ismeretlen / új kategória
+    return "multi"
+
+
+def assign_category(
+    partner_id: str,
+    cat_path: Optional[str],
+    title: str = "",
+    desc: str = "",
+) -> str:
+    """
+    Általános belépőpont:
+    - partner_id: 'tchibo', később 'alza', 'pepita', stb.
+    - cat_path: feed kategória útvonal (param_category / CATEGORY_PATH / stb.)
+    - title, desc: később finomhangoláshoz (ha kell kulcsszó)
+    """
+
+    pid = (partner_id or "").lower()
+
+    if pid == "tchibo":
+        return _tchibo_findora_main(cat_path or "")
+
+    # Később ide jönnek:
+    # if pid == "alza": ...
+    # if pid == "pepita": ...
+
+    # Ha nincs specifikus szabály, multi
+    return "multi"
