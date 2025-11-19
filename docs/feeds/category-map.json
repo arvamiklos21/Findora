@@ -72,7 +72,7 @@
     { "pattern": "konyha", "catId": "kat-otthon" },
     { "pattern": "mellény", "catId": "kat-divat" },
     { "pattern": "Baseballsapka", "catId": "kat-divat" },
-   { "pattern": "fürdőnadrág", "catId": "kat-divat" },
+   { "pattern": "fürdőnadrág", "catId": "kat-divat" }
   ],
 
   "pepita": [
