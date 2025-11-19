@@ -1,205 +1,10 @@
-// ===== Alap beállítások =====
+// ===== Beállítások – éles Findora feedek használata =====
 const FEEDS_BASE = "";
 const PARTNERS_URL = "feeds/partners.json";
 
 const PARTNERS = new Map();
 const META = new Map();
 const PAGES = new Map();
-
-// ===== category-map.json =====
-const CATEGORY_MAP_URL = FEEDS_BASE + "/feeds/category-map.json";
-const CATEGORY_MAP = {};
-
-function normalizeCategoryText(str) {
-  return (str || "")
-    .toString()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-async function loadCategoryMap() {
-  try {
-    const r = await fetch(CATEGORY_MAP_URL, { cache: "no-cache" });
-    if (!r.ok) return;
-    const data = await r.json();
-    if (!data || typeof data !== "object") return;
-
-    Object.keys(data).forEach((pid) => {
-      const rules = data[pid];
-      if (!Array.isArray(rules)) return;
-      CATEGORY_MAP[pid] = rules
-        .map((rule) => ({
-          pattern: normalizeCategoryText(rule.pattern || ""),
-          catId: rule.catId || "",
-        }))
-        .filter((r) => r.catId);
-    });
-
-    console.log("category-map.json betöltve");
-  } catch (e) {
-    console.warn("category-map betöltési hiba:", e);
-  }
-}
-
-function mapCategoryByPartner(pid, it) {
-  const rules = CATEGORY_MAP[pid];
-  if (!rules || !rules.length) return null;
-
-  const baseCat =
-    (it && (it.categoryPath || it.category_path || it.category || "")) || "";
-  const text = normalizeCategoryText(
-    baseCat +
-      " " +
-      ((it && it.title) || "") +
-      " " +
-      ((it && (it.desc || it.description)) || "")
-  );
-
-  if (!text) {
-    const fallback = rules.find((r) => !r.pattern);
-    return fallback ? fallback.catId : null;
-  }
-
-  for (const rule of rules) {
-    if (rule.pattern && text.includes(rule.pattern)) return rule.catId;
-  }
-
-  return null;
-}
-
-// ===== Deeplink =====
-function dlUrl(pid, rawUrl) {
-  if (!rawUrl) return "#";
-  return FEEDS_BASE + "/api/dl?u=" + encodeURIComponent(rawUrl) + "&p=" + pid;
-}
-
-// ===== Helper =====
-function priceText(v) {
-  if (typeof v === "number" && isFinite(v))
-    return v.toLocaleString("hu-HU") + " Ft";
-  if (typeof v === "string" && v.trim()) return v;
-  return "—";
-}
-
-function itemUrl(it) {
-  return (it && (it.url || it.link || it.deeplink)) || "";
-}
-
-function itemImg(it) {
-  return (it && (it.image || it.img || it.image_link || it.thumbnail)) || "";
-}
-
-function basePath(u) {
-  try {
-    const x = new URL(u);
-    return x.origin + x.pathname;
-  } catch (_) {
-    return String(u || "").split("#")[0].split("?")[0];
-  }
-}
-
-function imgPath(u) {
-  return String(u || "").split("#")[0].split("?")[0];
-}
-
-// ===== Variáns normalizálás / dedupe =====
-const SIZE_TOKENS = new RegExp(
-  [
-    "\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\b",
-    "\\b(?:\\d{2,3}[\\/-]\\d{2,3})\\b",
-    "\\bEU\\s?\\d{2,3}\\b",
-    "[\\(\\[]\\s*(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|EU\\s?\\d{2,3}|\\d{2,3}[\\/-]\\d{2,3})\\s*[\\)\\]]",
-    "\\b(?:méret|meret)\\b\\s*[:\\-]?\\s*[A-Za-z0-9\\/-]+",
-  ].join("|"),
-  "gi"
-);
-
-function normalizeTitleNoSize(t) {
-  if (!t) return "";
-  return String(t)
-    .replace(SIZE_TOKENS, " ")
-    .replace(
-      /\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi,
-      " "
-    )
-    .replace(/\s{2,}/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-function stripVariantParams(u) {
-  try {
-    const x = new URL(u);
-    const drop = [
-      "size",
-      "meret",
-      "merete",
-      "variant_size",
-      "size_id",
-      "meret_id",
-      "option",
-      "variant",
-    ];
-    for (const k of Array.from(x.searchParams.keys())) {
-      if (drop.includes(k.toLowerCase())) x.searchParams.delete(k);
-    }
-    return x.toString();
-  } catch (_) {
-    return u;
-  }
-}
-
-function dedupeStrong(items) {
-  const out = [];
-  const seen = new Set();
-  (items || []).forEach((it) => {
-    const key =
-      basePath(stripVariantParams(itemUrl(it))) +
-      "|" +
-      imgPath(itemImg(it)) +
-      "|" +
-      normalizeTitleNoSize(it.title);
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push(it);
-    }
-  });
-  return out;
-}
-
-function dedupeRowsStrong(rows) {
-  const out = [];
-  const seen = new Set();
-  (rows || []).forEach((row) => {
-    if (!row || !row.item) return;
-    const it = row.item;
-    const key =
-      row.pid +
-      "|" +
-      basePath(stripVariantParams(itemUrl(it))) +
-      "|" +
-      imgPath(itemImg(it)) +
-      "|" +
-      normalizeTitleNoSize(it.title || "");
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push(row);
-    }
-  });
-  return out;
-}
-
-// ===== Discount (backend-only, korrekt) =====
-function getDiscountNumber(it) {
-  if (it && typeof it.discount === "number" && isFinite(it.discount)) {
-    const d = Math.round(it.discount);
-    if (d >= 10 && d <= 70) return d;
-  }
-  return null;
-}
 
 // ===== Kategória-mapping külső JSON-ből (fallback a backend cat mező mellé) =====
 const CATEGORY_MAP_URL = FEEDS_BASE + "/feeds/category-map.json";
@@ -245,6 +50,7 @@ async function loadCategoryMap() {
     console.warn("category-map betöltési hiba:", e);
   }
 }
+
 function mapCategoryByPartner(pid, it) {
   const rules = CATEGORY_MAP[pid];
   if (!rules || !rules.length) return null;
@@ -2422,5 +2228,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
-
