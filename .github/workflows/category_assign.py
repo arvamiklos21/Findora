@@ -27,104 +27,122 @@ BASE_BY_PARTNER = {
 }
 
 FASHION = [
-    "nadrag", "legging", "ruha", "polo", "szoknya", "kabát", "kabat",
-    "dzseki", "melltarto", "fehernemu", "alsó", "also", "cipo", "csizma",
-    "papucs", "pulover", "pizsama", "gyerek", "sportnadrag", "kendo", "kesztyu",
+    "nadrag", "legging", "ruha", "polo", "szoknya", "kabat",
+    "dzseki", "melltarto", "fehernemu", "also", "cipo", "csizma",
+    "papucs", "pulover", "pizsama", "gyerek", "sportnadrag",
+    "kendo", "kesztyu",
 ]
 
 APPLIANCES = [
     "mosogep", "mosogatogep", "szaritogep", "fagyaszto",
     "hutoszekreny", "huto", "suto", "sutogep", "tuzhely",
-    "fozolap", "főzőlap", "főzolap", "robotporszivo", "porszivo",
+    "fozolap", "robotporszivo", "porszivo",
     "mikro", "mikrohullamu", "kavefozo", "kavegep", "turmix",
-    "botmixer", "konyhagep", 
+    "botmixer", "konyhagep",
 ]
 
 TOYS = [
-    "jatek", "jatekszett", "lego", "tarsasjatek", "baba",
-    "pluss", "jarmu", "jarmű"
+    "jatek", "jatekszett", "lego", "tarsasjatek", "tarsas",
+    "baba", "pluss", "jarmu", "jatekauto", "autopalya",
 ]
 
 SPORT = [
-    "sport", "labda", "foci", "kosar", "kosarlabda",
-    "tenisz", "edzopad", "futocipo"
+    "sport", "labda", "foci", "football", "kosar", "kosarlabda",
+    "tenisz", "edzopad", "futogep", "futocipo", "kondigep",
 ]
 
 VISION = [
-    "szemuveg", "szemüveg", "napszemuveg", "kontaktlencse",
-    "optika", "lencse"
+    "szemuveg", "napszemuveg", "kontaktlencse",
+    "optika", "lencse", "olvasoszemuveg",
 ]
 
 HOME = [
     "parna", "takaro", "agynemu", "lepedo", "szonyeg", "fuggony",
     "kanape", "fotel", "asztal", "szekreny", "komod",
-    "dekoracio", "gyertya", "polc", "asztak", "szek", 
+    "dekoracio", "gyertya", "polc", "disztargy", "vaza",
 ]
+
 ELECTRONICS = [
-    # fő termékcsoportok
-    "tv", "televizio", "televízió", "monitor",
+    # fo termekcsoportok
+    "tv", "televizio", "monitor",
     "laptop", "notebook", "tablet", "okostelefon",
     "telefon", "smartphone", "okos telefon",
 
     # konzol / gaming
     "konzol", "playstation", "ps4", "ps5",
-    "xbox", "nintendo", "switch", "jatekgep", "játékgép",
+    "xbox", "nintendo", "switch", "jatekgep",
 
     # hang / audio
-    "hangfal", "hangszoro", "hangszóró",
-    "bluetooth hangszoro", "soundbar",
-    "fejhallgato", "fejhallgató", "headset",
-    "fulhallgato", "fülhallgató",
+    "hangfal", "hangszoro", "bluetooth hangszoro", "soundbar",
+    "fejhallgato", "headset", "fulhallgato",
 
     # kamera / foto
-    "kamera", "fenykepezo", "fényképező",
-    "akcijkamera", "action camera", "gopro",
-    "webkamera", "webkamera",
+    "kamera", "fenykepezo", "action camera", "gopro",
+    "webkamera",
 
-    # számtech / hálózat
+    # szamtech / halozat
     "router", "wifi router", "mesh", "modem",
-    "hdd", "ssd", "memoriakartya", "memóriakártya",
-    "nyomtato", "nyomtató", "szkenner", "scanner",
-    "projektor", "projektor",
+    "hdd", "ssd", "memoriakartya",
+    "nyomtato", "szkenner", "scanner",
+    "projektor",
 
-    # okoseszközök
-    "okosora", "okos óra", "fitneszora", "fitnesz ora",
+    # okoseszkozok
+    "okosora", "fitneszora", "fitnesz ora",
     "fitneszkarkoto", "fitnesz karkoto", "activity tracker",
 ]
 
 BOOKS = [
-    "konyv", "könyv", "konyvek", "könyvek",
-    "regeny", "regény", "roman", "novella",
-    "szakkonyv", "szakkönyv", "tankonyv", "tankönyv",
-    "kepregeny", "képregény",
-    "mesekonyv", "mesekönyv", "gyerekkonyv", "gyerekkönyv",
-    "ifjusagi konyv", "ifjúsági könyv", "ifjusagi",
-    "verseskotet", "verseskötet",
-    "album", "lexikon", "enciklopedia", "enciklopédia",
+    "konyv", "konyvek",
+    "regeny", "roman", "novella",
+    "szakkonyv", "tankonyv",
+    "kepregeny",
+    "mesekonyv", "gyerekkonyv",
+    "ifjusagi konyv", "ifjusagi",
+    "verseskotet",
+    "album", "lexikon", "enciklopedia",
 ]
 
+
 def assign_category(partner_id: str, item: dict) -> str:
+    """
+    Visszaad egy frontend kategória ID-t (kat-...), ha találunk mintát,
+    különben a partner-alapú base kategóriát.
+    """
     base = BASE_BY_PARTNER.get(partner_id, "kat-multi")
 
     text_src = " ".join(
-        str(x) for x in [
+        str(x)
+        for x in [
             item.get("title", ""),
             item.get("category", ""),
             item.get("categoryPath", ""),
             item.get("desc", ""),
-            item.get("description", "")
+            item.get("description", ""),
         ]
         if x
     )
     text = normalize_text(text_src)
 
-    def has(words): return any(w in text for w in words)
+    def has(words): 
+        return any(w in text for w in words)
 
-    if has(VISION): return "kat-latas"
-    if has(TOYS): return "kat-jatekok"
-    if has(APPLIANCES): return "kat-gepek"
-    if has(FASHION): return "kat-divat"
-    if has(SPORT): return "kat-sport"
-    if has(HOME): return "kat-otthon"
+    # sorrend: ahol legbiztosabb a találat
+    if has(VISION):
+        return "kat-latas"
+    if has(TOYS):
+        return "kat-jatekok"
+    if has(ELECTRONICS):
+        return "kat-elektronika"
+    if has(APPLIANCES):
+        return "kat-gepek"
+    if has(FASHION):
+        return "kat-divat"
+    if has(SPORT):
+        return "kat-sport"
+    if has(HOME):
+        return "kat-otthon"
+    if has(BOOKS):
+        return "kat-konyv"
 
+    # ha semmi nem talál, marad a partner-alapú default
     return base
