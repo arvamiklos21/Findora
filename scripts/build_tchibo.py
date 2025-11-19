@@ -127,6 +127,7 @@ OLD_PRICE_KEYS = (
     "regular_price",
     "g:price",
     "price",
+    "param_old_price",   # Tchibo régi ár: PARAM_OLD_PRICE
 )
 
 
@@ -145,13 +146,13 @@ def parse_items(xml_text):
     # 1) Megpróbáljuk a tipikus struktúrákat
     candidates = []
     for path in (
-            ".//channel/item",
-            ".//item",
-            ".//products/product",
-            ".//product",
-            ".//SHOPITEM",
-            ".//shopitem",
-            ".//entry",
+        ".//channel/item",
+        ".//item",
+        ".//products/product",
+        ".//product",
+        ".//SHOPITEM",
+        ".//shopitem",
+        ".//entry",
     ):
         nodes = root.findall(path)
         if nodes:
@@ -186,10 +187,12 @@ def parse_items(xml_text):
         raw_desc = first(m, DESC_KEYS)
         desc = short_desc(raw_desc)
 
-        # Kategória / categoryPath forrásmezők
+        # Kategória / categoryPath forrásmezők – Tchibo-specifikus mezőkkel
         cat_path = first(
             m,
             (
+                "param_category",   # PARAM_CATEGORY
+                "categorytext",     # CATEGORYTEXT
                 "categorypath",
                 "product_type",
                 "g:product_type",
@@ -218,8 +221,7 @@ def parse_items(xml_text):
             else None
         )
 
-        # ===== Tchibo → Findora kategória (helyes hívás: cat_path stringgel) =====
-        # category_assign.assign_category(partner_id, cat_path, title, desc)
+        # ===== Tchibo → Findora kategória =====
         findora_main = assign_category("tchibo", cat_path or "", title or "", raw_desc or "")
 
         # Gyökér kategória kivétele (category_root)
