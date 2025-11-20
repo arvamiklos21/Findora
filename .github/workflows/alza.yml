@@ -1,9 +1,12 @@
 name: ingest-alza
 
 on:
+  # Kézi futtatás GitHub UI-ból
   workflow_dispatch:
+
+  # (Ha nem kell időzítés, ezt a blokkot nyugodtan törölheted.)
   schedule:
-    - cron: "0 */2 * * *"   # 2 óránként, ha soknak érzed, átírjuk később
+    - cron: "0 */2 * * *"  # 2 óránként fut
 
 jobs:
   ingest:
@@ -12,16 +15,20 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.11"
 
       - name: Install Python deps
         run: |
-          pip install --upgrade pip
-          pip install requests
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
 
       - name: Build Alza feed JSON
         env:
@@ -29,8 +36,18 @@ jobs:
         run: |
           python scripts/build_alza.py
 
-      - name: Commit & push feed
+      - name: Commit & push feed (bot/update-alza branch)
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Update Alza feed JSON"
+          # CSAK az alza feed fájlok
           file_pattern: docs/feeds/alza/**
+          commit_message: "Update Alza feed JSON"
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+
+          # IDE fog pusholni, NEM a main-re
+          branch: bot/update-alza
+
+          # Ha nincs változás, ne legyen hiba
+          skip_dirty_check: false
+          skip_fetch: false
