@@ -6,6 +6,56 @@ const PARTNERS = new Map();
 const META = new Map();
 const PAGES = new Map();
 
+// ===== Algolia (opcionális) – főoldali kategória blokkok + partner nézet gyorsításához =====
+// Az index.html-ben ezt a scriptet raktad be a <head>-be:
+// window.FINDORA_ALGOLIA_CONFIG = {
+//   appId: "WS9VUS9HJB",
+//   searchKey: "8b8bb69fcf22aa3c5d4637c7bbf7157c", // search-only API kulcs
+//   indexName: "findora_products",
+//   partners: ["alza"] // ha később kell: "pepita", "tchibo", stb.
+// };
+
+const ALGOLIA_CONFIG = (typeof window !== "undefined" && window.FINDORA_ALGOLIA_CONFIG) || null;
+const ALGOLIA_ENABLED =
+  !!(
+    ALGOLIA_CONFIG &&
+    ALGOLIA_CONFIG.appId &&
+    ALGOLIA_CONFIG.searchKey &&
+    ALGOLIA_CONFIG.indexName
+  );
+
+let ALGOLIA_INDEX = null;
+
+async function ensureAlgoliaIndex() {
+  if (!ALGOLIA_ENABLED) return null;
+  if (ALGOLIA_INDEX) return ALGOLIA_INDEX;
+
+  // ha nincs még betöltve az Algolia kliens, betöltjük CDN-ről
+  if (typeof window.algoliasearch === "undefined") {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src =
+        "https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js";
+      s.async = true;
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  try {
+    const client = window.algoliasearch(
+      ALGOLIA_CONFIG.appId,
+      ALGOLIA_CONFIG.searchKey
+    );
+    ALGOLIA_INDEX = client.initIndex(ALGOLIA_CONFIG.indexName);
+    return ALGOLIA_INDEX;
+  } catch (e) {
+    console.error("Algolia kliens inicializálási hiba:", e);
+    return null;
+  }
+}
+
 // ===== category-map.json =====
 const CATEGORY_MAP_URL = FEEDS_BASE + "/feeds/category-map.json";
 const CATEGORY_MAP = {};
@@ -324,36 +374,6 @@ const FINDORA_MAIN_TO_CATID = {
   utazas: "kat-utazas",
   multi: "kat-multi",
 };
-// Algolia kliens – főoldali kategória blokkokhoz
-let ALGOLIA_INDEX = null;
-
-function getAlgoliaIndex() {
-  if (ALGOLIA_INDEX) return ALGOLIA_INDEX;
-
-  const cfg = window.FINDORA_ALGOLIA_CONFIG || {};
-  if (!cfg.appId || !cfg.searchKey || !cfg.indexName) {
-    console.warn(
-      "FINDORA_ALGOLIA_CONFIG hiányos – marad a feed-alapú kategória betöltés."
-    );
-    return null;
-  }
-
-  if (typeof algoliasearch === "undefined") {
-    console.warn(
-      "algoliasearch JS kliens nem érhető el – ellenőrizd, hogy a CDN script a app.js előtt szerepel-e."
-    );
-    return null;
-  }
-
-  try {
-    const client = algoliasearch(cfg.appId, cfg.searchKey);
-    ALGOLIA_INDEX = client.initIndex(cfg.indexName);
-    return ALGOLIA_INDEX;
-  } catch (e) {
-    console.error("Algolia kliens inicializálási hiba:", e);
-    return null;
-  }
-}
 
 // backend cat kulcs → kat-* ID (fordított map)
 const BACKEND_FROM_CATID = {};
@@ -432,6 +452,14 @@ function renderAkcioCards(itemsWithPartner) {
       const disc = getDiscountNumber(item);
       const partnerName = (cfg && cfg.name) || pid;
 
+      let btn = "";
+      if (raw) {
+        btn =
+          '<a class="btn-megnez akcios" href="' +
+          dlUrl(cfg ? cfg.deeplinkPartner : pid, raw) +
+          '" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem🔗</a>';
+      }
+
       return (
         '<div class="card">' +
         '<div class="thumb">' +
@@ -451,11 +479,7 @@ function renderAkcioCards(itemsWithPartner) {
         '<div class="partner">• ' +
         partnerName +
         "</div>" +
-        (raw
-          ? '<a class="btn-megnez akcios" href="' +
-            dlUrl(cfg ? cfg.deeplinkPartner : pid, raw) +
-            '" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem🔗</a>'
-          : "") +
+        btn +
         "</div>"
       );
     })
@@ -533,7 +557,6 @@ async function buildAkciosBlokk() {
           scanPagesMax = DEFAULT_BF_SCAN_PAGES;
         }
 
-        // Nagy feedeknél (pl. Alza) még jobban limitálunk
         const meta = await getMeta(pid);
         const pageSize = meta.pageSize || 300;
         const totalPages =
@@ -666,12 +689,11 @@ async function hydratePartnerFromAlgolia(pid, catId) {
     filters.push('findora_main:"' + mainKey + '"');
   }
 
-  const MAX_HITS = 6000; // biztonsági limit
+  const MAX_HITS = 6000;
   const HITS_PER_PAGE = 500;
   const rows = [];
   let page = 0;
 
-  // üres keresés, csak filter alapján
   while (true) {
     const res = await index.search("", {
       filters: filters.join(" AND "),
@@ -1364,46 +1386,6 @@ function attachPartnerViewHandlers() {
   document.addEventListener("click", handlePartnerUiClick);
 }
 
-// ===== 3/a. KATEGÓRIA BLOKKOK FELÉPÍTÉSE – FEED ALAPÚ (fallback) =====
-async function buildCategoryBlocksFromFeeds() {
-  const buffers = {};
-  const scanPagesMax = 1; // csak 1 oldal / partner a főoldalhoz – gyors betöltés
-
-  const partnerTasks = [];
-
-  for (const [pid, cfg] of PARTNERS.entries()) {
-    const plc = cfg.placements || {};
-    const anyEnabled = Object.keys(plc).some((k) => {
-      const v = plc[k];
-      return (v && v.enabled) || (v && v.full && v.full.enabled);
-    });
-    if (!anyEnabled) continue;
-
-    const task = (async () => {
-      const meta = await getMeta(pid);
-      const pageSize = meta.pageSize || 300;
-      const totalPages =
-        meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
-      const scanPages = Math.min(scanPagesMax, totalPages);
-
-      for (let pg = 1; pg <= scanPages; pg++) {
-        const arr = await getPageItems(pid, pg);
-        for (const it of arr) {
-          const cats = getCategoriesForItem(pid, it) || [];
-          const catId = cats[0] || "kat-multi";
-
-          if (!buffers[catId]) buffers[catId] = [];
-          buffers[catId].push({ pid, item: it });
-
-          if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-          if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
-            PARTNER_CATEGORY_ITEMS[pid][catId] = [];
-          }
-          PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
-        }
-      }
-    })();
-    
 // ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) =====
 async function buildCategoryBlocks() {
   const PAGE_SIZE = 6; // 6 kártya / oldal
@@ -1539,6 +1521,7 @@ async function buildCategoryBlocks() {
     CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
   });
 }
+
 // ===== INIT =====
 async function init() {
   try {
@@ -1563,5 +1546,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-    
-
