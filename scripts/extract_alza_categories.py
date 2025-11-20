@@ -1,15 +1,19 @@
 import xml.etree.ElementTree as ET
-import os
+import urllib.request
 
-# Itt adjuk meg a feed helyét
-XML_PATH = "private_feeds/Affiliate_18855692_HU.xml.rss"
+# ----- Alza feed URL (Dognet) -----
+FEED_URL = "http://affiliate.alza.hu/feed.xml?id=36780"
 
-if not os.path.exists(XML_PATH):
-    print("HIBA: Az XML nem található:", XML_PATH)
-    exit()
+print("Alza feed letöltése:", FEED_URL)
 
-tree = ET.parse(XML_PATH)
-root = tree.getroot()
+# Feed letöltése HTTP-n keresztül
+with urllib.request.urlopen(FEED_URL) as resp:
+    data = resp.read()
+
+print("XML méret (byte):", len(data))
+
+# XML beparse-olása memóriából
+root = ET.fromstring(data)
 
 ns = {"g": "http://base.google.com/ns/1.0"}
 
