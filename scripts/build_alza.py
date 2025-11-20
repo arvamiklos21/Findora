@@ -17,7 +17,32 @@ if SCRIPT_DIR not in sys.path:
 from category_assign import assign_category
 
 
-FEED_URL = os.environ.get("FEED_ALZA_URL")
+# ===== Feed URL-ek beolvasása (több XML támogatása) =====
+def load_feed_urls():
+    """
+    FEED_ALZA_URLS: több soros vagy vesszővel elválasztott lista
+    FEED_ALZA_URL: 1 darab URL (fallback)
+    """
+    raw = os.environ.get("FEED_ALZA_URLS", "").strip()
+    if not raw:
+        raw = os.environ.get("FEED_ALZA_URL", "").strip()
+
+    if not raw:
+        raise RuntimeError("Hiányzik a FEED_ALZA_URLS vagy FEED_ALZA_URL beállítás!")
+
+    # Soronként vagy vesszővel elválasztva
+    parts = []
+    for line in raw.replace(",", "\n").splitlines():
+        u = line.strip()
+        if u:
+            parts.append(u)
+
+    if not parts:
+        raise RuntimeError("FEED_ALZA_URL(S) üres – nincs egyetlen XML URL sem.")
+
+    return parts
+
+
 OUT_DIR = "docs/feeds/alza"
 PAGE_SIZE = 300
 
@@ -72,7 +97,7 @@ def collect_node(n):
             "image2",
             "image3",
         ):
-        # több kép – listába gyűjtjük
+            # több kép – listába gyűjtjük
             m.setdefault(k, [])
             if v:
                 m[k].append(v)
@@ -226,8 +251,7 @@ def parse_items(xml_text):
         )
 
         # Kategória → Findora
-        # FIGYELEM: a category_assign.assign_category aláírása:
-        #   assign_category(product_type, title, description)
+        # assign_category(product_type, title, description)
         findora_main = assign_category(cat_path or "", title or "", raw_desc or "")
 
         # category_root (első szegmens, ha '|' vagy '>' van)
@@ -340,22 +364,28 @@ def dedup_size_variants(items):
 
 # ===== main =====
 def main():
-    assert FEED_URL, "FEED_ALZA_URL hiányzik a Secrets-ből!"
-
+    feed_urls = load_feed_urls()
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    print("Letöltés:", FEED_URL)
-    r = requests.get(FEED_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=120)
-    r.raise_for_status()
+    all_items = []
 
-    items = parse_items(r.text)
-    items = dedup_size_variants(items)
+    for url in feed_urls:
+        print(f"Letöltés: {url}")
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=180)
+        r.raise_for_status()
 
-    print("Összes termék:", len(items))
+        items = parse_items(r.text)
+        print(f"  → {len(items)} termék ebből a feedből")
+        all_items.extend(items)
+
+    print("Összes nyers termék (összes feed):", len(all_items))
+
+    all_items = dedup_size_variants(all_items)
+    print("Dedup után termékek:", len(all_items))
 
     # DEBUG: kategória stat (Alza category_path → darabszám)
     cat_counts = {}
-    for it in items:
+    for it in all_items:
         cp = (it.get("category_path") or "").strip()
         if not cp:
             cp = "(nincs category_path)"
@@ -368,9 +398,9 @@ def main():
     print(f"DEBUG kategória stat mentve ide: {debug_path}")
 
     # Oldalak készítése
-    pages = max(1, math.ceil(len(items) / PAGE_SIZE))
+    pages = max(1, math.ceil(len(all_items) / PAGE_SIZE))
     for i in range(pages):
-        data = {"items": items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]}
+        data = {"items": all_items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]}
         with open(
             os.path.join(OUT_DIR, f"page-{str(i + 1).zfill(4)}.json"),
             "w",
@@ -381,7 +411,7 @@ def main():
     meta = {
         "partner": "alza",
         "pageSize": PAGE_SIZE,
-        "total": len(items),
+        "total": len(all_items),
         "pages": pages,
         "lastUpdated": datetime.utcnow().isoformat() + "Z",
     }
@@ -389,7 +419,7 @@ def main():
     with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False)
 
-    print(f"✅ {len(items)} termék → {pages} oldal → {OUT_DIR}")
+    print(f"✅ {len(all_items)} termék → {pages} oldal → {OUT_DIR}")
 
 
 if __name__ == "__main__":
