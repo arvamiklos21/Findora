@@ -1,60 +1,75 @@
-import os, re, json, math, xml.etree.ElementTree as ET, requests, tempfile
+import os
+import sys
+import re
+import json
+import math
+import xml.etree.ElementTree as ET
+import requests
+
 from datetime import datetime
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
-FEED_URL  = os.environ.get("FEED_ALZA_URL")
-OUT_DIR   = "docs/feeds/alza"
-PAGE_SIZE = 300  # JSON-lap méret
+# --- hogy a scripts/ alatti category_assign.py-t is lássa, amikor a repo gyökeréből fut ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
 
-# --- utilok (light) ---
+from category_assign import assign_category
+
+
+# ===== PARTNER-SPECIFIKUS BEÁLLÍTÁSOK – ALZA =====
+FEED_URL = os.environ.get("FEED_ALZA_URL")
+OUT_DIR = "docs/feeds/alza"
+PAGE_SIZE = 300  # forrás-oldal méret
+
+
 def norm_price(v):
-    if v is None: return None
+    if v is None:
+        return None
     s = re.sub(r"[^\d.,-]", "", str(v)).replace(" ", "")
-    if not s or s in ("-", ""): return None
+    if not s or s in ("-", ""):
+        return None
     try:
         return int(round(float(s.replace(",", "."))))
-    except:
+    except Exception:
         digits = re.sub(r"[^\d]", "", str(v))
         return int(digits) if digits else None
 
+
 def short_desc(t, maxlen=180):
-    if not t: return None
+    if not t:
+        return None
     t = re.sub(r"<[^>]+>", " ", str(t))
     t = re.sub(r"\s+", " ", t).strip()
-    return (t[:maxlen-1] + "…") if len(t) > maxlen else t
+    return (t[: maxlen - 1] + "…") if len(t) > maxlen else t
+
 
 def strip_ns(tag):
     return tag.split("}")[-1].split(":")[-1].lower()
 
-TITLE_KEYS = ("productname","title","g:title","name","product_name")
-LINK_KEYS  = ("url","link","g:link","product_url","product_link","deeplink")
-IMG_KEYS   = ("imgurl","image_link","image","image_url","g:image_link","image1","main_image_url")
-IMG_ALT_KEYS = ("imgurl_alternative","additional_image_link","additional_image_url","images","image2","image3")
-DESC_KEYS  = ("description","g:description","long_description","short_description","desc","popis")
-NEW_PRICE_KEYS = ("price_vat","price_with_vat","price_final","price_huf","g:sale_price","sale_price","g:price","price","price_amount","current_price","amount")
-OLD_PRICE_KEYS = ("old_price","price_before","was_price","list_price","regular_price","g:price","price")
-
-def first(d, keys):
-    for raw in keys:
-        k = raw.lower()
-        v = d.get(k)
-        if isinstance(v, list) and v: return v[0]
-        if isinstance(v, str) and v.strip(): return v.strip()
-        if v not in (None, "", []): return v
-    return None
 
 def collect_node(n):
     m = {}
     txt = (n.text or "").strip()
     k0 = strip_ns(n.tag)
-    if txt: m.setdefault(k0, txt)
+    if txt:
+        m.setdefault(k0, txt)
     for ak, av in (n.attrib or {}).items():
         m.setdefault(strip_ns(ak), av)
     for c in list(n):
         k = strip_ns(c.tag)
         v = (c.text or "").strip()
-        if k in ("imgurl_alternative","additional_image_link","additional_image_url","images","image2","image3"):
+        if k in (
+            "imgurl_alternative",
+            "additional_image_link",
+            "additional_image_url",
+            "images",
+            "image2",
+            "image3",
+        ):
             m.setdefault(k, [])
-            if v: m[k].append(v)
+            if v:
+                m[k].append(v)
         else:
             if v:
                 m[k] = v
@@ -64,101 +79,292 @@ def collect_node(n):
                     m.setdefault(sk, sv)
     return m
 
-def to_item_dict(m):
-    pid   = first(m, ("g:id","id","item_id","sku","product_id","itemid"))
-    title = first(m, TITLE_KEYS) or "Ismeretlen termék"
-    link  = first(m, LINK_KEYS)
 
-    img = first(m, IMG_KEYS)
-    if not img:
-        alt = first(m, IMG_ALT_KEYS)
-        if isinstance(alt, list) and alt: img = alt[0]
-        elif isinstance(alt, str): img = alt
+def first(d, keys):
+    for raw in keys:
+        k = raw.lower()
+        v = d.get(k)
+        if isinstance(v, list) and v:
+            return v[0]
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+        if v not in (None, "", []):
+            return v
+    return None
 
-    desc  = short_desc(first(m, DESC_KEYS))
 
-    price_new = None
-    for k in NEW_PRICE_KEYS:
-        price_new = norm_price(m.get(k))
-        if price_new: break
+TITLE_KEYS = ("productname", "title", "g:title", "name", "product_name")
+LINK_KEYS = ("url", "link", "g:link", "product_url", "product_link", "deeplink")
+IMG_KEYS = ("imgurl", "image_link", "image", "image_url", "g:image_link", "image1", "main_image_url")
+IMG_ALT_KEYS = (
+    "imgurl_alternative",
+    "additional_image_link",
+    "additional_image_url",
+    "images",
+    "image2",
+    "image3",
+)
+DESC_KEYS = ("description", "g:description", "long_description", "short_description", "desc", "popis")
 
-    old = None
-    for k in OLD_PRICE_KEYS:
-        old = norm_price(m.get(k))
-        if old: break
+NEW_PRICE_KEYS = (
+    "price_vat",
+    "price_with_vat",
+    "price_final",
+    "price_huf",
+    "g:sale_price",
+    "sale_price",
+    "g:price",
+    "price",
+    "price_amount",
+    "current_price",
+    "amount",
+)
 
-    discount = round((1 - price_new/old)*100) if old and price_new and old > price_new else None
+OLD_PRICE_KEYS = (
+    "old_price",
+    "price_before",
+    "was_price",
+    "list_price",
+    "regular_price",
+    "g:price",
+    "price",
+    "param_old_price",   # ha Alzánál nincs ilyen, egyszerűen None lesz → oké
+)
 
-    return {
-        "id": pid or link or title,
-        "title": title,
-        "img": img or "",
-        "desc": desc,
-        "price": price_new,
-        "discount": discount,
-        "url": link or "",
-        "partner": "Alza"
-    }
 
-def iter_items_xml(file_path):
-    # Keresünk tipikus item node-okat (RSS/atom/SHOPITEM)
-    wanted = {"item","product","shopitem","entry"}
-    ctx = ET.iterparse(file_path, events=("end",))
-    for ev, el in ctx:
-        tag = strip_ns(el.tag)
-        if tag in wanted:
-            yield el
-            el.clear()
+def ensure_str(v):
+    if isinstance(v, list):
+        return " ".join(str(x) for x in v)
+    if isinstance(v, dict):
+        return " ".join(str(x) for x in v.values())
+    return str(v or "")
+
+
+def parse_items(xml_text):
+    root = ET.fromstring(xml_text)
+
+    candidates = []
+    for path in (
+        ".//channel/item",
+        ".//item",
+        ".//products/product",
+        ".//product",
+        ".//SHOPITEM",
+        ".//shopitem",
+        ".//entry",
+    ):
+        nodes = root.findall(path)
+        if nodes:
+            candidates = nodes
+            break
+
+    if not candidates:
+        candidates = [
+            n
+            for n in root.iter()
+            if strip_ns(n.tag) in ("item", "product", "shopitem", "entry")
+        ]
+
+    items = []
+    for n in candidates:
+        m = collect_node(n)
+        m = {(k.lower() if isinstance(k, str) else k): v for k, v in m.items()}
+
+        pid = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid"))
+        title = first(m, TITLE_KEYS) or "Ismeretlen termék"
+        link = first(m, LINK_KEYS)
+
+        img = first(m, IMG_KEYS)
+        if not img:
+            alt = first(m, IMG_ALT_KEYS)
+            if isinstance(alt, list) and alt:
+                img = alt[0]
+            elif isinstance(alt, str):
+                img = alt
+
+        raw_desc = first(m, DESC_KEYS)
+        desc = short_desc(raw_desc)
+
+        # Kategória / categoryPath forrásmezők – általános + Alza specifikusan product_type / category
+        cat_path = first(
+            m,
+            (
+                "product_type",
+                "g:product_type",
+                "category",
+                "categorytext",
+                "categorypath",
+                "product_category",
+            ),
+        )
+
+        # Új ár
+        price_new = None
+        for k in NEW_PRICE_KEYS:
+            price_new = norm_price(m.get(k))
+            if price_new:
+                break
+
+        # Régi ár
+        old = None
+        for k in OLD_PRICE_KEYS:
+            old = norm_price(m.get(k))
+            if old:
+                break
+
+        discount = (
+            round((1 - price_new / old) * 100)
+            if old and price_new and old > price_new
+            else None
+        )
+
+        # ===== Alza → Findora kategória (egyelőre kategória-logika → assign_category)
+        findora_main = assign_category("alza", cat_path or "", title or "", raw_desc or "")
+
+        # Gyökér kategória
+        if cat_path and ">" in cat_path:
+            category_root = cat_path.split(">")[0].strip()
+        else:
+            category_root = (cat_path or "").strip()
+
+        item = {
+            "id": pid or link or title,
+            "title": title,
+            "img": img or "",
+            "desc": desc,
+            "price": price_new,
+            "discount": discount,
+            "url": link or "",
+            "partner": "alza",
+            "category_path": cat_path or "",
+            "category_root": category_root,
+            "findora_main": findora_main,
+            "cat": findora_main,
+        }
+
+        items.append(item)
+
+    return items
+
+
+# ===== dedup: méret összevonás, szín marad =====
+SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
+COLOR_WORDS = (
+    "fekete",
+    "fehér",
+    "feher",
+    "szürke",
+    "szurke",
+    "kék",
+    "kek",
+    "piros",
+    "zöld",
+    "zold",
+    "lila",
+    "sárga",
+    "sarga",
+    "narancs",
+    "barna",
+    "bézs",
+    "bezs",
+    "rózsaszín",
+    "rozsaszin",
+    "bordó",
+    "bordeaux",
+)
+
+
+def normalize_title_for_size(t):
+    if not t:
+        return ""
+    t0 = re.sub(r"\s+", " ", t.strip(), flags=re.I)
+    t1 = re.sub(rf"\b{SIZE_TOKENS}\b", "", t0, flags=re.I)
+    t1 = re.sub(r"\s{2,}", " ", t1).strip()
+    return t1.lower()
+
+
+def detect_color_token(t):
+    if not t:
+        return ""
+    tl = t.lower()
+    for w in COLOR_WORDS:
+        if re.search(rf"\b{re.escape(w)}\b", tl, flags=re.I):
+            return w
+    return ""
+
+
+def strip_size_from_url(u):
+    if not u:
+        return u
+    try:
+        p = urlparse(u)
+        q = dict(parse_qsl(p.query, keep_blank_values=True))
+        for k in list(q.keys()):
+            if k.lower() in ("size", "meret", "merete", "variant_size", "size_id", "meret_id"):
+                q.pop(k, None)
+        new_q = urlencode(q, doseq=True)
+        return urlunparse((p.scheme, p.netloc, p.path, p.params, new_q, p.fragment))
+    except Exception:
+        return u
+
+
+def dedup_size_variants(items):
+    buckets = {}
+    for it in items:
+        tnorm = normalize_title_for_size(it.get("title"))
+        color = detect_color_token(it.get("title")) or detect_color_token(it.get("desc") or "")
+        base_url = strip_size_from_url(it.get("url") or "")
+        key = (tnorm, color or "", base_url or "")
+        cur = buckets.get(key)
+        if not cur:
+            buckets[key] = it
+        else:
+            if not cur.get("img") and it.get("img"):
+                cur["img"] = it["img"]
+            if (it.get("price") or 0) and (not cur.get("price") or it["price"] < cur["price"]):
+                cur["price"] = it["price"]
+            if (it.get("discount") or 0) > (cur.get("discount") or 0):
+                cur["discount"] = it["discount"]
+    return list(buckets.values())
+
 
 def main():
-    assert FEED_URL, "FEED_ALZA_URL hiányzik (repo Secrets)."
+    assert FEED_URL, "FEED_ALZA_URL hiányzik (GitHub Secrets)."
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    # Nagy fájl → töltsük le egy ideiglenes fájlba stream-elve.
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        tmp_path = tmp.name
-        with requests.get(FEED_URL, headers={"User-Agent":"Mozilla/5.0","Accept":"application/xml"}, timeout=600, stream=True) as r:
-            r.raise_for_status()
-            for chunk in r.iter_content(chunk_size=1024*1024):
-                if chunk:
-                    tmp.write(chunk)
+    r = requests.get(
+        FEED_URL,
+        headers={"User-Agent": "Mozilla/5.0", "Accept": "application/xml"},
+        timeout=120,
+    )
+    r.raise_for_status()
 
-    page_idx = 0
-    buffer = []
-    total = 0
+    items = parse_items(r.text)
+    items = dedup_size_variants(items)
 
-    for node in iter_items_xml(tmp_path):
-        m = collect_node(node)
-        m = { (k.lower() if isinstance(k,str) else k): v for k,v in m.items() }
-        item = to_item_dict(m)
-        buffer.append(item)
-        total += 1
-
-        if len(buffer) >= PAGE_SIZE:
-            page_idx += 1
-            out = {"items": buffer}
-            with open(os.path.join(OUT_DIR, f"page-{str(page_idx).zfill(4)}.json"), "w", encoding="utf-8") as f:
-                json.dump(out, f, ensure_ascii=False)
-            buffer = []
-
-    if buffer:
-        page_idx += 1
-        out = {"items": buffer}
-        with open(os.path.join(OUT_DIR, f"page-{str(page_idx).zfill(4)}.json"), "w", encoding="utf-8") as f:
-            json.dump(out, f, ensure_ascii=False)
+    pages = max(1, math.ceil(len(items) / PAGE_SIZE))
+    for i in range(pages):
+        data = {"items": items[i * PAGE_SIZE: (i + 1) * PAGE_SIZE]}
+        with open(
+            os.path.join(OUT_DIR, f"page-{str(i + 1).zfill(4)}.json"),
+            "w",
+            encoding="utf-8",
+        ) as f:
+            json.dump(data, f, ensure_ascii=False)
 
     meta = {
-        "partner":"alza",
-        "pageSize":PAGE_SIZE,
-        "total": total,
-        "pages": page_idx,
-        "lastUpdated": datetime.utcnow().isoformat()+"Z",
-        "source":"feed"
+        "partner": "alza",
+        "pageSize": PAGE_SIZE,
+        "total": len(items),
+        "pages": pages,
+        "lastUpdated": datetime.utcnow().isoformat() + "Z",
+        "source": "alza-affiliate",
     }
     with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False)
 
-    print(f"✅ {total} termék, {page_idx} oldal → {OUT_DIR}")
+    print(f"✅ Alza: {len(items)} termék, {pages} oldal → {OUT_DIR}")
+
 
 if __name__ == "__main__":
     main()
