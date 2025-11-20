@@ -1,545 +1,313 @@
-# category_assign.py
+# scripts/category_assign.py
+# ==========================
+# Központi kategória-hozzárendelés Findorához
 #
-# Központi kategória-hozzárendelés Findora-hoz.
-# Használat:
-#   from category_assign import assign_category
-#   cat = assign_category(partner, category_path, title, description)
+# interface:
+#   assign_category(partner_id, cat_path, title, desc) -> slug
 #
-# Visszatérés: egy Findora-főkategória az alábbiak közül:
-#   "otthon", "elektronika", "haztartasi", "kert",
+# Visszatérési értékek (Findora fő kategória slugok):
+#   "elektronika", "haztartasi", "otthon", "kert",
 #   "jatekok", "divat", "szepseg", "sport",
-#   "latas", "allatok", "konyv", "utazas", "multi"
+#   "latas", "allatok", "konyv", "multi"
+# ==========================
 
 import re
 import unicodedata
 
-
-FINDORA_CATEGORIES = {
-    "otthon",
-    "elektronika",
-    "haztartasi",
-    "kert",
-    "jatekok",
-    "divat",
-    "szepseg",
-    "sport",
-    "latas",
-    "allatok",
-    "konyv",
-    "utazas",
-    "multi",
-}
+FALLBACK = "multi"
 
 
-def _normalize_text(*parts: str) -> str:
-    """Összefűzi a szövegeket, kisbetűsít, ékezetmentesít."""
-    s = " ".join(p for p in parts if p)
+# ---- Segédfüggvények -----------------------------------
+
+def normalize_text(s: str) -> str:
+    """Kisbetű, ékezet nélkül, extra szóközök kiszedve."""
+    if not s:
+        return ""
+    s = str(s)
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
     s = s.lower()
-    s = unicodedata.normalize("NFD", s)
-    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
 
-def _match_any(text: str, keywords) -> bool:
-    return any(k in text for k in keywords)
+def any_kw(haystack: str, keywords) -> bool:
+    """True, ha bármely kulcsszó benne van a szövegben."""
+    return any(k in haystack for k in keywords)
 
 
-def _assign_for_tchibo(text: str) -> str:
-    """Durva, de jól működő Tchibo-szabályok."""
-    # Gyerek / játék
-    if _match_any(text, ["gyerek", "baba", "jatek", "játé", "pluss", "lego"]):
+# ========================================================
+#   TCHIBO SZABÁLYOK – marad „light”, hogy ne boruljon
+# ========================================================
+
+def assign_tchibo(cat_path: str, title: str, desc: str) -> str:
+    t = normalize_text(" ".join(x for x in [cat_path, title, desc] if x))
+    c = normalize_text(cat_path)
+
+    # JÁTÉKOK
+    if any_kw(t, ["gyerek jatek", "jatek", "pluss", "lego", "kirako", "babajatek"]):
         return "jatekok"
 
-    # Sport
-    if _match_any(
-        text,
+    # DIVAT – ruhák, cipők, kiegészítők
+    if any_kw(
+        t,
         [
-            "sport",
-            "futas",
-            "futás",
-            "joga",
-            "jóga",
-            "fitness",
-            "edz",
-            "kerekpar",
-            "kerékpár",
-        ],
-    ):
-        return "sport"
-
-    # Divat (ruházat, cipő, fehérnemű)
-    if _match_any(
-        text,
-        [
-            "polo",
-            "póló",
-            "pulover",
-            "pulóver",
-            "nadrag",
-            "nadrág",
-            "farmer",
-            "szoknya",
-            "ruha",
-            "kabát",
-            "kabát",
-            "dzseki",
-            "dzseki",
-            "cipo",
-            "cipő",
-            "csizma",
-            "szandal",
-            "szandál",
-            "fehernemu",
-            "fehérnemű",
-            "melltarto",
-            "melltartó",
-            "bugyi",
-            "tanga",
-            "zokni",
-            "harisnya",
-            "pizsama",
+            "noi", "ferfi", "gyerek",
+            "ruha", "polo", "bluz", "ing", "nadrag",
+            "szoknya", "pulover", "kabat", "kabát",
+            "farmer", "leggings", "fehernemu",
+            "melltarto", "bugyi", "furdoruha", "bikini",
+            "cipo", "csizma", "szandál", "papucs", "taska",
         ],
     ):
         return "divat"
 
-    # Szépség / kozmetika
-    if _match_any(
-        text,
-        [
-            "kozmetika",
-            "kozmetikum",
-            "parfum",
-            "parfüm",
-            "smink",
-            "borapolo",
-            "bőrápoló",
-            "hajapol",
-            "fürdő",
-            "furdo",
-            "szepseg",
-            "szépség",
-        ],
-    ):
-        return "szepseg"
+    # SPORT
+    if any_kw(t, ["sport", "futas", "fitness", "edzes", "joga", "outdoor"]):
+        return "sport"
 
-    # Háztartási gép
-    if _match_any(
-        text,
+    # HÁZTARTÁSI GÉPEK
+    if any_kw(
+        t,
         [
-            "porszivo",
-            "porszívó",
-            "mosogep",
-            "mosógép",
-            "mosogatogep",
-            "mosogatógép",
-            "huto",
-            "hűtő",
-            "mikro",
-            "suto",
-            "sütő",
-            "kavefozo",
-            "kávéfőző",
-            "robotgep",
-            "gofrisuto",
-            "vasalo",
-            "vasaló",
+            "porszivo", "porszívó", "robotporszivo",
+            "kavefozo", "kavegep", "espresso",
+            "mikrohullamu", "mikrohullámú",
+            "turmix", "botmixer", "sutitálca", "kenyersuto", "szenzoros kuka",
         ],
     ):
         return "haztartasi"
 
-    # Konyha / otthon
-    if _match_any(
-        text,
+    # OTTHON
+    if any_kw(
+        c,
         [
-            "konyha",
-            "edeny",
-            "edény",
-            "serpenyo",
-            "serpenyő",
-            "sutoliszt",
-            "sütemény",
-            "sutiforma",
-            "sütőforma",
-            "tál",
-            "tal",
-            "pohar",
-            "pohár",
-            "poharkeszlet",
-            "pohárkészlet",
-            "agynemu",
-            "ágynemű",
-            "parna",
-            "párna",
-            "takaró",
-            "fuggony",
-            "függöny",
-            "szonyeg",
-            "szőnyeg",
-            "lampa",
-            "lámpa",
-            "dekor",
-            "lakberendezes",
-            "lakberendezés",
+            "otthon", "nappali", "haloszoba", "konyha",
+            "furdoszoba", "lakberendezes", "textil", "butor",
         ],
     ):
         return "otthon"
 
-    # Alap fallback Tchibo-ra
-    return "otthon"
+    # Ha semmi nem illik, tegye „multi”-ba
+    return FALLBACK
 
 
-def _assign_for_alza(text: str) -> str:
-    """Alza-specifikus szabályok a fő kategóriákhoz."""
-    # Állatok
-    if _match_any(text, ["allat", "állat", "kutya", "macska", "kutyatáp", "macskatáp"]):
-        return "allatok"
+# ========================================================
+#   ALZA SZABÁLYOK – itt javítjuk a HÁZTARTÁSI GÉPEK-et
+# ========================================================
 
-    # Látás (optika)
-    if _match_any(
-        text,
-        [
-            "szemuveg",
-            "szemüveg",
-            "napszemuveg",
-            "napszemüveg",
-            "kontaktlencse",
-            "optika",
-            "optikus",
-        ],
-    ):
-        return "latas"
+# Kulcsszó-csomagok
 
-    # Könyv
-    if _match_any(text, ["konyv", "könyv", "regeny", "regény", "szotar", "szótár"]):
-        return "konyv"
+ALZA_HAZTARTASI_ROOTS = {
+    "haztartasi kisgep",
+    "nagy haztartasi gepek",
+}
 
-    # Sport
-    if _match_any(
-        text,
-        [
-            "sport",
-            "fitness",
-            "futas",
-            "futás",
-            "kerekpar",
-            "kerékpár",
-            "bicikli",
-            "labda",
-            "foci",
-            "kosarlabda",
-            "kosárlabda",
-            "horgasz",
-            "horgász",
-            "sator",
-            "sátor",
-            "kemping",
-            "golf",
-            "rollerek",
-            "kori",
-            "korcsolya",
-            "proteint",
-            "feherje",
-            "fehérje",
-        ],
-    ):
-        return "sport"
+ALZA_HAZTARTASI_KW = [
+    # nagy gépek
+    "mosogep", "mosogatogep", "mosogatogep", "mososzarito",
+    "szaritogep", "hutogep", "hutoszekreny", "fagyaszto",
+    "suto", "sutofelulet", "fozolap",
+    # kisgépek, konyha
+    "mikrohullamu", "mikrohullamu suto", "konyhai robotgep",
+    "robotgep", "kavefozo", "kavegep", "espresszo", "espresso",
+    "kenyersuto", "rizsfozo", "gofrisuto", "fritoz", "fritőz",
+    "melegszendvicssuto", "tojasfozo",
+    "botmixer", "turmix", "smoothie maker", "daralo", "szeletelo",
+    "kontakt grill", "raclette", "konyhai merleg",
+    # takarítás
+    "porszivo", "porszivó", "robotporszivo", "robotporszivo",
+    "gőztisztito", "goztisztito", "felmoso", "paratlanito", "légmoso",
+    # vasalás
+    "vasalo", "gőzállomás", "gozallomas",
+]
 
-    # Szépség / drogéria / parfűm, kozmetika, egészség
-    if _match_any(
-        text,
-        [
-            "drogeria",
-            "drogéria",
-            "szepseg",
-            "szépség",
-            "kozmetika",
-            "kozmetikum",
-            "parfum",
-            "parfüm",
-            "smink",
-            "borapolo",
-            "bőrápoló",
-            "borapolas",
-            "hajapolo",
-            "hajápolás",
-            "fogadoapolas",
-            "fogapolas",
-            "fogkefe",
-            "fogkrém",
-            "fogkrem",
-            "borotvalkoz",
-            "borotválkoz",
-            "dezodor",
-            "illat",
-            "eletminoseg javitasa",
-            "gyogyaszati segedeszkoz",
-            "gyógyászati segédeszköz",
-            "rehabilitacios segedeszkoz",
-            "rehabilitációs segédeszköz",
-        ],
-    ):
-        return "szepseg"
+ALZA_ELEKTRONIKA_ROOTS = {
+    "tv, foto, audio, video",
+    "tv, fotó, audió, videó",
+    "telefon, tablet, okosora",
+    "telefon, tablet, okosóra",
+    "pc es laptop",
+    "pc és laptop",
+    "gaming es szorakozas",
+    "gaming és szórakozás",
+    "okosotthon",
+}
 
-    # Játékok
-    if _match_any(
-        text,
-        [
-            "jatek",
-            "játék",
-            "lego",
-            "playmobil",
-            "baba",
-            "pluss",
-            "tarsasjatek",
-            "társasjáték",
-            "tarsas",
-            "jatekfigura",
-            "jatekszett",
-        ],
-    ):
-        return "jatekok"
+ALZA_ELEKTRONIKA_KW = [
+    "tv ", "televizio", "monitor",
+    "laptop", "notebook", "ultrabook",
+    "szamítogep", "szamitogep", "pc haz",
+    "jatek konzol", "xbox", "playstation", "ps5", "nintendo",
+    "fejhallgato", "headset", "hangszoro", "soundbar",
+    "ssd", "hdd", "memoriakartya",
+    "wifi router", "router", "switch",
+]
 
-    # Divat (ruházat, ékszer, óra)
-    if _match_any(
-        text,
-        [
-            "polo",
-            "póló",
-            "pulover",
-            "pulóver",
-            "nadrag",
-            "nadrág",
-            "szoknya",
-            "ruha",
-            "kabát",
-            "dzseki",
-            "cipo",
-            "cipő",
-            "csizma",
-            "szandál",
-            "szandal",
-            "zokni",
-            "fehernemu",
-            "fehérnemű",
-            "melltarto",
-            "melltartó",
-            "ora",
-            "óra",
-            "karora",
-            "karóra",
-            "ekszer",
-            "ékszer",
-            "taska",
-            "táska",
-            "hatizsak",
-            "hátizsák",
-        ],
-    ):
-        return "divat"
+ALZA_SPORT_ROOTS = {
+    "sport, szabadido",
+    "sport, szabadidő",
+}
 
-    # Háztartási gépek
-    if _match_any(
-        text,
-        [
-            "haztartasi gep",
-            "háztartási gép",
-            "mosogep",
-            "mosógép",
-            "mosogatogep",
-            "mosogatógép",
-            "mosogatoge",
-            "mosogatasi",
-            "porszivo",
-            "porszívó",
-            "suto",
-            "sütő",
-            "futo",
-            "fűtő",
-            "boiler",
-            "hutogep",
-            "hűtőszekrény",
-            "hutolada",
-            "hűtőláda",
-            "kavefozo",
-            "kávéfőző",
-            "mikro",
-            "robotgep",
-            "kenyersut",
-            "sodastream",
-            "mosogatogep",
-            "parologtato",
-            "párologtató",
-        ],
-    ):
+ALZA_SPORT_KW = [
+    "kerekpar", "bicikli", "gorkori", "gorkorcsolya",
+    "futopad", "orbitrek", "szobabicikli",
+    "sator", "hatrizsak", "turabakancs",
+    "focilabda", "kosarlabda", "teniszuto",
+    "fitnesz", "fitness", "sulyzo", "suly",
+    "yoga", "joga",
+]
+
+ALZA_JATEK_ROOTS = {
+    "jatek, baba-mama",
+    "játék, baba-mama",
+}
+
+ALZA_JATEK_KW = [
+    "lego", "pluss", "tarsasjatek", "tarsasjatekok",
+    "jatek", "babakocsi", "babajatek",
+    "jatekkonyha", "jatekautó", "jatekauto",
+]
+
+ALZA_SZEPSEG_ROOTS = {
+    "egeszsegmegorzes",
+    "egészségmegőrzés",
+    "illatszer, ekszer",
+    "illatszer, ékszer",
+    "drogeria",
+    "drogéria",
+}
+
+ALZA_SZEPSEG_KW = [
+    "parfum", "parfüm", "smink", "ruzs", "alapozó",
+    "borapolas", "bőrápolás",
+    "masszazs keszulek", "masszazskeszulek",
+    "hajszarito", "hajsuto", "hajvasalo", "hajvago",
+    "fogkefe", "szonikus fogkefe",
+]
+
+ALZA_OTTHON_ROOTS = {
+    "otthon, barkacs, kert",
+    "otthon, barkács, kert",
+}
+
+ALZA_OTTHON_KW = [
+    "fuggony", "parna", "paplan", "agy nemu", "agynemu",
+    "szonyeg", "szonyeg", "torolkozo", "lakastextil",
+    "polc", "szekreny", "asztal", "szek",
+    "dekoracio", "diszparna", "disztargy",
+]
+
+ALZA_KERT_KW = [
+    "kerti", "kerteshaz", "locsolo", "ontozorendszer",
+    "fukaszalo", "fukis gep", "lombszivo", "lombfuvó",
+    "magasnyomasu mosó", "magasnyomasu mosó", "magasnyomasu mosó",
+    "gazvago", "husvago ollo", "hosszabbito kabel kulteri",
+]
+
+ALZA_ALLAT_KW = [
+    "macska", "kutya", "allateledel", "allateleség",
+    "kaparofa", "nyakorv", "póráz", "allatfekhely",
+]
+
+ALZA_LATAS_KW = [
+    "tavcso", "binokularis", "binokular",
+    "tavcső", "binokulár",
+    "szemegyseg", "szemcsepp", "kontaktlencse",
+    "szemuveg", "szemüveg",
+    "snorkel maszk", "buvarkodó maszk",
+]
+
+ALZA_KONYV_KW = [
+    "konyv", "regeny", "novella", "szakkonyv", "album",
+]
+
+
+def assign_alza(cat_path: str, title: str, desc: str) -> str:
+    raw_cat = cat_path or ""
+    raw_text = " ".join(x for x in [cat_path, title, desc] if x)
+
+    cat = normalize_text(raw_cat)
+    text = normalize_text(raw_text)
+
+    # root: az első „|” előtti rész
+    root = normalize_text(raw_cat.split("|", 1)[0]) if raw_cat else ""
+
+    # ----- 1. HÁZTARTÁSI GÉPEK – EZT FIXÁLJUK -----
+    if root in ALZA_HAZTARTASI_ROOTS or any_kw(cat, ALZA_HAZTARTASI_ROOTS):
+        return "haztartasi"
+    if any_kw(text, ALZA_HAZTARTASI_KW):
         return "haztartasi"
 
-    # Elektronika
-    if _match_any(
-        text,
-        [
-            "laptop",
-            "notebook",
-            "szamitogep",
-            "számítógép",
-            "pc ",
-            " gamer",
-            "monitor",
-            "videokartya",
-            "videókártya",
-            "processzor",
-            "alaplap",
-            "ssd",
-            "hdd",
-            "memoria",
-            "memória",
-            "tv ",
-            "televizio",
-            "televízió",
-            "okostelefon",
-            "okos telefon",
-            "mobiltelefon",
-            "tablet",
-            "konzol",
-            "playstation",
-            "xbox",
-            "nintendo",
-            "fejhallgato",
-            "fejhallgató",
-            "hangszoro",
-            "hangszóró",
-            "projektor",
-            "router",
-            "halozati eszkoz",
-            "hálózati eszköz",
-            "nyomtato",
-            "nyomtató",
-            "3d nyomtat",
-        ],
-    ):
+    # ----- 2. ELEKTRONIKA -----
+    if root in ALZA_ELEKTRONIKA_ROOTS:
+        return "elektronika"
+    if any_kw(text, ALZA_ELEKTRONIKA_KW):
         return "elektronika"
 
-    # Kert
-    if _match_any(
-        text,
-        [
-            "kert",
-            "kerti",
-            "locsolo",
-            "locsoló",
-            "grill",
-            "faszenes",
-            "medence",
-            "trampolin",
-            "trambulin",
-            "furesz",
-            "fűrész",
-            "fukasza",
-            "fűkasza",
-            "funyiro",
-            "fűnyíró",
-            "lombszivo",
-            "lombszívó",
-            "kerti butor",
-            "kerti bútor",
-            "kerti szék",
-            "kerti asztal",
-        ],
-    ):
-        return "kert"
+    # ----- 3. SPORT -----
+    if root in ALZA_SPORT_ROOTS:
+        return "sport"
+    if any_kw(text, ALZA_SPORT_KW):
+        return "sport"
 
-    # Otthon (lakberendezés, bútor, világítás, takarítás stb.)
-    if _match_any(
-        text,
-        [
-            "otthon, barkacs, kert",
-            "otthon",
-            "butor",
-            "bútor",
-            "komod",
-            "kanape",
-            "kanapé",
-            "agykeret",
-            "ágykeret",
-            "matrac",
-            "matrac",
-            "lampa",
-            "lámpa",
-            "vilagitastechnika",
-            "világítástechnika",
-            "fuggony",
-            "függöny",
-            "szonyeg",
-            "szőnyeg",
-            "parna",
-            "párna",
-            "agynemu",
-            "ágynemű",
-            "toroalkozo",
-            "törölköző",
-            "torolkozo",
-            "takaritas",
-            "takarítás",
-            "tisztitoszer",
-            "tisztítószer",
-            "mosopor",
-            "mosópor",
-            "mososzer",
-            "mosószer",
-            "lakberendezes",
-            "lakberendezés",
-        ],
-    ):
+    # ----- 4. JÁTÉKOK -----
+    if root in ALZA_JATEK_ROOTS:
+        return "jatekok"
+    if "jatek" in cat or any_kw(text, ALZA_JATEK_KW):
+        return "jatekok"
+
+    # ----- 5. SZÉPSÉG / EGÉSZSÉG -----
+    if root in ALZA_SZEPSEG_ROOTS or any_kw(cat, ALZA_SZEPSEG_ROOTS):
+        return "szepseg"
+    if any_kw(text, ALZA_SZEPSEG_KW):
+        return "szepseg"
+
+    # ----- 6. OTTHON -----
+    if root in ALZA_OTTHON_ROOTS:
+        # Kerti al-kategóriák külön mehetnek „kert”-be
+        if any_kw(text, ALZA_KERT_KW):
+            return "kert"
+        return "otthon"
+    if any_kw(text, ALZA_OTTHON_KW):
         return "otthon"
 
-    # Utazás / autó – egyelőre mehet "utazas"
-    if _match_any(
-        text,
-        [
-            "auto-motor",
-            "autó-motor",
-            "autokozmetika",
-            "autókiegészítők",
-            "autokiegeszitok",
-            "autogumi",
-            "csomagtarto",
-            "csomagtartó",
-            "utazotaska",
-            "utazótáska",
-            "borond",
-            "bőrönd",
-            "lakokocsi",
-            "lakókocsi",
-            "hajo",
-            "hajó",
-            "csónak",
-            "csonak",
-        ],
-    ):
-        return "utazas"
+    # ----- 7. KERT (ha máshonnan jön, de tipikusan kerti cucc) -----
+    if any_kw(text, ALZA_KERT_KW):
+        return "kert"
 
-    # Ha semmi nem talált – Multi fallback
-    return "multi"
+    # ----- 8. ÁLLATOK -----
+    if any_kw(text, ALZA_ALLAT_KW):
+        return "allatok"
+
+    # ----- 9. LÁTÁS -----
+    if any_kw(text, ALZA_LATAS_KW):
+        return "latas"
+
+    # ----- 10. KÖNYV -----
+    if any_kw(text, ALZA_KONYV_KW):
+        return "konyv"
+
+    # ----- 11. ha semmi nem illik → többnyire „multi” -----
+    return FALLBACK
 
 
-def assign_category(partner: str, category_path: str, title: str, description: str) -> str:
+# ========================================================
+#   KÖZPONTI BELÉPŐ FÜGGVÉNY
+# ========================================================
+
+def assign_category(partner_id: str, cat_path: str, title: str, desc: str) -> str:
     """
-    Főkategória meghatározása partner + category_path + title + description alapján.
+    Fő belépő: partner alapján hívja a megfelelő szabályrendszert.
+    partner_id: pl. "tchibo", "alza", ...
     """
-    text = _normalize_text(category_path, title, description)
-    if not text:
-        return "multi"
+    pid = (partner_id or "").strip().lower()
 
-    partner = (partner or "").lower().strip()
+    if pid == "tchibo":
+        return assign_tchibo(cat_path or "", title or "", desc or "")
 
-    if partner == "tchibo":
-        cat = _assign_for_tchibo(text)
-    elif partner == "alza":
-        cat = _assign_for_alza(text)
-    else:
-        # Default – ha később új partnert kötünk, ide is lehet rakni szabályt
-        cat = _assign_for_alza(text)
+    if pid == "alza":
+        return assign_alza(cat_path or "", title or "", desc or "")
 
-    if cat not in FINDORA_CATEGORIES:
-        return "multi"
-    return cat
+    # ismeretlen partner – mindent multi-ba dobunk
+    return FALLBACK
