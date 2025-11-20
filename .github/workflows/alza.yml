@@ -45,8 +45,9 @@ jobs:
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
 
-          # IDE fog pusholni, NEM a main-re
+          # Ide pusholunk
           branch: bot/update-alza
+          create_branch: true    # <-- EZ hozza létre, ha még nincs
 
           # Ha nincs változás, ne legyen hiba
           skip_dirty_check: false
