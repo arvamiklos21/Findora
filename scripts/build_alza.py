@@ -1,13 +1,3 @@
-# scripts/build_alza.py
-#
-# Alza XML feed → paginált JSON Findora számára.
-# Környezeti változó:
-#   FEED_ALZA_URL  – Dognet / Alza XML feed URL
-#
-# Kimenet:
-#   docs/feeds/alza/meta.json
-#   docs/feeds/alza/page-0001.json, page-0002.json, ...
-
 import os
 import sys
 import re
@@ -81,8 +71,6 @@ def collect_node(n):
             "images",
             "image2",
             "image3",
-            "pictures",
-            "gallery",
         ):
             m.setdefault(k, [])
             if v:
@@ -114,20 +102,7 @@ def first(d, keys):
 # Mező kulcs-listák
 TITLE_KEYS = ("productname", "title", "g:title", "name")
 LINK_KEYS = ("url", "link", "g:link", "product_url")
-
-IMG_KEYS = (
-    "imgurl",
-    "image_link",
-    "image",
-    "image_url",
-    "g:image_link",
-    "image1",
-    "main_image",   # gyakori Google Shopping mezők
-    "g:image",
-    "photo",
-    "picture",
-)
-
+IMG_KEYS = ("imgurl", "image_link", "image", "image_url", "g:image_link", "image1")
 IMG_ALT_KEYS = (
     "imgurl_alternative",
     "additional_image_link",
@@ -135,17 +110,8 @@ IMG_ALT_KEYS = (
     "images",
     "image2",
     "image3",
-    "pictures",
-    "gallery",
 )
-
-DESC_KEYS = (
-    "description",
-    "g:description",
-    "long_description",
-    "short_description",
-    "desc",
-)
+DESC_KEYS = ("description", "g:description", "long_description", "short_description", "desc")
 
 NEW_PRICE_KEYS = (
     "price_vat",
@@ -157,11 +123,6 @@ NEW_PRICE_KEYS = (
     "g:price",
     "price",
     "price_amount",
-    "unit_price",
-    "unit_price_value",
-    "item_price",
-    "price_czk",
-    "price_eur",
 )
 
 OLD_PRICE_KEYS = (
@@ -224,8 +185,7 @@ def parse_items(xml_text):
             elif isinstance(alt, str):
                 img = alt
 
-        raw_desc_val = first(m, DESC_KEYS)
-        raw_desc = ensure_str(raw_desc_val)
+        raw_desc = ensure_str(first(m, DESC_KEYS))
         desc = short_desc(raw_desc)
 
         cat_path = first(
@@ -242,17 +202,15 @@ def parse_items(xml_text):
         # árak
         price_new = None
         for k in NEW_PRICE_KEYS:
-            if k in m:
-                price_new = norm_price(m.get(k))
-                if price_new:
-                    break
+            price_new = norm_price(m.get(k))
+            if price_new:
+                break
 
         old = None
         for k in OLD_PRICE_KEYS:
-            if k in m:
-                old = norm_price(m.get(k))
-                if old:
-                    break
+            old = norm_price(m.get(k))
+            if old:
+                break
 
         discount = (
             round((1 - price_new / old) * 100)
@@ -260,14 +218,15 @@ def parse_items(xml_text):
             else None
         )
 
-        # Kategória → Findora
+        # Kategória → Findora (ALZA)
         findora_main = assign_category("alza", cat_path or "", title or "", raw_desc or "")
 
-        # category_root
-        if cat_path and ">" in cat_path:
-            category_root = cat_path.split(">")[0].strip()
-        else:
-            category_root = (cat_path or "").strip()
+        # category_root (első szegmens, ha '|' vagy '>' van)
+        category_root = (cat_path or "").strip()
+        for sep in (">", "|"):
+            if sep in category_root:
+                category_root = category_root.split(sep)[0].strip()
+                break
 
         item = {
             "id": pid or link or title,
@@ -292,27 +251,9 @@ def parse_items(xml_text):
 # ===== dedup méret/szín =====
 SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
 COLOR_WORDS = (
-    "fekete",
-    "fehér",
-    "feher",
-    "szürke",
-    "szurke",
-    "kék",
-    "kek",
-    "piros",
-    "zöld",
-    "zold",
-    "lila",
-    "sárga",
-    "sarga",
-    "narancs",
-    "barna",
-    "bézs",
-    "bezs",
-    "rózsaszín",
-    "rozsaszin",
-    "bordó",
-    "bordeaux",
+    "fekete", "fehér", "feher", "szürke", "szurke", "kék", "kek",
+    "piros", "zöld", "zold", "lila", "sárga", "sarga", "narancs",
+    "barna", "bézs", "bezs", "rózsaszín", "rozsaszin", "bordó", "bordeaux",
 )
 
 
@@ -354,9 +295,7 @@ def dedup_size_variants(items):
     buckets = {}
     for it in items:
         tnorm = normalize_title_for_size(it.get("title"))
-        color = detect_color_token(it.get("title")) or detect_color_token(
-            it.get("desc") or ""
-        )
+        color = detect_color_token(it.get("title")) or detect_color_token(it.get("desc") or "")
         base_url = strip_size_from_url(it.get("url"))
         key = (tnorm, color or "", base_url or "")
         cur = buckets.get(key)
@@ -365,9 +304,7 @@ def dedup_size_variants(items):
         else:
             if not cur.get("img") and it.get("img"):
                 cur["img"] = it["img"]
-            if (it.get("price") or 0) and (
-                not cur.get("price") or it["price"] < cur["price"]
-            ):
+            if (it.get("price") or 0) and (not cur.get("price") or it["price"] < cur["price"]):
                 cur["price"] = it["price"]
             if (it.get("discount") or 0) > (cur.get("discount") or 0):
                 cur["discount"] = it["discount"]
@@ -381,7 +318,7 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
 
     print("Letöltés:", FEED_URL)
-    r = requests.get(FEED_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=300)
+    r = requests.get(FEED_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=120)
     r.raise_for_status()
 
     items = parse_items(r.text)
@@ -389,7 +326,7 @@ def main():
 
     print("Összes termék:", len(items))
 
-    # ===== DEBUG: összes kategória kilistázása (Alza → Findora szabályokhoz) =====
+    # DEBUG: kategória stat (Alza category_path → darabszám)
     cat_counts = {}
     for it in items:
         cp = (it.get("category_path") or "").strip()
@@ -403,7 +340,7 @@ def main():
 
     print(f"DEBUG kategória stat mentve ide: {debug_path}")
 
-    # ===== Oldalak készítése =====
+    # Oldalak készítése
     pages = max(1, math.ceil(len(items) / PAGE_SIZE))
     for i in range(pages):
         data = {"items": items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]}
