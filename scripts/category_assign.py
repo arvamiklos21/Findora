@@ -1,19 +1,22 @@
 # category_assign.py
 #
 # Központi kategória-hozzárendelés partnerenként.
-# Visszaadott érték: findora_main (elektronika, otthon, divat,
-# jatekok, sport, kert, haztartasi_gepek, multi)
+# Visszaadott érték: findora_main
+#   (elektronika, otthon, divat, jatekok, sport, kert,
+#    haztartasi_gepek, szepseg, konyv, allatok, latas,
+#    utazas, multi, ...)
 
 from typing import Optional
 
 
 # =======================================================
-#   TCHIBO → FINDORA MAIN CATEGORY
+#   TCHIBO → FINDORA MAIN CATEGORY  (MEGMARAD)
 # =======================================================
 
 def _tchibo_findora_main(cat_path: str) -> str:
     """
     Tchibo kategória → Findora főkategória.
+
     A cat_path tipikusan:
       - CATEGORYTEXT
       - PARAM_CATEGORY
@@ -109,117 +112,102 @@ def _tchibo_findora_main(cat_path: str) -> str:
 
 
 # =======================================================
-#   ALZA → FINDORA MAIN CATEGORY
+#   ALZA → FINDORA MAIN CATEGORY  (ÚJ LOGIKA)
+#   CSAK AZ ALZA CATEGORY_PATH ELSŐ SZINTJÉT NÉZZÜK.
+#   NINCS kulcsszózás title/desc alapján.
 # =======================================================
 
-def _alza_findora_main(cat_path: str, title: str, desc: str) -> str:
+# Alza top-level kategória → Findora fő kategória
+# (minden kulcs kisbetűs!)
+_ALZA_TOP_MAP = {
+    # Elektronika / számítástechnika
+    "elektronika": "elektronika",
+    "számítógép": "elektronika",
+    "számítógép, notebook": "elektronika",
+    "mobiltelefon": "elektronika",
+    "mobiltelefon, tablet": "elektronika",
+    "játékkonzolok, gaming": "elektronika",
+
+    # Háztartási gépek / háztartás
+    "háztartási gépek": "haztartasi_gepek",
+    "háztartás": "haztartasi_gepek",
+
+    # Otthon / bútor / dekor
+    "otthon": "otthon",
+    "otthon és kert": "otthon",
+    "bútor": "otthon",
+    "dekoráció": "otthon",
+
+    # Kert
+    "kert": "kert",
+
+    # Játékok / gyerek
+    "játékok": "jatekok",
+    "gyermek, mama": "jatekok",
+    "gyermek, mama, játékok": "jatekok",
+
+    # Sport
+    "sport, szabadidő": "sport",
+    "sport": "sport",
+    "sport és szabadidő": "sport",
+
+    # Szépség
+    "szépség, egészség": "szepseg",
+    "szépség és egészség": "szepseg",
+    "drogéria": "szepseg",
+
+    # Könyvek
+    "könyvek": "konyv",
+    "könyvek, e-könyvek, filmek, zenék": "konyv",
+
+    # Állatok
+    "állateledel, állatfelszerelés": "allatok",
+    "állateledel": "allatok",
+
+    # Látás / optika
+    "látás, optika": "latas",
+
+    # Utazás / autó
+    "utazás": "utazas",
+    "utazás és autó": "utazas",
+    "autó, motor": "utazas",
+}
+
+
+def _normalize_alza_top(cat_path: str) -> str:
     """
-    Alza kategória + cím + leírás → Findora főkategória.
-    A cat_path tipikusan ilyen:
-      "Sport, szabadidő|Kerékpározás|Kerekpár kiegészítők|Fékkar|Fékpofák"
+    Alza category_path normalizálása:
+    - csak az első szintet vesszük (a '|' előtti részt)
+    - kisbetűsítjük, levágjuk a fölösleges szóközöket
     """
+    s = (cat_path or "").strip().lower()
+    if not s:
+        return ""
+    first = s.split("|", 1)[0].strip()
+    return first
 
-    s = f"{cat_path or ''} {title or ''} {desc or ''}".lower()
 
-    # ===== ELEKTRONIKA =====
-    if any(k in s for k in [
-        "notebook", "laptop", "ultrabook",
-        "pc ", "számítógép", "szamitogep",
-        "monitor", "videokártya", "videokartya",
-        "alaplap", "processzor", "cpu",
-        "ssd", "hdd", "memória", "ram",
-        "tv", "televízió", "televizio",
-        "tablet", "okostelefon", "okos telefon",
-        "smartphone", "telefon",
-        "játék konzol", "játékkonzol", "playstation", "xbox", "nintendo",
-        "router", "wifi router",
-        "hangfal", "hangszóró", "hangsugárzó", "fejhallgató", "fülhallgató",
-    ]):
-        return "elektronika"
+def _alza_findora_main(cat_path: str, title: str = "", desc: str = "") -> str:
+    """
+    Alza kategória → Findora főkategória.
 
-    # ===== HÁZTARTÁSI GÉPEK =====
-    if any(k in s for k in [
-        "mosógép", "mosogep",
-        "mosogatógép", "mosogatogep",
-        "hűtőszekrény", "hutő", "huto", "fagyasztó",
-        "porszívó", "porszivo",
-        "mikrohullámú", "mikrohullamu", "mikro",
-        "sütő", "suto",
-        "klíma", "klima", "légkondi", "legkondi",
-        "konyhai robot", "turmix", "botmixer",
-        "kávéfőző", "kavefozo", "kávégép", "kavegep",
-    ]):
-        return "haztartasi_gepek"
+    FONTOS:
+    - Nem használunk kulcsszót a title/desc mezőkből.
+    - Csak az Alza saját category_path TOP szintje számít.
+    - Így NINCS átcsúszás (borotva nem megy Játékokba, fékpofa
+      nem megy Elektronikába stb.).
+    """
+    top = _normalize_alza_top(cat_path)
 
-    # ===== OTTHON =====
-    if any(k in s for k in [
-        "bútor", "butor",
-        "szekrény", "szekreny",
-        "asztal", "szék", "szek",
-        "polc", "komód", "komod",
-        "kanapé", "kanape", "fotel",
-        "szőnyeg", "szonyeg",
-        "dekor", "dísz", "disz",
-        "világítás", "vilagitas", "lámpa", "lampa",
-        "takaró", "takaro", "párna", "parna",
-        "függöny", "fuggony",
-        "ágynemű", "agynemu",
-    ]):
-        return "otthon"
+    if not top:
+        return "multi"
 
-    # ===== DIVAT =====
-    if any(k in s for k in [
-        "ruházat", "ruhazat", "ruha",
-        "kabát", "kabat", "dzseki",
-        "pulóver", "pulover",
-        "nadrág", "nadrag",
-        "szoknya", "blúz", "bluz",
-        "ing", "póló", "polo",
-        "cipő", "cipo", "csizma", "papucs",
-        "fehérnemű", "fehernemu", "melltartó", "melltarto",
-        "alsónadrág", "alsonadrag",
-        "harisnya", "leggings",
-    ]):
-        return "divat"
+    # Direkt, pontos egyezés a mapping táblával
+    if top in _ALZA_TOP_MAP:
+        return _ALZA_TOP_MAP[top]
 
-    # ===== JÁTÉKOK =====
-    if any(k in s for k in [
-        "lego",
-        "játék", "jatekok", "játékszett", "jatekszett",
-        "társasjáték", "tarsasjatek",
-        "puzzle",
-        "plüss", "plus", "figura",
-        "baba", "babakocsi",
-        "kreatív játék", "kreativ jatek",
-    ]):
-        return "jatekok"
-
-    # ===== SPORT =====
-    if any(k in s for k in [
-        "sport", "sportszer",
-        "kerékpár", "kerekpar", "bicikli", "kerékpáros", "kerekparos",
-        "futópad", "futopad",
-        "súlyzó", "sulyzo",
-        "edzés", "edzes", "fitnesz", "fitness",
-        "túra", "tura",
-        "kemping", "sátor", "sator",
-        "sí", "si", "snowboard",
-    ]):
-        return "sport"
-
-    # ===== KERT =====
-    if any(k in s for k in [
-        "kert", "kerti",
-        "grill",
-        "fűnyíró", "funyiro",
-        "locsoló", "locsolo", "slag",
-        "medence", "trambulin",
-        "ültető", "virágláda", "viraglada",
-        "növényvédő", "novenyvedo",
-    ]):
-        return "kert"
-
-    # ===== ALAPÉRTELMEZETT =====
+    # Ha valami új / ritka fő kategória jön,
+    # inkább menjen a 'multi' blokkba, mint rossz helyre.
     return "multi"
 
 
@@ -237,7 +225,7 @@ def assign_category(
     Központi kategória-hozzárendelés.
     - partner_id: 'tchibo', 'alza', később 'pepita', stb.
     - cat_path: eredeti feed kategória
-    - title / desc: kulcsszavas finomításra
+    - title / desc: jelenleg csak Tchibónál használjuk finomításra
     """
     pid = (partner_id or "").lower()
 
