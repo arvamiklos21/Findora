@@ -1446,131 +1446,163 @@ async function buildCategoryBlocksFromFeeds() {
         }
       }
     })();
+// ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) =====
+async function buildCategoryBlocks() {
+  const PAGE_SIZE = 6;          // 6 kártya / oldal
+  const MAX_PAGES_PER_CAT = 5;  // max 5 oldal / kategória
 
-    partnerTasks.push(task);
-  }
+  // --- 0. Fallback: régi feed-alapú logika (ha Algolia nem elérhető) ---
+  async function buildCategoryBlocksFromFeeds() {
+    const buffers = {};
+    const scanPagesMax = 1; // csak 1 oldal / partner a főoldalhoz – gyors betöltés
 
-  await Promise.all(partnerTasks);
+    const partnerTasks = [];
 
-  const PAGE_SIZE = 6;
-  const MAX_PAGES_PER_CAT = 5;
+    for (const [pid, cfg] of PARTNERS.entries()) {
+      const plc = cfg.placements || {};
+      const anyEnabled = Object.keys(plc).some((k) => {
+        const v = plc[k];
+        return (v && v.enabled) || (v && v.full && v.full.enabled);
+      });
+      if (!anyEnabled) continue;
 
-  CATEGORY_IDS.forEach((catId) => {
-    const rawList = buffers[catId] || [];
-    const list = dedupeRowsStrong(rawList);
-    const pages = [];
+      const task = (async () => {
+        const meta = await getMeta(pid);
+        const pageSize = meta.pageSize || 300;
+        const totalPages =
+          meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
+        const scanPages = Math.min(scanPagesMax, totalPages);
 
-    for (
-      let i = 0;
-      i < list.length && pages.length < MAX_PAGES_PER_CAT;
-      i += PAGE_SIZE
-    ) {
-      pages.push(list.slice(i, i + PAGE_SIZE));
+        for (let pg = 1; pg <= scanPages; pg++) {
+          const arr = await getPageItems(pid, pg);
+          for (const it of arr) {
+            const cats = getCategoriesForItem(pid, it) || [];
+            const catId = cats[0] || "kat-multi";
+
+            if (!buffers[catId]) buffers[catId] = [];
+            buffers[catId].push({ pid, item: it });
+
+            if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
+            if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
+              PARTNER_CATEGORY_ITEMS[pid][catId] = [];
+            }
+            PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
+          }
+        }
+      })();
+
+      partnerTasks.push(task);
     }
 
-    CATEGORY_PAGES[catId] = pages;
-    CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
-  });
-}
-// ===== 3/b. KATEGÓRIA BLOKKOK FELÉPÍTÉSE – ALGOLIA ALAPÚ =====
-async function buildCategoryBlocks() {
-  const index = getAlgoliaIndex();
-  // ha nincs Algolia (vagy hibás config), marad a régi feed-alapú logika
-  if (!index) {
-    console.warn("Algolia nem elérhető – buildCategoryBlocksFromFeeds fut.");
-    return buildCategoryBlocksFromFeeds();
+    await Promise.all(partnerTasks);
+
+    CATEGORY_IDS.forEach((catId) => {
+      const rawList = buffers[catId] || [];
+      const list = dedupeRowsStrong(rawList);
+      const pages = [];
+
+      for (
+        let i = 0;
+        i < list.length && pages.length < MAX_PAGES_PER_CAT;
+        i += PAGE_SIZE
+      ) {
+        pages.push(list.slice(i, i + PAGE_SIZE));
+      }
+
+      CATEGORY_PAGES[catId] = pages;
+      CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
+    });
   }
 
-  const buffers = {};
-  const PAGE_SIZE = 6;
-  const MAX_PAGES_PER_CAT = 5;
+  // --- 1. Algolia index inicializálása ---
+  const idx = getAlgoliaIndex && getAlgoliaIndex();
+  if (!idx || typeof idx.search !== "function") {
+    console.warn("Algolia index nem elérhető – visszaesés feed-alapú buildCategoryBlocks()-ra.");
+    await buildCategoryBlocksFromFeeds();
+    return;
+  }
 
-  const tasks = CATEGORY_IDS.map(async (catId) => {
-    const backendKey = BACKEND_FROM_CATID[catId];
-    if (!backendKey) {
+  if (typeof CATID_TO_FINDORA_MAIN === "undefined") {
+    console.warn("CATID_TO_FINDORA_MAIN hiányzik – visszaesés feed-alapú buildCategoryBlocks()-ra.");
+    await buildCategoryBlocksFromFeeds();
+    return;
+  }
+
+  // --- 2. Kategóriák betöltése Algoliából ---
+  const perCatTasks = CATEGORY_IDS.map(async (catId) => {
+    const main = CATID_TO_FINDORA_MAIN[catId];
+    if (!main) {
       CATEGORY_PAGES[catId] = [];
       CATEGORY_CURRENT[catId] = 0;
       return;
     }
 
     try {
-      // amennyi a főoldalhoz bőven elég (5 oldal * 6 item = 30; szorozzuk fel egy kicsit)
-      const hitsPerPage = PAGE_SIZE * MAX_PAGES_PER_CAT * 3;
-      const res = await index.search("", {
-        filters: `cat:"${backendKey}"`,
-        hitsPerPage,
+      // max 30 találat / kategória (5 oldal × 6 kártya)
+      const res = await idx.search("", {
+        hitsPerPage: PAGE_SIZE * MAX_PAGES_PER_CAT,
+        filters: `findora_main:${main}`,
       });
 
       const hits = (res && res.hits) || [];
+      const rowsRaw = [];
+
       hits.forEach((hit) => {
-        const pid =
-          hit.partner || hit.pid || hit.partnerId || hit.deeplinkPartner;
-        if (!pid || !PARTNERS.has(pid)) return;
+        const pid = hit.partner || hit.pid;
+        if (!pid) return;
 
-        const item = hit;
+        const item = {
+          title: hit.title,
+          price: hit.price,
+          discount: hit.discount,
+          url: hit.url,
+          link: hit.url,
+          image: hit.img || hit.image,
+          img: hit.img || hit.image,
+          desc: hit.desc || hit.description || "",
+          categoryPath: hit.category_path || hit.categoryPath || "",
+          category_path: hit.category_path || hit.categoryPath || "",
+          cat: hit.findora_main || main,
+        };
 
-        // ugyanaz a kategória-logika, mint a feedes verziónál
-        const cats = getCategoriesForItem(pid, item) || [];
-        const resolvedCatId = cats[0] || catId;
-        if (resolvedCatId !== catId) return;
+        rowsRaw.push({ pid, item });
 
-        if (!buffers[catId]) buffers[catId] = [];
-        buffers[catId].push({ pid, item });
-
-        // partner-nézet induló listája (nem teljes, csak első Algolia találatok)
+        // partner-view gyorsításhoz előtöltjük az első adag terméket
         if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
         if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
           PARTNER_CATEGORY_ITEMS[pid][catId] = [];
         }
         PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item });
       });
+
+      const list = dedupeRowsStrong(rowsRaw);
+      const pages = [];
+
+      for (
+        let i = 0;
+        i < list.length && pages.length < MAX_PAGES_PER_CAT;
+        i += PAGE_SIZE
+      ) {
+        pages.push(list.slice(i, i + PAGE_SIZE));
+      }
+
+      CATEGORY_PAGES[catId] = pages;
+      CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
     } catch (e) {
-      console.error("Algolia kategória query hiba:", catId, e);
+      console.error("Algolia kategória lekérdezés hiba:", catId, e);
+      CATEGORY_PAGES[catId] = [];
+      CATEGORY_CURRENT[catId] = 0;
     }
   });
 
-  await Promise.all(tasks);
-
-  CATEGORY_IDS.forEach((catId) => {
-    const rawList = buffers[catId] || [];
-    const list = dedupeRowsStrong(rawList);
-    const pages = [];
-
-    for (
-      let i = 0;
-      i < list.length && pages.length < MAX_PAGES_PER_CAT;
-      i += PAGE_SIZE
-    ) {
-      pages.push(list.slice(i, i + PAGE_SIZE));
-    }
-
-    CATEGORY_PAGES[catId] = pages;
-    CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
-  });
+  try {
+    await Promise.all(perCatTasks);
+  } catch (e) {
+    console.error("Algolia-alapú buildCategoryBlocks() hiba, fallback feedre:", e);
+    await buildCategoryBlocksFromFeeds();
+  }
 }
 
-  await Promise.all(partnerTasks);
-
-  const PAGE_SIZE = 6;
-  const MAX_PAGES_PER_CAT = 5;
-
-  CATEGORY_IDS.forEach((catId) => {
-    const rawList = buffers[catId] || [];
-    const list = dedupeRowsStrong(rawList);
-    const pages = [];
-
-    for (
-      let i = 0;
-      i < list.length && pages.length < MAX_PAGES_PER_CAT;
-      i += PAGE_SIZE
-    ) {
-      pages.push(list.slice(i, i + PAGE_SIZE));
-    }
-
-    CATEGORY_PAGES[catId] = pages;
-    CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
-  });
-}
 
 // ===== INIT =====
 async function init() {
@@ -1596,4 +1628,5 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
