@@ -6,49 +6,6 @@ const PARTNERS = new Map();
 const META = new Map();
 const PAGES = new Map();
 
-// ===== Algolia (opcionális, partner nézet gyorsításához) =====
-// Ezt az index.html-ben kell beállítani pl.:
-// window.FINDORA_ALGOLIA_CONFIG = {
-//   appId: "WS9VUS9HJB",
-//   searchKey: "IDE_JÖN_A_SEARCH_ONLY_API_KULCS",
-//   indexName: "findora_products",
-//   partners: ["alza"]  // mely partnerek használják Algoliát a partner-nézetben
-// };
-const ALGOLIA_CONFIG = (window && window.FINDORA_ALGOLIA_CONFIG) || null;
-const ALGOLIA_ENABLED =
-  !!(
-    ALGOLIA_CONFIG &&
-    ALGOLIA_CONFIG.appId &&
-    ALGOLIA_CONFIG.searchKey &&
-    ALGOLIA_CONFIG.indexName
-  );
-let ALGOLIA_INDEX = null;
-
-async function ensureAlgoliaIndex() {
-  if (!ALGOLIA_ENABLED) return null;
-  if (ALGOLIA_INDEX) return ALGOLIA_INDEX;
-
-  // ha nincs még betöltve az Algolia kliens, betöltjük CDN-ről
-  if (typeof window.algoliasearch === "undefined") {
-    await new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src =
-        "https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js";
-      s.async = true;
-      s.onload = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
-  }
-
-  const client = window.algoliasearch(
-    ALGOLIA_CONFIG.appId,
-    ALGOLIA_CONFIG.searchKey
-  );
-  ALGOLIA_INDEX = client.initIndex(ALGOLIA_CONFIG.indexName);
-  return ALGOLIA_INDEX;
-}
-
 // ===== category-map.json =====
 const CATEGORY_MAP_URL = FEEDS_BASE + "/feeds/category-map.json";
 const CATEGORY_MAP = {};
@@ -1628,5 +1585,6 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
