@@ -4,9 +4,9 @@ on:
   # Kézi futtatás GitHub UI-ból
   workflow_dispatch:
 
-  # (Ha nem kell időzítés, ezt a blokkot nyugodtan törölheted.)
+  # Automatikus futás 2 óránként
   schedule:
-    - cron: "0 */2 * * *"  # 2 óránként fut
+    - cron: "0 */2 * * *"
 
 jobs:
   ingest:
@@ -39,16 +39,15 @@ jobs:
       - name: Commit & push feed (bot/update-alza branch)
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          # CSAK az alza feed fájlok
+          # CSAK az Alza feed fájlok
           file_pattern: docs/feeds/alza/**
           commit_message: "Update Alza feed JSON"
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
 
-          # Ide pusholunk
+          # Ide pusholunk – külön bot branch
           branch: bot/update-alza
-          create_branch: true    # <-- EZ hozza létre, ha még nincs
+          create_branch: true
 
-          # Ha nincs változás, ne legyen hiba
-          skip_dirty_check: false
-          skip_fetch: false
+          # Ha a branch már létezik és eltér, erőltetett push
+          push_options: "--force"
