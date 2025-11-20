@@ -6,6 +6,7 @@ on:
     paths:
       - 'docs/feeds/**'
       - 'docs/algolia_push.js'
+      - 'docs/**/*'
       - '.github/workflows/algolia-push.yml'
 
 jobs:
@@ -35,3 +36,4 @@ jobs:
           ALGOLIA_APP_ID: W95VUS9HJ8
           ALGOLIA_ADMIN_API_KEY: ${{ secrets.ALGOLIA_ADMIN_API_KEY }}
           ALGOLIA_INDEX_NAME: findora_products
+
