@@ -72,6 +72,7 @@ def collect_node(n):
             "image2",
             "image3",
         ):
+        # több kép – listába gyűjtjük
             m.setdefault(k, [])
             if v:
                 m[k].append(v)
@@ -111,7 +112,13 @@ IMG_ALT_KEYS = (
     "image2",
     "image3",
 )
-DESC_KEYS = ("description", "g:description", "long_description", "short_description", "desc")
+DESC_KEYS = (
+    "description",
+    "g:description",
+    "long_description",
+    "short_description",
+    "desc",
+)
 
 NEW_PRICE_KEYS = (
     "price_vat",
@@ -161,7 +168,7 @@ def parse_items(xml_text):
             candidates = nodes
             break
 
-    # 2) Ha semmi nem volt, fallback
+    # 2) Ha semmi nem volt, fallback – bármely item/product/shopitem
     if not candidates:
         candidates = [
             n for n in root.iter() if strip_ns(n.tag) in ("item", "product", "shopitem")
@@ -218,8 +225,10 @@ def parse_items(xml_text):
             else None
         )
 
-        # Kategória → Findora (ALZA)
-        findora_main = assign_category("alza", cat_path or "", title or "", raw_desc or "")
+        # Kategória → Findora
+        # FIGYELEM: a category_assign.assign_category aláírása:
+        #   assign_category(product_type, title, description)
+        findora_main = assign_category(cat_path or "", title or "", raw_desc or "")
 
         # category_root (első szegmens, ha '|' vagy '>' van)
         category_root = (cat_path or "").strip()
@@ -251,9 +260,27 @@ def parse_items(xml_text):
 # ===== dedup méret/szín =====
 SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
 COLOR_WORDS = (
-    "fekete", "fehér", "feher", "szürke", "szurke", "kék", "kek",
-    "piros", "zöld", "zold", "lila", "sárga", "sarga", "narancs",
-    "barna", "bézs", "bezs", "rózsaszín", "rozsaszin", "bordó", "bordeaux",
+    "fekete",
+    "fehér",
+    "feher",
+    "szürke",
+    "szurke",
+    "kék",
+    "kek",
+    "piros",
+    "zöld",
+    "zold",
+    "lila",
+    "sárga",
+    "sarga",
+    "narancs",
+    "barna",
+    "bézs",
+    "bezs",
+    "rózsaszín",
+    "rozsaszin",
+    "bordó",
+    "bordeaux",
 )
 
 
