@@ -255,4 +255,3 @@ def assign_category(
 
     # ===== alapértelmezett =====
     return "multi"
-```0
