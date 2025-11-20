@@ -1,4 +1,3 @@
-// ===== Alap beállítások =====
 const FEEDS_BASE = "";
 const PARTNERS_URL = "feeds/partners.json";
 
@@ -1546,4 +1545,5 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
