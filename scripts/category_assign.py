@@ -1,252 +1,246 @@
-import re
+# category_assign.py
+# ==================
+# Egyetlen belépési pont: assign_category(partner, cat_path, title, desc)
+# Visszatérési érték: a Findora fő kategória kódja:
+# elektronika, haztartasi-gepek, otthon, kert, jatekok, divat,
+# szepseg, sport, latas, allatok, konyv, utazas, multi
 
-# ===== Segédfüggvények =====
 
 def _norm(s):
     return (s or "").strip().lower()
 
-def _contains_any(text, keywords):
-    if not text:
-        return False
-    t = text.lower()
-    return any(k in t for k in keywords)
 
-# ===== Alza-specifikus kategória hozzárendelés =====
+def _has_any(text, words):
+    t = _norm(text)
+    return any(w in t for w in words)
 
-def _assign_alza(category_path: str, text: str) -> str:
+
+def assign_category(partner, cat_path, title, desc):
     """
-    Alza category_path + szöveg alapján Findora fő kategória.
-    Visszatérési érték: egyik az alábbiak közül:
-      elektronika, haztartasi-gepek, otthon, kert, jatekok,
-      divat, szepseg, sport, latas, allatok, konyv, utazas, multi
-    """
-    cat = _norm(category_path)
-    txt = text.lower()
-
-    if not cat or cat == "(nincs category_path)":
-        # Fallback csak szöveg alapján
-        if _contains_any(txt, ["xbox", "playstation", "ps4", "ps5", "nintendo",
-                               "switch", "steam key", "pc játék", "pc game"]):
-            return "jatekok"
-        if _contains_any(txt, ["bicikli", "kerékpár", "kemping", "túra", "trekking",
-                               "foci", "labda", "edző", "fitness", "sportmelltartó"]):
-            return "sport"
-        if _contains_any(txt, ["kutya", "macska", "pet ", "pet-", "állateledel"]):
-            return "allatok"
-        if _contains_any(txt, ["könyv", "regény", "képregény"]):
-            return "konyv"
-        return "multi"
-
-    # --- 1. Gaming – játék vs elektronika szétválasztás ---
-    if cat.startswith("gaming és szórakozás|pc és konzoljátékok"):
-        return "jatekok"
-    if cat.startswith("gaming és szórakozás|nintendo switch"):
-        return "jatekok"
-    if cat.startswith("gaming és szórakozás|tartozékok|kontrollerek"):
-        # Kontroller, gamepad → nálad elektronika
-        return "elektronika"
-    if cat.startswith("gaming és szórakozás|filmes és gamer ajándékok"):
-        return "jatekok"
-    if cat.startswith("gaming és szórakozás"):
-        # Általános gaming cucc
-        return "jatekok"
-
-    # --- 2. Sport, szabadidő csoport ---
-    if cat.startswith("sport, szabadidő") or cat.startswith("sport a outdoor"):
-        return "sport"
-
-    # --- 3. Klasszikus elektronika csoportok ---
-    if cat.startswith("tv, fotó, audió, videó") or cat.startswith("tv, foto, audio-video"):
-        return "elektronika"
-
-    if cat.startswith("pc és laptop") or cat.startswith("počítače a notebooky"):
-        return "elektronika"
-
-    if cat.startswith("telefon, tablet, okosóra"):
-        return "elektronika"
-
-    if cat.startswith("autó-motor|audió, videó") or \
-       cat.startswith("autó-motor|autós hűtő") or \
-       "gps navigációk" in cat:
-        return "elektronika"
-
-    if cat.startswith("okosotthon"):
-        return "elektronika"
-
-    # --- 4. Háztartási gépek / konyha ---
-    if cat.startswith("háztartási kisgép") \
-       or cat.startswith("konyha, háztartás") \
-       or "konyhai kisgépek" in cat:
-        # Ide menjenek a vízforralók, kávéfőzők, grillsütők, vákuumozók stb.
-        return "haztartasi-gepek"
-
-    # --- 5. Otthon, kert ---
-    if cat.startswith("otthon, barkács, kert|kert"):
-        return "kert"
-
-    if cat.startswith("otthon, barkács, kert"):
-        # bútor, lakástextil, szerszám, medence stb.
-        return "otthon"
-
-    # --- 6. Egészség / szépség / látás ---
-    if cat.startswith("egészségmegőrzés|szemüvegek") \
-       or "kontaktlencse" in cat \
-       or "dioptriás" in txt:
-        return "latas"
-
-    if cat.startswith("egészségmegőrzés"):
-        # vérnyomásmérő, masszírozó gép, tapaszok stb.
-        return "szepseg"
-
-    if cat.startswith("drogéria") or cat.startswith("illatszer, ékszer"):
-        return "szepseg"
-
-    # --- 7. Játék, baba-mama ---
-    if cat.startswith("játék, baba-mama"):
-        return "jatekok"
-
-    # --- 8. Állatok / rovarriasztók stb. ---
-    if "smartpet" in cat or "háziállat" in cat or "pet " in cat:
-        return "allatok"
-
-    if "kullancs" in cat or "szúnyogriasztó" in cat:
-        # Ezt is vehetjük állatos/udvari használatnak
-        return "allatok"
-
-    # --- 9. Könyv ---
-    if cat.startswith("könyv"):
-        return "konyv"
-
-    # --- 10. Élelmiszer ---
-    if cat.startswith("élelmiszer"):
-        # protein, magvak stb. – maradhat sport/otthon között; nálad legyen sporthoz köthető
-        if _contains_any(cat, ["egészséges ételek", "sporttápszerek"]):
-            return "sport"
-        return "otthon"
-
-    # --- 11. Iroda / iskolaszerek ---
-    if cat.startswith("irodai felszerelés"):
-        return "otthon"
-
-    # --- 12. Egyéb: ha szöveg alapján egyértelműbb ---
-    if _contains_any(txt, ["monitor", "videokártya", "ssd", "router", "wifi", "bluetooth"]):
-        return "elektronika"
-
-    if _contains_any(txt, ["porszívó", "mosógép", "hűtőszekrény", "mosogatógép"]):
-        return "haztartasi-gepek"
-
-    if _contains_any(txt, ["kandalló", "dekor", "függöny", "ágynemű", "törölköző"]):
-        return "otthon"
-
-    # --- Default ---
-    return "multi"
-
-
-# ===== Tchibo-specifikus egyszerűsített logika =====
-
-def _assign_tchibo(text: str) -> str:
-    t = text.lower()
-
-    # Divat / ruha
-    if _contains_any(t, [
-        "kabát", "kabátka", "dzseki", "kabátka", "pulóver", "póló", "polo",
-        "nadrág", "farmer", "szoknya", "ruha", "blúz", "ing", "tunika",
-        "leggings", "harisnya", "melltartó", "bugyi", "tanga", "alsónemű",
-        "cipő", "csizma", "bakancs", "papucs", "szandál", "zokni", "sapka",
-        "kesztyű", "sál", "kendő"
-    ]):
-        return "divat"
-
-    # Játék
-    if _contains_any(t, [
-        "játék", "játékszett", "lego", "puzzle", "társasjáték",
-        "plüss", "autós játék", "építőkocka", "babaház"
-    ]):
-        return "jatekok"
-
-    # Háztartási gép
-    if _contains_any(t, [
-        "vízforraló", "kávéfőző", "kávégép", "szeletelőgép", "mixer",
-        "turmix", "konyhai robot", "gofrisütő", "melegszendvics", "sütő",
-        "mikrohullámú", "mikró", "porszívó", "gőztisztító"
-    ]):
-        return "haztartasi-gepek"
-
-    # Kert
-    if _contains_any(t, [
-        "kerti", "kültéri", "grill", "napernyő", "kerti szék", "kerti asztal",
-        "virágláda", "locsoló", "slag"
-    ]):
-        return "kert"
-
-    # Otthon (lakástextil, dekor, tárolás)
-    if _contains_any(t, [
-        "ágynemű", "párna", "paplan", "pléd", "takaró", "törölköző",
-        "frottír", "függöny", "szőnyeg", "díszpárna", "dekor", "tárolódoboz",
-        "kosár", "polc", "fogas"
-    ]):
-        return "otthon"
-
-    return "multi"
-
-
-# ===== Generikus / egyéb partnerek =====
-
-def _assign_generic(text: str) -> str:
-    t = text.lower()
-
-    if _contains_any(t, ["xbox", "playstation", "ps4", "ps5", "nintendo", "switch",
-                         "lego", "társasjáték", "puzzle", "játék"]):
-        return "jatekok"
-
-    if _contains_any(t, ["kabát", "pulóver", "póló", "nadrág", "ruha", "cipő", "csizma"]):
-        return "divat"
-
-    if _contains_any(t, ["futball", "kosárlabda", "röplabda", "edzés", "fitness",
-                         "kerékpár", "bicikli", "kemping", "túra"]):
-        return "sport"
-
-    if _contains_any(t, ["vízforraló", "mosógép", "porszívó", "hűtő", "kávéfőző"]):
-        return "haztartasi-gepek"
-
-    if _contains_any(t, ["kutya", "macska", "állateledel", "póráz", "nyakörv"]):
-        return "allatok"
-
-    if _contains_any(t, ["szemüveg", "dioptriás", "kontaktlencse"]):
-        return "latas"
-
-    if _contains_any(t, ["krém", "szérum", "sampon", "testápoló", "kozmetikum"]):
-        return "szepseg"
-
-    if _contains_any(t, ["könyv", "regény", "képregény"]):
-        return "konyv"
-
-    return "multi"
-
-
-# ===== Fő belépési pont =====
-
-def assign_category(partner: str, category_path: str, title: str, desc: str) -> str:
-    """
-    partner: pl. 'tchibo', 'alza', 'jateksziget', 'regio' stb.
-    category_path: az XML-ből jövő teljes kategória-útvonal (Alza esetén pl. "Sport, szabadidő|…")
-    title + desc: terméknév és leírás
+    partner : pl. 'alza', 'pepita', 'tchibo', ...
+    cat_path: teljes partner kategóriaút pl.
+              'Konyha, háztartás|Konyhai kisgépek|Elektromos grillek'
+    title   : terméknév
+    desc    : leírás
     """
     p = _norm(partner)
-    cat = category_path or ""
-    txt = f"{title or ''} {desc or ''}"
+    cp = _norm(cat_path)
+    ttl = _norm(title)
+    dsc = _norm(desc)
 
-    # Alza – részletes, category_path-alapú logika
-    if p == "alza":
-        return _assign_alza(cat, txt)
+    root = _norm(cat_path.split("|")[0] if cat_path else "")
 
-    # Tchibo – saját logika
-    if p == "tchibo":
-        return _assign_tchibo(txt)
+    text_all = " | ".join(filter(None, [cp, ttl, dsc]))
 
-    # Játékos partnerek – minden mehet játék kategóriába
-    if p in ("jateksziget", "jateknet", "regio", "regiojatek"):
+    # ========= 1. ERŐS NYELVI / ROOT ALAPÚ SZABÁLYOK =========
+
+    # --- ELEKTRONIKA ---
+    if _has_any(
+        root,
+        [
+            "tv, fotó, audió, videó",
+            "tv, foto, audio-video",
+            "telefon, tablet, okosóra",
+            "pc és laptop",
+            "pc es laptop",
+            "počítače a notebooky",
+            "okosotthon",
+        ],
+    ):
+        return "elektronika"
+
+    # --- HÁZTARTÁSI GÉPEK (KONYHAI GÉPEK) ---
+    # Tipikus alza: "Konyha, háztartás|Konyhai kisgépek|..."
+    # vagy: "Háztartási kisgép|Vízforralók és ital készítés|..."
+    if root.startswith("konyha, háztartás") and _has_any(
+        cp,
+        ["konyhai kisgépek", "élelmiszer feldolgozás", "élelmiszer tárolás"],
+    ):
+        return "haztartasi-gepek"
+
+    if root.startswith("háztartási kisgép") or _has_any(
+        cp, ["konyhai kisgépek", "szódagépek", "vízforralók", "kávéfőzők", "grillek"]
+    ):
+        return "haztartasi-gepek"
+
+    # --- OTTHON / BARKÁCS / KONYHA (NEM GÉP) ---
+    if _has_any(
+        root,
+        [
+            "otthon, barkács, kert",
+            "konyha, háztartás",
+            "konyha, haztartas",
+            "konyha, háztartás|tálalás",
+            "konyha, háztartás|takarítóeszközök",
+        ],
+    ):
+        return "otthon"
+
+    # --- KERT ---
+    if _has_any(
+        cp,
+        [
+            "kert|",
+            "kerti bútorok",
+            "kerti gépek",
+            "grillek, füstölők",
+            "otthoni medencék",
+            "kerti medence",
+        ],
+    ):
+        return "kert"
+
+    # --- JÁTÉKOK ---
+    if _has_any(
+        root,
+        [
+            "játék, baba-mama",
+            "gaming és szórakozás",
+        ],
+    ) or _has_any(cp, ["pc és konzoljátékok", "lego", "játékszett", "babajáték"]):
         return "jatekok"
 
-    # Egyéb partnerek – generikus szabályok
-    return _assign_generic(txt)
+    # --- DIVAT / RUHÁZAT ---
+    if _has_any(
+        cp,
+        [
+            "ruházat",
+            "ruházat, divat",
+            "ruhazat",
+            "cipők",
+            "cipok",
+            "táskák",
+            "taskak",
+            "fehérnemű",
+            "fehernemu",
+        ],
+    ):
+        return "divat"
+
+    # --- SZÉPSÉG / KOZMETIKA ---
+    if _has_any(
+        root,
+        [
+            "illatszer, ékszer",
+        ],
+    ) or _has_any(
+        cp,
+        [
+            "kozmetikumok",
+            "smink",
+            "hajápolás",
+            "borotválkozás",
+            "parfüm",
+        ],
+    ):
+        return "szepseg"
+
+    # --- SPORT / SZABADIDŐ ---
+    if root.startswith("sport, szabadidő") or root.startswith("sport a outdoor"):
+        return "sport"
+
+    # --- LÁTÁS (optika, szemüveg) ---
+    if _has_any(
+        cp,
+        [
+            "szemüveg",
+            "lencse",
+            "kontaktlencse",
+            "dioptriás",
+        ],
+    ) or _has_any(ttl, ["szemüvegkeret", "szemuvegkeret"]):
+        return "latas"
+
+    # --- ÁLLATOK ---
+    if _has_any(
+        cp,
+        [
+            "állateledel",
+            "allateledel",
+            "állattartás",
+            "allattartas",
+            "kisállat",
+            "kisallat",
+            "terrárium",
+            "terrarium",
+            "kutyafelszerelés",
+            "macskafelszerelés",
+        ],
+    ) or _has_any(ttl, ["kutya", "macska", "terrárium", "terrarium"]):
+        return "allatok"
+
+    # --- KÖNYV / MAGAZIN ---
+    if _has_any(
+        root,
+        [
+            "könyv",
+            "konyv",
+        ],
+    ) or _has_any(cp, ["könyvek", "magazinok"]) or _has_any(
+        ttl, ["könyv", "regény", "regeny", "szakkönyv"]
+    ):
+        return "konyv"
+
+    # --- UTAZÁS ---
+    # csak akkor, ha a kategória egyértelműen utazás/bőrönd/hotel tematikájú
+    if _has_any(
+        cp,
+        [
+            "utazás",
+            "utazas",
+            "bőrönd",
+            "borond",
+            "utazótáska",
+            "utazotaska",
+            "utazási kiegészítők",
+            "utazasi kiegeszitok",
+        ],
+    ):
+        return "utazas"
+
+    # ========= 2. PARTNER-SPECIFIKUS FINOMHANGOLÁS =========
+
+    # Alza extra: sok elektronika vegyes magyar/cseh elnevezéssel
+    if p == "alza":
+        if _has_any(
+            cp,
+            [
+                "tv, fotó, audió, videó",
+                "tv, foto, audio-video",
+                "telefon, tablet, okosóra",
+                "pc és laptop",
+                "pc es laptop",
+                "počítače a notebooky",
+            ],
+        ):
+            return "elektronika"
+
+        if _has_any(cp, ["konyhai kisgépek", "háztartási kisgép", "haztartasi kisgep"]):
+            return "haztartasi-gepek"
+
+        if _has_any(cp, ["játék, baba-mama", "gaming és szórakozás"]):
+            return "jatekok"
+
+    # Pepita extra – ne szórjunk mindent Utazásba,
+    # csak ha tényleg utazás/bőrönd/stb. szerepel
+    if p == "pepita":
+        if _has_any(cp, ["bőrönd", "borond", "utazótáska", "utazotaska"]):
+            return "utazas"
+        # ha 'utazás' szerepel, de kozmetika/sport/jobban illeszkedik, akkor a fenti
+        # általános szabályok már elvitték; ami megmarad, maradhat multi.
+
+    # ========= 3. TITLE / LEÍRÁS SZERINTI GYENGE HEURISZTIKÁK =========
+
+    # ha semmi nem fogta meg, de a szöveg nagyon elektronika jellegű
+    if _has_any(text_all, ["laptop", "okostelefon", "konzol", "playstation", "xbox"]):
+        return "elektronika"
+
+    if _has_any(text_all, ["foci", "futball", "kosárlabda", "tenisz", "fitnesz", "fitness"]):
+        return "sport"
+
+    if _has_any(text_all, ["játék", "játékkonzol", "lego", "puzzle"]):
+        return "jatekok"
+
+    # ========= 4. ALAPÉRTELMEZETT =========
+
+    return "multi"
