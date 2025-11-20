@@ -1,53 +1,62 @@
 name: ingest-alza
 
 on:
-  # Kézi futtatás GitHub UI-ból
   workflow_dispatch:
-
-  # Automatikus futás 2 óránként
   schedule:
-    - cron: "0 */2 * * *"
+    - cron: "0 8,18 * * *"   # reggel 9:00 és este 19:00 magyar idő (UTC-ben 8 és 18)
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   ingest:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
+      - name: Checkout (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.x"
 
-      - name: Install Python deps
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
+      - name: Install deps
+        run: pip install requests
 
-      - name: Build Alza feed JSON
+      - name: Build Alza feed pages
         env:
           FEED_ALZA_URL: ${{ secrets.FEED_ALZA_URL }}
         run: |
+          set -e
+          if [ -z "$FEED_ALZA_URL" ]; then
+            echo "::error title=Missing secret::FEED_ALZA_URL nincs beállítva (Settings → Secrets → Actions)."; exit 1
+          fi
+          mkdir -p docs/feeds/alza
           python scripts/build_alza.py
+          echo "Sanity check (first item):"
+          if command -v jq >/dev/null 2>&1; then
+            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/alza/page-0001.json || true
+          else
+            head -c 600 docs/feeds/alza/page-0001.json || true
+          fi
+          ls -la docs/feeds/alza
 
-      - name: Commit & push feed (bot/update-alza branch)
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Commit changes
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/feeds/alza
+          git commit -m "alza: update feed pages" || echo "No changes"
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
         with:
-          # CSAK az Alza feed fájlok
-          file_pattern: docs/feeds/alza/**
-          commit_message: "Update Alza feed JSON"
-          commit_user_name: github-actions[bot]
-          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
-
-          # Ide pusholunk – külön bot branch
           branch: bot/update-alza
-          create_branch: true
-
-          # Ha a branch már létezik és eltér, erőltetett push
-          push_options: "--force"
+          delete-branch: true
+          title: "alza: update feed pages"
+          commit-message: "alza: update feed pages"
+          body: |
+            Automated update of Alza feed pages (JSON pagination).
