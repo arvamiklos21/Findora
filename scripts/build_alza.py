@@ -1,5 +1,4 @@
 import os
-import sys
 import re
 import json
 import math
@@ -9,17 +8,111 @@ import requests
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
-# --- hogy a scripts/ alatti category_assign.py-t is lássa ---
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
-
-from category_assign import assign_category
-
 
 FEED_URL = os.environ.get("FEED_ALZA_URL")
 OUT_DIR = "docs/feeds/alza"
 PAGE_SIZE = 300
+
+
+# ===== ALZA → FINDORA FŐKATEGÓRIA MAPPING =====
+def map_alza_main_category(category_path: str, title: str = "", desc: str = "") -> str:
+    """
+    Bemenet: az Alza saját category_path-ja, pl.:
+      "Sport, szabadidő|Kemping és túra|Kézi és fejlámpák"
+    Kimenet: egy Findora fő kategória slug (lowercase), pl.: "sport"
+    """
+    if not category_path:
+        s = ""
+    else:
+        s = category_path.lower()
+
+    # Főkategória (első szegmens a '|' előtt)
+    root = s.split("|", 1)[0].strip()
+
+    # ----- JÁTÉKOK / GAMING -----
+    if "gaming és szórakozás" in s or "konzoljáték" in s or "pc és konzoljátékok" in s:
+        return "jatekok"
+
+    # ----- SPORT -----
+    if root.startswith("sport, szabadidő"):
+        return "sport"
+
+    # ----- ELEKTRONIKA -----
+    if (
+        root.startswith("tv, fotó, audio, video")
+        or root.startswith("telefon, tablet, okosóra")
+        or root.startswith("pc és laptop")
+        or root.startswith("számítógép")
+        or root.startswith("notebook")
+        or "headset" in s
+        or "fülhallgató" in s
+    ):
+        return "elektronika"
+
+    # ----- HÁZTARTÁSI GÉPEK / OTTHONI GÉPEK -----
+    if root.startswith("háztartási kisgép") or root.startswith("nagy háztartási gépek"):
+        # Ha külön slugot használsz a frontenden (pl. "haztartasi_gepek"),
+        # akkor itt azt kell visszaadni. Egyelőre maradjon "otthon".
+        return "otthon"
+
+    # ----- OTTHON -----
+    if (
+        root.startswith("konyha")
+        or root.startswith("háztartás")
+        or "konyhai" in s
+        or ("üveg" in s and "tároló" in s and "konyha" in s)
+    ):
+        return "otthon"
+
+    # ----- KERT -----
+    if root.startswith("kert") or root.startswith("kert, barkács") or "kert|" in s:
+        return "kert"
+
+    # ----- DIVAT -----
+    if (
+        root.startswith("divat")
+        or "ruházat" in s
+        or "ruhazat" in s
+        or "ruha" in root
+        or ("táska" in s and "iskolai" in s)
+    ):
+        return "divat"
+
+    # ----- SZÉPSÉG / DROGÉRIA -----
+    if (
+        "drogeria" in s
+        or "drogéria" in s
+        or "kozmetika" in s
+        or "illatszer" in s
+        or "szépség" in s
+        or "mosószerek" in s
+        or "tisztítószerek" in s
+    ):
+        return "szepseg"
+
+    # ----- KÖNYV -----
+    if "könyv" in s or "könyvek" in s:
+        return "konyv"
+
+    # ----- ÁLLATOK -----
+    if "állateledel" in s or "háziállat" in s or "kisállat" in s:
+        return "allatok"
+
+    # ----- UTAZÁS -----
+    if (
+        "bőrönd" in s
+        or "utazótáska" in s
+        or "utazás" in s
+        or "autós kiegészítők" in s
+    ):
+        return "utazas"
+
+    # ----- LÁTÁS -----
+    if "kontaktlencse" in s or "optika" in s or "szemüveg" in s:
+        return "latas"
+
+    # Ha semmi nem illik: Multi
+    return "multi"
 
 
 # ===== Ár normalizálás =====
@@ -218,14 +311,19 @@ def parse_items(xml_text):
             else None
         )
 
-        # Kategória → Findora
-        findora_main = assign_category("alza", cat_path or "", title or "", raw_desc or "")
+        # Kategória → Findora (csak az Alza category_path alapján)
+        findora_main = map_alza_main_category(cat_path or "", title or "", raw_desc or "")
 
-        # category_root
-        if cat_path and ">" in cat_path:
-            category_root = cat_path.split(">")[0].strip()
+        # category_root (első szint '>' vagy '|' előtt)
+        if cat_path:
+            if ">" in cat_path:
+                category_root = cat_path.split(">")[0].strip()
+            elif "|" in cat_path:
+                category_root = cat_path.split("|")[0].strip()
+            else:
+                category_root = cat_path.strip()
         else:
-            category_root = (cat_path or "").strip()
+            category_root = ""
 
         item = {
             "id": pid or link or title,
@@ -235,7 +333,6 @@ def parse_items(xml_text):
             "price": price_new,
             "discount": discount,
             "url": link or "",
-
             "partner": "alza",
             "category_path": cat_path or "",
             "category_root": category_root,
@@ -251,9 +348,27 @@ def parse_items(xml_text):
 # ===== dedup méret/szín =====
 SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
 COLOR_WORDS = (
-    "fekete", "fehér", "feher", "szürke", "szurke", "kék", "kek",
-    "piros", "zöld", "zold", "lila", "sárga", "sarga", "narancs",
-    "barna", "bézs", "bezs", "rózsaszín", "rozsaszin", "bordó", "bordeaux",
+    "fekete",
+    "fehér",
+    "feher",
+    "szürke",
+    "szurke",
+    "kék",
+    "kek",
+    "piros",
+    "zöld",
+    "zold",
+    "lila",
+    "sárga",
+    "sarga",
+    "narancs",
+    "barna",
+    "bézs",
+    "bezs",
+    "rózsaszín",
+    "rozsaszin",
+    "bordó",
+    "bordeaux",
 )
 
 
