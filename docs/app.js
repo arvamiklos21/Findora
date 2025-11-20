@@ -6,6 +6,49 @@ const PARTNERS = new Map();
 const META = new Map();
 const PAGES = new Map();
 
+// ===== Algolia (opcionális, partner nézet gyorsításához) =====
+// Ezt az index.html-ben kell beállítani pl.:
+// window.FINDORA_ALGOLIA_CONFIG = {
+//   appId: "WS9VUS9HJB",
+//   searchKey: "IDE_JÖN_A_SEARCH_ONLY_API_KULCS",
+//   indexName: "findora_products",
+//   partners: ["alza"]  // mely partnerek használják Algoliát a partner-nézetben
+// };
+const ALGOLIA_CONFIG = (window && window.FINDORA_ALGOLIA_CONFIG) || null;
+const ALGOLIA_ENABLED =
+  !!(
+    ALGOLIA_CONFIG &&
+    ALGOLIA_CONFIG.appId &&
+    ALGOLIA_CONFIG.searchKey &&
+    ALGOLIA_CONFIG.indexName
+  );
+let ALGOLIA_INDEX = null;
+
+async function ensureAlgoliaIndex() {
+  if (!ALGOLIA_ENABLED) return null;
+  if (ALGOLIA_INDEX) return ALGOLIA_INDEX;
+
+  // ha nincs még betöltve az Algolia kliens, betöltjük CDN-ről
+  if (typeof window.algoliasearch === "undefined") {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src =
+        "https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js";
+      s.async = true;
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const client = window.algoliasearch(
+    ALGOLIA_CONFIG.appId,
+    ALGOLIA_CONFIG.searchKey
+  );
+  ALGOLIA_INDEX = client.initIndex(ALGOLIA_CONFIG.indexName);
+  return ALGOLIA_INDEX;
+}
+
 // ===== category-map.json =====
 const CATEGORY_MAP_URL = FEEDS_BASE + "/feeds/category-map.json";
 const CATEGORY_MAP = {};
@@ -325,6 +368,13 @@ const FINDORA_MAIN_TO_CATID = {
   multi: "kat-multi",
 };
 
+// CATID → findora_main (Algolia filterhez)
+const CATID_TO_FINDORA_MAIN = {};
+Object.keys(FINDORA_MAIN_TO_CATID).forEach((key) => {
+  const cid = FINDORA_MAIN_TO_CATID[key];
+  CATID_TO_FINDORA_MAIN[cid] = key;
+});
+
 // ===== Kategória meghatározás egy termékre – BACKEND cat + category-map + partner default =====
 function getCategoriesForItem(pid, it) {
   const cfg = PARTNERS.get(pid) || {};
@@ -355,7 +405,6 @@ function getCategoriesForItem(pid, it) {
   // 3) Fallback
   return ["kat-multi"];
 }
-
 
 // ===== Helper a címekhez =====
 function getPartnerName(pid) {
@@ -491,6 +540,15 @@ async function buildAkciosBlokk() {
           scanPagesMax = DEFAULT_BF_SCAN_PAGES;
         }
 
+        // Nagy feedeknél (pl. Alza) még jobban limitálunk
+        const meta = await getMeta(pid);
+        const pageSize = meta.pageSize || 300;
+        const totalPages =
+          meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
+        if (pid === "alza" && totalPages > 50) {
+          scanPagesMax = Math.min(scanPagesMax, 1);
+        }
+
         let minDiscount = parseInt(bfCfg.minDiscount, 10);
         if (
           !Number.isFinite(minDiscount) ||
@@ -500,10 +558,6 @@ async function buildAkciosBlokk() {
           minDiscount = DEFAULT_BF_MIN_DISCOUNT;
         }
 
-        const meta = await getMeta(pid);
-        const pageSize = meta.pageSize || 300;
-        const totalPages =
-          meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
         const scanPages = Math.min(scanPagesMax, totalPages);
 
         for (let pg = 1; pg <= scanPages; pg++) {
@@ -605,6 +659,53 @@ window.catPager = window.catPager || {};
 
 const PARTNER_CATEGORY_ITEMS = {};
 const PARTNER_CATEGORY_LOAD_PROMISES = {};
+
+// Algolia alapú teljes betöltés egy partner–kategória kombinációra
+async function hydratePartnerFromAlgolia(pid, catId) {
+  const index = await ensureAlgoliaIndex();
+  if (!index) return null;
+
+  const mainKey = CATID_TO_FINDORA_MAIN[catId] || null;
+  const filters = [];
+
+  filters.push('partner:"' + pid + '"');
+  if (mainKey && mainKey !== "multi") {
+    filters.push('findora_main:"' + mainKey + '"');
+  }
+
+  const MAX_HITS = 6000; // biztonsági limit
+  const HITS_PER_PAGE = 500;
+  const rows = [];
+  let page = 0;
+
+  // üres keresés, csak filter alapján
+  while (true) {
+    const res = await index.search("", {
+      filters: filters.join(" AND "),
+      page,
+      hitsPerPage: HITS_PER_PAGE,
+    });
+
+    if (res.hits && res.hits.length) {
+      res.hits.forEach((hit) => {
+        rows.push({ pid, item: hit });
+      });
+    }
+
+    const reachedMax = rows.length >= MAX_HITS;
+    const lastPage = page + 1 >= (res.nbPages || 1);
+
+    if (reachedMax || lastPage) break;
+    page++;
+  }
+
+  const ded = dedupeRowsStrong(rows);
+
+  if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
+  PARTNER_CATEGORY_ITEMS[pid][catId] = ded;
+
+  return ded;
+}
 
 let PARTNER_VIEW_STATE = {
   pid: null,
@@ -823,6 +924,34 @@ async function hydratePartnerCategoryItems(pid, catId) {
       const cfg = PARTNERS.get(pid);
       if (!cfg) return;
 
+      // 0) ha Algolia engedélyezve erre a partnerre → onnan töltjük
+      const useAlgolia =
+        ALGOLIA_ENABLED &&
+        ALGOLIA_CONFIG &&
+        Array.isArray(ALGOLIA_CONFIG.partners) &&
+        ALGOLIA_CONFIG.partners.indexOf(pid) !== -1;
+
+      if (useAlgolia) {
+        const rows = await hydratePartnerFromAlgolia(pid, catId);
+        if (rows && rows.length) {
+          if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
+          PARTNER_CATEGORY_ITEMS[pid][catId] = rows;
+
+          if (
+            PARTNER_VIEW_STATE.pid === pid &&
+            PARTNER_VIEW_STATE.catId === catId
+          ) {
+            PARTNER_VIEW_STATE.items = rows.slice();
+            PARTNER_VIEW_STATE.loading = false;
+            applyPartnerFilters();
+            renderPartnerViewPage(1);
+          }
+          return;
+        }
+        // ha Algoliából nem jött semmi, esünk vissza feed-re
+      }
+
+      // 1) feed-alapú fallback
       const meta = await getMeta(pid);
       const pageSize = meta.pageSize || 300;
       const totalPages =
@@ -1332,4 +1461,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
