@@ -167,19 +167,31 @@
     "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "alza",
     "name": "Alza",
-    "group": "travel",
+    "group": "tech",
     "meta": "feeds/alza/meta.json",
     "pagePattern": "feeds/alza/page-{NNNN}.json",
     "deeplinkPartner": "alza",
     "placements": {
-      "home": { "enabled": true, "pageSize": 3 },
-      "travel": {
+      "home": { "enabled": true, "pageSize": 6 },
+
+      "tech": {
         "enabled": true,
-        "pageSize": 3,
-        "full": { "enabled": true, "pageSize": 20 }
+        "pageSize": 12,
+        "full": { "enabled": true, "pageSize": 24 }
+      },
+
+      "games": {
+        "enabled": true,
+        "pageSize": 6
+      },
+
+      "otthon": {
+        "enabled": true,
+        "pageSize": 6
       }
     },
     "bf": {
@@ -191,6 +203,7 @@
     "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "kozmetikaotthon",
     "name": "KozmetikaOtthon",
