@@ -119,20 +119,23 @@ def assign_category(
 ) -> str:
     """
     Központi kategória-hozzárendelés.
-    - partner_id: 'tchibo', később 'alza', 'pepita', stb.
+    - partner_id: 'tchibo', 'alza', később 'pepita', stb.
     - cat_path: eredeti feed kategória
     - title / desc: későbbi kulcsszavas finomításra
     """
-
     pid = (partner_id or "").lower()
 
     # ===== TCHIBO =====
     if pid == "tchibo":
         return _tchibo_findora_main(cat_path or "")
 
+    # ===== ALZA =====
+    if pid == "alza":
+        return _alza_findora_main(cat_path or "", title or "", desc or "")
+
     # ===== további partnerek később =====
-    # if pid == "alza": ...
-    # if pid == "pepita": ...
+    # if pid == "pepita":
+    #     ...
 
     # ===== alapértelmezett =====
     return "multi"
