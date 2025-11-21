@@ -312,7 +312,7 @@ const BASE_CATEGORY_BY_PARTNER = {
   decathlon: "kat-sport",
   alza: "kat-elektronika",
   kozmetikaotthon: "kat-szepseg",
-  pepita: "kat-utazas",
+  pepita: "kat-otthon",
   ekszereshop: "kat-szepseg",
   karacsonydekor: "kat-otthon",
   otthonmarket: "kat-otthon",
@@ -1513,4 +1513,5 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
