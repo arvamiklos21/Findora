@@ -17,7 +17,6 @@ if SCRIPT_DIR not in sys.path:
 from category_assign_tchibo import assign_category as assign_tchibo_category
 
 
-
 FEED_URL = os.environ.get("FEED_TCHIBO_URL")
 OUT_DIR = "docs/feeds/tchibo"
 PAGE_SIZE = 300  # forrás-oldal méret (bőven lehet nagy)
@@ -223,8 +222,13 @@ def parse_items(xml_text):
         )
 
         # ===== Tchibo → Findora kategória (külön mapper) =====
-        findora_main = assign_tchibo_category(cat_path or "", title or "", raw_desc or "")
-
+        # assign_category(partner, cat_path, title, desc) → itt 'tchibo' a partner
+        findora_main = assign_tchibo_category(
+            "tchibo",
+            cat_path or "",
+            title or "",
+            raw_desc or "",
+        )
 
         # Gyökér kategória kivétele (category_root)
         if cat_path and ">" in cat_path:
