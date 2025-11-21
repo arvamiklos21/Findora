@@ -251,8 +251,8 @@ def parse_items(xml_text):
         )
 
         # Kategória → Findora
-        # assign_category(product_type, title, description)
-        findora_main = assign_category(cat_path or "", title or "", raw_desc or "")
+        # FONTOS: partner is kell, hogy az Alza-specifikus logika fusson
+        findora_main = assign_category("alza", cat_path or "", title or "", raw_desc or "")
 
         # category_root (első szegmens, ha '|' vagy '>' van)
         category_root = (cat_path or "").strip()
