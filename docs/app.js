@@ -359,19 +359,19 @@ const CATEGORY_IDS = [
 
 // Backend findora_main / cat → front-end kat-* ID
 const FINDORA_MAIN_TO_CATID = {
-  elektronika: "kat-elektronika",
-  haztartasi_gepek: "kat-gepek",
-  otthon: "kat-otthon",
-  kert: "kat-kert",
-  jatekok: "kat-jatekok",
-  divat: "kat-divat",
-  szepseg: "kat-szepseg",
-  sport: "kat-sport",
-  latas: "kat-latas",
-  allatok: "kat-allatok",
-  konyv: "kat-konyv",
-  utazas: "kat-utazas",
-  multi: "kat-multi",
+  "kat-elektronika": "kat-elektronika",
+  "kat-gepek": "kat-gepek",
+  "kat-otthon": "kat-otthon",
+  "kat-kert": "kat-kert",
+  "kat-jatekok": "kat-jatekok",
+  "kat-divat": "kat-divat",
+  "kat-szepseg": "kat-szepseg",
+  "kat-sport": "kat-sport",
+  "kat-latas": "kat-latas",
+  "kat-allatok": "kat-allatok",
+  "kat-konyv": "kat-konyv",
+  "kat-utazas": "kat-utazas",
+  "kat-multi": "kat-multi",
 };
 
 // backend cat kulcs → kat-* ID (fordított map)
@@ -387,6 +387,7 @@ Object.keys(FINDORA_MAIN_TO_CATID).forEach((key) => {
   CATID_TO_FINDORA_MAIN[cid] = key;
 });
 
+
 // ===== Kategória meghatározás egy termékre – BACKEND cat + category-map + partner default =====
 function getCategoriesForItem(pid, it) {
   const cfg = PARTNERS.get(pid) || {};
@@ -394,7 +395,13 @@ function getCategoriesForItem(pid, it) {
   // 0) Backend cat / findora_main mező (Python-ból)
   const backendCatRaw =
     it &&
-    (it.cat || it.catid || it.catId || it.categoryId || it.category_id || null);
+    (it.findora_main ||
+      it.cat ||
+      it.catid ||
+      it.catId ||
+      it.categoryId ||
+      it.category_id ||
+      null);
 
   if (backendCatRaw) {
     const backendCat = String(backendCatRaw).toLowerCase();
@@ -1569,6 +1576,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
 
