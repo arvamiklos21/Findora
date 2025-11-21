@@ -81,7 +81,16 @@
 
     { "pattern": "cosmetics", "catId": "kat-szepseg" },
     { "pattern": "lipstick", "catId": "kat-szepseg" },
-    { "pattern": "cream", "catId": "kat-szepseg" }
+    { "pattern": "cream", "catId": "kat-szepseg" },
+
+    { "pattern": "fésülködőasztal", "catId": "kat-otthon" },
+    { "pattern": "OLED Console", "catId": "kat-elektronika" },
+    { "pattern": "komód", "catId": "kat-otthon" },
+    { "pattern": "könyvespolc", "catId": "kat-otthon" },
+    { "pattern": "íróasztal", "catId": "kat-otthon" },
+    { "pattern": "éjjeliszekrény", "catId": "kat-otthon" },
+    { "pattern": "íróasztal", "catId": "kat-otthon" },
+    { "pattern": "QNED", "catId": "kat-elektronika" }
   ],
   
   "cj-eoptika": [
