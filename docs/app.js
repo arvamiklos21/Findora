@@ -1482,76 +1482,6 @@ async function buildCategoryBlocks() {
   });
 }
 
-
-  // --- 1. Algolia-alapú gyors lista (ha van Algolia index) ---
-  const index = await ensureAlgoliaIndex();
-  if (!index) {
-    console.warn("Algolia nem elérhető – buildCategoryBlocksFromFeeds fut.");
-    return buildCategoryBlocksFromFeeds();
-  }
-
-  const buffers = {};
-  const tasks = CATEGORY_IDS.map(async (catId) => {
-    const backendKey = CATID_TO_FINDORA_MAIN[catId];
-    if (!backendKey) {
-      CATEGORY_PAGES[catId] = [];
-      CATEGORY_CURRENT[catId] = 0;
-      return;
-    }
-
-    try {
-      const hitsPerPage = PAGE_SIZE * MAX_PAGES_PER_CAT * 3;
-      const res = await index.search("", {
-        filters: `cat:${backendKey}`,
-        hitsPerPage,
-      });
-
-      const hits = (res && res.hits) || [];
-      hits.forEach((hit) => {
-        const pid =
-          hit.partner || hit.pid || hit.partnerId || hit.deeplinkPartner || null;
-        if (!pid || !PARTNERS.has(pid)) return;
-
-        const item = hit;
-
-        const cats = getCategoriesForItem(pid, item) || [];
-        const resolvedCatId = cats[0] || catId;
-        if (resolvedCatId !== catId) return;
-
-        if (!buffers[catId]) buffers[catId] = [];
-        buffers[catId].push({ pid, item });
-
-        if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-        if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
-          PARTNER_CATEGORY_ITEMS[pid][catId] = [];
-        }
-        PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item });
-      });
-    } catch (e) {
-      console.error("Algolia kategória query hiba:", catId, e);
-    }
-  });
-
-  await Promise.all(tasks);
-
-  CATEGORY_IDS.forEach((catId) => {
-    const rawList = buffers[catId] || [];
-    const list = dedupeRowsStrong(rawList);
-    const pages = [];
-
-    for (
-      let i = 0;
-      i < list.length && pages.length < MAX_PAGES_PER_CAT;
-      i += PAGE_SIZE
-    ) {
-      pages.push(list.slice(i, i + PAGE_SIZE));
-    }
-
-    CATEGORY_PAGES[catId] = pages;
-    CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
-  });
-}
-
 // ===== INIT =====
 async function init() {
   try {
@@ -1576,6 +1506,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
 
