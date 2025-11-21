@@ -5,6 +5,7 @@ import re
 KAT_ELEK = "kat-elektronika"
 KAT_GEPEK = "kat-gepek"
 KAT_OTTHON = "kat-otthon"
+KAT_KERT = "kat-kert"          # ÚJ
 KAT_JATEK = "kat-jatekok"
 KAT_DIVAT = "kat-divat"
 KAT_SZEPSEG = "kat-szepseg"
@@ -12,6 +13,7 @@ KAT_SPORT = "kat-sport"
 KAT_KONYV = "kat-konyv"
 KAT_ALLAT = "kat-allatok"
 KAT_LATAS = "kat-latas"
+KAT_UTAZAS = "kat-utazas"      # ÚJ
 KAT_MULTI = "kat-multi"
 
 
@@ -52,6 +54,32 @@ def assign_category(*args) -> str:
 
     text = _normalize(f"{cat_path} {title} {desc}")
     root = _root_from_path(cat_path)
+
+    # ===== GLOBÁLIS OVERRIDE: KERT =====
+    # Bármely partnernél, ha kert/jardin jellegű a cucc, menjen a "Kert" fülre
+    if any(
+        kw in text
+        for kw in [
+            "kert", "kerti", "locsoló", "locsolo", "slag",
+            "fűnyíró", "funyiro", "szegélynyíró", "szegelynyiro",
+            "trimmer", "metsző", "metszo", "kapálógép", "kapalogep",
+            "gereblye", "kerti bútor", "kerti butor", "kerti szék",
+            "kerti asztal", "kerti grill"
+        ]
+    ):
+        return KAT_KERT
+
+    # ===== GLOBÁLIS OVERRIDE: UTAZÁS =====
+    # Bőröndök, utazótáskák, hátizsákok, travel cuccok → "Utazás"
+    if any(
+        kw in text
+        for kw in [
+            "utazás", "utazas", "travel", "bőrönd", "borond",
+            "koffer", "hátizsák", "hatizsak",
+            "utazótáska", "utazotaska", "bőröndök", "borondok"
+        ]
+    ):
+        return KAT_UTAZAS
 
     # ===================== ALZA SPECIFIKUS =====================
     if partner == "alza":
