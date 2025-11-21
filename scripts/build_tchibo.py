@@ -9,12 +9,13 @@ import requests
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
-# --- hogy a scripts/ alatti category_assign.py-t is lássa, amikor a repo gyökeréből fut ---
+# --- hogy a scripts/ alatti category_assign_tchibo.py-t is lássa, amikor a repo gyökeréből fut ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from category_assign import assign_category
+from category_assign_tchibo import assign_category as assign_tchibo_category
+
 
 
 FEED_URL = os.environ.get("FEED_TCHIBO_URL")
@@ -221,8 +222,9 @@ def parse_items(xml_text):
             else None
         )
 
-        # ===== Tchibo → Findora kategória =====
-        findora_main = assign_category("tchibo", cat_path or "", title or "", raw_desc or "")
+        # ===== Tchibo → Findora kategória (külön mapper) =====
+        findora_main = assign_tchibo_category(cat_path or "", title or "", raw_desc or "")
+
 
         # Gyökér kategória kivétele (category_root)
         if cat_path and ">" in cat_path:
