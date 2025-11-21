@@ -6,7 +6,7 @@
  * Helye: docs/algolia_push.js
  *
  * Környezeti változók (GitHub Actions-ben állítjuk):
- *   ALGOLIA_APP_ID          – Algolia Application ID (pl. W95VUS9HJ8)
+ *   ALGOLIA_APP_ID          – Algolia Application ID (pl. WS9VUS9HJB)
  *   ALGOLIA_ADMIN_API_KEY   – Write API Key (SECRET-ben)
  *   ALGOLIA_INDEX_NAME      – pl. "findora_products" (ha nincs, erre esik vissza)
  *
@@ -70,8 +70,10 @@ function makeRecordFromItem(partnerId, partnerName, pageNumber, indexInPage, ite
     (item && (item.id || item.sku || item.code || item.productId)) || "";
   rec.objectID = `${partnerId}::p${String(pageNumber).padStart(4, "0")}::${indexInPage}::${rawId}`;
 
+  // Partner mezők
   rec.partnerId = partnerId;
   rec.partnerName = partnerName || partnerId;
+  rec.partner = partnerId; // Algolia facetinghez / filterhez (app.js-ben is használható)
 
   // Tipikus mezők – ha léteznek, átvesszük
   if (item.title) rec.title = item.title;
@@ -95,6 +97,25 @@ function makeRecordFromItem(partnerId, partnerName, pageNumber, indexInPage, ite
   // Ha van kategória információ a feedben, megpróbáljuk átvenni
   if (item.categories) rec.categories = item.categories;
   if (item.category && !rec.categories) rec.categories = [item.category];
+
+  // Backend findora_main / cat mezők – ezekre fogunk Algoliában facetezni / filterezni
+  const backendCatRaw =
+    (item && (item.findora_main || item.cat || item.catid || item.catId || item.categoryId || item.category_id)) ||
+    null;
+
+  if (backendCatRaw) {
+    const backendCat = String(backendCatRaw).toLowerCase().trim();
+    if (backendCat) {
+      // két külön attribute, hogy a Dashboardon is kényelmes legyen:
+      rec.findora_main = backendCat; // pl. elektronika, otthon, jatekok, stb.
+      rec.cat = backendCat;          // app.js: filters: `cat:${backendKey}`
+    }
+  }
+
+  // Eredeti categoryPath mentése, ha van – későbbi finomabb kategóriázáshoz
+  if (item.categoryPath || item.category_path) {
+    rec.categoryPath = item.categoryPath || item.category_path;
+  }
 
   // Bármilyen extra mezőt opcionálisan átvehetsz itt később
 
@@ -206,7 +227,7 @@ async function main() {
       `[INFO] Mentés Algoliára – batch ${batchIndex}, rekordok: ${from}–${to - 1}`
     );
 
-    await index.saveObjects(batch, {
+      await index.saveObjects(batch, {
       autoGenerateObjectIDIfNotExist: false,
     });
 
