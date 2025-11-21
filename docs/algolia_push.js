@@ -1,244 +1,156 @@
-#!/usr/bin/env node
-
-/**
- * Algolia index feltöltő script – Findora
- *
- * Helye: docs/algolia_push.js
- *
- * Környezeti változók (GitHub Actions-ben állítjuk):
- *   ALGOLIA_APP_ID          – Algolia Application ID (pl. WS9VUS9HJB)
- *   ALGOLIA_ADMIN_API_KEY   – Write API Key (SECRET-ben)
- *   ALGOLIA_INDEX_NAME      – pl. "findora_products" (ha nincs, erre esik vissza)
- *
- * A script a docs/feeds/<partner>/ mappákat olvassa:
- *   docs/feeds/tchibo/meta.json
- *   docs/feeds/tchibo/page-0001.json
- *   docs/feeds/tchibo/page-0002.json
- *   ...
- *
- * Minden item → 1 Algolia rekord.
- */
-
-console.log("[INFO] Algolia kliens inicializálása…");
+// docs/algolia_push.js
+//
+// Findora → Algolia index frissítés
+// - Beolvassa az összes partner feedet a docs/feeds/* mappákból
+// - Összefűzi az itemeket
+// - Feltölti az Algolia indexbe (findora_products)
+// - Egységes mezők: title, desc, price, discount, url, image, partnerId, partnerName, cat, findora_main, categoryPath
 
 const fs = require("fs");
 const path = require("path");
-const algoliasearch = require("algoliasearch"); // v4-et használunk (workflow-ban így telepítjük)
+const algoliasearch = require("algoliasearch");
 
-// --- Környezeti változók ---
 const APP_ID = process.env.ALGOLIA_APP_ID;
-const ADMIN_KEY = process.env.ALGOLIA_ADMIN_API_KEY;
+const API_KEY = process.env.ALGOLIA_ADMIN_API_KEY;
 const INDEX_NAME = process.env.ALGOLIA_INDEX_NAME || "findora_products";
 
-if (!APP_ID || !ADMIN_KEY) {
-  console.error(
-    "[FATAL] Hiányzik ALGOLIA_APP_ID vagy ALGOLIA_ADMIN_API_KEY a környezeti változók közül."
-  );
+if (!APP_ID || !API_KEY) {
+  console.error("❌ ALGOLIA_APP_ID vagy ALGOLIA_ADMIN_API_KEY hiányzik (GitHub Secrets).");
   process.exit(1);
 }
 
-console.log("[DEBUG] APP_ID:", APP_ID);
-console.log("[DEBUG] INDEX_NAME:", INDEX_NAME);
+const client = algoliasearch(APP_ID, API_KEY);
+const index = client.initIndex(INDEX_NAME);
 
-// --- Helper: JSON beolvasása biztonságosan ---
-function readJsonSafe(filePath) {
+const FEEDS_DIR = path.join(__dirname, "feeds");
+
+/**
+ * Segédfüggvény: biztonságos olvasás JSON-hoz
+ */
+function readJsonSafe(p) {
   try {
-    const raw = fs.readFileSync(filePath, "utf8");
-    return JSON.parse(raw);
+    const txt = fs.readFileSync(p, "utf8");
+    return JSON.parse(txt);
   } catch (e) {
-    console.error("[ERROR] Nem sikerült beolvasni JSON-t:", filePath, e.message);
+    console.error("Nem sikerült beolvasni JSON-t:", p, e.message);
     return null;
   }
 }
 
-// --- Helper: létezik-e fájl ---
-function fileExists(filePath) {
-  try {
-    fs.accessSync(filePath, fs.constants.F_OK);
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-// --- Algolia rekord építése egy feed itemből ---
-function makeRecordFromItem(partnerId, partnerName, pageNumber, indexInPage, item) {
-  const rec = {};
-
-  // Stabil objectID: partnerId + oldalszám + index + (ha van) item.id
-  const rawId =
-    (item && (item.id || item.sku || item.code || item.productId)) || "";
-  rec.objectID = `${partnerId}::p${String(pageNumber).padStart(4, "0")}::${indexInPage}::${rawId}`;
-
-  // Partner mezők
-  rec.partnerId = partnerId;
-  rec.partnerName = partnerName || partnerId;
-  rec.partner = partnerId; // Algolia facetinghez / filterhez (app.js-ben is használható)
-
-  // Tipikus mezők – ha léteznek, átvesszük
-  if (item.title) rec.title = item.title;
-  if (item.name && !rec.title) rec.title = item.name;
-
-  if (item.desc) rec.desc = item.desc;
-  if (item.description && !rec.desc) rec.desc = item.description;
-
-  if (typeof item.price !== "undefined") rec.price = item.price;
-  if (typeof item.oldPrice !== "undefined") rec.oldPrice = item.oldPrice;
-  if (typeof item.discount !== "undefined") rec.discount = item.discount;
-
-  if (item.url || item.link || item.deeplink) {
-    rec.url = item.url || item.link || item.deeplink;
-  }
-
-  if (item.image || item.img || item.image_link || item.thumbnail) {
-    rec.image = item.image || item.img || item.image_link || item.thumbnail;
-  }
-
-  // Ha van kategória információ a feedben, megpróbáljuk átvenni
-  if (item.categories) rec.categories = item.categories;
-  if (item.category && !rec.categories) rec.categories = [item.category];
-
-  // Backend findora_main / cat mezők – ezekre fogunk Algoliában facetezni / filterezni
-  const backendCatRaw =
-    (item && (item.findora_main || item.cat || item.catid || item.catId || item.categoryId || item.category_id)) ||
-    null;
-
-  if (backendCatRaw) {
-    const backendCat = String(backendCatRaw).toLowerCase().trim();
-    if (backendCat) {
-      // két külön attribute, hogy a Dashboardon is kényelmes legyen:
-      rec.findora_main = backendCat; // pl. elektronika, otthon, jatekok, stb.
-      rec.cat = backendCat;          // app.js: filters: `cat:${backendKey}`
-    }
-  }
-
-  // Eredeti categoryPath mentése, ha van – későbbi finomabb kategóriázáshoz
-  if (item.categoryPath || item.category_path) {
-    rec.categoryPath = item.categoryPath || item.category_path;
-  }
-
-  // Bármilyen extra mezőt opcionálisan átvehetsz itt később
-
-  return rec;
-}
-
-async function main() {
-  // Algolia kliens
-  const client = algoliasearch(APP_ID, ADMIN_KEY);
-  const index = client.initIndex(INDEX_NAME);
-
-  const feedsRoot = path.join(__dirname, "feeds");
-  console.log("[INFO] Feeds gyökér:", feedsRoot);
-
-  if (!fs.existsSync(feedsRoot)) {
-    console.error("[FATAL] A docs/feeds mappa nem létezik:", feedsRoot);
+/**
+ * Összes partner feed beolvasása
+ * Struktúra: docs/feeds/<partner>/page-0001.json, meta.json, stb.
+ */
+function loadAllItems() {
+  const partners = [];
+  if (!fs.existsSync(FEEDS_DIR)) {
+    console.error("❌ FEEDS_DIR nem létezik:", FEEDS_DIR);
     process.exit(1);
   }
 
-  // Partner mappák felderítése: docs/feeds/<partner>/
-  const partnerDirs = fs
-    .readdirSync(feedsRoot, { withFileTypes: true })
+  const partnerDirs = fs.readdirSync(FEEDS_DIR, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name);
 
-  if (!partnerDirs.length) {
-    console.error("[FATAL] Nem találtam partner mappákat a docs/feeds alatt.");
+  let allItems = [];
+
+  for (const pdir of partnerDirs) {
+    const fullDir = path.join(FEEDS_DIR, pdir);
+    const metaPath = path.join(fullDir, "meta.json");
+    const meta = readJsonSafe(metaPath) || {};
+    const partnerId = meta.partner || pdir;
+
+    console.log(`→ Partner: ${partnerId} (${pdir})`);
+
+    const files = fs.readdirSync(fullDir)
+      .filter((fn) => /^page-\d+\.json$/i.test(fn))
+      .sort();
+
+    let count = 0;
+
+    for (const fn of files) {
+      const pagePath = path.join(fullDir, fn);
+      const page = readJsonSafe(pagePath);
+      if (!page || !Array.isArray(page.items)) continue;
+
+      for (const it of page.items) {
+        const id = it.id || it.sku || it.url || it.title;
+        if (!id) continue;
+
+        // Kép mező – több forrásnév támogatása
+        const image =
+          it.img ||
+          it.image ||
+          it.image_url ||
+          it.image_link ||
+          it.g_image_link ||
+          "";
+
+        // Kategória mező – egységesítve algoliához: categoryPath
+        const categoryPath =
+          it.categoryPath ||
+          it.category_path ||
+          it.category ||
+          "";
+
+        const cat =
+          it.cat ||
+          it.findora_main ||
+          null;
+
+        const obj = {
+          objectID: `${partnerId}::${id}`,
+          title: it.title || "",
+          desc: it.desc || "",
+          price: it.price ?? null,
+          discount: it.discount ?? null,
+          url: it.url || "",
+          image,
+          partner: partnerId,
+          partnerId,
+          partnerName: partnerId,
+          cat,
+          findora_main: it.findora_main || cat || null,
+          categoryPath, // ← EZZEL kerül be ALGOLIÁBA egységesen
+        };
+
+        allItems.push(obj);
+        count++;
+      }
+    }
+
+    console.log(`   ${count} db termék került be ebből a feedből.`);
+    partners.push({ partnerId, dir: pdir, items: count });
+  }
+
+  console.log(`Összes Algolia rekord: ${allItems.length}`);
+  return allItems;
+}
+
+async function main() {
+  const records = loadAllItems();
+  if (!records.length) {
+    console.error("❌ Nincs feltölthető rekord.");
     process.exit(1);
   }
 
-  console.log("[INFO] Talált partner mappák:", partnerDirs.join(", "));
+  console.log(`Algolia index (${INDEX_NAME}) törlése és újratöltése…`);
 
-  const allRecords = [];
-  let totalItems = 0;
-
-  // Minden partner
-  for (const pid of partnerDirs) {
-    const partnerDir = path.join(feedsRoot, pid);
-    const metaPath = path.join(partnerDir, "meta.json");
-
-    if (!fileExists(metaPath)) {
-      console.warn("[WARN] meta.json hiányzik, kihagyom partnert:", pid);
-      continue;
-    }
-
-    const meta = readJsonSafe(metaPath);
-    if (!meta) {
-      console.warn("[WARN] meta.json hibás, kihagyom partnert:", pid);
-      continue;
-    }
-
-    const partnerName = meta.partnerName || pid;
-    const pageSize = meta.pageSize || 300;
-    const total = meta.total || 0;
-    const pages = meta.pages || (total && pageSize ? Math.ceil(total / pageSize) : 1);
-
-    console.log(
-      `[INFO] Partner: ${pid} (${partnerName}) – total=${total}, pages=${pages}, pageSize=${pageSize}`
-    );
-
-    // Végigmegyünk az összes oldalon
-    for (let pg = 1; pg <= pages; pg++) {
-      const fileName = `page-${String(pg).padStart(4, "0")}.json`;
-      const pagePath = path.join(partnerDir, fileName);
-      if (!fileExists(pagePath)) {
-        console.warn("[WARN] Hiányzó oldal, továbblépek:", pagePath);
-        continue;
-      }
-
-      const pageJson = readJsonSafe(pagePath);
-      if (!pageJson || !Array.isArray(pageJson.items)) {
-        console.warn("[WARN] Hibás vagy üres page JSON:", pagePath);
-        continue;
-      }
-
-      const items = pageJson.items;
-      console.log(
-        `[DEBUG] Partner ${pid}, ${fileName} – ${items.length} db termék`
-      );
-
-      items.forEach((item, idx) => {
-        const rec = makeRecordFromItem(pid, partnerName, pg, idx, item);
-        allRecords.push(rec);
-        totalItems += 1;
-      });
-    }
-  }
-
-  console.log("[INFO] Összes rekord, amit Algoliára küldünk:", totalItems);
-
-  if (!allRecords.length) {
-    console.error("[FATAL] Nincs egyetlen rekord sem, nincs mit feltölteni.");
-    process.exit(1);
-  }
-
-  // Először tisztítjuk az indexet
-  console.log("[INFO] Régi index tartalom törlése (clearObjects)...");
+  // Egyszerű megoldás: teljes újraírás
   await index.clearObjects();
 
-  // Mentés batch-ekben (pl. 1000-es csomagok)
-  const batchSize = 1000;
-  let from = 0;
-  let batchIndex = 1;
-
-  while (from < allRecords.length) {
-    const to = Math.min(from + batchSize, allRecords.length);
-    const batch = allRecords.slice(from, to);
-    console.log(
-      `[INFO] Mentés Algoliára – batch ${batchIndex}, rekordok: ${from}–${to - 1}`
-    );
-
-      await index.saveObjects(batch, {
-      autoGenerateObjectIDIfNotExist: false,
-    });
-
-    from = to;
-    batchIndex += 1;
+  // nagyobb tömeget is bír az index.saveObjects, de chunkoljuk biztonságból
+  const chunkSize = 5000;
+  for (let i = 0; i < records.length; i += chunkSize) {
+    const chunk = records.slice(i, i + chunkSize);
+    console.log(`   Mentés chunk ${(i / chunkSize) + 1} (size=${chunk.length})…`);
+    await index.saveObjects(chunk, { autoGenerateObjectIDIfNotExist: false });
   }
 
-  console.log("[INFO] Algolia index feltöltése sikeresen lefutott.");
+  console.log("✅ Algolia index frissítés kész.");
 }
 
 main().catch((err) => {
-  console.error("[FATAL] Algolia push hiba:", err);
+  console.error("❌ Algolia frissítés hiba:", err);
   process.exit(1);
 });
