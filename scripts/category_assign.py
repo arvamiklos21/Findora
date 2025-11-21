@@ -115,7 +115,7 @@ def assign_category(*args) -> str:
             return KAT_OTTHON
 
         if root in ("autó-motor", "auto-moto"):
-            return KAT_EGYEB
+            return KAT_MULTI
         # ha a root nem dönt, esünk le az általános kulcsszavakra
 
     # ===================== TCHIBO SPECIFIKUS =====================
