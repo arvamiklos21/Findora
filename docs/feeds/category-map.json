@@ -26,29 +26,79 @@
 ],
 
 
-  "alza": [
-    { "pattern": "tv", "catId": "kat-elektronika" },
-    { "pattern": "laptop", "catId": "kat-elektronika" },
-    { "pattern": "porszivo", "catId": "kat-gepek" },
-    { "pattern": "mosogep", "catId": "kat-gepek" },
-    { "pattern": "mikrofon", "catId": "kat-elektronika" },
-    { "pattern": "headset", "catId": "kat-elektronika" },
-    { "pattern": "Bery Jones", "catId": "kat-otthon" },
-     { "pattern": "xbox", "catId": "kat-elektronika" },
-     { "pattern": "ps", "catId": "kat-elektronika" },
+ "alza": [
+  { "pattern": "jatekkonzol", "catId": "kat-elektronika" },
+  { "pattern": "jatek konzol", "catId": "kat-elektronika" },
+  { "pattern": "konzol", "catId": "kat-elektronika" },
+  { "pattern": "playstation", "catId": "kat-elektronika" },
+  { "pattern": "ps4", "catId": "kat-elektronika" },
+  { "pattern": "ps5", "catId": "kat-elektronika" },
+  { "pattern": "xbox", "catId": "kat-elektronika" },
+  { "pattern": "nintendo", "catId": "kat-elektronika" },
+  { "pattern": "switch", "catId": "kat-elektronika" },
 
-    { "pattern": "jatek", "catId": "kat-jatekok" },
-    { "pattern": "jatekok", "catId": "kat-jatekok" },
+  { "pattern": "tv", "catId": "kat-elektronika" },
+  { "pattern": "televizio", "catId": "kat-elektronika" },
+  { "pattern": "monitor", "catId": "kat-elektronika" },
+  { "pattern": "laptop", "catId": "kat-elektronika" },
+  { "pattern": "notebook", "catId": "kat-elektronika" },
+  { "pattern": "szamitogep", "catId": "kat-elektronika" },
+  { "pattern": "mikrofon", "catId": "kat-elektronika" },
+  { "pattern": "headset", "catId": "kat-elektronika" },
+  { "pattern": "fejhallgato", "catId": "kat-elektronika" },
+  { "pattern": "hangszoro", "catId": "kat-elektronika" },
+  { "pattern": "bluetooth hangszoro", "catId": "kat-elektronika" },
 
-    { "pattern": "sport", "catId": "kat-sport" },
-    { "pattern": "szabadido", "catId": "kat-sport" },
+  { "pattern": "haztartasi nagygepek", "catId": "kat-gepek" },
+  { "pattern": "haztartasi kisgepek", "catId": "kat-gepek" },
+  { "pattern": "haztartasi gepek", "catId": "kat-gepek" },
+  { "pattern": "mosogep", "catId": "kat-gepek" },
+  { "pattern": "mosogatogep", "catId": "kat-gepek" },
+  { "pattern": "mososzer", "catId": "kat-gepek" },
+  { "pattern": "hutogep", "catId": "kat-gepek" },
+  { "pattern": "hutogomb", "catId": "kat-gepek" },
+  { "pattern": "fagyaszto", "catId": "kat-gepek" },
+  { "pattern": "mikrohullamu", "catId": "kat-gepek" },
+  { "pattern": "suto", "catId": "kat-gepek" },
+  { "pattern": "piek", "catId": "kat-gepek" },
+  { "pattern": "porszivo", "catId": "kat-gepek" },
+  { "pattern": "robotporszivo", "catId": "kat-gepek" },
 
-    { "pattern": "konyv", "catId": "kat-konyv" },
-    { "pattern": "konyvek", "catId": "kat-konyv" },
+  { "pattern": "konyhai kisgepek", "catId": "kat-gepek" },
+  { "pattern": "konyhai robotgep", "catId": "kat-gepek" },
+  { "pattern": "botmixer", "catId": "kat-gepek" },
+  { "pattern": "turmix", "catId": "kat-gepek" },
+  { "pattern": "daralo", "catId": "kat-gepek" },
+  { "pattern": "vizforralo", "catId": "kat-gepek" },
 
-    { "pattern": "haztartasi gep", "catId": "kat-gepek" },
-    { "pattern": "haztartas", "catId": "kat-otthon" }
-  ],
+  { "pattern": "haztartas", "catId": "kat-otthon" },
+  { "pattern": "lakberendezes", "catId": "kat-otthon" },
+  { "pattern": "szonyeg", "catId": "kat-otthon" },
+  { "pattern": "fuggony", "catId": "kat-otthon" },
+  { "pattern": "diszparna", "catId": "kat-otthon" },
+  { "pattern": "Bery Jones", "catId": "kat-otthon" },
+
+  { "pattern": "sport", "catId": "kat-sport" },
+  { "pattern": "szabadido", "catId": "kat-sport" },
+  { "pattern": "kemping", "catId": "kat-sport" },
+  { "pattern": "tura", "catId": "kat-sport" },
+
+  { "pattern": "konyv", "catId": "kat-konyv" },
+  { "pattern": "konyvek", "catId": "kat-konyv" },
+  { "pattern": "irodaszer", "catId": "kat-konyv" },
+  { "pattern": "fuzet", "catId": "kat-konyv" },
+  { "pattern": "spiralfuzet", "catId": "kat-konyv" },
+  { "pattern": "tuzogep", "catId": "kat-konyv" },
+
+  { "pattern": "tarsasjatek", "catId": "kat-jatekok" },
+  { "pattern": "lego", "catId": "kat-jatekok" },
+  { "pattern": "baba", "catId": "kat-jatekok" },
+  { "pattern": "pluss", "catId": "kat-jatekok" },
+
+  { "pattern": "jatekok", "catId": "kat-jatekok" },
+  { "pattern": "jatek", "catId": "kat-jatekok" }
+]
+
 
   "cj-eoptika": [
     { "pattern": "kontaktlencse", "catId": "kat-latas" },
