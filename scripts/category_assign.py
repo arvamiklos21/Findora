@@ -12,7 +12,7 @@ KAT_SPORT = "kat-sport"
 KAT_KONYV = "kat-konyv"
 KAT_ALLAT = "kat-allatok"
 KAT_LATAS = "kat-latas"
-KAT_EGYEB = "kat-egyeb"
+KAT_MULTI = "kat-multi"
 
 
 def _normalize(text: str) -> str:
