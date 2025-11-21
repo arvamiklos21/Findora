@@ -14,7 +14,8 @@ const PAGES = new Map();
 //   partners: ["alza"] // ha később kell: "pepita", "tchibo", stb.
 // };
 
-const ALGOLIA_CONFIG = (typeof window !== "undefined" && window.FINDORA_ALGOLIA_CONFIG) || null;
+const ALGOLIA_CONFIG =
+  (typeof window !== "undefined" && window.FINDORA_ALGOLIA_CONFIG) || null;
 const ALGOLIA_ENABLED =
   !!(
     ALGOLIA_CONFIG &&
@@ -358,6 +359,7 @@ const CATEGORY_IDS = [
 ];
 
 // Backend findora_main / cat → front-end kat-* ID
+// (a backend findora_main mezőben is ezek a "kat-..." értékek vannak)
 const FINDORA_MAIN_TO_CATID = {
   "kat-elektronika": "kat-elektronika",
   "kat-gepek": "kat-gepek",
@@ -387,12 +389,11 @@ Object.keys(FINDORA_MAIN_TO_CATID).forEach((key) => {
   CATID_TO_FINDORA_MAIN[cid] = key;
 });
 
-
 // ===== Kategória meghatározás egy termékre – BACKEND cat + category-map + partner default =====
 function getCategoriesForItem(pid, it) {
   const cfg = PARTNERS.get(pid) || {};
 
-  // 0) Backend cat / findora_main mező (Python-ból)
+  // 0) Backend cat / findora_main mező (Python-ból / Algolia rekordból)
   const backendCatRaw =
     it &&
     (it.findora_main ||
@@ -682,7 +683,7 @@ window.catPager = window.catPager || {};
 const PARTNER_CATEGORY_ITEMS = {};
 const PARTNER_CATEGORY_LOAD_PROMISES = {};
 
-// Algolia alapú teljes betöltés egy partner–kategória kombinációra
+// Algolia alapú teljes betöltés egy partner–kategória kombinációra (partner nézethez)
 async function hydratePartnerFromAlgolia(pid, catId) {
   const index = await ensureAlgoliaIndex();
   if (!index) return null;
@@ -691,7 +692,7 @@ async function hydratePartnerFromAlgolia(pid, catId) {
   const filters = [];
 
   filters.push('partner:"' + pid + '"');
-  if (mainKey && mainKey !== "multi") {
+  if (mainKey && mainKey !== "kat-multi") {
     filters.push('findora_main:"' + mainKey + '"');
   }
 
@@ -1392,21 +1393,19 @@ function attachPartnerViewHandlers() {
   document.addEventListener("click", handlePartnerUiClick);
 }
 
-// ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) =====
+// ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) – Algolia ALAPÚ =====
 async function buildCategoryBlocks() {
-  const PAGE_SIZE = 6;            // 6 kártya / oldal
-  const MAX_PAGES_PER_CAT = 5;    // max 5 oldal / kategória
+  const PAGE_SIZE = 6; // 6 kártya / oldal
+  const MAX_PAGES_PER_CAT = 5; // max 5 oldal / kategória
 
-  // --- 0. Fallback: régi feed-alapú logika (ha Algolia nem elérhető) ---
+  // fallback (ha nincs Algolia): most csak kiürítjük
   async function buildCategoryBlocksFromFeeds() {
-    // ha nincs Algolia, itt tudnánk később feedből tölteni
     CATEGORY_IDS.forEach((catId) => {
       CATEGORY_PAGES[catId] = [];
       CATEGORY_CURRENT[catId] = 0;
     });
   }
 
-  // --- 1. Algolia-alapú gyors lista (ha van Algolia index) ---
   const index = await ensureAlgoliaIndex();
   if (!index) {
     console.warn("Algolia nem elérhető – buildCategoryBlocksFromFeeds fut.");
@@ -1414,56 +1413,64 @@ async function buildCategoryBlocks() {
   }
 
   const buffers = {};
-  const tasks = CATEGORY_IDS.map(async (catId) => {
-    const backendKey = CATID_TO_FINDORA_MAIN[catId];
-    if (!backendKey) {
-      CATEGORY_PAGES[catId] = [];
-      CATEGORY_CURRENT[catId] = 0;
-      return;
-    }
 
+  // Algoliából egyszer töltjük a partnerek termékeit, és itt kategorizálunk
+  const partnerIds =
+    ALGOLIA_CONFIG && Array.isArray(ALGOLIA_CONFIG.partners)
+      ? ALGOLIA_CONFIG.partners
+      : [];
+
+  const tasks = partnerIds.map(async (pid) => {
     try {
-      const hitsPerPage = PAGE_SIZE * MAX_PAGES_PER_CAT * 3;
+      const HITS_PER_PAGE = 1000;
+      const MAX_HITS = 8000;
+      let page = 0;
+      const rows = [];
 
-      // FONTOS: már a findora_main mezőre szűrünk
-      const res = await index.search("", {
-        filters: `findora_main:${backendKey}`,
-        hitsPerPage,
-      });
+      while (true) {
+        const res = await index.search("", {
+          filters: 'partner:"' + pid + '"',
+          page,
+          hitsPerPage: HITS_PER_PAGE,
+        });
 
-      const hits = (res && res.hits) || [];
-      hits.forEach((hit) => {
-        const pid =
-          hit.partner ||
-          hit.pid ||
-          hit.partnerId ||
-          hit.deeplinkPartner ||
-          null;
+        const hits = (res && res.hits) || [];
+        if (!hits.length) break;
 
-        if (!pid || !PARTNERS.has(pid)) return;
+        hits.forEach((hit) => {
+          const cats = getCategoriesForItem(pid, hit) || [];
+          const catId = cats[0] || "kat-multi";
+          if (!CATEGORY_IDS.includes(catId)) return;
 
-        const item = hit;
+          // főoldali bufferek
+          if (!buffers[catId]) buffers[catId] = [];
+          buffers[catId].push({ pid, item: hit });
 
-        // biztos ami biztos: a kategóriát az Algolia rekordból vesszük
-        const itemCat = item.findora_main || item.cat || backendKey;
-        if (itemCat !== backendKey) return;
+          // partner–kategória tároló (partner nézethez)
+          if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
+          if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
+            PARTNER_CATEGORY_ITEMS[pid][catId] = [];
+          }
+          PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: hit });
+        });
 
-        if (!buffers[catId]) buffers[catId] = [];
-        buffers[catId].push({ pid, item });
+        rows.push(...hits);
 
-        if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-        if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
-          PARTNER_CATEGORY_ITEMS[pid][catId] = [];
-        }
-        PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item });
-      });
+        const reachedMax = rows.length >= MAX_HITS;
+        const lastPage = page + 1 >= (res.nbPages || 1);
+        if (reachedMax || lastPage) break;
+        page++;
+      }
+
+      console.log("Algolia betöltve partnerre:", pid, "hits:", buffers);
     } catch (e) {
-      console.error("Algolia kategória query hiba:", catId, e);
+      console.error("Algolia partner query hiba:", pid, e);
     }
   });
 
   await Promise.all(tasks);
 
+  // oldalak felépítése kategóriánként
   CATEGORY_IDS.forEach((catId) => {
     const rawList = buffers[catId] || [];
     const list = dedupeRowsStrong(rawList);
@@ -1506,9 +1513,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
-
-
-
-
-
