@@ -1,11 +1,9 @@
-# scripts/category_assign_tchibo.py
 import re
 
 # ===== Findora kategória ID-k =====
 KAT_ELEK = "kat-elektronika"
 KAT_GEPEK = "kat-gepek"
 KAT_OTTHON = "kat-otthon"
-KAT_KERT = "kat-kert"
 KAT_JATEK = "kat-jatekok"
 KAT_DIVAT = "kat-divat"
 KAT_SZEPSEG = "kat-szepseg"
@@ -13,222 +11,190 @@ KAT_SPORT = "kat-sport"
 KAT_KONYV = "kat-konyv"
 KAT_ALLAT = "kat-allatok"
 KAT_LATAS = "kat-latas"
-KAT_UTAZAS = "kat-utazas"
 KAT_MULTI = "kat-multi"
 
 
-def _norm(t: str) -> str:
-    return (t or "").strip().lower()
+def _normalize(text: str) -> str:
+    return (text or "").lower()
 
 
-def _split_gpath(cat_path: str):
+def _root_from_path(cat_path: str) -> str:
     """
-    Google product_type / CATEGORYTEXT jellegű útvonal:
-    'Apparel & Accessories > Clothing > Shirts & Tops'
+    Google / ProductsUp product_type / CATEGORYTEXT első szintje
+    (első '|' vagy '>' előtti rész).
+    Példa:
+      "Apparel & Accessories > Clothing > Shirts & Tops"
+      -> "Apparel & Accessories"
     """
     if not cat_path:
-        return []
-    return [p.strip().lower() for p in str(cat_path).split(">") if p.strip()]
+        return ""
+    root = cat_path.split("|")[0].split(">")[0]
+    return root.strip().lower()
 
 
-def _assign_generic(text: str) -> str:
-    """Biztonsági nettó fallback Tchibohoz is – ha a főág nem dönt."""
-    t = _norm(text)
-
-    if not t:
-        return KAT_MULTI
-
-    # --- KERT / GARDEN ---
-    if any(w in t for w in [
-        " kert", "kerti", "lawn & garden", "gardening", "greenhouse",
-        "plant ", "plants ", "pots & planters", "outdoor living"
-    ]):
-        return KAT_KERT
-
-    # --- UTAZÁS / LUGGAGE ---
-    if any(w in t for w in [
-        "bőrönd", "borond", "utazótáska", "utazotáska",
-        "luggage", "suitcase", "backpack", "travel bag", "garment bag",
-        "fanny pack"
-    ]):
-        return KAT_UTAZAS
-
-    # --- ELEKTRONIKA ---
-    if re.search(
-        r"\b(tv|televízió|televizio|monitor|laptop|notebook|konzol|ps4|ps5|xbox|nintendo|"
-        r"okostelefon|telefon|tablet|headphones?|headset|speaker|hangfal|"
-        r"radio|rádió|camera|fényképező|foto)\b",
-        t,
-    ):
-        return KAT_ELEK
-
-    if "electronics >" in t or "computers >" in t:
-        return KAT_ELEK
-
-    # --- HÁZTARTÁSI GÉPEK ---
-    if re.search(
-        r"\b(mosógép|mosogep|szárítógép|szaritogep|hűtő|huto|hűtőszekrény|mosogatógép|"
-        r"mosogatogep|porszívó|porszivo|robotporszívó|vasaló|vasalo|"
-        r"mikrohullámú|mikrohullamu|sütő|suto|főzőlap|fozolap)\b",
-        t,
-    ):
-        return KAT_GEPEK
-
-    if "kitchen appliances" in t or "laundry appliances" in t or "vacuums" in t:
-        return KAT_GEPEK
-
-    # --- JÁTÉKOK / BABY TOYS ---
-    if re.search(
-        r"\b(játék|jatekok|lego|társasjáték|tarsasjatek|plüss|pluss|babakocsi|baba|"
-        r"puzzle|kirakó|kirako)\b",
-        t,
-    ):
-        return KAT_JATEK
-
-    if "baby toys" in t or ("toy" in t and "baby & toddler" in t):
-        return KAT_JATEK
-
-    # --- DIVAT ---
-    if re.search(
-        r"\b(ruha|póló|polo|ing|shirt|top|nadrág|nadrag|pants|jeans|farmer|"
-        r"szoknya|skirt|kabát|kabat|coat|jacket|dzseki|"
-        r"alsónemű|alsonemu|underwear|bra|melltartó|melltarto|"
-        r"bugyi|tanga|socks|zokni|cipő|cipo|shoes|boots|csizma|"
-        r"pizsama|pajamas|sleepwear|loungewear|pulóver|pulover|sweater)\b",
-        t,
-    ):
-        return KAT_DIVAT
-
-    if "apparel & accessories" in t:
-        return KAT_DIVAT
-
-    # --- SZÉPSÉG / DROGÉRIA ---
-    if re.search(
-        r"\b(parfüm|parfum|smink|makeup|make-up|rúzs|ruzs|lipstick|"
-        r"krém|krem|cream|lotion|sampon|shampoo|dezodor|deodorant|"
-        r"kozmetikum|cosmetics?|ápoló|apolo|skin care)\b",
-        t,
-    ):
-        return KAT_SZEPSEG
-
-    if "health & beauty" in t or "personal care" in t:
-        return KAT_SZEPSEG
-
-    # --- SPORT ---
-    if re.search(
-        r"\b(sport|fitness|fitnesz|edzés|edzes|futás|futas|"
-        r"kerékpár|kerekpar|cycling|bicycle|roller|korcsolya|"
-        r"ski|snowboard|hiking|camping)\b",
-        t,
-    ):
-        return KAT_SPORT
-
-    if "sporting goods" in t:
-        return KAT_SPORT
-
-    # --- KÖNYV / ÍRÓSZER / IRODASZER ---
-    if re.search(
-        r"\b(könyv|konyv|regény|regeny|szakkönyv|szakkonyv)\b",
-        t,
-    ):
-        return KAT_KONYV
-
-    if "office supplies" in t or "paper products" in t:
-        return KAT_KONYV
-
-    # --- ÁLLATOK ---
-    if re.search(
-        r"\b(kutya|macska|háziállat|haziallat|állateledel|allateledel|"
-        r"kutyatáp|kutyatap|macskatáp|macskatap)\b",
-        t,
-    ):
-        return KAT_ALLAT
-
-    if "animals & pet supplies" in t or "pet supplies" in t:
-        return KAT_ALLAT
-
-    # --- LÁTÁS / OPTIKA ---
-    if re.search(
-        r"\b(szemüveg|szemuveg|napszemüveg|kontaktlencse|kontaktlencsék)\b",
-        t,
-    ):
-        return KAT_LATAS
-
-    if "contact lenses" in t or "eyeglasses" in t:
-        return KAT_LATAS
-
-    # --- OTTHON / BÚTOR / DEKOR / KONYHA ---
-    if any(w in t for w in [
-        "home & garden", "furniture", "bedding", "bed sheets", "blankets", "pillows",
-        "towels", "bathroom accessories", "kitchen & dining", "cookware", "bakeware",
-        "tableware", "serveware", "decor", "vases", "lighting", "lamp", "light bulb",
-        "mirror", "curtains", "drapes", "rug", "mat", "storage & organization"
-    ]):
-        return KAT_OTTHON
-
-    # Ha idáig sem találtunk semmit → vegyes
-    return KAT_MULTI
-
-
-def assign_category(cat_path: str, title: str, desc: str) -> str:
+# ===== TCHIBO SPECIFIKUS KATEGÓRIA-LOGIKA =====
+def _assign_tchibo(cat_path: str, title: str, desc: str) -> str:
     """
-    Tchibo-specifikus kategória hozzárendelés.
-    Hívás: assign_category(cat_path, title, desc)
+    Tchibo feed:
+      - CATEGORYTEXT / PARAM_CATEGORY Google taxonomy angolul
+      - leírás + cím magyarul
+    Innen döntjük el a Findora fő kategóriát (findora_main).
     """
     cat_path = cat_path or ""
     title = title or ""
     desc = desc or ""
 
-    parts = _split_gpath(cat_path)
-    main = parts[0] if parts else ""
-    second = parts[1] if len(parts) > 1 else ""
+    text = _normalize(cat_path + " " + title + " " + desc)
+    root = _root_from_path(cat_path)
 
-    # 1) Főkategória alapú mapping (Google Product Taxonomy)
-    if main.startswith("apparel & accessories"):
-        # ruházat, cipő, ékszer, táskák → divat
+    # --- 1) Root alapú mapping (Google taxonomy első szint) ---
+
+    # Ruházat, cipő, ékszer → DIVAT
+    if "apparel & accessories" in root:
         return KAT_DIVAT
 
-    if main == "home & garden":
-        # kert / növények → kat-kert, minden más → otthon
-        if second.startswith("lawn & garden") or second.startswith("plants"):
-            return KAT_KERT
+    # Lakás, konyha, háztartás, bútor → OTTHON
+    if "home & garden" in root:
         return KAT_OTTHON
 
-    if main == "sporting goods":
+    # Sportfelszerelés → SPORT
+    if "sporting goods" in root:
         return KAT_SPORT
 
-    if main == "animals & pet supplies":
+    # Babaruha / babajáték
+    if "baby & toddler" in root:
+        # ha kifejezetten játék
+        if "toy" in text or "játék" in text:
+            return KAT_JATEK
+        # egyébként jellemzően ruha → DIVAT
+        return KAT_DIVAT
+
+    # Kisállat cuccok
+    if "animals & pet supplies" in root:
         return KAT_ALLAT
 
-    if main == "baby & toddler":
-        # babaruhák, babajátékok → játék fülre tesszük
-        return KAT_JATEK
-
-    if main == "furniture":
-        return KAT_OTTHON
-
-    if main == "health & beauty":
-        return KAT_SZEPSEG
-
-    if main in ("food, beverages & tobacco", "food, beverages & tabacco"):
-        # kávé, italok → otthon/konyha
-        return KAT_OTTHON
-
-    if main in ("electronics", "computers"):
+    # Elektronika (ha lenne Tchibo-nál)
+    if "electronics" in root:
         return KAT_ELEK
 
-    if main == "office supplies":
-        # irodaszer, papír, stb. → könyv/írószer blokk
+    # Szépség / egészség
+    if "health & beauty" in root:
+        return KAT_SZEPSEG
+
+    # Bőrönd, táska → DIVAT
+    if "luggage & bags" in root:
+        return KAT_DIVAT
+
+    # Bútor → OTTHON
+    if "furniture" in root:
+        return KAT_OTTHON
+
+    # Étel/ital/kávé → OTTHON (konyha/életmód)
+    if "food, beverages & tobacco" in root or "food, beverages" in root:
+        return KAT_OTTHON
+
+    # Iroda / eszközök → jellemzően otthoni cuccok Tchibo-nál
+    if "office supplies" in root or "hardware" in root or "tools" in text:
+        return KAT_OTTHON
+
+    # --- 2) Kulcsszó alapú mentő szabályok, ha a root nem döntött egyértelműen ---
+
+    # Tipikus ruhaszavak → DIVAT
+    if re.search(
+        r"\b(kabát|kabátja|dzseki|dzsek[ií]|ruha|pelerin|pulóver|pulcs[iy]|"
+        r"póló|polo|ing|szoknya|nadrág|leggings|legging|farmer|short|"
+        r"melltartó|melltarto|bugyi|alsó|alsónemű|fehérnemű|fehernemu|"
+        r"pizsama|hálóing|harisnya|zokni|csizma|cipő|cipo|bakancs)\b",
+        text,
+    ):
+        return KAT_DIVAT
+
+    # Tipikus konyha / otthon szavak → OTTHON
+    if re.search(
+        r"\b(bögre|bogre|pohár|pohar|tal|tál|tányér|tanyer|tálka|"
+        r"tepsi|sütőforma|sutoforma|tortaforma|sütőtál|sutotal|"
+        r"edény|edeny|serpenyő|serpenyo|lábas|labas|fazék|fazek|"
+        r"törölköző|torolkozo|ágynemű|agynemu|párna|parna|pléd|plaid|"
+        r"díszpárna|diszparna|fuggony|függöny|szőnyeg|szonyeg|"
+        r"konyha|konyhai|asztalterítő|asztalterito)\b",
+        text,
+    ):
+        return KAT_OTTHON
+
+    # Játék szavak → JÁTÉKOK
+    if re.search(
+        r"\b(játék|jatekok|játékok|plüss|lego|társasjáték|tarsasjatek|"
+        r"puzzle|kirakó|kirako|babajáték|babajatek)\b",
+        text,
+    ):
+        return KAT_JATEK
+
+    # Sport / fitness szavak → SPORT
+    if re.search(
+        r"\b(fitness|fitnesz|edzés|edzo|edzés|joga|jóga|"
+        r"futás|futas|bicikli|kerékpár|kerekpar|sport)\b",
+        text,
+    ):
+        return KAT_SPORT
+
+    # Szépség / kozmetika → SZÉPSÉG
+    if re.search(
+        r"\b(krém|krem|testápoló|testapolo|sampon|balzsam|"
+        r"smink|rúzs|ruzs|körömlakk|koromlakk|kozmetikum|kozmetika)\b",
+        text,
+    ):
+        return KAT_SZEPSEG
+
+    # Állatos kulcsszavak → ÁLLAT
+    if re.search(
+        r"\b(kutya|macska|cica|kisállat|kisallat|hám|póráz|poraz|"
+        r"állateledel|allateledel|kutyajáték|macskajáték)\b",
+        text,
+    ):
+        return KAT_ALLAT
+
+    # Ha semmi nem talált → MULTI
+    return KAT_MULTI
+
+
+# ===== ÁLTALÁNOS assign_category BELÉPÉSI PONT =====
+def assign_category(partner: str, cat_path: str, title: str, desc: str) -> str:
+    """
+    Egységes belépési pont a Python build scripteknek.
+    Használat:
+        findora_main = assign_category("tchibo", cat_path, title, desc)
+    """
+    p = _normalize(partner)
+
+    # Tchibo speciális logika
+    if p == "tchibo":
+        return _assign_tchibo(cat_path, title, desc)
+
+    # Ha később lesz más partner-specifikus logika (pl. alza),
+    # ide jöhet:
+    # if p == "alza":
+    #     return _assign_alza(...)
+
+    # Alap fallback – nagyon egyszerű általános szabályok
+    text = _normalize((cat_path or "") + " " + (title or "") + " " + (desc or ""))
+
+    if "book" in text or "könyv" in text or "konyv" in text:
         return KAT_KONYV
 
-    if main == "arts & entertainment":
-        # kreatív hobby, crafts → könyv/írószer blokk
-        return KAT_KONYV
+    if "toy" in text or "játék" in text or "jatekok" in text:
+        return KAT_JATEK
 
-    if main in ("luggage & bags", "vehicles & parts"):
-        # bőrönd, hátizsák, utazós kiegészítők → utazás
-        return KAT_UTAZAS
+    if "pet " in text or "kutya" in text or "macska" in text:
+        return KAT_ALLAT
 
-    # 2) Ha a főág nem döntött → kulcsszavas fallback
-    text = _norm(f"{cat_path} {title} {desc}")
-    return _assign_generic(text)
+    if "sport" in text or "fitness" in text:
+        return KAT_SPORT
+
+    if "glass" in text or "tv" in text or "monitor" in text or "laptop" in text:
+        return KAT_ELEK
+
+    if "sofa" in text or "kanapé" in text or "fotel" in text or "törölköző" in text:
+        return KAT_OTTHON
+
+    # végső fallback
+    return KAT_MULTI
