@@ -303,7 +303,7 @@ async function getPageItems(pid, pageNum) {
 
 // ===== Partner default kategória (frontend) =====
 const BASE_CATEGORY_BY_PARTNER = {
-  tchibo: "kat-otthon",
+  tchibo: "kat-divat",
   "cj-karcher": "kat-kert",
   "cj-eoptika": "kat-latas",
   "cj-jateknet": "kat-jatekok",
@@ -1513,3 +1513,4 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
