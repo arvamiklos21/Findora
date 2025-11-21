@@ -24,7 +24,7 @@
   { "pattern": "otthon", "catId": "kat-otthon" },
   { "pattern": "lakberendez", "catId": "kat-otthon" }
 ],
-{
+
   "alza": [
     { "pattern": "freezer", "catId": "kat-gepek" },
     { "pattern": "fridge", "catId": "kat-gepek" },
