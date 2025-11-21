@@ -2,6 +2,8 @@ import os, re, json, math, xml.etree.ElementTree as ET, requests
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
+from category_assign_otthonmarket import assign_category as assign_otm_cat
+
 FEED_URL  = os.environ.get("FEED_OTTHONMARKET_URL")
 OUT_DIR   = "docs/feeds/otthonmarket"
 PAGE_SIZE = 300  # lapméret
@@ -126,7 +128,17 @@ def parse_items(xml_text):
             elif isinstance(alt, str):
                 img = alt
 
-        desc = short_desc(first(m, DESC_KEYS))
+        full_desc = first(m, DESC_KEYS)
+        desc = short_desc(full_desc)
+
+        # OtthonMarket kategória szöveg (Pepita/OtthonMarket mintára)
+        category_raw = first(
+            m,
+            ("category", "param_category", "categorytext", "g:product_type", "product_type")
+        ) or ""
+
+        # Findora fő kategória meghatározása
+        findora_main = assign_otm_cat(category_raw, title, full_desc or "")
 
         price_new = None
         for k in NEW_PRICE_KEYS:
@@ -149,7 +161,9 @@ def parse_items(xml_text):
             "desc": desc,
             "price": price_new,
             "discount": discount,
-            "url": link or ""
+            "url": link or "",
+            "categoryPath": category_raw,     # Algolia-nak + app.js-nek
+            "findora_main": findora_main,    # fő Findora kategória (kat-otthon, stb.)
         })
 
     print(f"ℹ OtthonMarket: parse_items → {len(items)} nyers termék")
