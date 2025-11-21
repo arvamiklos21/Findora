@@ -1387,70 +1387,94 @@ function attachPartnerViewHandlers() {
 
 // ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) =====
 async function buildCategoryBlocks() {
-  const PAGE_SIZE = 6; // 6 kártya / oldal
-  const MAX_PAGES_PER_CAT = 5; // max 5 oldal / kategória
+  const PAGE_SIZE = 6;            // 6 kártya / oldal
+  const MAX_PAGES_PER_CAT = 5;    // max 5 oldal / kategória
 
   // --- 0. Fallback: régi feed-alapú logika (ha Algolia nem elérhető) ---
   async function buildCategoryBlocksFromFeeds() {
-    const buffers = {};
-    const scanPagesMax = 1; // csak 1 oldal / partner a főoldalhoz – gyors betöltés
-    const partnerTasks = [];
-
-    for (const [pid, cfg] of PARTNERS.entries()) {
-      const plc = cfg.placements || {};
-      const anyEnabled = Object.keys(plc).some((k) => {
-        const v = plc[k];
-        return (v && v.enabled) || (v && v.full && v.full.enabled);
-      });
-      if (!anyEnabled) continue;
-
-      const task = (async () => {
-        const meta = await getMeta(pid);
-        const pageSize = meta.pageSize || 300;
-        const totalPages =
-          meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
-        const scanPages = Math.min(scanPagesMax, totalPages);
-
-        for (let pg = 1; pg <= scanPages; pg++) {
-          const arr = await getPageItems(pid, pg);
-          for (const it of arr) {
-            const cats = getCategoriesForItem(pid, it) || [];
-            const catId = cats[0] || "kat-multi";
-
-            if (!buffers[catId]) buffers[catId] = [];
-            buffers[catId].push({ pid, item: it });
-
-            if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-            if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
-              PARTNER_CATEGORY_ITEMS[pid][catId] = [];
-            }
-            PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
-          }
-        }
-      })();
-
-      partnerTasks.push(task);
-    }
-
-    await Promise.all(partnerTasks);
-
+    // ha nincs Algolia, itt tudnánk később feedből tölteni
     CATEGORY_IDS.forEach((catId) => {
-      const rawList = buffers[catId] || [];
-      const list = dedupeRowsStrong(rawList);
-      const pages = [];
-
-      for (
-        let i = 0;
-        i < list.length && pages.length < MAX_PAGES_PER_CAT;
-        i += PAGE_SIZE
-      ) {
-        pages.push(list.slice(i, i + PAGE_SIZE));
-      }
-
-      CATEGORY_PAGES[catId] = pages;
-      CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
+      CATEGORY_PAGES[catId] = [];
+      CATEGORY_CURRENT[catId] = 0;
     });
   }
+
+  // --- 1. Algolia-alapú gyors lista (ha van Algolia index) ---
+  const index = await ensureAlgoliaIndex();
+  if (!index) {
+    console.warn("Algolia nem elérhető – buildCategoryBlocksFromFeeds fut.");
+    return buildCategoryBlocksFromFeeds();
+  }
+
+  const buffers = {};
+  const tasks = CATEGORY_IDS.map(async (catId) => {
+    const backendKey = CATID_TO_FINDORA_MAIN[catId];
+    if (!backendKey) {
+      CATEGORY_PAGES[catId] = [];
+      CATEGORY_CURRENT[catId] = 0;
+      return;
+    }
+
+    try {
+      const hitsPerPage = PAGE_SIZE * MAX_PAGES_PER_CAT * 3;
+
+      // FONTOS: már a findora_main mezőre szűrünk
+      const res = await index.search("", {
+        filters: `findora_main:${backendKey}`,
+        hitsPerPage,
+      });
+
+      const hits = (res && res.hits) || [];
+      hits.forEach((hit) => {
+        const pid =
+          hit.partner ||
+          hit.pid ||
+          hit.partnerId ||
+          hit.deeplinkPartner ||
+          null;
+
+        if (!pid || !PARTNERS.has(pid)) return;
+
+        const item = hit;
+
+        // biztos ami biztos: a kategóriát az Algolia rekordból vesszük
+        const itemCat = item.findora_main || item.cat || backendKey;
+        if (itemCat !== backendKey) return;
+
+        if (!buffers[catId]) buffers[catId] = [];
+        buffers[catId].push({ pid, item });
+
+        if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
+        if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
+          PARTNER_CATEGORY_ITEMS[pid][catId] = [];
+        }
+        PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item });
+      });
+    } catch (e) {
+      console.error("Algolia kategória query hiba:", catId, e);
+    }
+  });
+
+  await Promise.all(tasks);
+
+  CATEGORY_IDS.forEach((catId) => {
+    const rawList = buffers[catId] || [];
+    const list = dedupeRowsStrong(rawList);
+    const pages = [];
+
+    for (
+      let i = 0;
+      i < list.length && pages.length < MAX_PAGES_PER_CAT;
+      i += PAGE_SIZE
+    ) {
+      pages.push(list.slice(i, i + PAGE_SIZE));
+    }
+
+    CATEGORY_PAGES[catId] = pages;
+    CATEGORY_CURRENT[catId] = pages.length ? 1 : 0;
+  });
+}
+
 
   // --- 1. Algolia-alapú gyors lista (ha van Algolia index) ---
   const index = await ensureAlgoliaIndex();
@@ -1545,6 +1569,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
 
