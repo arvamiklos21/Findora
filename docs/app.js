@@ -15,7 +15,7 @@ const PAGES = new Map();
 // };
 
 const ALGOLIA_CONFIG = (typeof window !== "undefined" && window.FINDORA_ALGOLIA_CONFIG) || null;
-const ALGOLIA_ENABLED = false;
+const ALGOLIA_ENABLED =
   !!(
     ALGOLIA_CONFIG &&
     ALGOLIA_CONFIG.appId &&
@@ -1545,5 +1545,6 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
