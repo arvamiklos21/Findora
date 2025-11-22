@@ -16,7 +16,6 @@ if SCRIPT_DIR not in sys.path:
 
 from category_assign_tchibo import assign_category as assign_tchibo_category
 
-
 FEED_URL = os.environ.get("FEED_TCHIBO_URL")
 OUT_DIR = "docs/feeds/tchibo"
 PAGE_SIZE = 300  # forrás-oldal méret (bőven lehet nagy)
@@ -44,17 +43,25 @@ def short_desc(t, maxlen=180):
 
 
 def strip_ns(tag):
+    """Namespace + prefix levágása: {ns}tag vagy g:tag → tag, majd lower()."""
     return tag.split("}")[-1].split(":")[-1].lower()
 
 
 def collect_node(n):
+    """
+    XML node → lapos dict:
+      - kulcs: namespace/prefix nélküli tag/attribútum neve (lowercase)
+      - érték: szöveg vagy lista (képek stb.)
+    """
     m = {}
     txt = (n.text or "").strip()
     k0 = strip_ns(n.tag)
     if txt:
         m.setdefault(k0, txt)
+
     for ak, av in (n.attrib or {}).items():
         m.setdefault(strip_ns(ak), av)
+
     for c in list(n):
         k = strip_ns(c.tag)
         v = (c.text or "").strip()
@@ -76,10 +83,15 @@ def collect_node(n):
                 sub = collect_node(c)
                 for sk, sv in sub.items():
                     m.setdefault(sk, sv)
+
     return m
 
 
 def first(d, keys):
+    """
+    Az első nem üres értéket adja vissza a megadott kulcsok közül.
+    A collect_node már lowercase kulcsokat ad, ezért itt is lower-eljük a kulcsneveket.
+    """
     for raw in keys:
         k = raw.lower()
         v = d.get(k)
@@ -92,9 +104,28 @@ def first(d, keys):
     return None
 
 
-TITLE_KEYS = ("productname", "title", "g:title", "name", "product_name")
-LINK_KEYS = ("url", "link", "g:link", "product_url", "product_link", "deeplink")
-IMG_KEYS = ("imgurl", "image_link", "image", "image_url", "g:image_link", "image1", "main_image_url")
+def ensure_str(v):
+    """Bármi jön (lista, dict, szám), legyen belőle egyetlen szöveg."""
+    if isinstance(v, list):
+        return " ".join(str(x) for x in v)
+    if isinstance(v, dict):
+        return " ".join(str(x) for x in v.values())
+    return str(v or "")
+
+
+# FIGYELEM: a collect_node már namespace/prefix nélkül menti a tag-eket,
+# ezért itt NINCS "g:title", "g:price" stb., csak "title", "price", stb.
+
+TITLE_KEYS = ("productname", "title", "name", "product_name")
+LINK_KEYS = ("url", "link", "product_url", "product_link", "deeplink")
+IMG_KEYS = (
+    "imgurl",
+    "image_link",
+    "image",
+    "image_url",
+    "image1",
+    "main_image_url",
+)
 IMG_ALT_KEYS = (
     "imgurl_alternative",
     "additional_image_link",
@@ -103,16 +134,14 @@ IMG_ALT_KEYS = (
     "image2",
     "image3",
 )
-DESC_KEYS = ("description", "g:description", "long_description", "short_description", "desc", "popis")
+DESC_KEYS = ("description", "long_description", "short_description", "desc", "popis")
 
 NEW_PRICE_KEYS = (
     "price_vat",
     "price_with_vat",
     "price_final",
     "price_huf",
-    "g:sale_price",
     "sale_price",
-    "g:price",
     "price",
     "price_amount",
     "current_price",
@@ -125,19 +154,9 @@ OLD_PRICE_KEYS = (
     "was_price",
     "list_price",
     "regular_price",
-    "g:price",
-    "price",
-    "param_old_price",   # Tchibo régi ár: PARAM_OLD_PRICE
+    "price",           # fallback: ha csak egy ármező van
+    "param_old_price", # Tchibo régi ár: PARAM_OLD_PRICE → "param_old_price"
 )
-
-
-def ensure_str(v):
-    """Bármi jön (lista, dict, szám), legyen belőle egyetlen szöveg."""
-    if isinstance(v, list):
-        return " ".join(str(x) for x in v)
-    if isinstance(v, dict):
-        return " ".join(str(x) for x in v.values())
-    return str(v or "")
 
 
 def parse_items(xml_text):
@@ -170,9 +189,10 @@ def parse_items(xml_text):
     items = []
     for n in candidates:
         m = collect_node(n)
+        # kulcsok: lowercase
         m = {(k.lower() if isinstance(k, str) else k): v for k, v in m.items()}
 
-        pid = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid"))
+        pid = first(m, ("id", "item_id", "sku", "product_id", "itemid"))
         title = first(m, TITLE_KEYS) or "Ismeretlen termék"
         link = first(m, LINK_KEYS)
 
@@ -188,18 +208,18 @@ def parse_items(xml_text):
         desc = short_desc(raw_desc)
 
         # Kategória / categoryPath forrásmezők – Tchibo-specifikus mezőkkel
-        cat_path = first(
+        cat_raw = first(
             m,
             (
-                "param_category",   # PARAM_CATEGORY
-                "categorytext",     # CATEGORYTEXT
+                "param_category",   # PARAM_CATEGORY → "param_category"
+                "categorytext",     # CATEGORYTEXT → "categorytext"
                 "categorypath",
                 "product_type",
-                "g:product_type",
                 "category",
                 "product_category",
             ),
         )
+        cat_path = ensure_str(cat_raw).strip()
 
         # Új ár
         price_new = None
@@ -221,8 +241,8 @@ def parse_items(xml_text):
             else None
         )
 
-        # ===== Tchibo → Findora kategória (külön mapper) =====
-        # assign_category(partner, cat_path, title, desc) → itt 'tchibo' a partner
+        # ===== Tchibo → Findora fő kategória (külön mapper) =====
+        # assign_category(partner, cat_path, title, desc)
         findora_main = assign_tchibo_category(
             "tchibo",
             cat_path or "",
@@ -257,6 +277,7 @@ def parse_items(xml_text):
 
         items.append(item)
 
+    print(f"ℹ Tchibo: parse_items → {len(items)} nyers termék")
     return items
 
 
@@ -352,8 +373,9 @@ def main():
     )
     r.raise_for_status()
 
-    items = parse_items(r.text)
-    items = dedup_size_variants(items)
+    raw_items = parse_items(r.text)
+    items = dedup_size_variants(raw_items)
+    print(f"ℹ Tchibo: dedup után {len(items)} termék")
 
     pages = max(1, math.ceil(len(items) / PAGE_SIZE))
     for i in range(pages):
@@ -376,7 +398,7 @@ def main():
     with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False)
 
-    print(f"✅ {len(items)} termék, {pages} oldal → {OUT_DIR}")
+    print(f"✅ Tchibo: {len(items)} termék, {pages} oldal → {OUT_DIR}")
 
 
 if __name__ == "__main__":
