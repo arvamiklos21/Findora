@@ -241,14 +241,21 @@ def parse_items(xml_text):
             else None
         )
 
-        # ===== Tchibo → Findora fő kategória (külön mapper) =====
-        # assign_category(partner, cat_path, title, desc)
-        findora_main = assign_tchibo_category(
-            "tchibo",
-            cat_path or "",
-            title or "",
-            raw_desc or "",
-        )
+        # ===== Tchibo → Findora fő kategória (category_assign_tchibo.assign_category) =====
+        # Itt MÁR NEM 4 paramétert adunk, hanem egy fields dictet,
+        # mert a category_assign_tchibo.assign_category(fields: Dict[str, Any]) ezt várja.
+        fields = {
+            # a globális kategorizáló ezeket a kulcsokat nézi:
+            "product_type": cat_path or "",
+            "category": cat_path or "",
+            "categorytext": cat_path or "",
+            "title": title or "",
+            "name": title or "",
+            "description": raw_desc or "",
+            "long_description": raw_desc or "",
+            # ha akarod, később ide betehetsz még bármit a TEXT_TAG_KEYS-ből
+        }
+        findora_main = assign_tchibo_category(fields)
 
         # Gyökér kategória kivétele (category_root)
         if cat_path and ">" in cat_path:
