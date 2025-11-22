@@ -412,7 +412,8 @@ function getCategoriesForItem(pid, it) {
   const backendCatRaw =
     it &&
     (it.findora_main ||
-      it.cat ||
+      it.kat ||
+     it.cat ||
       it.catid ||
       it.catId ||
       it.categoryId ||
@@ -1693,6 +1694,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
 
