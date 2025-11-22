@@ -1,4 +1,4 @@
-# category_assign.py
+# category_onlinemarkabolt_assign.py
 #
 # Findora – egyszerű szabályalapú kategorizáló több partner feedjéhez.
 # Logika: a termék több szövegmezőjét összefűzzük, kulcsszavak alapján
@@ -23,15 +23,29 @@ import re
 from typing import Dict, Any
 
 # Ezekből a mezőkből építjük fel a szöveget (XML tag nevek vége szerint)
+# FONTOS: a build scriptek minden kulcsot lower()-ölnek és a namespace/prefix
+# le van vágva, tehát pl. "PRODUCTNAME" → "productname", "g:product_type" → "product_type"
 TEXT_TAG_KEYS = [
-    "PRODUCTNAME",
-    "ITEMNAME",
-    "PRODUCTNAME_FULL",
-    "CATEGORYTEXT",
-    "g:product_type",
-    # onlinemarkaboltok.hu / egyéb feedek:
+    # név / cím
+    "title",
     "name",
+    "productname",
+    "itemname",
+    "productname_full",
+
+    # leírások
+    "description",
+    "short_description",
+    "long_description",
+
+    # kategóriák (Google / CATEGORYTEXT / stb.)
+    "product_type",
     "category",
+    "categorytext",
+
+    # márka
+    "manufacturer",
+    "brand",
 ]
 
 # ---- KULCSSZAVAK KATEGÓRIÁNKÉNT ----
