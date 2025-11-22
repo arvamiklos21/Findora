@@ -5,15 +5,6 @@ const PARTNERS = new Map();
 const META = new Map();
 const PAGES = new Map();
 
-// ===== Algolia (opcionális) – főoldali kategória blokkok + partner nézet gyorsításához =====
-// Az index.html-ben ezt a scriptet raktad be a <head>-be:
-// window.FINDORA_ALGOLIA_CONFIG = {
-//   appId: "WS9VUS9HJB",
-//   searchKey: "8b8bb69fcf22aa3c5d4637c7bbf7157c", // search-only API kulcs
-//   indexName: "findora_products",
-//   partners: 
-// };
-
 const ALGOLIA_CONFIG =
   (typeof window !== "undefined" && window.FINDORA_ALGOLIA_CONFIG) || null;
 const ALGOLIA_ENABLED =
@@ -1702,5 +1693,6 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
