@@ -8,6 +8,7 @@ FEED_URL  = os.environ.get("FEED_PEPITA_URL")
 OUT_DIR   = "docs/feeds/pepita"
 PAGE_SIZE = 300
 
+
 def norm_price(v):
     if v is None:
         return None
@@ -20,6 +21,7 @@ def norm_price(v):
         digits = re.sub(r"[^\d]", "", str(v))
         return int(digits) if digits else None
 
+
 def short_desc(t, maxlen=180):
     if not t:
         return None
@@ -27,8 +29,10 @@ def short_desc(t, maxlen=180):
     t = re.sub(r"\s+", " ", t).strip()
     return (t[: maxlen - 1] + "…") if len(t) > maxlen else t
 
+
 def strip_ns(tag):
     return tag.split("}")[-1].split(":")[-1].lower()
+
 
 def collect_node(n):
     m = {}
@@ -36,11 +40,14 @@ def collect_node(n):
     k0 = strip_ns(n.tag)
     if txt:
         m.setdefault(k0, txt)
+
     for ak, av in (n.attrib or {}).items():
         m.setdefault(strip_ns(ak), av)
+
     for c in list(n):
         k = strip_ns(c.tag)
         v = (c.text or "").strip()
+
         if k in (
             "imgurl_alternative",
             "additional_image_link",
@@ -59,7 +66,9 @@ def collect_node(n):
                 sub = collect_node(c)
                 for sk, sv in sub.items():
                     m.setdefault(sk, sv)
+
     return m
+
 
 def first(d, keys):
     for raw in keys:
@@ -72,6 +81,7 @@ def first(d, keys):
         if v not in (None, "", []):
             return v
     return None
+
 
 TITLE_KEYS = ("productname", "title", "g:title", "name", "product_name")
 LINK_KEYS  = ("url", "link", "g:link", "product_url", "product_link", "deeplink")
@@ -92,6 +102,7 @@ NEW_PRICE_KEYS = (
     "current_price",
     "amount",
 )
+
 OLD_PRICE_KEYS = (
     "old_price",
     "price_before",
@@ -101,6 +112,7 @@ OLD_PRICE_KEYS = (
     "g:price",
     "price",
 )
+
 
 def parse_items(xml_text):
     root = ET.fromstring(xml_text)
@@ -155,7 +167,7 @@ def parse_items(xml_text):
         # Pepita saját kategória mező
         category_raw = first(m, ("category", "categorytext", "g:product_type", "product_type")) or ""
 
-        # Findora fő kategória Pepitára
+        # Findora fő kategória Pepitára (pl. "otthon", "haztartasi_gepek", "divat", stb.)
         findora_main = assign_pepita_cat(category_raw, title, raw_desc or "")
 
         price_new = None
@@ -186,12 +198,17 @@ def parse_items(xml_text):
                 "discount": discount,
                 "url": link or "",
                 "categoryPath": category_raw,
+                # KATEGÓRIA MEZŐK – frontend + Algolia:
+                # kat  → pl. "haztartasi_gepek"
+                # findora_main → ugyanaz backupnak
+                "kat": findora_main,
                 "findora_main": findora_main,
             }
         )
 
     print(f"ℹ Pepita: parse_items → {len(items)} nyers termék")
     return items
+
 
 # ===== dedup: méret összevonás, szín marad =====
 SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
@@ -219,6 +236,7 @@ COLOR_WORDS = (
     "bordeaux",
 )
 
+
 def normalize_title_for_size(t):
     if not t:
         return ""
@@ -226,6 +244,7 @@ def normalize_title_for_size(t):
     t1 = re.sub(rf"\b{SIZE_TOKENS}\b", "", t0, flags=re.I)
     t1 = re.sub(r"\s{2,}", " ", t1).strip()
     return t1.lower()
+
 
 def detect_color_token(t):
     if not t:
@@ -235,6 +254,7 @@ def detect_color_token(t):
         if re.search(rf"\b{re.escape(w)}\b", tl, flags=re.I):
             return w
     return ""
+
 
 def strip_size_from_url(u):
     if not u:
@@ -249,6 +269,7 @@ def strip_size_from_url(u):
         return urlunparse((p.scheme, p.netloc, p.path, p.params, new_q, p.fragment))
     except Exception:
         return u
+
 
 def dedup_size_variants(items):
     buckets = {}
@@ -269,8 +290,9 @@ def dedup_size_variants(items):
                 cur["discount"] = it["discount"]
     return list(buckets.values())
 
+
 def main():
-    assert FEED_URL, "FEED_PEPITA_URL hiányzik (repo Secrets)."
+    assert FEED_URL, "FEED_PEPITA_URL hiányzik (Settings → Secrets → Actions)."
     os.makedirs(OUT_DIR, exist_ok=True)
 
     r = requests.get(
@@ -306,6 +328,7 @@ def main():
         json.dump(meta, f, ensure_ascii=False)
 
     print(f"✅ Pepita: {len(items)} termék, {pages} oldal → {OUT_DIR}")
+
 
 if __name__ == "__main__":
     main()
