@@ -1,4 +1,4 @@
-# category_assign.py
+# category_assign_pepita.py
 #
 # Findora – egyszerű, szabályalapú kategorizáló több partner feedjéhez.
 # Logika: a termék több szövegmezőjét összefűzzük, kulcsszavak alapján
