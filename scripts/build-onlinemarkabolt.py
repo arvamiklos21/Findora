@@ -1,6 +1,7 @@
 # scripts/build-onlinemarkabolt.py
 import os
 import re
+import sys
 import json
 import math
 import xml.etree.ElementTree as ET
@@ -8,6 +9,23 @@ import requests
 
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+
+# --- hogy a scripts/ alatti kategorizálót is lássa ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
+# Próbáljuk több néven is betölteni az onlinemarkabolt kategorizálót
+try:
+    from category_onlinemarkabolt_assign import assign_category
+except ImportError:
+    try:
+        # ha véletlenül elgépelve lett a fájlnév
+        from category_onlinemarkabotl_assign import assign_category
+    except ImportError:
+        # végső fallback: általános category_assign.py
+        from category_assign import assign_category
+
 
 # ====== KONFIG ======
 FEED_URL = os.environ.get("FEED_ONLINEMARKABOLT_URL")
@@ -37,6 +55,7 @@ def short_desc(t, maxlen=180):
 
 
 def strip_ns(tag: str) -> str:
+    # namespace + prefix levágása, mindent kisbetűsre
     return tag.split("}")[-1].split(":")[-1].lower()
 
 
@@ -153,6 +172,7 @@ def parse_items(xml_text):
     items = []
     for n in candidates:
         m = collect_node(n)
+        # MINDEN kulcs kisbetűsre
         m = {(k.lower() if isinstance(k, str) else k): v for k, v in m.items()}
 
         pid = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid"))
@@ -187,6 +207,21 @@ def parse_items(xml_text):
             else None
         )
 
+        # ===== KATEGÓRIA MEGHATÁROZÁSA – OnlineMárkabolt specifikus assign_category =====
+        cat_fields = {
+            # a kategorizáló TEXT_TAG_KEYS-hez igazítva
+            "PRODUCTNAME": m.get("productname"),
+            "ITEMNAME": m.get("itemname"),
+            "PRODUCTNAME_FULL": m.get("productname_full"),
+            "CATEGORYTEXT": m.get("categorytext"),
+            # a g:product_type az XML-ben namespace/prefix nélkül "product_type" lett
+            "g:product_type": m.get("product_type"),
+            # onlinemarkabolt-specifikus mezők
+            "name": m.get("name"),
+            "category": m.get("category"),
+        }
+        kat = assign_category(cat_fields)
+
         items.append(
             {
                 "id": pid or link or title,
@@ -196,6 +231,7 @@ def parse_items(xml_text):
                 "price": price_new,
                 "discount": discount,
                 "url": link or "",
+                "kat": kat,  # ← EBBŐL FOG TUDNI AZ APP.JS SZŰRNI
             }
         )
 
