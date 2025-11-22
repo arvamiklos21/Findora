@@ -359,7 +359,7 @@ const CATEGORY_IDS = [
 ];
 
 // Backend findora_main / cat → front-end kat-* ID
-// (a backend findora_main mezőben is ezek a "kat-..." értékek vannak)
+// (a backend findora_main mezőben ideális esetben ezek a "kat-..." értékek vannak)
 const FINDORA_MAIN_TO_CATID = {
   "kat-elektronika": "kat-elektronika",
   "kat-gepek": "kat-gepek",
@@ -376,13 +376,37 @@ const FINDORA_MAIN_TO_CATID = {
   "kat-multi": "kat-multi",
 };
 
+// Backend szinonimák (Python-ból jövő kulcsok → kat-* ID)
+const BACKEND_SYNONYM_TO_CATID = {
+  elektronika: "kat-elektronika",
+  haztartasi_gepek: "kat-gepek",
+  "háztartási_gepek": "kat-gepek",
+  otthon: "kat-otthon",
+  kert: "kat-kert",
+  jatekok: "kat-jatekok",
+  játékok: "kat-jatekok",
+  divat: "kat-divat",
+  szepseg: "kat-szepseg",
+  szépség: "kat-szepseg",
+  sport: "kat-sport",
+  latas: "kat-latas",
+  látas: "kat-latas",
+  allatok: "kat-allatok",
+  állatok: "kat-allatok",
+  konyv: "kat-konyv",
+  könyv: "kat-konyv",
+  utazas: "kat-utazas",
+  utazás: "kat-utazas",
+  multi: "kat-multi",
+};
+
 // backend cat kulcs → kat-* ID (fordított map)
 const BACKEND_FROM_CATID = {};
 Object.entries(FINDORA_MAIN_TO_CATID).forEach(([backendKey, catId]) => {
   BACKEND_FROM_CATID[catId] = backendKey;
 });
 
-// CATID → findora_main (Algolia filterhez)
+// CATID → findora_main (Algolia filterhez – itt a kanonikus kulcs marad)
 const CATID_TO_FINDORA_MAIN = {};
 Object.keys(FINDORA_MAIN_TO_CATID).forEach((key) => {
   const cid = FINDORA_MAIN_TO_CATID[key];
@@ -406,7 +430,15 @@ function getCategoriesForItem(pid, it) {
 
   if (backendCatRaw) {
     const backendCat = String(backendCatRaw).toLowerCase();
-    const mappedFromBackend = FINDORA_MAIN_TO_CATID[backendCat];
+
+    // először közvetlen "kat-..." kulcs
+    let mappedFromBackend = FINDORA_MAIN_TO_CATID[backendCat];
+
+    // ha nem kat-..., akkor próbáljuk a szinonima mapet (elektronika, haztartasi_gepek, stb.)
+    if (!mappedFromBackend && BACKEND_SYNONYM_TO_CATID[backendCat]) {
+      mappedFromBackend = BACKEND_SYNONYM_TO_CATID[backendCat];
+    }
+
     if (mappedFromBackend && CATEGORY_IDS.includes(mappedFromBackend)) {
       return [mappedFromBackend];
     }
@@ -1462,7 +1494,7 @@ async function buildCategoryBlocks() {
         page++;
       }
 
-      console.log("Algolia betöltve partnerre:", pid, "hits:", buffers);
+      console.log("Algolia betöltve partnerre:", pid);
     } catch (e) {
       console.error("Algolia partner query hiba:", pid, e);
     }
@@ -1513,5 +1545,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
-
