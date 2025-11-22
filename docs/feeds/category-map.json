@@ -111,23 +111,5 @@
   "cj-jateknet": [
     { "pattern": "", "catId": "kat-jatekok" }
   ],
-
-  "onlinemarkabolt": [
-    { "pattern": "csaptelep", "catId": "kat-otthon" },
-    { "pattern": "mosogato", "catId": "kat-otthon" },
-    { "pattern": "konyha", "catId": "kat-otthon" },
-    { "pattern": "mellény", "catId": "kat-divat" },
-    { "pattern": "Baseballsapka", "catId": "kat-divat" },
-   { "pattern": "fürdőnadrág", "catId": "kat-divat" }
-  ],
-
-  "pepita": [
-    { "pattern": "jatek", "catId": "kat-jatekok" },
-    { "pattern": "Televízió", "catId": "kat-elektronika" },
-    { "pattern": "kamera", "catId": "kat-elektronika" },
-    { "pattern": "szivattyú", "catId": "kat-kert" },
-    { "pattern": "Sövénynyíró", "catId": "kat-kert" },
-    { "pattern": "Pizzasütő", "catId": "kat-gepek" },
-    { "pattern": "TRouter", "catId": "kat-elektronika" }
-  ]
 }
+
