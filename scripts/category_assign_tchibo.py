@@ -23,33 +23,31 @@ import re
 from typing import Dict, Any
 
 # ---- MELY MEZŐKBŐL OLVASUNK SZÖVEGET? ----
+# FONTOS: a build scriptek minden kulcsot kisbetűsre alakítanak és leszedik a prefixet
+# (pl. "PRODUCTNAME" -> "productname", "g:product_type" -> "product_type").
 TEXT_TAG_KEYS = [
-    # általános
+    # általános név / cím
     "title",
     "name",
+    "productname",
+    "itemname",
+    "productname_full",
+    "product",
 
     # leírások
     "description",
-    "DESCRIPTION",
     "short_description",
     "long_description",
 
     # kategória-mezők (Google / Tchibo / Pepita / stb.)
     "product_type",
-    "g:product_type",
     "category",
-    "CATEGORYTEXT",
+    "categorytext",
 
     # márka / gyártó
     "manufacturer",
     "brand",
     "g:brand",
-
-    # speciális feed-mezők
-    "PRODUCTNAME",
-    "ITEMNAME",
-    "PRODUCTNAME_FULL",
-    "PRODUCT",
 ]
 
 # ---- KULCSSZAVAK KATEGÓRIÁNKÉNT ----
@@ -225,7 +223,7 @@ CATEGORIES: Dict[str, Dict[str, int]] = {
         "divat": 2, "fashion": 2,
 
         # Tchibo / Google feed angol kategória-gyökerek (CATEGORYTEXT)
-        "apparel accessories": 4,          # "Apparel & Accessories"
+        "apparel accessories": 4,
         "clothing": 3,
         "outerwear": 3,
         "shirts tops": 3,
