@@ -23,8 +23,8 @@ import re
 from typing import Dict, Any
 
 # Ezekből a mezőkből építjük fel a szöveget.
-# FONTOS: az XML-ben a tageket már namespace/prefix nélkül kapjuk meg
-# (child.tag.split("}")[-1]), tehát pl. g:product_type → "product_type"
+# FONTOS: a build scriptek MINDEN kulcsot kisbetűsre alakítanak
+# (pl. PRODUCTNAME -> productname, CATEGORYTEXT -> categorytext).
 TEXT_TAG_KEYS = [
     # általános szövegmezők
     "title",
@@ -32,20 +32,23 @@ TEXT_TAG_KEYS = [
     "description",
     "short_description",
     "long_description",
+
+    # kategória-mezők
     "product_type",
     "category",
-    "CATEGORYTEXT",
+    "categorytext",
+
+    # márka / gyártó
     "manufacturer",
+    "brand",
 
     # egyes partnerek speciális mezői
-    "PRODUCTNAME",
-    "ITEMNAME",
-    "PRODUCTNAME_FULL",
+    "productname",
+    "itemname",
+    "productname_full",
 ]
 
-# ---- KULCSSZAVAK KATEGÓRIÁNKÉNT (RÖVID, DE HASZNÁLHATÓ VERZIÓ) ----
-# Kulcsszó -> súly (1–4). Később bővíthetjük / finomhangolhatjuk.
-
+# ---- KULCSSZAVAK KATEGÓRIÁNKÉNT ----
 CATEGORIES: Dict[str, Dict[str, int]] = {
     "elektronika": {
         "tv": 3, "televizio": 4, "televízió": 4,
@@ -111,7 +114,7 @@ CATEGORIES: Dict[str, Dict[str, int]] = {
 
         # babás cuccok – ide gyűjtjük, amíg nincs külön "baba" kategória
         "babák": 3, "babák & tipegők": 3, "babák & tipegok": 3,
-        "baba ": 2,  # szó elején/után
+        "baba ": 2,
         "babatáplálás": 3, "babataplalas": 3,
         "baba fürdetés": 3, "baba furdetes": 3,
         "pelenka": 3, "úszópelenka": 3, "uszopelenka": 3,
@@ -234,11 +237,6 @@ CATEGORIES: Dict[str, Dict[str, int]] = {
         "hajvágó": 4, "hajvago": 4,
         "szemmasszírozó": 4, "szemmasszirozo": 4,
         "szakállolaj": 4, "szakallolaj": 4,
-
-        # márkák (tipikusan szépség / higiénia)
-        "libresse": 3, "bella": 2, "rexona": 2, "signal": 2,
-        "vaseline": 3, "chicco": 2, "phillips sonicare": 2,
-        "oclean": 2, "leukoplast": 2,
     },
 
     "sport": {
