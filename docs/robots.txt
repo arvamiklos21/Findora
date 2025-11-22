@@ -2,14 +2,24 @@
 # Findora.hu robots.txt – SEO + AI policy
 # ========================================
 
-# Alapértelmezett feltételek és tartalomszignálok
+# Alapértelmezett feltételek
 User-Agent: *
 Content-signal: search=yes,ai-input=no,ai-train=no
 Allow: /
-# API útvonalak tiltása minden botnak
 Disallow: /api/
 
-# ===== Tiltások bizonyos AI és nemkívánatos botokra =====
+# ===== Külön engedélyek Google-keresőrobotoknak =====
+User-agent: Googlebot
+Allow: /
+Allow: /api/
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Yandex
+Allow: /
+
+# ===== Tiltások AI és nemkívánatos botokra =====
 User-agent: Amazonbot
 Disallow: /
 
@@ -33,16 +43,6 @@ Disallow: /
 
 User-agent: meta-externalagent
 Disallow: /
-
-# ===== Engedélyezett indexelés keresőknek =====
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Yandex
-Allow: /
 
 # ===== Sitemap =====
 Sitemap: https://www.findora.hu/sitemap.xml
