@@ -4,10 +4,9 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'docs/feeds/**'
-      - 'docs/algolia_push.js'
-      - 'docs/**/*'
-      - '.github/workflows/algolia-push.yml'
+      - "docs/feeds/**"
+      - "docs/algolia_push.js"
+      - ".github/workflows/algolia-push.yml"
 
 jobs:
   algolia:
@@ -22,13 +21,13 @@ jobs:
         with:
           node-version: 20
 
-      - name: NPM inicializálása és Algolia kliens telepítése
+      - name: Install Algolia client
         run: |
           cd docs
           npm init -y
           npm install algoliasearch@4
 
-      - name: Algolia index feltöltése
+      - name: Run Algolia Push
         run: |
           cd docs
           node algolia_push.js
@@ -36,5 +35,3 @@ jobs:
           ALGOLIA_APP_ID: W95VUS9HJ8
           ALGOLIA_ADMIN_API_KEY: ${{ secrets.ALGOLIA_ADMIN_API_KEY }}
           ALGOLIA_INDEX_NAME: findora_products
-
-
