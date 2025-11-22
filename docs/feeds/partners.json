@@ -327,7 +327,7 @@
   {
     "id": "onlinemarkabolt",
     "name": "OnlineMárkabolt",
-    "group": "tech",
+    "group": "otthon",
     "meta": "feeds/onlinemarkabolt/meta.json",
     "pagePattern": "feeds/onlinemarkabolt/page-{NNNN}.json",
     "deeplinkPartner": "onlinemarkabolt",
