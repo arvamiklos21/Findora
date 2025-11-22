@@ -11,7 +11,8 @@ const PAGES = new Map();
 //   appId: "WS9VUS9HJB",
 //   searchKey: "8b8bb69fcf22aa3c5d4637c7bbf7157c", // search-only API kulcs
 //   indexName: "findora_products",
-//   partners: ["alza"] // ha később kell: "pepita", "tchibo", stb.
+//   partners: ["alza","tchibo","jateksziget","cj-jateknet","regiojatek","cj-eoptika","ekszereshop","cj-karcher","otthonmarket","kozmetikaotthon","pepita","karacsonydekor","decathlon",
+              "onlinemarkabolt"]
 // };
 
 const ALGOLIA_CONFIG =
@@ -1702,3 +1703,4 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
