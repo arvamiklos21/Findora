@@ -1,11 +1,16 @@
-import os, re, json, math, xml.etree.ElementTree as ET, requests
+import os
+import re
+import json
+import math
+import xml.etree.ElementTree as ET
+import requests
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
 from category_assign_pepita import assign_category as assign_pepita_cat
 
-FEED_URL  = os.environ.get("FEED_PEPITA_URL")
-OUT_DIR   = "docs/feeds/pepita"
+FEED_URL = os.environ.get("FEED_PEPITA_URL")
+OUT_DIR = "docs/feeds/pepita"
 PAGE_SIZE = 300
 
 
@@ -84,10 +89,32 @@ def first(d, keys):
 
 
 TITLE_KEYS = ("productname", "title", "g:title", "name", "product_name")
-LINK_KEYS  = ("url", "link", "g:link", "product_url", "product_link", "deeplink")
-IMG_KEYS   = ("imgurl", "image_link", "image", "image_url", "g:image_link", "image1", "main_image_url")
-IMG_ALT_KEYS = ("imgurl_alternative", "additional_image_link", "additional_image_url", "images", "image2", "image3")
-DESC_KEYS  = ("description", "g:description", "long_description", "short_description", "desc", "popis")
+LINK_KEYS = ("url", "link", "g:link", "product_url", "product_link", "deeplink")
+IMG_KEYS = (
+    "imgurl",
+    "image_link",
+    "image",
+    "image_url",
+    "g:image_link",
+    "image1",
+    "main_image_url",
+)
+IMG_ALT_KEYS = (
+    "imgurl_alternative",
+    "additional_image_link",
+    "additional_image_url",
+    "images",
+    "image2",
+    "image3",
+)
+DESC_KEYS = (
+    "description",
+    "g:description",
+    "long_description",
+    "short_description",
+    "desc",
+    "popis",
+)
 
 NEW_PRICE_KEYS = (
     "price_vat",
@@ -147,11 +174,12 @@ def parse_items(xml_text):
     items = []
     for n in candidates:
         m = collect_node(n)
+        # minden kulcsot kisbetűsre húzunk
         m = {(k.lower() if isinstance(k, str) else k): v for k, v in m.items()}
 
-        pid   = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid", "identifier"))
+        pid = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid", "identifier"))
         title = first(m, TITLE_KEYS) or "Ismeretlen termék"
-        link  = first(m, LINK_KEYS)
+        link = first(m, LINK_KEYS)
 
         img = first(m, IMG_KEYS)
         if not img:
@@ -162,13 +190,17 @@ def parse_items(xml_text):
                 img = alt
 
         raw_desc = first(m, DESC_KEYS)
-        desc     = short_desc(raw_desc)
+        desc = short_desc(raw_desc)
 
         # Pepita saját kategória mező
-        category_raw = first(m, ("category", "categorytext", "g:product_type", "product_type")) or ""
+        category_raw = first(
+            m,
+            ("category", "categorytext", "g:product_type", "product_type"),
+        ) or ""
 
-        # Findora fő kategória Pepitára (pl. "otthon", "haztartasi_gepek", "divat", stb.)
-        findora_main = assign_pepita_cat(category_raw, title, raw_desc or "")
+        # Findora fő kategória Pepitára – AZ ÚJ KATEGORIZÁLÓVAL
+        # Az egész field-dictet odaadjuk neki, ahogy elvárja.
+        findora_main = assign_pepita_cat(m)
 
         price_new = None
         for k in NEW_PRICE_KEYS:
@@ -199,8 +231,6 @@ def parse_items(xml_text):
                 "url": link or "",
                 "categoryPath": category_raw,
                 # KATEGÓRIA MEZŐK – frontend + Algolia:
-                # kat  → pl. "haztartasi_gepek"
-                # findora_main → ugyanaz backupnak
                 "kat": findora_main,
                 "findora_main": findora_main,
             }
@@ -308,7 +338,7 @@ def main():
 
     pages = max(1, math.ceil(len(items) / PAGE_SIZE))
     for i in range(pages):
-        data = {"items": items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]}
+        data = {"items": items[i * PAGE_SIZE: (i + 1) * PAGE_SIZE]}
         with open(
             os.path.join(OUT_DIR, f"page-{str(i + 1).zfill(4)}.json"),
             "w",
