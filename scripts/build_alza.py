@@ -14,7 +14,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from category_assign import assign_category
+from category_assign import assign_category, assign_product_group
 
 
 # ===== Feed URL-ek beolvasása (több XML támogatása) =====
@@ -250,9 +250,16 @@ def parse_items(xml_text):
             else None
         )
 
-        # Kategória → Findora
-        # FONTOS: partner is kell, hogy az Alza-specifikus logika fusson
-        findora_main = assign_category("alza", cat_path or "", title or "", raw_desc or "")
+        # ===== Findora kategória + termékcsoport (új category_assign API) =====
+        fields = dict(m)
+        fields.setdefault("title", title or "")
+        fields.setdefault("description", raw_desc or "")
+        if cat_path:
+            fields.setdefault("category", cat_path)
+            fields.setdefault("categorytext", cat_path)
+
+        findora_main = assign_category(fields)
+        product_group = assign_product_group(fields)
 
         # category_root (első szegmens, ha '|' vagy '>' van)
         category_root = (cat_path or "").strip()
@@ -274,6 +281,7 @@ def parse_items(xml_text):
             "category_root": category_root,
             "findora_main": findora_main,
             "cat": findora_main,
+            "product_group": product_group,
         }
 
         items.append(item)
@@ -346,7 +354,9 @@ def dedup_size_variants(items):
     buckets = {}
     for it in items:
         tnorm = normalize_title_for_size(it.get("title"))
-        color = detect_color_token(it.get("title")) or detect_color_token(it.get("desc") or "")
+        color = detect_color_token(it.get("title")) or detect_color_token(
+            it.get("desc") or ""
+        )
         base_url = strip_size_from_url(it.get("url"))
         key = (tnorm, color or "", base_url or "")
         cur = buckets.get(key)
