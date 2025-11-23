@@ -242,6 +242,48 @@ function getDiscountNumber(it) {
   return null;
 }
 
+// Akciós árak kiszámítása: jelenlegi + eredeti (ha van)
+function getAkcioPrices(it) {
+  if (!it) return { current: null, original: null };
+
+  let current = null;
+
+  // jelenlegi / akciós ár
+  if (typeof it.price === "number" && isFinite(it.price)) {
+    current = it.price;
+  } else if (typeof it.sale_price === "number" && isFinite(it.sale_price)) {
+    current = it.sale_price;
+  }
+
+  // eredeti ár lehetséges mezőkben
+  let original = null;
+  const candidates = [
+    it.old_price,
+    it.price_old,
+    it.original_price,
+    it.list_price,
+    it.regular_price,
+  ];
+
+  for (const v of candidates) {
+    if (typeof v === "number" && isFinite(v)) {
+      original = v;
+      break;
+    }
+  }
+
+  // ha nincs explicit eredeti ár, számoljuk vissza a discount-ból
+  const disc = getDiscountNumber(it);
+  if (!original && current && disc !== null) {
+    const base = current / (1 - disc / 100);
+    if (isFinite(base) && base > 0) {
+      original = Math.round(base);
+    }
+  }
+
+  return { current, original };
+}
+
 // ===== partners.json, meta, page betöltés =====
 async function loadPartners() {
   const r = await fetch(PARTNERS_URL, { cache: "no-cache" });
@@ -1795,5 +1837,6 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
