@@ -6,8 +6,12 @@
     appId: "W95VUS9HJ8",
     searchKey: "8b8bb69fcf22aa3c5d4637c7bbf7157c",
     indexName: "findora_products",
-    partners: ["alza","tchibo","jateksziget","cj-jateknet","regiojatek","cj-eoptika","ekszereshop","cj-karcher","otthonmarket","kozmetikaotthon","pepita","karacsonydekor","decathlon",
-              "onlinemarkabolt"]  // ha később kell:
+    partners: [
+      "alza","tchibo","jateksziget","cj-jateknet","regiojatek",
+      "cj-eoptika","ekszereshop","cj-karcher","otthonmarket",
+      "kozmetikaotthon","pepita","karacsonydekor","decathlon",
+      "onlinemarkabolt"
+    ]
   };
   </script>
   <meta charset="UTF-8" />
@@ -39,7 +43,6 @@
     a{color:inherit;text-decoration:none}
     main{max-width:1200px;margin:0 auto;padding:16px 12px 40px}
 
-    /* rejtés single nézethez */
     .hidden{
       display:none !important;
     }
@@ -115,8 +118,6 @@
       display:grid;
       grid-template-columns: minmax(0,2.2fr) minmax(0,1.6fr);
       gap:16px;
-
-      /* háttérkép a teljes hero blokk mögé */
       border-radius:18px;
       background-image:url("assets/img/findora-xmas-header.png");
       background-size:cover;
@@ -215,8 +216,7 @@
       color:#9ca3af;
       margin-top:8px;
     }
-    
-    /* KATEGÓRIA SÁV (CSS maradhat, de HTML-ben már nincs használva) */
+
     .catbar-wrap{
       border-top:1px solid #e5e7eb;
       border-bottom:1px solid #e5e7eb;
@@ -247,7 +247,6 @@
       font-weight:700;
     }
 
-    /* SZEKCIÓK & KÁRTYÁK */
     .section{
       background:var(--card);
       border-radius:18px;
@@ -350,7 +349,6 @@
       color:var(--muted);
     }
 
-    /* PARTNER LINK (régi – most nem használjuk, de maradhat) */
     .partner-link{
       border:none;
       background:none;
@@ -365,7 +363,6 @@
       text-decoration:none;
     }
 
-    /* BLACK FRIDAY BLOKK */
     .bf-section{
       background:radial-gradient(circle at 0 0,#111827 0,#020617 60%);
       color:#e5e7eb;
@@ -398,7 +395,6 @@
       padding:12px;
     }
 
-    /* PARTNER NÉZET – FEJLÉC, SZŰRŐK, VISSZA / HOME GOMB */
     .partner-view-header{
       align-items:flex-start;
     }
@@ -453,7 +449,6 @@
       white-space:nowrap;
     }
 
-    /* KATEGÓRIA ALATTI PARTNER-BLOKKOK */
     .partner-block{
       border-top:1px solid var(--border);
       margin-top:8px;
@@ -509,7 +504,6 @@
     footer .links{
       margin-top:6px;
     }
-
   </style>
 </head>
 <body>
@@ -528,7 +522,7 @@
         <!-- Főoldal (Akciók + hero + minden kategória együtt) -->
         <button class="nav-btn primary" data-view="home">Főoldal / Akciók</button>
 
-        <!-- 25 kategória – mind data-view="category" + data-cat a szekció ID-jére mutat -->
+        <!-- 25 kategória – data-view="category" + data-cat a szekció ID-jére mutat -->
         <button class="nav-btn" data-view="category" data-cat="kat-elektronika">Elektronika</button>
         <button class="nav-btn" data-view="category" data-cat="kat-gepek">Háztartási gépek</button>
         <button class="nav-btn" data-view="category" data-cat="kat-szamitastechnika">Számítástechnika</button>
@@ -537,7 +531,7 @@
         <button class="nav-btn" data-view="category" data-cat="kat-smart-home">Smart Home</button>
         <button class="nav-btn" data-view="category" data-cat="kat-otthon">Otthon</button>
         <button class="nav-btn" data-view="category" data-cat="kat-lakberendezes">Lakberendezés</button>
-        <button class="nav-btn" data-view="category" data-cat="kat-konyha">Konyha &amp; főzés</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-konyha-fozes">Konyha &amp; főzés</button>
         <button class="nav-btn" data-view="category" data-cat="kat-kert">Kert</button>
         <button class="nav-btn" data-view="category" data-cat="kat-jatekok">Játékok</button>
         <button class="nav-btn" data-view="category" data-cat="kat-divat">Divat</button>
@@ -593,8 +587,6 @@
         </div>
       </div>
     </div>
-
-    <!-- ALSÓ KATEGÓRIA SÁV (catbar) – KIVÉVE, NINCS TÖBBÉ HTMLBEN -->
   </header>
 
   <main>
@@ -609,7 +601,7 @@
       <div class="grid" id="akciok-nav" style="padding-top:0"></div>
     </section>
 
-    <!-- BLACK FRIDAY BLOKK (később flaggel ki/be kapcsoljuk) -->
+    <!-- BLACK FRIDAY BLOKK -->
     <section class="bf-section" id="black-friday">
       <div class="bf-header">
         <h2>Black Friday ajánlatok</h2>
@@ -618,7 +610,7 @@
       <div class="bf-grid" id="bf-grid"></div>
     </section>
 
-    <!-- PARTNER NÉZET (egy partner + kategória, 20 termék / oldal) -->
+    <!-- PARTNER NÉZET -->
     <section class="section hidden" id="partner-view">
       <div class="section-header partner-view-header">
         <div class="partner-header-main">
@@ -725,13 +717,13 @@
     </section>
 
     <!-- 9. Konyha & főzés -->
-    <section class="section" id="kat-konyha">
+    <section class="section" id="kat-konyha-fozes">
       <div class="section-header">
         <h2>Konyha &amp; főzés</h2>
         <small>Edények, evőeszközök, kiegészítők</small>
       </div>
-      <div class="grid" id="kat-konyha-grid"></div>
-      <div class="grid" id="kat-konyha-nav" style="padding-top:0"></div>
+      <div class="grid" id="kat-konyha-fozes-grid"></div>
+      <div class="grid" id="kat-konyha-fozes-nav" style="padding-top:0"></div>
     </section>
 
     <!-- 10. Kert -->
@@ -818,7 +810,7 @@
     <section class="section" id="kat-latas">
       <div class="section-header">
         <h2>Látás</h2>
-        <small>Szemüvegkeretek, kontaktlencsék</small>
+      <small>Szemüvegkeretek, kontaktlencsék</small>
       </div>
       <div class="grid" id="kat-latas-grid"></div>
       <div class="grid" id="kat-latas-nav" style="padding-top:0"></div>
@@ -909,7 +901,7 @@
   <!-- Algolia kliens -->
   <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js" defer></script>
 
-  <!-- Saját JS csak EGYSZER -->
+  <!-- Saját JS -->
   <script src="app.js" defer></script>
 </body>
 </html>
