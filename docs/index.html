@@ -109,20 +109,20 @@
     }
 
     .hero{
-  max-width:1200px;
-  margin:0 auto;
-  padding:18px 12px 20px;
-  display:grid;
-  grid-template-columns: minmax(0,2.2fr) minmax(0,1.6fr);
-  gap:16px;
+      max-width:1200px;
+      margin:0 auto;
+      padding:18px 12px 20px;
+      display:grid;
+      grid-template-columns: minmax(0,2.2fr) minmax(0,1.6fr);
+      gap:16px;
 
-  /* háttérkép a teljes hero blokk mögé */
-  border-radius:18px;
-  background-image:url("assets/img/findora-xmas-header.png");
-  background-size:cover;
-  background-position:center;
-  background-repeat:no-repeat;
-}
+      /* háttérkép a teljes hero blokk mögé */
+      border-radius:18px;
+      background-image:url("assets/img/findora-xmas-header.png");
+      background-size:cover;
+      background-position:center;
+      background-repeat:no-repeat;
+    }
     @media (max-width:900px){
       .hero{grid-template-columns:1fr}
     }
@@ -216,7 +216,7 @@
       margin-top:8px;
     }
     
-    /* KATEGÓRIA SÁV (nem görgetős, mindig látszik desktopon) */
+    /* KATEGÓRIA SÁV (CSS maradhat, de HTML-ben már nincs használva) */
     .catbar-wrap{
       border-top:1px solid #e5e7eb;
       border-bottom:1px solid #e5e7eb;
@@ -528,19 +528,31 @@
         <!-- Főoldal (Akciók + hero + minden kategória együtt) -->
         <button class="nav-btn primary" data-view="home">Főoldal / Akciók</button>
 
-        <!-- Kategória nézetek (külön-külön oldalérzet) -->
+        <!-- 25 kategória – mind data-view="category" + data-cat a szekció ID-jére mutat -->
         <button class="nav-btn" data-view="category" data-cat="kat-elektronika">Elektronika</button>
         <button class="nav-btn" data-view="category" data-cat="kat-gepek">Háztartási gépek</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-szamitastechnika">Számítástechnika</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-mobil">Mobil &amp; kiegészítők</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-gaming">Gaming</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-smart-home">Smart Home</button>
         <button class="nav-btn" data-view="category" data-cat="kat-otthon">Otthon</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-lakberendezes">Lakberendezés</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-konyha">Konyha &amp; főzés</button>
         <button class="nav-btn" data-view="category" data-cat="kat-kert">Kert</button>
         <button class="nav-btn" data-view="category" data-cat="kat-jatekok">Játékok</button>
         <button class="nav-btn" data-view="category" data-cat="kat-divat">Divat</button>
         <button class="nav-btn" data-view="category" data-cat="kat-szepseg">Szépség</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-drogeria">Drogéria</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-baba">Baba</button>
         <button class="nav-btn" data-view="category" data-cat="kat-sport">Sport</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-egeszseg">Egészség</button>
         <button class="nav-btn" data-view="category" data-cat="kat-latas">Látás</button>
         <button class="nav-btn" data-view="category" data-cat="kat-allatok">Állatok</button>
         <button class="nav-btn" data-view="category" data-cat="kat-konyv">Könyv</button>
         <button class="nav-btn" data-view="category" data-cat="kat-utazas">Utazás</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-iroda-iskola">Iroda &amp; iskola</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-szerszam-barkacs">Szerszám &amp; barkács</button>
+        <button class="nav-btn" data-view="category" data-cat="kat-auto-motor">Autó/Motor &amp; autóápolás</button>
         <button class="nav-btn" data-view="category" data-cat="kat-multi">Multi</button>
 
         <a class="nav-btn legal" href="nyilatkozat.html" rel="nofollow">Nyilatkozat</a>
@@ -582,25 +594,7 @@
       </div>
     </div>
 
-    <!-- KATEGÓRIA SÁV – EZ MARAD GÖRGETÉSRE A FŐOLDALON -->
-    <div class="catbar-wrap">
-      <div class="catbar">
-        <button class="cat-pill active" data-scroll="#akciok">Akciók</button>
-        <button class="cat-pill" data-scroll="#kat-elektronika">Elektronika</button>
-        <button class="cat-pill" data-scroll="#kat-gepek">Háztartási gépek</button>
-        <button class="cat-pill" data-scroll="#kat-otthon">Otthon</button>
-        <button class="cat-pill" data-scroll="#kat-kert">Kert</button>
-        <button class="cat-pill" data-scroll="#kat-jatekok">Játékok</button>
-        <button class="cat-pill" data-scroll="#kat-divat">Divat</button>
-        <button class="cat-pill" data-scroll="#kat-szepseg">Szépség</button>
-        <button class="cat-pill" data-scroll="#kat-sport">Sport</button>
-        <button class="cat-pill" data-scroll="#kat-latas">Látás</button>
-        <button class="cat-pill" data-scroll="#kat-allatok">Állatok</button>
-        <button class="cat-pill" data-scroll="#kat-konyv">Könyv</button>
-        <button class="cat-pill" data-scroll="#kat-utazas">Utazás</button>
-        <button class="cat-pill" data-scroll="#kat-multi">Multi</button>
-      </div>
-    </div>
+    <!-- ALSÓ KATEGÓRIA SÁV (catbar) – KIVÉVE, NINCS TÖBBÉ HTMLBEN -->
   </header>
 
   <main>
@@ -648,7 +642,9 @@
       <div class="grid" id="partner-view-nav" style="padding-top:0"></div>
     </section>
 
-    <!-- KATEGÓRIA BLOKKOK – ezek alatt jelennek meg a partner-blokkok -->
+    <!-- KATEGÓRIA BLOKKOK – 25 kategória szekciói -->
+
+    <!-- 1. Elektronika -->
     <section class="section" id="kat-elektronika">
       <div class="section-header">
         <h2>Elektronika</h2>
@@ -658,6 +654,7 @@
       <div class="grid" id="kat-elektronika-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 2. Háztartási gépek -->
     <section class="section" id="kat-gepek">
       <div class="section-header">
         <h2>Háztartási gépek</h2>
@@ -667,6 +664,47 @@
       <div class="grid" id="kat-gepek-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 3. Számítástechnika -->
+    <section class="section" id="kat-szamitastechnika">
+      <div class="section-header">
+        <h2>Számítástechnika</h2>
+        <small>PC-k, perifériák, alkatrészek</small>
+      </div>
+      <div class="grid" id="kat-szamitastechnika-grid"></div>
+      <div class="grid" id="kat-szamitastechnika-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 4. Mobil & kiegészítők -->
+    <section class="section" id="kat-mobil">
+      <div class="section-header">
+        <h2>Mobil &amp; kiegészítők</h2>
+        <small>Okostelefonok, tokok, töltők</small>
+      </div>
+      <div class="grid" id="kat-mobil-grid"></div>
+      <div class="grid" id="kat-mobil-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 5. Gaming -->
+    <section class="section" id="kat-gaming">
+      <div class="section-header">
+        <h2>Gaming</h2>
+        <small>Konzolok, játékok, gaming perifériák</small>
+      </div>
+      <div class="grid" id="kat-gaming-grid"></div>
+      <div class="grid" id="kat-gaming-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 6. Smart Home -->
+    <section class="section" id="kat-smart-home">
+      <div class="section-header">
+        <h2>Smart Home</h2>
+        <small>Okos otthon, Wi-Fi eszközök</small>
+      </div>
+      <div class="grid" id="kat-smart-home-grid"></div>
+      <div class="grid" id="kat-smart-home-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 7. Otthon -->
     <section class="section" id="kat-otthon">
       <div class="section-header">
         <h2>Otthon</h2>
@@ -676,6 +714,27 @@
       <div class="grid" id="kat-otthon-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 8. Lakberendezés -->
+    <section class="section" id="kat-lakberendezes">
+      <div class="section-header">
+        <h2>Lakberendezés</h2>
+        <small>Lakásdekor, világítás, textilek</small>
+      </div>
+      <div class="grid" id="kat-lakberendezes-grid"></div>
+      <div class="grid" id="kat-lakberendezes-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 9. Konyha & főzés -->
+    <section class="section" id="kat-konyha">
+      <div class="section-header">
+        <h2>Konyha &amp; főzés</h2>
+        <small>Edények, evőeszközök, kiegészítők</small>
+      </div>
+      <div class="grid" id="kat-konyha-grid"></div>
+      <div class="grid" id="kat-konyha-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 10. Kert -->
     <section class="section" id="kat-kert">
       <div class="section-header">
         <h2>Kert</h2>
@@ -685,6 +744,7 @@
       <div class="grid" id="kat-kert-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 11. Játékok -->
     <section class="section" id="kat-jatekok">
       <div class="section-header">
         <h2>Játékok</h2>
@@ -694,6 +754,7 @@
       <div class="grid" id="kat-jatekok-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 12. Divat -->
     <section class="section" id="kat-divat">
       <div class="section-header">
         <h2>Divat</h2>
@@ -703,6 +764,7 @@
       <div class="grid" id="kat-divat-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 13. Szépség -->
     <section class="section" id="kat-szepseg">
       <div class="section-header">
         <h2>Szépség</h2>
@@ -712,6 +774,27 @@
       <div class="grid" id="kat-szepseg-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 14. Drogéria -->
+    <section class="section" id="kat-drogeria">
+      <div class="section-header">
+        <h2>Drogéria</h2>
+        <small>Tisztítószerek, háztartási fogyóeszközök</small>
+      </div>
+      <div class="grid" id="kat-drogeria-grid"></div>
+      <div class="grid" id="kat-drogeria-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 15. Baba -->
+    <section class="section" id="kat-baba">
+      <div class="section-header">
+        <h2>Baba</h2>
+        <small>Pelenka, babaápolás, kiegészítők</small>
+      </div>
+      <div class="grid" id="kat-baba-grid"></div>
+      <div class="grid" id="kat-baba-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 16. Sport -->
     <section class="section" id="kat-sport">
       <div class="section-header">
         <h2>Sport</h2>
@@ -721,6 +804,17 @@
       <div class="grid" id="kat-sport-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 17. Egészség -->
+    <section class="section" id="kat-egeszseg">
+      <div class="section-header">
+        <h2>Egészség</h2>
+        <small>Vérnyomásmérők, mérlegek, wellness</small>
+      </div>
+      <div class="grid" id="kat-egeszseg-grid"></div>
+      <div class="grid" id="kat-egeszseg-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 18. Látás -->
     <section class="section" id="kat-latas">
       <div class="section-header">
         <h2>Látás</h2>
@@ -730,6 +824,7 @@
       <div class="grid" id="kat-latas-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 19. Állatok -->
     <section class="section" id="kat-allatok">
       <div class="section-header">
         <h2>Állatok</h2>
@@ -739,6 +834,7 @@
       <div class="grid" id="kat-allatok-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 20. Könyv -->
     <section class="section" id="kat-konyv">
       <div class="section-header">
         <h2>Könyv</h2>
@@ -748,15 +844,47 @@
       <div class="grid" id="kat-konyv-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 21. Utazás -->
     <section class="section" id="kat-utazas">
       <div class="section-header">
         <h2>Utazás</h2>
-        <small>Szállások, közlekedés, csomagok</small>
+        <small>Utazási kiegészítők, bőröndök</small>
       </div>
       <div class="grid" id="kat-utazas-grid"></div>
       <div class="grid" id="kat-utazas-nav" style="padding-top:0"></div>
     </section>
 
+    <!-- 22. Iroda & iskola -->
+    <section class="section" id="kat-iroda-iskola">
+      <div class="section-header">
+        <h2>Iroda &amp; iskola</h2>
+        <small>Írószerek, füzetek, irodai felszerelés</small>
+      </div>
+      <div class="grid" id="kat-iroda-iskola-grid"></div>
+      <div class="grid" id="kat-iroda-iskola-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 23. Szerszám & barkács -->
+    <section class="section" id="kat-szerszam-barkacs">
+      <div class="section-header">
+        <h2>Szerszám &amp; barkács</h2>
+        <small>Szerszámok, barkácsgépek</small>
+      </div>
+      <div class="grid" id="kat-szerszam-barkacs-grid"></div>
+      <div class="grid" id="kat-szerszam-barkacs-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 24. Autó/Motor & autóápolás -->
+    <section class="section" id="kat-auto-motor">
+      <div class="section-header">
+        <h2>Autó/Motor &amp; autóápolás</h2>
+        <small>Autós kiegészítők, motoros felszerelés</small>
+      </div>
+      <div class="grid" id="kat-auto-motor-grid"></div>
+      <div class="grid" id="kat-auto-motor-nav" style="padding-top:0"></div>
+    </section>
+
+    <!-- 25. Multi -->
     <section class="section" id="kat-multi">
       <div class="section-header">
         <h2>Multi</h2>
@@ -768,7 +896,7 @@
 
   </main>
 
-    <footer>
+  <footer>
     © 2025 A Findora.hu oldal affiliate linkeket tartalmaz. Az oldalon megjelenő 🔗 linkek partnerlinkek lehetnek, amelyekre kattintva — vásárlás esetén — a Findora jutalékot kaphat. Ez a vásárló számára nem jelent semmilyen pluszköltséget.
     <div class="links">
       <a href="nyilatkozat.html#impresszum">Impresszum</a> •
@@ -785,18 +913,3 @@
   <script src="app.js" defer></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
