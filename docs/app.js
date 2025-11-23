@@ -468,7 +468,7 @@ let AKCIO_CURRENT = 1;
 let AKCIO_FULL_STATE = {
   items: [],
   page: 1,
-  pageSize: 20,
+  pageSize: 12,
 };
 
 function renderAkcioCards(itemsWithPartner) {
@@ -1795,4 +1795,5 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
