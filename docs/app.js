@@ -1521,14 +1521,15 @@ function attachScrollHandlers() {
 }
 
 // ===== FELSŐ NAV – FŐOLDAL vs KATEGÓRIA =====
-function showCategoryOnly(catId) {
+function showFullCategoryList(catId) {
   const hero = document.querySelector(".hero");
   const catbarWrap = document.querySelector(".catbar-wrap");
   const bf = document.getElementById("black-friday");
   const akciok = document.getElementById("akciok");
   const pv = document.getElementById("partner-view");
+  const homeDescs = document.getElementById("home-category-descriptions");
 
-  [hero, catbarWrap, bf, akciok].forEach((el) => {
+  [hero, catbarWrap, bf, akciok, homeDescs].forEach((el) => {
     if (el) el.classList.add("hidden");
   });
   if (pv) pv.classList.add("hidden");
@@ -1543,10 +1544,11 @@ function showCategoryOnly(catId) {
     }
   });
 
-  renderCategoryFull(catId);
-
+  buildFullCategoryState(catId);
+  renderFullCategoryPage(catId, 1);
   smoothScrollTo("#" + catId);
 }
+
 
 function showAllSections() {
   const hero = document.querySelector(".hero");
@@ -1554,8 +1556,9 @@ function showAllSections() {
   const bf = document.getElementById("black-friday");
   const akciok = document.getElementById("akciok");
   const pv = document.getElementById("partner-view");
+  const homeDescs = document.getElementById("home-category-descriptions");
 
-  [hero, catbarWrap, bf, akciok].forEach((el) => {
+  [hero, catbarWrap, bf, akciok, homeDescs].forEach((el) => {
     if (el) el.classList.remove("hidden");
   });
   if (pv) pv.classList.add("hidden");
@@ -1572,6 +1575,7 @@ function showAllSections() {
 
   smoothScrollTo("#akciok");
 }
+
 
 function handleNavClick(event) {
   const btn = event.target.closest(".nav-btn[data-view]");
@@ -1823,20 +1827,18 @@ function showAkcioOnly() {
   const catbarWrap = document.querySelector(".catbar-wrap");
   const bf = document.getElementById("black-friday");
   const pv = document.getElementById("partner-view");
+  const homeDescs = document.getElementById("home-category-descriptions");
 
-  // minden főoldali blokk eltüntetése
-  [hero, catbarWrap, bf].forEach(el => {
+  [hero, catbarWrap, bf, homeDescs].forEach((el) => {
     if (el) el.classList.add("hidden");
   });
   if (pv) pv.classList.add("hidden");
 
-  // kategóriák elrejtése
-  CATEGORY_IDS.forEach(id => {
+  CATEGORY_IDS.forEach((id) => {
     const sec = document.getElementById(id);
     if (sec) sec.classList.add("hidden");
   });
 
-  // akciós szekció megjelenítése teljes nézetben
   const ak = document.getElementById("akciok");
   if (ak) ak.classList.remove("hidden");
 
@@ -1869,6 +1871,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
 
