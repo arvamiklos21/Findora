@@ -144,9 +144,9 @@ if not base_cat:
     return None
 
     # ===== Konyha, háztartás → Konyha & főzés =====
-        if root.startswith("konyha, haztartas") ...
-            return "konyha_fozes"
-
+    if root.startswith("konyha, haztartas") or root.startswith("kuchynske a domaci potreby"):
+        return "konyha_fozes"
+        
     # ===== Otthon, barkács, kert – szétbontás otthon / kert / szerszám / lakber =====
     if "otthon, barkacs, kert" in root or "dum, dilna a zahrada" in root:
         second = parts_norm[1] if len(parts_norm) > 1 else ""
