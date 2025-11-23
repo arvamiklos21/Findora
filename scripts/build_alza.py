@@ -14,7 +14,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from category_assign import assign_category, assign_product_group
+from category_assign import category_assign.py
 
 
 # ===== Feed URL-ek beolvasása (több XML támogatása) =====
