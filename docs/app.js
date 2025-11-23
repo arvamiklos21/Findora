@@ -1465,6 +1465,38 @@ function openPartnerView(pid, catId) {
   hydratePartnerCategoryItems(pid, catId);
 }
 
+// ===== KATEGÓRIA NÉZET – PARTNERENKÉNT 6 TERMÉK / BLOKK =====
+function showCategoryOnly(catId) {
+  const hero = document.querySelector(".hero");
+  const catbarWrap = document.querySelector(".catbar-wrap");
+  const bf = document.getElementById("black-friday");
+  const akciok = document.getElementById("akciok");
+  const pv = document.getElementById("partner-view");
+  const homeDescs = document.getElementById("home-category-descriptions");
+
+  [hero, catbarWrap, bf, akciok, homeDescs].forEach((el) => {
+    if (el) el.classList.add("hidden");
+  });
+  if (pv) pv.classList.add("hidden");
+
+  CATEGORY_IDS.forEach((id) => {
+    const sec = document.getElementById(id);
+    if (!sec) return;
+
+    if (id === catId) {
+      sec.classList.remove("hidden");
+      if (CATEGORY_PAGES[id] && CATEGORY_PAGES[id].length) {
+        const current = CATEGORY_CURRENT[id] || 1;
+        renderCategory(id, current);
+      }
+    } else {
+      sec.classList.add("hidden");
+    }
+  });
+
+  smoothScrollTo("#" + catId);
+}
+
 // FULL KATEGÓRIA NÉZET – csak adott kategória, összes partner, 20/lap
 function showFullCategoryList(catId) {
   const hero = document.querySelector(".hero");
@@ -1903,6 +1935,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
 
