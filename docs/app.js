@@ -524,9 +524,43 @@ function renderAkcioCards(itemsWithPartner) {
       const cfg = PARTNERS.get(pid);
       const raw = itemUrl(item);
       const img = itemImg(item);
-      const price = priceText(item && item.price);
+
       const disc = getDiscountNumber(item);
+      const prices = getAkcioPrices(item);
+      const currentText = priceText(
+        prices.current != null ? prices.current : item && item.price
+      );
+      const originalText =
+        prices.original != null ? priceText(prices.original) : null;
+
       const partnerName = (cfg && cfg.name) || pid;
+
+      let priceHtml = "";
+
+      if (originalText && currentText && prices.original !== prices.current) {
+        // Eredeti + akciós ár + %-os kedvezmény
+        priceHtml =
+          '<div class="price">' +
+          '<span class="old-price" style="text-decoration:line-through;opacity:0.7;margin-right:4px;">' +
+          originalText +
+          "</span>" +
+          '<span class="new-price" style="font-weight:bold;margin-right:4px;">' +
+          currentText +
+          "</span>" +
+          (disc
+            ? '<span class="disc" style="color:#c00;font-weight:bold;">-' +
+              disc +
+              "%</span>"
+            : "") +
+          "</div>";
+      } else {
+        // Csak egy ár + opcionális %-os kedvezmény
+        priceHtml =
+          '<div class="price">' +
+          currentText +
+          (disc ? " (-" + disc + "%)" : "") +
+          "</div>";
+      }
 
       let btn = "";
       if (raw) {
@@ -548,10 +582,7 @@ function renderAkcioCards(itemsWithPartner) {
         '<div class="title">' +
         (item && item.title ? item.title : "") +
         "</div>" +
-        '<div class="price">' +
-        price +
-        (disc ? " (-" + disc + "%)" : "") +
-        "</div>" +
+        priceHtml +
         '<div class="partner">• ' +
         partnerName +
         "</div>" +
@@ -561,6 +592,7 @@ function renderAkcioCards(itemsWithPartner) {
     })
     .join("");
 }
+
 
 function renderAkcioPage(page) {
   const grid = document.getElementById("akciok-grid");
@@ -1837,6 +1869,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
 
