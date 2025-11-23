@@ -1,1467 +1,582 @@
-# category_assign.py
+# category_assign_alza.py
 #
-# Findora – egyszerűbb, „natúr” szabályalapú kategorizáló.
+# Findora – ALZA-specifikus kategorizáló
+# Bemenet:  category_path (Alza product_type),
+#           title (opcionális),
+#           description (opcionális)
+# Kimenet:  25-ös Findora főkategória ID
 #
-# 25 FŐ KATEGÓRIA:
-#   elektronika               (1. Elektronika)
-#   haztartasi_gepek          (2. Háztartási gépek)
-#   szamitastechnika          (3. Számítástechnika (IT))
-#   mobiltelefon              (4. Mobiltelefon & Kiegészítők)
-#   gaming                    (5. Gaming)
-#   smart_home                (6. Smart Home)
-#   otthon                    (7. Otthon)
-#   lakberendezes             (8. Lakberendezés)
-#   konyha_fozes              (9. Konyha & Főzés)
-#   kert                      (10. Kert)
-#   jatekok                   (11. Játékok)
-#   divat                     (12. Divat)
-#   szepseg                   (13. Szépség)
-#   drogeria                  (14. Drogéria)
-#   baba                      (15. Baba)
-#   sport                     (16. Sport)
-#   egeszseg                  (17. Egészség)
-#   latas                     (18. Látás)
-#   allatok                   (19. Állatok)
-#   konyv                     (20. Könyv)
-#   utazas                    (21. Utazás)
-#   iroda_iskola              (22. Iroda & Iskola)
-#   szerszam_barkacs          (23. Szerszám / Barkács)
-#   auto_motor_autoapolas     (24. Autó / Motor / Autóápolás)
-#   multi                     (25. Multi – fallback, ha semmire nem illik)
-#
-# Termékcsoportok (assign_product_group – pontozásos logika):
-#   - Számítástechnika (IT)
-#   - Mobiltelefon & Kiegészítők
-#   - Gaming
-#   - Autó / Motor / Autóápolás
-#   - Szerszám / Barkács
-#   - Élelmiszer / Háztartási fogyóeszköz
-#   - Lakberendezés
-#   - Konyha & Főzés
-#   - Smart Home
-#   - Ünnepi / Szezonális
-
-import re
-from typing import Dict, Any
-
-# Ezekből a mezőkből építjük fel a szöveget.
-# FONTOS: a build scriptek MINDEN kulcsot kisbetűsre alakítanak.
-TEXT_TAG_KEYS = [
-    "title",
-    "name",
-    "description",
-    "short_description",
-    "long_description",
-    "product_type",
-    "category",
-    "categorytext",
-    "manufacturer",
-    "brand",
-    "productname",
-    "itemname",
-    "productname_full",
-    "product",
-]
-
-# ---- KULCSSZAVAK KATEGÓRIÁNKÉNT – SZÁNDÉKOSAN EGYSZERŰSÍTVE ----
-CATEGORIES: Dict[str, Dict[str, int]] = {
-    # 1. ELEKTRONIKA – TV, monitor, hang, kamera, projektor, audio eszközök
-    "elektronika": {
-        "tv": 3,
-        "televizio": 3,
-        "televízió": 3,
-        "smart tv": 4,
-        "oled": 3,
-        "qled": 3,
-        "monitor": 3,
-        "projektor": 3,
-        "projektorok": 3,
-        "hangfal": 3,
-        "hangszoro": 3,
-        "hangszóró": 3,
-        "soundbar": 3,
-        "hifi": 2,
-        "erősítő": 2,
-        "erosito": 2,
-        "fejhallgato": 2,
-        "fejhallgató": 2,
-        "fülhallgató": 2,
-        "fulhallgato": 2,
-        "bluetooth hangszoró": 2,
-        "bluetooth hangszoro": 2,
-        "bluetooth speaker": 2,
-        "kamera": 2,
-        "fenykepezo": 2,
-        "fényképező": 2,
-        "videókamera": 2,
-        "videokamera": 2,
-        "akciókamera": 2,
-        "akciokamera": 2,
-        "set top box": 2,
-        "dvd lejátszó": 2,
-        "dvd lejatszo": 2,
-        "bluray": 2,
-        "audio eszköz": 2,
-        "audio eszkoz": 2,
-        "elektronika": 2,
-    },
-
-    # 2. HÁZTARTÁSI GÉPEK
-    "haztartasi_gepek": {
-        "mosógép": 3,
-        "mosogep": 3,
-        "mosogatógép": 3,
-        "mosogatogep": 3,
-        "szárítógép": 3,
-        "szaritogep": 3,
-        "hűtő": 3,
-        "huto": 3,
-        "hűtőszekrény": 3,
-        "fagyasztó": 2,
-        "fagyaszto": 2,
-        "porszívó": 3,
-        "porszivo": 3,
-        "robotporszívó": 3,
-        "robotporszivo": 3,
-        "sütő": 2,
-        "suto": 2,
-        "tűzhely": 2,
-        "tuzhely": 2,
-        "főzőlap": 2,
-        "fozolap": 2,
-        "mikrohullámú": 2,
-        "mikrohullamu": 2,
-        "mikró": 2,
-        "mikro": 2,
-        "kávéfőző": 3,
-        "kavefozo": 3,
-        "espresszó gép": 2,
-        "espresso gep": 2,
-        "vízforraló": 2,
-        "vizforralo": 2,
-        "turmix": 2,
-        "mixer": 2,
-        "botmixer": 2,
-        "robotgép": 2,
-        "robotgep": 2,
-        "toaster": 2,
-        "kenyérpirító": 2,
-        "kenyerpirito": 2,
-        "klíma": 2,
-        "klima": 2,
-        "légkondicionáló": 2,
-        "legkondicionalo": 2,
-        "páramentesítő": 2,
-        "paramentesito": 2,
-        "háztartási gép": 2,
-        "haztartasi gep": 2,
-    },
-
-    # 3. SZÁMÍTÁSTECHNIKA (IT) – PC, notebook, alkatrészek, router, stb.
-    "szamitastechnika": {
-        "pc ": 5,
-        "pc-": 5,
-        "asztali pc": 5,
-        "számítógép": 5,
-        "szamitogep": 5,
-        "notebook": 5,
-        "laptop": 5,
-        "ultrabook": 4,
-        "desktop": 4,
-        "workstation": 4,
-        "videókártya": 5,
-        "videokártya": 5,
-        "videokartya": 5,
-        "gpu": 4,
-        "rtx": 5,
-        "gtx": 4,
-        "rx ": 4,
-        "ram": 4,
-        "memória": 4,
-        "memoria": 4,
-        "ddr4": 4,
-        "ddr5": 4,
-        "ssd": 5,
-        "hdd": 4,
-        "m2 ssd": 4,
-        "m 2 ssd": 4,
-        "alaplap": 4,
-        "motherboard": 4,
-        "processzor": 4,
-        "cpu ": 4,
-        "ryzen": 4,
-        "intel core": 4,
-        "billentyűzet": 5,
-        "billentyuzet": 5,
-        "keyboard": 4,
-        "egér ": 5,
-        "eger ": 5,
-        "mouse": 4,
-        "egerpad": 4,
-        "mousepad": 4,
-        "nyomtató": 4,
-        "nyomtato": 4,
-        "printer": 4,
-        "toner": 4,
-        "patron": 4,
-        "cartridge": 4,
-        "router": 4,
-        "switch": 4,
-        "wi fi": 4,
-        "wifi": 4,
-        "access point": 4,
-        "pc periféria": 3,
-        "pc periferiák": 3,
-    },
-
-    # 4. MOBILTELEFON & KIEGÉSZÍTŐK
-    "mobiltelefon": {
-        "mobiltelefon": 5,
-        "mobil telefon": 5,
-        "okostelefon": 5,
-        "smartphone": 5,
-        "iphone": 5,
-        "android": 4,
-        "galaxy": 4,
-        "xiaomi": 4,
-        "huawei": 4,
-        "oneplus": 4,
-        "telefon": 3,
-        "telefonkészülék": 3,
-        "telefon tok": 5,
-        "telefontok": 5,
-        "phone case": 4,
-        "tok mobiltelefonhoz": 4,
-        "üvegfólia": 4,
-        "uvegfolia": 4,
-        "screen protector": 4,
-        "védőfólia": 4,
-        "vedofolia": 4,
-        "power bank": 5,
-        "powerbank": 5,
-        "hordozható töltő": 4,
-        "hordozhato tolto": 4,
-        "töltő": 4,
-        "tolto": 4,
-        "charger": 4,
-        "usb c": 3,
-        "lightning kábel": 3,
-        "lightning kabel": 3,
-        "adatkábel": 3,
-        "adatkabel": 3,
-        "okosóra": 4,
-        "okos ora": 4,
-        "smartwatch": 4,
-        "aktivitásmérő": 3,
-        "aktivitásmero": 3,
-    },
-
-    # 5. GAMING
-    "gaming": {
-        "ps4": 5,
-        "ps5": 5,
-        "playstation 4": 5,
-        "playstation 5": 5,
-        "playstation": 4,
-        "xbox": 5,
-        "series x": 4,
-        "series s": 4,
-        "nintendo switch": 5,
-        "switch": 4,
-        "videójáték": 4,
-        "videojáték": 4,
-        "videojatek": 4,
-        "game": 3,
-        "játék szoftver": 3,
-        "jatek szoftver": 3,
-        "kontroller": 4,
-        "controller": 4,
-        "gamepad": 4,
-        "kormány": 4,
-        "kormany": 4,
-        "racing wheel": 4,
-        "joystick": 4,
-        "gamer szék": 4,
-        "gamer szek": 4,
-        "gaming chair": 4,
-        "gamer asztal": 4,
-        "gaming desk": 4,
-        "gamer pc": 4,
-        "gamer laptop": 4,
-        "gaming headset": 4,
-        "gamer fejhallgató": 4,
-        "gamer fejhallgato": 4,
-    },
-
-    # 6. SMART HOME
-    "smart_home": {
-        "okosotthon": 5,
-        "okos otthon": 5,
-        "smart home": 5,
-        "okos izzó": 5,
-        "okos izzo": 5,
-        "smart bulb": 5,
-        "philips hue": 4,
-        "yeelight": 4,
-        "okos konnektor": 5,
-        "smart plug": 5,
-        "wifi-s konnektor": 4,
-        "wifi s konnektor": 4,
-        "okos kapcsoló": 4,
-        "okos kapcsolo": 4,
-        "smart switch": 4,
-        "okos termosztát": 4,
-        "okos termosztat": 4,
-        "smart thermostat": 4,
-        "okos kamera": 4,
-        "wifi kamera": 4,
-        "ip kamera": 4,
-        "smart camera": 4,
-        "riasztó rendszer": 3,
-        "riaszto rendszer": 3,
-        "mozgásérzékelő": 3,
-        "mozgáserzekelő": 3,
-        "motion sensor": 3,
-        "alexa": 4,
-        "google home": 4,
-        "homekit": 3,
-    },
-
-    # 7. OTTHON (általános lakásfelszerelés, bútor, lakástextil)
-    "otthon": {
-        "bútor": 3,
-        "butor": 3,
-        "kanapé": 3,
-        "kanape": 3,
-        "fotel": 2,
-        "ágy": 2,
-        "agy": 2,
-        "matrac": 3,
-        "szekrény": 2,
-        "szekreny": 2,
-        "komód": 2,
-        "komod": 2,
-        "szék": 2,
-        "szek": 2,
-        "asztal": 2,
-        "szőnyeg": 2,
-        "szonyeg": 2,
-        "függöny": 2,
-        "fuggony": 2,
-        "párna": 2,
-        "parna": 2,
-        "takaró": 2,
-        "takaro": 2,
-        "ágynemű": 2,
-        "agynemu": 2,
-        "tároló": 2,
-        "tarolo": 2,
-        "szemetes": 2,
-        "világítás": 2,
-        "lampa": 2,
-        "lámpa": 2,
-        "polc": 2,
-        "falipolc": 2,
-        "home garden": 2,
-        "fürdőszobai kiegészítők": 2,
-        "furdoszobai kiegeszitok": 2,
-        "wc szett": 2,
-        "wc kefe": 2,
-        "wc ülőke": 2,
-        "wc uloge": 2,
-    },
-
-    # 8. LAKBERENDEZÉS – dekor, gyertya, váza, fali dekor
-    "lakberendezes": {
-        "dekoráció": 3,
-        "dekoracio": 3,
-        "dekor": 2,
-        "gyertya": 3,
-        "illatgyertya": 3,
-        "illatgyertya": 3,
-        "váza": 3,
-        "vaza": 3,
-        "dísztárgy": 3,
-        "disztargy": 3,
-        "dísz": 2,
-        "disz": 2,
-        "képkeret": 3,
-        "kepkeret": 3,
-        "falikép": 3,
-        "falikep": 3,
-        "fali dekor": 3,
-        "fali dekorációk": 3,
-        "fali dekoraciok": 3,
-        "vászonképek": 3,
-        "vaszonkepek": 3,
-        "virágtartó": 3,
-        "viragtarto": 3,
-        "lakásillatosító": 3,
-        "lakasillatosito": 3,
-        "diffúzor": 3,
-        "diffuzor": 3,
-        "lakberendezés": 2,
-        "lakberendezes": 2,
-    },
-
-    # 9. KONYHA & FŐZÉS
-    "konyha_fozes": {
-        "edénykészlet": 3,
-        "edenykeszlet": 3,
-        "fazék": 3,
-        "fazek": 3,
-        "lábas": 3,
-        "labas": 3,
-        "serpenyő": 3,
-        "serpenyo": 3,
-        "tepsi": 3,
-        "sütőforma": 3,
-        "sutoforma": 3,
-        "sütiforma": 3,
-        "sutiforma": 3,
-        "süteménykiszúró": 3,
-        "sutemenykiszuro": 3,
-        "konyhakés": 3,
-        "konyhakes": 3,
-        "késkészlet": 3,
-        "keskeszlet": 3,
-        "vágódeszka": 3,
-        "vagodeszka": 3,
-        "tál": 3,
-        "tal": 3,
-        "tálkészlet": 3,
-        "talkeszlet": 3,
-        "reszelő": 3,
-        "reszelo": 3,
-        "habverő": 3,
-        "habvero": 3,
-        "konyhai eszközök": 3,
-        "konyhai eszkozok": 3,
-        "konyhai tároló": 3,
-        "konyhai tarolo": 3,
-        "étkészlet": 3,
-        "etkeszlet": 3,
-        "pohár": 2,
-        "pohar": 2,
-        "bögre": 2,
-        "bogre": 2,
-        "csésze": 2,
-        "csesze": 2,
-    },
-
-    # 10. KERT
-    "kert": {
-        "kerti": 2,
-        "kertészeti": 2,
-        "kerteszeti": 2,
-        "fűnyíró": 3,
-        "funyiro": 3,
-        "láncfűrész": 3,
-        "lancfuresz": 3,
-        "sövényvágó": 2,
-        "sovenyvago": 2,
-        "locsoló": 2,
-        "locsolo": 2,
-        "tömlő": 2,
-        "tomlo": 2,
-        "slag": 2,
-        "gereblye": 2,
-        "ásó": 2,
-        "aso": 2,
-        "lapát": 2,
-        "lapat": 2,
-        "vetőmag": 2,
-        "vetomag": 2,
-        "virágföld": 2,
-        "viragfold": 2,
-        "grill": 2,
-        "kerti grill": 2,
-        "kerti bútor": 2,
-        "kerti butor": 2,
-        "kemping": 2,
-        "sátor": 2,
-        "sator": 2,
-        "medence": 2,
-        "kerti dekor": 2,
-    },
-
-    # 11. JÁTÉKOK
-    "jatekok": {
-        "játék": 3,
-        "jatek": 3,
-        "játékok": 3,
-        "jatekok": 3,
-        "gyerekjáték": 3,
-        "gyerekjatek": 3,
-        "társasjáték": 3,
-        "tarsasjatek": 3,
-        "társas": 2,
-        "tarsas": 2,
-        "puzzle": 2,
-        "kirakó": 2,
-        "kirako": 2,
-        "plüss": 3,
-        "pluss": 3,
-        "plüssfigura": 2,
-        "plussfigura": 2,
-        "játékautó": 2,
-        "jatekauto": 2,
-        "kisautó": 2,
-        "kisauto": 2,
-        "babaház": 2,
-        "babahaz": 2,
-        "lego": 3,
-        "duplo": 3,
-        "playmobil": 3,
-        "rc model": 2,
-        "rc auto": 2,
-        "arts entertainment": 2,
-        "kültéri játék": 2,
-        "kulteri jatek": 2,
-    },
-
-    # 12. DIVAT
-    "divat": {
-        "polo": 2,
-        "póló": 2,
-        "trikó": 2,
-        "triko": 2,
-        "pulover": 2,
-        "pulóver": 2,
-        "szvetter": 2,
-        "nadrag": 2,
-        "nadrág": 2,
-        "farmer": 2,
-        "leggings": 2,
-        "kabát": 2,
-        "dzseki": 2,
-        "ruha": 2,
-        "szoknya": 2,
-        "overál": 2,
-        "overall": 2,
-        "cipo": 2,
-        "cipő": 2,
-        "csizma": 2,
-        "bakancs": 2,
-        "szandál": 2,
-        "papucs": 2,
-        "fehernemu": 3,
-        "fehérnemű": 3,
-        "bugyi": 3,
-        "melltarto": 3,
-        "melltartó": 3,
-        "zokni": 2,
-        "harisnya": 2,
-        "taska": 2,
-        "táska": 2,
-        "hátizsák": 2,
-        "hátizsak": 2,
-        "öv": 2,
-        "sapka": 2,
-        "sal": 2,
-        "sál": 2,
-        "kesztyű": 2,
-        "kesztyu": 2,
-        "ora": 2,
-        "óra": 2,
-        "karora": 2,
-        "karóra": 2,
-        "ekszer": 2,
-        "ékszer": 2,
-        "divat": 2,
-        "fashion": 2,
-        "clothing": 2,
-        "apparel": 2,
-    },
-
-    # 13. SZÉPSÉG
-    "szepseg": {
-        "sampon": 2,
-        "tusfürdő": 2,
-        "tusfurdo": 2,
-        "balzsam": 2,
-        "testápoló": 2,
-        "testapolo": 2,
-        "arckrém": 2,
-        "arckrem": 2,
-        "szérum": 2,
-        "szerum": 2,
-        "smink": 2,
-        "alapozó": 2,
-        "alapozo": 2,
-        "rúzs": 2,
-        "ruzs": 2,
-        "körömlakk": 2,
-        "koromlakk": 2,
-        "szempillaspirál": 2,
-        "szempillaspiral": 2,
-        "dezodor": 2,
-        "deo": 2,
-        "parfüm": 2,
-        "parfum": 2,
-        "borotva": 2,
-        "epilátor": 2,
-        "epilator": 2,
-        "hajszárító": 2,
-        "hajszarito": 2,
-        "hajvasaló": 2,
-        "hajvasalo": 2,
-        "kozmetikum": 2,
-        "kozmetika": 2,
-        "wellness": 1,
-        "szájápolás": 2,
-        "szajapolas": 2,
-        "szájhigiénia": 2,
-        "szajhigienia": 2,
-        "fogkefe": 2,
-        "fogkrém": 2,
-        "fogkrem": 2,
-        "szájvíz": 2,
-        "szajviz": 2,
-        "health beauty": 2,
-    },
-
-    # 14. DROGÉRIA
-    "drogeria": {
-        "tisztítószer": 3,
-        "tisztitoszer": 3,
-        "mosószer": 3,
-        "mososzer": 3,
-        "fertőtlenítő": 3,
-        "fertotlenito": 3,
-        "tisztítószerek": 3,
-        "tisztitoszerek": 3,
-        "padlótisztító": 2,
-        "padlotisztito": 2,
-        "illatosító": 2,
-        "illatosito": 2,
-        "wc tisztító": 2,
-        "wc tisztito": 2,
-        "szemeteszsák": 2,
-        "szemeteszsak": 2,
-        "papírtörlő": 2,
-        "papirtorlo": 2,
-        "wc papír": 2,
-        "wc papir": 2,
-        "háztartási papír": 2,
-        "haztartasi papir": 2,
-        "mosogatószer": 2,
-        "mosogatoszer": 2,
-    },
-
-    # 15. BABA
-    "baba": {
-        "baba ": 2,
-        "babák": 2,
-        "babak": 2,
-        "babatáplálás": 2,
-        "babataplalas": 2,
-        "baba fürdetés": 2,
-        "baba furdetes": 2,
-        "pelenka": 3,
-        "úszópelenka": 3,
-        "uszopelenka": 3,
-        "törlőkendő": 2,
-        "torlokendo": 2,
-        "popsikrém": 2,
-        "popsikrem": 2,
-        "babakád": 2,
-        "babakad": 2,
-        "babaülőke": 2,
-        "babauloke": 2,
-        "cumisüveg": 2,
-        "cumisuveg": 2,
-        "cumi ": 2,
-        "cumis": 2,
-        "mellszívó": 2,
-        "mellszivo": 2,
-        "babaszoba": 2,
-        "babakocsi": 2,
-        "babakocsi kiegészítők": 2,
-        "babakocsi kiegeszitok": 2,
-        "babaágy": 2,
-        "babaagy": 2,
-        "babaápolás": 2,
-        "babaapolas": 2,
-    },
-
-    # 16. SPORT
-    "sport": {
-        "futópad": 3,
-        "futopad": 3,
-        "szobabicikli": 3,
-        "szobakerékpár": 3,
-        "szobakerekpar": 3,
-        "súlyzó": 2,
-        "sulyzo": 2,
-        "edzőpad": 2,
-        "edzopad": 2,
-        "fitnesz": 2,
-        "fitness": 2,
-        "jóga": 2,
-        "joga": 2,
-        "jógaszőnyeg": 2,
-        "jogaszonyeg": 2,
-        "labda": 1,
-        "focilabda": 2,
-        "kosárlabda": 2,
-        "kosarlabda": 2,
-        "pingpong": 2,
-        "asztalitenisz": 2,
-        "bicikli": 2,
-        "kerékpár": 2,
-        "kerekpar": 2,
-        "roller": 2,
-        "gördeszka": 2,
-        "gordeszka": 2,
-        "sátor": 2,
-        "sator": 2,
-        "hálózsák": 2,
-        "halozsak": 2,
-        "sportszer": 2,
-        "sportfelszerelés": 2,
-        "sportfelszereles": 2,
-        "sport ruházat": 2,
-        "sport ruhazat": 2,
-        "sport": 1,
-    },
-
-    # 17. EGÉSZSÉG – vérnyomásmérő, légtisztító, tesztek, gyógyászati
-    "egeszseg": {
-        "vérnyomásmérő": 5,
-        "vernyomasmero": 5,
-        "vércukorszint": 5,
-        "vercukorszint": 5,
-        "vércukor mérő": 5,
-        "vercukor mero": 5,
-        "lázmérő": 5,
-        "lazmero": 5,
-        "inhalátor": 5,
-        "inhalator": 5,
-        "légtisztító": 4,
-        "legtisztito": 4,
-        "párásító": 4,
-        "parasito": 4,
-        "levegőtisztító": 4,
-        "levegőkezelo": 4,
-        "masszázs": 4,
-        "masszazs": 4,
-        "masszírozó": 4,
-        "masszirozo": 4,
-        "masszázseszköz": 4,
-        "testelemző mérleg": 4,
-        "testelemzo merleg": 4,
-        "testzsírmérő": 4,
-        "testzsirmero": 4,
-        "gyógyászati segédeszköz": 4,
-        "gyogyaszati segedeszkoz": 4,
-        "gyorsteszt": 4,
-        "tesztcsík": 4,
-        "tesztcsik": 4,
-        "elsősegély": 4,
-        "elsosegely": 4,
-        "egészségmegőrzés": 3,
-        "egeszsegmegorzes": 3,
-        "étrendkiegészítő": 3,
-        "etrendkiegeszito": 3,
-        "vitamin": 3,
-        "multivitamin": 3,
-    },
-
-    # 18. LÁTÁS
-    "latas": {
-        "kontaktlencse": 3,
-        "lencsefolyadék": 3,
-        "lencsefolyadek": 3,
-        "szemcsepp": 3,
-        "műkönny": 2,
-        "mukonny": 2,
-        "optika": 2,
-        "optikai": 2,
-        "szemüveg": 2,
-        "szemuveg": 2,
-        "napszemüveg": 2,
-        "napszemuveg": 2,
-        "dioptria": 2,
-        "kontakt lens": 2,
-    },
-
-    # 19. ÁLLATOK
-    "allatok": {
-        "kutyatáp": 3,
-        "kutyatap": 3,
-        "kutyaeledel": 3,
-        "macskatáp": 3,
-        "macskatap": 3,
-        "macskaeledel": 3,
-        "jutalomfalat": 2,
-        "póráz": 2,
-        "poraz": 2,
-        "nyakörv": 2,
-        "nyakorv": 2,
-        "hám": 2,
-        "ham": 2,
-        "fekhely": 2,
-        "kaparófa": 2,
-        "kaparo fa": 2,
-        "macskaalom": 3,
-        "alomtálca": 2,
-        "alomtalca": 2,
-        "kutyaház": 3,
-        "kutyahaz": 3,
-        "állattartás": 2,
-        "allattartas": 2,
-        "haszonállat": 2,
-        "haszonallat": 2,
-        "animals pet supplies": 2,
-        "dog supplies": 2,
-    },
-
-    # 20. KÖNYV
-    "konyv": {
-        "könyv": 3,
-        "konyv": 3,
-        "regény": 2,
-        "regeny": 2,
-        "krimi": 2,
-        "mese": 2,
-        "mesekönyv": 2,
-        "mesekonyv": 2,
-        "gyerekkönyv": 2,
-        "gyerekkonyv": 2,
-        "szakkönyv": 2,
-        "szakkonyv": 2,
-        "tankönyv": 2,
-        "tankonyv": 2,
-        "munkafüzet": 2,
-        "munkafuzet": 2,
-        "album": 2,
-        "enciklopédia": 2,
-        "enciklopedia": 2,
-        "képregény": 2,
-        "kepregeny": 2,
-    },
-
-    # 21. UTAZÁS
-    "utazas": {
-        "bőrönd": 3,
-        "borond": 3,
-        "utazótáska": 3,
-        "utazotaska": 3,
-        "kézipoggyász": 2,
-        "kezipoggyasz": 2,
-        "utazópárna": 2,
-        "utazoparna": 2,
-        "nyakpárna": 2,
-        "nyakparna": 2,
-        "neszesszer": 2,
-        "utazási": 2,
-        "utazasi": 2,
-        "utazás": 2,
-        "utazas": 2,
-        "travel": 2,
-        "luggage bags": 2,
-        "luggage accessories": 2,
-        "travel accessories": 2,
-        "útlevéltartó": 2,
-        "utleveltarto": 2,
-        "gps": 2,
-        "navigáció": 2,
-        "navigacio": 2,
-        "tetőbox": 2,
-        "tetobox": 2,
-    },
-
-    # 22. IRODA & ISKOLA
-    "iroda_iskola": {
-        "füzet": 2,
-        "fuzet": 2,
-        "jegyzetfüzet": 2,
-        "jegyzetfuzet": 2,
-        "toll": 2,
-        "ceruza": 2,
-        "filctoll": 2,
-        "írószer": 2,
-        "iroszer": 2,
-        "irodai felszerelés": 2,
-        "irodai felszereles": 2,
-        "irodaszer": 2,
-        "irodaszerek": 2,
-        "iskolaszerek": 2,
-        "iskolai": 2,
-        "határidőnapló": 2,
-        "hataridonaplo": 2,
-        "naptár": 2,
-        "naptar": 2,
-        "boríték": 2,
-        "boritek": 2,
-        "iratrendező": 2,
-        "iratrendezo": 2,
-        "laminálógép": 2,
-        "laminalogep": 2,
-        "rajzeszközök": 2,
-        "rajzeszkozok": 2,
-        "akvarell": 2,
-        "akrilfesték": 2,
-        "akrilfestek": 2,
-        "tolltartó": 2,
-        "tolltartók": 2,
-        "tolltartok": 2,
-        "számológép": 2,
-        "szamologep": 2,
-        "iroda": 1,
-        "office": 1,
-    },
-
-    # 23. SZERSZÁM / BARKÁCS
-    "szerszam_barkacs": {
-        "barkács": 3,
-        "barkacs": 3,
-        "szerszám": 3,
-        "szerszam": 3,
-        "fúró": 3,
-        "furo": 3,
-        "furógép": 3,
-        "furogep": 3,
-        "csavarbehajtó": 3,
-        "csavarbehajto": 3,
-        "csavarhúzó": 3,
-        "csavarhuzo": 3,
-        "csavarhúzó készlet": 3,
-        "csavarhuzo keszlet": 3,
-        "csiszoló": 3,
-        "csiszolo": 3,
-        "sarokcsiszoló": 3,
-        "sarokcsiszolo": 3,
-        "flex": 3,
-        "dekopírfűrész": 3,
-        "dekopirfuresz": 3,
-        "szerszámkészlet": 3,
-        "szerszamkeszlet": 3,
-        "szerszámosláda": 3,
-        "szerszamoslada": 3,
-        "műhelyfelszerelés": 2,
-        "muhelyfelszereles": 2,
-        "műhely": 2,
-        "muhely": 2,
-        "ragasztó": 2,
-        "ragaszto": 2,
-        "ragasztószalag": 2,
-        "ragasztoszalag": 2,
-        "kötőanyag": 2,
-        "kotoanyag": 2,
-        "diy": 2,
-    },
-
-    # 24. AUTÓ / MOTOR / AUTÓÁPOLÁS
-    "auto_motor_autoapolas": {
-        "autó-motor": 4,
-        "auto motor": 4,
-        "autó motor": 4,
-        "motorolaj": 4,
-        "motorolajok": 4,
-        "motor oil": 4,
-        "autóápolás": 4,
-        "autoapolas": 4,
-        "autókozmetika": 4,
-        "autokozmetika": 4,
-        "autómosó": 3,
-        "automoso": 3,
-        "autósampon": 3,
-        "autosampon": 3,
-        "felni tisztító": 3,
-        "felni tisztito": 3,
-        "szélvédőmosó": 3,
-        "szelvedomoso": 3,
-        "szélvédőmosó folyadék": 3,
-        "izzó": 3,
-        "autoizzo": 3,
-        "akkumulátor": 3,
-        "akkumulator": 3,
-        "autó illatosító": 3,
-        "auto illatosito": 3,
-        "autós tartó": 3,
-        "autos tarto": 3,
-        "telefon tartó": 3,
-        "telefon tarto": 3,
-        "autós töltő": 3,
-        "autos tolto": 3,
-        "car charger": 3,
-        "autós kiegészítők": 3,
-        "autos kiegeszitok": 3,
-        "motoros felszerelés": 3,
-        "motoros felszereles": 3,
-        "bukósisak": 3,
-        "bukosisak": 3,
-        "autó belső ápoló": 3,
-        "auto belso apolo": 3,
-    },
-
-    # 25. MULTI – fallback
-    "multi": {},
-}
-
-MIN_SCORE = 1
-
-# ---- TERMÉKCSOPORTOK – PONTOZÁSOS ----
-PRODUCT_GROUPS: Dict[str, Dict[str, int]] = {
-    "Smart Home": {
-        "okosotthon": 5,
-        "okos otthon": 5,
-        "smart home": 5,
-        "okos izzó": 5,
-        "okos izzo": 5,
-        "smart bulb": 5,
-        "okos konnektor": 5,
-        "smart plug": 5,
-        "wifi-s konnektor": 4,
-        "wifi s konnektor": 4,
-        "okos kapcsoló": 4,
-        "okos kapcsolo": 4,
-        "smart switch": 4,
-        "okos termosztát": 4,
-        "okos termosztat": 4,
-        "smart thermostat": 4,
-        "okos kamera": 4,
-        "wifi kamera": 4,
-        "ip kamera": 4,
-        "smart camera": 4,
-        "riasztó rendszer": 3,
-        "riaszto rendszer": 3,
-        "mozgásérzékelő": 3,
-        "mozgáserzekelő": 3,
-        "motion sensor": 3,
-        "alexa": 4,
-        "google home": 4,
-        "homekit": 3,
-    },
-    "Mobiltelefon & Kiegészítők": {
-        "mobiltelefon": 5,
-        "mobil telefon": 5,
-        "okostelefon": 5,
-        "smartphone": 5,
-        "iphone": 5,
-        "android": 4,
-        "galaxy": 4,
-        "xiaomi": 4,
-        "huawei": 4,
-        "oneplus": 4,
-        "telefon": 3,
-        "telefonkészülék": 3,
-        "telefon tok": 5,
-        "telefontok": 5,
-        "phone case": 4,
-        "tok mobiltelefonhoz": 4,
-        "üvegfólia": 4,
-        "uvegfolia": 4,
-        "screen protector": 4,
-        "védőfólia": 4,
-        "vedofolia": 4,
-        "power bank": 5,
-        "powerbank": 5,
-        "hordozható töltő": 4,
-        "hordozhato tolto": 4,
-        "töltő": 4,
-        "tolto": 4,
-        "charger": 4,
-        "usb c": 3,
-        "lightning kábel": 3,
-        "lightning kabel": 3,
-        "adatkábel": 3,
-        "adatkabel": 3,
-        "okosóra": 4,
-        "okos ora": 4,
-        "smartwatch": 4,
-        "aktivitásmérő": 3,
-        "aktivitásmero": 3,
-    },
-    "Gaming": {
-        "ps4": 5,
-        "ps5": 5,
-        "playstation 4": 5,
-        "playstation 5": 5,
-        "playstation": 4,
-        "xbox": 5,
-        "series x": 4,
-        "series s": 4,
-        "nintendo switch": 5,
-        "switch": 4,
-        "videójáték": 4,
-        "videojáték": 4,
-        "videojatek": 4,
-        "game": 3,
-        "játék szoftver": 3,
-        "jatek szoftver": 3,
-        "kontroller": 4,
-        "controller": 4,
-        "gamepad": 4,
-        "kormány": 4,
-        "kormany": 4,
-        "racing wheel": 4,
-        "joystick": 4,
-        "gamer szék": 4,
-        "gamer szek": 4,
-        "gaming chair": 4,
-        "gamer asztal": 4,
-        "gaming desk": 4,
-        "gamer pc": 4,
-        "gamer laptop": 4,
-        "gaming headset": 4,
-        "gamer fejhallgató": 4,
-        "gamer fejhallgato": 4,
-    },
-    "Autó / Motor / Autóápolás": {
-        "autó-motor": 4,
-        "auto motor": 4,
-        "autó motor": 4,
-        "motorolaj": 4,
-        "motorolajok": 4,
-        "motor oil": 4,
-        "autóápolás": 4,
-        "autoapolas": 4,
-        "autókozmetika": 4,
-        "autokozmetika": 4,
-        "autómosó": 3,
-        "automoso": 3,
-        "autósampon": 3,
-        "autosampon": 3,
-        "felni tisztító": 3,
-        "felni tisztito": 3,
-        "szélvédőmosó": 3,
-        "szelvedomoso": 3,
-        "szélvédőmosó folyadék": 3,
-        "izzó": 3,
-        "autoizzo": 3,
-        "akkumulátor": 3,
-        "akkumulator": 3,
-        "autó illatosító": 3,
-        "auto illatosito": 3,
-        "autós tartó": 3,
-        "autos tarto": 3,
-        "telefon tartó": 3,
-        "telefon tarto": 3,
-        "autós töltő": 3,
-        "autos tolto": 3,
-        "car charger": 3,
-        "autós kiegészítők": 3,
-        "autos kiegeszitok": 3,
-        "motoros felszerelés": 3,
-        "motoros felszereles": 3,
-        "bukósisak": 3,
-        "bukosisak": 3,
-        "autó belső ápoló": 3,
-        "auto belso apolo": 3,
-    },
-    "Szerszám / Barkács": {
-        "barkács": 3,
-        "barkacs": 3,
-        "szerszám": 3,
-        "szerszam": 3,
-        "fúró": 3,
-        "furo": 3,
-        "furógép": 3,
-        "furogep": 3,
-        "csavarbehajtó": 3,
-        "csavarbehajto": 3,
-        "csavarhúzó": 3,
-        "csavarhuzo": 3,
-        "csavarhúzó készlet": 3,
-        "csavarhuzo keszlet": 3,
-        "csiszoló": 3,
-        "csiszolo": 3,
-        "sarokcsiszoló": 3,
-        "sarokcsiszolo": 3,
-        "flex": 3,
-        "dekopírfűrész": 3,
-        "dekopirfuresz": 3,
-        "szerszámkészlet": 3,
-        "szerszamkeszlet": 3,
-        "szerszámosláda": 3,
-        "szerszamoslada": 3,
-        "műhelyfelszerelés": 2,
-        "muhelyfelszereles": 2,
-        "műhely": 2,
-        "muhely": 2,
-        "ragasztó": 2,
-        "ragaszto": 2,
-        "ragasztószalag": 2,
-        "ragasztoszalag": 2,
-        "kötőanyag": 2,
-        "kotoanyag": 2,
-        "diy": 2,
-        "kemping": 1,
-        "sátor": 1,
-        "sator": 1,
-    },
-    "Élelmiszer / Háztartási fogyóeszköz": {
-        "élelmiszer": 3,
-        "elelmiszer": 3,
-        "kávé": 3,
-        "kave": 3,
-        "espresso": 3,
-        "tea": 3,
-        "kapszula": 3,
-        "diófélék": 3,
-        "diofelek": 3,
-        "mandula": 3,
-        "mogyoró": 3,
-        "mogyoro": 3,
-        "földimogyoró": 3,
-        "foldimogyoro": 3,
-        "aszalt gyümölcs": 3,
-        "aszalt gyumolcs": 3,
-        "egészséges nassolás": 3,
-        "egeszseges nassolas": 3,
-        "nasolás": 3,
-        "nasolas": 3,
-        "tisztítószer": 3,
-        "tisztitoszer": 3,
-        "mosószer": 3,
-        "mososzer": 3,
-        "fertőtlenítő": 3,
-        "fertotlenito": 3,
-        "illatosító": 2,
-        "illatosito": 2,
-        "törlőkendő": 2,
-        "torlokendo": 2,
-        "pelenka": 2,
-        "szemeteszsák": 2,
-        "szemeteszsak": 2,
-        "papírtörlő": 2,
-        "papirtorlo": 2,
-        "wc papír": 2,
-        "wc papir": 2,
-    },
-    "Lakberendezés": {
-        "lakberendezés": 3,
-        "lakberendezes": 3,
-        "dekoráció": 3,
-        "dekoracio": 3,
-        "dekor": 2,
-        "párna": 2,
-        "parna": 2,
-        "takaró": 2,
-        "takaro": 2,
-        "függöny": 2,
-        "fuggony": 2,
-        "szőnyeg": 2,
-        "szonyeg": 2,
-        "fali dekorációk": 3,
-        "fali dekoraciok": 3,
-        "vászonképek": 3,
-        "vaszonkepek": 3,
-        "kulcstartók": 2,
-        "kulcstartok": 2,
-        "óra-ébresztőóra": 2,
-        "ora ebresztoora": 2,
-        "ébresztőórák": 2,
-        "ebresztoorak": 2,
-        "gyertya": 2,
-        "illatgyertya": 2,
-        "váza": 2,
-        "vaza": 2,
-        "képkeret": 2,
-        "kepkeret": 2,
-    },
-    "Konyha & Főzés": {
-        "konyha": 3,
-        "konyhai eszközök": 3,
-        "konyhai eszkozok": 3,
-        "fazék": 3,
-        "fazek": 3,
-        "serpenyő": 3,
-        "serpenyo": 3,
-        "sütőforma": 3,
-        "sutoforma": 3,
-        "tepsi": 3,
-        "süteménykiszúró": 3,
-        "sutemenykiszuro": 3,
-        "konyhakés": 3,
-        "konyhakes": 3,
-        "késkészlet": 3,
-        "keskeszlet": 3,
-        "vágódeszka": 3,
-        "vagodeszka": 3,
-        "tál": 3,
-        "tal": 3,
-        "tálkészlet": 3,
-        "talkeszlet": 3,
-        "reszelő": 3,
-        "reszelo": 3,
-        "habverő": 3,
-        "habvero": 3,
-        "konyhai tároló": 3,
-        "konyhai tarolo": 3,
-        "étkészlet": 3,
-        "etkeszlet": 3,
-        "pohár": 2,
-        "pohar": 2,
-        "bögre": 2,
-        "bogre": 2,
-        "csésze": 2,
-        "csesze": 2,
-    },
-    "Számítástechnika (IT)": {
-        "laptop": 4,
-        "notebook": 4,
-        "pc ": 4,
-        "pc-": 4,
-        "számítógép": 4,
-        "szamitogep": 4,
-        "monitor": 4,
-        "ssd": 4,
-        "hdd": 3,
-        "rtx": 4,
-        "ryzen": 4,
-        "billentyűzet": 4,
-        "billentyuzet": 4,
-        "keyboard": 4,
-        "egér ": 4,
-        "eger ": 4,
-        "mouse": 4,
-        "router": 3,
-        "modem": 3,
-        "switch": 3,
-        "nyomtató": 3,
-        "nyomtato": 3,
-        "toner": 3,
-        "patron": 3,
-        "cartridge": 3,
-    },
-    "Ünnepi / Szezonális": {
-        "karácsony": 5,
-        "karacsony": 5,
-        "karácsonyi": 5,
-        "karacsonyi": 5,
-        "mikulás": 4,
-        "mikulas": 4,
-        "húsvét": 4,
-        "husvet": 4,
-        "halloween": 4,
-        "valentin nap": 4,
-        "valentin-nap": 4,
-        "ünnepi": 3,
-        "unnepi": 3,
-    },
-}
-
-PRODUCT_GROUP_MIN_SCORE = 2
+# Visszaadott értékek pl.:
+#   "elektronika", "haztartasi_gepek", "szamitastechnika",
+#   "mobiltelefon", "gaming", "smart_home", "otthon",
+#   "lakberendezes", "konyha_fozes", "kert", "jatekok",
+#   "divat", "szepseg", "drogeria", "baba", "sport",
+#   "egeszseg", "latas", "allatok", "konyv", "utazas",
+#   "iroda_iskola", "szerszam_barkacs", "auto_motor",
+#   vagy "kat-multi" (ha nem egyértelmű).
 
 
-def normalize_text(s: str) -> str:
-    """Kisbetű, ékezetek megtartva, nem betű/szám → szóköz."""
+import unicodedata
+
+
+def _norm(s: str) -> str:
+    """Normalizált, ékezetmentes, kisbetűs string."""
     if not s:
         return ""
-    s = s.lower()
-    s = re.sub(r"[^0-9a-záéíóöőúüű]+", " ", s, flags=re.IGNORECASE)
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
+    s = s.strip()
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    s = s.replace("\u00a0", " ")
+    s = " ".join(s.split())
+    return s.lower()
 
 
-def build_text_blob(fields: Dict[str, Any]) -> str:
-    """A TEXT_TAG_KEYS mezőket összefűzi egy nagy szöveggé."""
-    parts = []
-    for key in TEXT_TAG_KEYS:
-        val = fields.get(key)
-        if val:
-            parts.append(str(val))
-    return normalize_text(" ".join(parts))
-
-
-def score_category(text: str, keywords: Dict[str, int]) -> int:
-    """Egyszerű substring-alapú pontozás (szándékosan „laza”)."""
-    score = 0
-    for kw, weight in keywords.items():
-        if kw in text:
-            score += weight
-    return score
-
-
-def assign_category(fields: Dict[str, Any]) -> str:
+def _base_category_from_root(root: str):
     """
-    Fő belépési pont – egyszerű, natúr kategória.
-
-    Visszatér: egyik a CATEGORIES kulcsai közül
-      (elektronika, haztartasi_gepek, szamitastechnika, mobiltelefon,
-       gaming, smart_home, otthon, lakberendezes, konyha_fozes, kert,
-       jatekok, divat, szepseg, drogeria, baba, sport, egeszseg, latas,
-       allatok, konyv, utazas, iroda_iskola, szerszam_barkacs,
-       auto_motor_autoapolas, multi)
+    Alap főkategória a ROOT (product_type első szint) alapján.
+    root: már _norm()-ozott string.
     """
-    text = build_text_blob(fields)
-    if not text:
-        return "multi"
 
-    best_cat = "multi"
-    best_score = 0
+    # PC / laptop / IT
+    if root.startswith("pc es laptop") or root.startswith("pocitace a notebooky"):
+        return "szamitastechnika"
 
-    for cat, kw in CATEGORIES.items():
-        if cat == "multi":
-            continue
-        s = score_category(text, kw)
-        if s > best_score:
-            best_score = s
-            best_cat = cat
+    # Telefon, tablet, okosóra
+    if root.startswith("telefon, tablet, okosora") or root.startswith(
+        "mobily, chytre hodinky, tablety"
+    ):
+        return "mobiltelefon"
 
-    if best_score < MIN_SCORE:
-        return "multi"
+    # TV / audio / video / foto
+    if root.startswith("tv, foto, audio") or root.startswith("tv, foto, audio-video") or "audio, video" in root or "audio-video" in root:
+        return "elektronika"
 
-    return best_cat
+    # Gaming
+    if root.startswith("gaming es szorakozas") or root.startswith(
+        "gaming, hry a zabava"
+    ):
+        return "gaming"
+
+    # Smart home
+    if root.startswith("okosotthon") or "smart home" in root:
+        return "smart_home"
+
+    # Konyha & háztartás (edények, mérlegek, konyhai cuccok)
+    if root.startswith("konyha, haztartas") or root.startswith(
+        "kuchynske a domaci potreby"
+    ):
+        return "konyha_fozes"
+
+    # Háztartási gépek (mosógép, porszívó stb.)
+    if root.startswith("haztartasi kisgep") or root.startswith(
+        "haztartasi nagyg"
+    ) or root.startswith("domaci a osobni spotrebice"):
+        return "haztartasi_gepek"
+
+    # Sport
+    if root.startswith("sport, szabadido") or root.startswith("sport a outdoor"):
+        return "sport"
+
+    # Játék / baba-mama
+    if root.startswith("jatek, baba-mama") or root.startswith(
+        "hracky, pro deti a miminka"
+    ):
+        return "jatekok"
+
+    # Drogéria
+    if root.startswith("drogeria") or root.startswith("drogerie"):
+        return "drogeria"
+
+    # Iroda & iskola
+    if root.startswith("irodai felszereles") or root.startswith(
+        "kancelar a papirnictvi"
+    ):
+        return "iroda_iskola"
+
+    # Egészség
+    if root.startswith("egeszsegmegorzes") or root.startswith("lekarn") or "lekarna a zdravi" in root:
+        return "egeszseg"
+
+    # Szépség / illatszer
+    if root.startswith("illatszer, ekszer") or root.startswith(
+        "kosmetika, parfemy a krasa"
+    ):
+        return "szepseg"
+
+    # Autó/motor
+    if root.startswith("auto-motor") or root.startswith("auto-moto") or "auto-motor" in root:
+        return "auto_motor"
+
+    # Állattartás
+    if root.startswith("allattartas"):
+        return "allatok"
+
+    # Otthon, barkács, kert
+    if root.startswith("otthon, barkacs, kert") or root.startswith(
+        "dum, dilna a zahrada"
+    ):
+        return "otthon"
+
+    # Élelmiszer – nálunk közelebb áll az „egészség”-hez
+    if root.startswith("elelmiszer"):
+        return "egeszseg"
+
+    # Könyv
+    if root.startswith("konyv") or root.startswith("konyv, ujsag") or "knihy" in root:
+        return "konyv"
+
+    # Utazás
+    if "utazas" in root or "cestovani" in root:
+        return "utazas"
+
+    return None
 
 
-def assign_product_group(fields: Dict[str, Any]) -> str:
+def _refine_for_special_roots(base_cat, root, parts_norm, full_norm):
     """
-    Termékcsoport hozzárendelés a megadott „nagy” csoportokhoz – PONTOZÁSSAL.
-
-    10 fő termékcsoport:
-      - Számítástechnika (IT)
-      - Mobiltelefon & Kiegészítők
-      - Gaming
-      - Autó / Motor / Autóápolás
-      - Szerszám / Barkács
-      - Élelmiszer / Háztartási fogyóeszköz
-      - Lakberendezés
-      - Konyha & Főzés
-      - Smart Home
-      - Ünnepi / Szezonális
-
-    Ha semmire nem illik (alacsony pontszám), az assign_category() eredményét
-    fallback_map-on keresztül dobjuk egy csoportba.
+    Finomhangolás root + path + teljes szöveg alapján.
+    base_cat: az alap főkategória (_base_category_from_root eredménye)
+    root: normált root
+    parts_norm: a category_path részei normálva
+    full_norm: category_path + title + desc egybemásolva, normálva
     """
-    text = build_text_blob(fields)
-    if not text:
-        return "Élelmiszer / Háztartási fogyóeszköz"
+    if not base_cat:
+        return None
 
-    # 1) Pontozásos termékcsoport-választás
-    best_group = None
-    best_score = 0
-    for group_name, kw in PRODUCT_GROUPS.items():
-        s = score_category(text, kw)
-        if s > best_score:
-            best_score = s
-            best_group = group_name
+    # ===== Otthon, barkács, kert – szétbontás otthon / kert / szerszám / lakber =====
+    if "otthon, barkacs, kert" in root or "dum, dilna a zahrada" in root:
+        second = parts_norm[1] if len(parts_norm) > 1 else ""
 
-    if best_group is not None and best_score >= PRODUCT_GROUP_MIN_SCORE:
-        return best_group
+        if "kert" in second or "zahrad" in second:
+            return "kert"
+        if "szerszam" in second or "naradi" in second:
+            return "szerszam_barkacs"
+        if "butor" in second or "lakberendezes" in second or "dekoracio" in second:
+            return "lakberendezes"
 
-    # 2) Fallback a részletes kategória alapján
-    base_cat = assign_category(fields)
-    fallback_map = {
-        "elektronika": "Számítástechnika (IT)",
-        "szamitastechnika": "Számítástechnika (IT)",
-        "mobiltelefon": "Mobiltelefon & Kiegészítők",
-        "gaming": "Gaming",
-        "smart_home": "Smart Home",
-        "haztartasi_gepek": "Élelmiszer / Háztartási fogyóeszköz",
-        "otthon": "Lakberendezés",
-        "lakberendezes": "Lakberendezés",
-        "konyha_fozes": "Konyha & Főzés",
-        "kert": "Szerszám / Barkács",
-        "jatekok": "Gaming",
-        "baba": "Élelmiszer / Háztartási fogyóeszköz",
-        "drogeria": "Élelmiszer / Háztartási fogyóeszköz",
-        "iroda_iskola": "Lakberendezés",
-        "szerszam_barkacs": "Szerszám / Barkács",
-        "auto_motor_autoapolas": "Autó / Motor / Autóápolás",
-    }
-    return fallback_map.get(base_cat, "Élelmiszer / Háztartási fogyóeszköz")
+        return "otthon"
+
+    # ===== Sport root – kivétel: Egészséges ételek / italok → Egészség =====
+    if base_cat == "sport":
+        if any(
+            kw in full_norm
+            for kw in [
+                "egeszseges etelek",
+                "egeszseges italok",
+                "diofelek",
+                "aszalt gyumolcs",
+                "magvak",
+                "superfood",
+                "protein",
+                "elelmiszer",
+                "taplalek",
+            ]
+        ):
+            # Fitness food, egészséges nasik → Egészség
+            return "egeszseg"
+
+        return "sport"
+
+    # ===== Játék vs. Baba – finomhangolás =====
+    if base_cat == "jatekok":
+        tail = parts_norm[1:] if len(parts_norm) > 1 else []
+        tail_text = " ".join(tail)
+
+        # Egyértelműen baba-jellegű alútvonalak
+        baby_path_markers = [
+            "jatekok babaknak",
+            "jatek babaknak",
+            "hracky pro nejmensi",  # cseh
+            "hracky pro miminka",
+            "babaszoba gyerekszoba",
+            "babaszoba",
+        ]
+
+        # Baba-specifikus kulcsszavak a teljes szövegben (title+desc+path)
+        baby_keywords = [
+            "pelenka",
+            "pelenk",
+            "cumisuveg",
+            "cumi",
+            "eteto szek",
+            "etetoszek",
+            "babakocsi",
+            "hordozo",
+            "jatekbaba",
+            "jaroka",
+            "babaagy",
+            "szundikendo",
+            "szundikendok",
+            "csorgo",
+            "csorgok",
+            "ragoka",
+            "ragokak",
+            "babafeszek",
+            "babafeszkek",
+            "pihenoszek",
+            "ringato",
+            "babatornazas",
+            "babatornaztato",
+            "utazoagy",
+            "utazo agy",
+            "utazo-agy",
+        ]
+
+        # Ha a path vagy a szöveg erősen baba-fókuszú → "baba"
+        if any(m in tail_text for m in baby_path_markers) or any(
+            kw in full_norm for kw in baby_keywords
+        ):
+            return "baba"
+
+        # Minden más Játék, baba-mama → "jatekok"
+        return "jatekok"
+
+    # ===== Egészség vs. Látás =====
+    if base_cat == "egeszseg":
+        if any(
+            kw in full_norm
+            for kw in [
+                "kontaktlencse",
+                "kontaktlencsek",
+                "szemuveg",
+                "szemuvegek",
+                "optika",
+                "szemcsepp",
+                "szemcseppek",
+            ]
+        ):
+            return "latas"
+        return "egeszseg"
+
+    # ===== Szépség vs. Divat – csak a tail alapján döntünk =====
+    if base_cat == "szepseg":
+        tail = parts_norm[1:] if len(parts_norm) > 1 else []
+        tail_text = " ".join(tail)
+
+        # Ha a root alatti ág ékszer/óra/táska/ruha → divat
+        if any(
+            kw in tail_text
+            for kw in [
+                "ekszer",
+                "ekszerek",
+                "nyaklanc",
+                "fulbevalo",
+                "gyuru",
+                "karora",
+                "ora",
+                "taska",
+                "hatizsak",
+                "hatizsakok",
+                "penztarca",
+                "ov",
+                "ruhazat",
+                "polo",
+                "pulover",
+                "sapka",
+                "sapkas",
+                "baseball sapkak",
+            ]
+        ):
+            return "divat"
+
+        # Minden más Illatszer, ékszer ág → szépség
+        return "szepseg"
+
+    # ===== Gamer szék override – akárhonnan jöhet =====
+    if "gamer szek" in full_norm or "gamer chair" in full_norm:
+        return "gaming"
+
+    return base_cat
+
+
+def _keyword_fallback(full_norm: str):
+    """
+    Ha a root alapján nem tudtunk dönteni, kulcsszavas fallback.
+    Csak akkor fut, ha a base_cat None.
+    """
+    # Elektronika
+    if any(
+        kw in full_norm
+        for kw in [
+            "televizio",
+            "televizor",
+            " tv ",
+            "hangfal",
+            "hangszoro",
+            "erosit",
+            "bluetooth",
+            "projektor",
+            "kamer",
+            "dron",
+        ]
+    ):
+        return "elektronika"
+
+    # Számítástechnika
+    if any(
+        kw in full_norm
+        for kw in [
+            "laptop",
+            "notebook",
+            "szamitogep",
+            " pc ",
+            "pc-",
+            "monitor",
+            "videokartya",
+            "alaplap",
+            "ssd",
+            "hdd",
+            "router",
+        ]
+    ):
+        return "szamitastechnika"
+
+    # Mobil
+    if any(
+        kw in full_norm
+        for kw in [
+            "okostelefon",
+            "okos telefon",
+            "mobiltelefon",
+            "telefonhoz",
+            "tok telefon",
+            "tok iphone",
+            "tok samsung",
+        ]
+    ):
+        return "mobiltelefon"
+
+    # Gaming
+    if any(
+        kw in full_norm
+        for kw in ["ps4", "ps5", "xbox", "nintendo", "gaming", "gamer", "konzoljatek", "pc jatek"]
+    ):
+        return "gaming"
+
+    # Konyha & főzés
+    if any(
+        kw in full_norm
+        for kw in [
+            "serpenyo",
+            "fazek",
+            "sutotal",
+            "vagodeszka",
+            "edeny",
+            "konyhai",
+            "konyha",
+        ]
+    ):
+        return "konyha_fozes"
+
+    # Kert
+    if any(
+        kw in full_norm
+        for kw in [
+            "kerti",
+            "locsolo",
+            "slag",
+            "fukasza",
+            "trambulin",
+            "medence",
+            "kerti grill",
+            "ontozestechnika",
+        ]
+    ):
+        return "kert"
+
+    # Szerszám & barkács
+    if any(
+        kw in full_norm
+        for kw in [
+            "csavarhuzo",
+            "furogep",
+            "kalapacs",
+            "bitkeszlet",
+            "furesz",
+            "sarokcsiszolo",
+        ]
+    ):
+        return "szerszam_barkacs"
+
+    # Divat
+    if any(
+        kw in full_norm
+        for kw in [
+            "nadrag",
+            "polo",
+            "pulover",
+            "tunika",
+            "szoknya",
+            "ing",
+            "kabat",
+            "ruha",
+            "melltarto",
+            "bugyi",
+            "zokni",
+            "cipo",
+            "csizma",
+        ]
+    ):
+        return "divat"
+
+    # Játékok
+    if any(
+        kw in full_norm
+        for kw in [
+            "lego",
+            "tarsasjatek",
+            "puzzle",
+            "kirako",
+            "jatekszett",
+            "jatekfigura",
+            "babahaz",
+        ]
+    ):
+        return "jatekok"
+
+    # Baba
+    if any(
+        kw in full_norm
+        for kw in ["pelenka", "cumisuveg", "babaagy", "babakocsi", "jaroka", "babatakaro"]
+    ):
+        return "baba"
+
+    # Drogéria
+    if any(
+        kw in full_norm
+        for kw in [
+            "mososzer",
+            "mosogel",
+            "mosopor",
+            "oblito",
+            "tisztitoszer",
+            "fertotlenito",
+            "wc papir",
+            "zsebkendo",
+        ]
+    ):
+        return "drogeria"
+
+    # Szépség
+    if any(
+        kw in full_norm
+        for kw in [
+            "parfum",
+            "dezodor",
+            "deo ",
+            "smink",
+            "szempillaspiral",
+            "alapozo",
+            "puder",
+        ]
+    ):
+        return "szepseg"
+
+    # Egészség
+    if any(
+        kw in full_norm
+        for kw in [
+            "vernyomasmero",
+            "oximeter",
+            "lazmero",
+            "gyogyszertar",
+            "taplalekkiegeszito",
+        ]
+    ):
+        return "egeszseg"
+
+    # Állatok
+    if any(
+        kw in full_norm
+        for kw in [
+            "kutyatap",
+            "macskatap",
+            "ketrec",
+            "kaparofa",
+            "poraz",
+            "nyakorv",
+        ]
+    ):
+        return "allatok"
+
+    # Könyv
+    if any(
+        kw in full_norm
+        for kw in ["konyv", "regeny", "tankonyv", "kotta"]
+    ):
+        return "konyv"
+
+    # Autó/motor
+    if any(
+        kw in full_norm
+        for kw in [
+            "motorolaj",
+            "autoolaj",
+            "felni",
+            "gumiabroncs",
+            "autokarpit",
+            "autokozmetika",
+            "parkoloradar",
+            "dashcam",
+        ]
+    ):
+        return "auto_motor"
+
+    # Iroda & iskola
+    if any(
+        kw in full_norm
+        for kw in [
+            "tuzogep",
+            "gemkapocs",
+            "fuzet",
+            "spiralfuzet",
+            "toll",
+            "ceruza",
+            "irodaszer",
+            "szamologep",
+        ]
+    ):
+        return "iroda_iskola"
+
+    return None
+
+
+def assign_category(category_path: str, title: str | None = None, description: str | None = None) -> str:
+    """
+    Fő belépési pont.
+
+    :param category_path: Alza product_type / kategóriaútvonal (pl. "Sport, szabadidő|Egészséges ételek|Diófélék")
+    :param title: termék neve (opcionális)
+    :param description: leírás (opcionális)
+    :return: Findora főkategória ID (pl. "sport", "baba", "jatekok", vagy "kat-multi")
+    """
+    if not category_path:
+        return "kat-multi"
+
+    # Path szeletelése + normalizálás
+    parts = [p.strip() for p in category_path.split("|") if p.strip()]
+    root_raw = parts[0] if parts else ""
+    root_norm = _norm(root_raw)
+    parts_norm = [_norm(p) for p in parts]
+
+    # Teljes szöveg (path + cím + leírás) – kulcsszavas fallbackhez, finomhangoláshoz
+    full_text = " ".join(x for x in [category_path, title or "", description or ""] if x)
+    full_norm = _norm(full_text)
+
+    # 1) Root alapú főkategória
+    base_cat = _base_category_from_root(root_norm)
+
+    # 2) Speciális logika (otthon/barkács/kert, sport/egészséges ételek, játék vs. baba, szépség vs. divat, stb.)
+    refined = _refine_for_special_roots(base_cat, root_norm, parts_norm, full_norm)
+    if refined:
+        return refined
+
+    # 3) Ha nincs base_cat, próbáljunk kulcsszavakat
+    if not base_cat:
+        kw_cat = _keyword_fallback(full_norm)
+        if kw_cat:
+            return kw_cat
+        return "kat-multi"
+
+    # 4) Egyébként marad a root szerinti base_cat
+    return base_cat
