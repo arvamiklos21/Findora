@@ -413,7 +413,7 @@ function getCategoriesForItem(pid, it) {
     it &&
     (it.findora_main ||
       it.kat ||
-     it.cat ||
+      it.cat ||
       it.catid ||
       it.catId ||
       it.categoryId ||
@@ -461,12 +461,15 @@ function getCategoryName(catId) {
   return el ? el.textContent.trim() : "";
 }
 
-// ===== Akciós blokk + Black Friday =====
+// ===== Akciós blokk + Black Friday (Algolia alapú) =====
 let AKCIO_PAGES = [];
 let AKCIO_CURRENT = 1;
 
-const DEFAULT_BF_SCAN_PAGES = 2;
-const DEFAULT_BF_MIN_DISCOUNT = 10;
+let AKCIO_FULL_STATE = {
+  items: [],
+  page: 1,
+  pageSize: 20,
+};
 
 function renderAkcioCards(itemsWithPartner) {
   const list = itemsWithPartner || [];
@@ -559,109 +562,157 @@ function renderAkcioPage(page) {
   };
 }
 
+function renderAkcioFullPage(page) {
+  const grid = document.getElementById("akciok-grid");
+  const nav = document.getElementById("akciok-nav");
+  if (!grid || !nav) return;
+
+  const total = AKCIO_FULL_STATE.items.length;
+  if (!total) {
+    grid.innerHTML =
+      '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
+    nav.innerHTML = "";
+    return;
+  }
+
+  const pageSize = AKCIO_FULL_STATE.pageSize || 20;
+  const maxPage = Math.max(1, Math.ceil(total / pageSize));
+
+  if (page < 1) page = 1;
+  if (page > maxPage) page = maxPage;
+  AKCIO_FULL_STATE.page = page;
+
+  const start = (page - 1) * pageSize;
+  const slice = AKCIO_FULL_STATE.items.slice(start, start + pageSize);
+
+  grid.innerHTML = renderAkcioCards(slice);
+
+  nav.innerHTML =
+    '<button class="btn-megnez" ' +
+    (page <= 1 ? "disabled" : "") +
+    ' onclick="window.akciokFullPager && window.akciokFullPager.go(' +
+    (page - 1) +
+    ')">Előző</button>' +
+    '<span style="align-self:center;font-size:13px;margin:0 8px;">' +
+    page +
+    "/" +
+    maxPage +
+    "</span>" +
+    '<button class="btn-megnez" ' +
+    (page >= maxPage ? "disabled" : "") +
+    ' onclick="window.akciokFullPager && window.akciokFullPager.go(' +
+    (page + 1) +
+    ')">Következő</button>';
+
+  window.akciokFullPager = {
+    go: function (p) {
+      renderAkcioFullPage(p);
+    },
+  };
+}
+
 async function buildAkciosBlokk() {
   const host = document.getElementById("akciok-grid");
   if (!host) return;
+
   try {
     host.innerHTML =
       '<div class="card"><div class="thumb">⏳</div><div class="title">Akciók betöltése…</div></div>';
     const nav = document.getElementById("akciok-nav");
     if (nav) nav.innerHTML = "";
 
-    const collected = [];
-    const partnerTasks = [];
-
-    for (const [pid, cfg] of PARTNERS.entries()) {
-      const plc = cfg.placements || {};
-      const anyEnabled = Object.keys(plc).some((k) => {
-        const v = plc[k];
-        return (v && v.enabled) || (v && v.full && v.full.enabled);
-      });
-      if (!anyEnabled) continue;
-
-      const task = (async () => {
-        const bfCfg = cfg.bf || {};
-        if (bfCfg.enabled === false) return;
-
-        let scanPagesMax = parseInt(bfCfg.scanPages, 10);
-        if (!Number.isFinite(scanPagesMax) || scanPagesMax <= 0) {
-          scanPagesMax = DEFAULT_BF_SCAN_PAGES;
-        }
-
-        const meta = await getMeta(pid);
-        const pageSize = meta.pageSize || 300;
-        const totalPages =
-          meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
-        if (pid === "alza" && totalPages > 50) {
-          scanPagesMax = Math.min(scanPagesMax, 1);
-        }
-
-        let minDiscount = parseInt(bfCfg.minDiscount, 10);
-        if (
-          !Number.isFinite(minDiscount) ||
-          minDiscount < 10 ||
-          minDiscount > 70
-        ) {
-          minDiscount = DEFAULT_BF_MIN_DISCOUNT;
-        }
-
-        const scanPages = Math.min(scanPagesMax, totalPages);
-
-        for (let pg = 1; pg <= scanPages; pg++) {
-          const arr = await getPageItems(pid, pg);
-          for (const it of arr) {
-            const d = getDiscountNumber(it);
-            if (d === null || d < minDiscount) continue;
-            collected.push({ pid, item: it });
-          }
-        }
-      })();
-
-      partnerTasks.push(task);
+    const index = await ensureAlgoliaIndex();
+    if (!index) {
+      host.innerHTML =
+        '<div class="empty">Jelenleg nem érhető el az akciós lista (Algolia hiba).</div>';
+      const bfGrid = document.getElementById("bf-grid");
+      if (bfGrid) {
+        bfGrid.innerHTML =
+          '<div class="empty">Jelenleg nem érhető el a Black Friday lista (Algolia hiba).</div>';
+      }
+      return;
     }
 
-    await Promise.all(partnerTasks);
+    const collected = [];
+    const partnerIds =
+      ALGOLIA_CONFIG && Array.isArray(ALGOLIA_CONFIG.partners)
+        ? ALGOLIA_CONFIG.partners
+        : [];
 
-    const dedItems = dedupeStrong(collected.map((r) => r.item));
-    const backMap = new Map();
-    collected.forEach((r) => {
-      const raw = itemUrl(r.item);
-      if (!raw) return;
-      const key =
-        basePath(stripVariantParams(raw)) +
-        "|" +
-        imgPath(itemImg(r.item)) +
-        "|" +
-        normalizeTitleNoSize(r.item.title || "");
-      if (!backMap.has(key)) backMap.set(key, r.pid);
+    const tasks = partnerIds.map(async (pid) => {
+      try {
+        const HITS_PER_PAGE = 500;
+        const MAX_HITS = 15000;
+        let page = 0;
+        let total = 0;
+
+        while (true) {
+          const res = await index.search("", {
+            filters:
+              'partner:"' + pid + '" AND discount >= 10 AND discount <= 70',
+            page,
+            hitsPerPage: HITS_PER_PAGE,
+          });
+
+          const hits = (res && res.hits) || [];
+          if (!hits.length) break;
+
+          hits.forEach((hit) => {
+            collected.push({ pid, item: hit });
+          });
+
+          total += hits.length;
+          const reachedMax = total >= MAX_HITS;
+          const lastPage = page + 1 >= (res.nbPages || 1);
+          if (reachedMax || lastPage) break;
+          page++;
+        }
+
+        console.log("Akciók Algoliából betöltve partnerre:", pid);
+      } catch (e) {
+        console.error("Akciók Algolia lekérdezés hiba:", pid, e);
+      }
     });
 
-    const merged = dedItems
-      .map((it) => {
-        const raw = itemUrl(it);
-        const key =
-          basePath(stripVariantParams(raw)) +
-          "|" +
-          imgPath(itemImg(it)) +
-          "|" +
-          normalizeTitleNoSize(it.title || "");
-        const pid = backMap.get(key) || "unknown";
-        return { pid, item: it };
-      })
+    await Promise.all(tasks);
+
+    if (!collected.length) {
+      host.innerHTML =
+        '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
+      const nav = document.getElementById("akciok-nav");
+      if (nav) nav.innerHTML = "";
+      const bfGrid = document.getElementById("bf-grid");
+      if (bfGrid) {
+        bfGrid.innerHTML =
+          '<div class="empty">Jelenleg nincs kifejezetten Black Friday / Black Weekend jelölésű ajánlat.</div>';
+      }
+      return;
+    }
+
+    const dedRows = dedupeRowsStrong(collected);
+
+    const merged = dedRows
+      .slice()
       .sort((a, b) => {
         const da = getDiscountNumber(a.item) || 0;
         const db = getDiscountNumber(b.item) || 0;
         return db - da;
       });
 
-    const PAGE_SIZE = 12;
+    // Teljes akciós lista (20/lap, nincs mesterséges lap-határ)
+    AKCIO_FULL_STATE.items = merged;
+    AKCIO_FULL_STATE.page = 1;
+
+    // Főoldali előnézet (pl. 12 / lap)
+    const PREVIEW_PAGE_SIZE = 12;
     AKCIO_PAGES = [];
-    for (let i = 0; i < merged.length; i += PAGE_SIZE) {
-      AKCIO_PAGES.push(merged.slice(i, i + PAGE_SIZE));
+    for (let i = 0; i < merged.length; i += PREVIEW_PAGE_SIZE) {
+      AKCIO_PAGES.push(merged.slice(i, i + PREVIEW_PAGE_SIZE));
     }
 
     renderAkcioPage(1);
 
+    // Black Friday blokk – Algolia akciós listából szűrve
     const bfGrid = document.getElementById("bf-grid");
     if (bfGrid) {
       const bfItems = merged.filter(({ item }) => {
@@ -1453,12 +1504,22 @@ function handleNavClick(event) {
   if (!btn) return;
 
   const view = btn.getAttribute("data-view");
+
+  // Főoldal
   if (view === "home") {
     event.preventDefault();
     showAllSections();
     return;
   }
 
+  // Akciók – külön nézet (20/lap)
+  if (view === "akciok") {
+    event.preventDefault();
+    showAkcioOnly();
+    return;
+  }
+
+  // Kategória nézet
   if (view === "category") {
     const catId = btn.getAttribute("data-cat");
     if (!catId) return;
@@ -1467,6 +1528,7 @@ function handleNavClick(event) {
     return;
   }
 
+  // Teljes kategória 20/lap
   if (view === "category-full") {
     const catId = btn.getAttribute("data-cat");
     if (!catId) return;
@@ -1543,6 +1605,17 @@ function attachPartnerViewHandlers() {
   }
 
   document.addEventListener("click", handlePartnerUiClick);
+}
+
+// ===== Akció cím kattintható: teljes 20/lap nézet =====
+function attachAkcioTitleHandler() {
+  const title = document.querySelector("#akciok .section-header h2");
+  if (!title) return;
+  title.style.cursor = "pointer";
+  title.addEventListener("click", function () {
+    renderAkcioFullPage(1);
+    smoothScrollTo("#akciok");
+  });
 }
 
 // ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) – Algolia ALAPÚ, PARTNERENKÉNT 6/LAP, MAX 5 LAP =====
@@ -1670,6 +1743,32 @@ async function buildCategoryBlocks() {
   });
 }
 
+function showAkcioOnly() {
+  const hero = document.querySelector(".hero");
+  const catbarWrap = document.querySelector(".catbar-wrap");
+  const bf = document.getElementById("black-friday");
+  const pv = document.getElementById("partner-view");
+
+  // minden főoldali blokk eltüntetése
+  [hero, catbarWrap, bf].forEach(el => {
+    if (el) el.classList.add("hidden");
+  });
+  if (pv) pv.classList.add("hidden");
+
+  // kategóriák elrejtése
+  CATEGORY_IDS.forEach(id => {
+    const sec = document.getElementById(id);
+    if (sec) sec.classList.add("hidden");
+  });
+
+  // akciós szekció megjelenítése teljes nézetben
+  const ak = document.getElementById("akciok");
+  if (ak) ak.classList.remove("hidden");
+
+  renderAkcioFullPage(1);
+  smoothScrollTo("#akciok");
+}
+
 // ===== INIT =====
 async function init() {
   try {
@@ -1677,6 +1776,7 @@ async function init() {
     attachNavHandlers();
     attachSearchForm();
     attachPartnerViewHandlers();
+    attachAkcioTitleHandler();
 
     await loadPartners();
     await loadCategoryMap();
@@ -1694,7 +1794,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
-
-
-
