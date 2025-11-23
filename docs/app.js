@@ -1613,10 +1613,11 @@ function attachAkcioTitleHandler() {
   if (!title) return;
   title.style.cursor = "pointer";
   title.addEventListener("click", function () {
-    renderAkcioFullPage(1);
-    smoothScrollTo("#akciok");
+    // KÜLÖN AKCIÓ NÉZET – 20/lap, minden más elrejtve
+    showAkcioOnly();
   });
 }
+
 
 // ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) – Algolia ALAPÚ, PARTNERENKÉNT 6/LAP, MAX 5 LAP =====
 async function buildCategoryBlocks() {
@@ -1794,3 +1795,4 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
