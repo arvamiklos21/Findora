@@ -389,7 +389,21 @@ const CATEGORY_IDS = [
   "kat-konyv",
   "kat-utazas",
   "kat-multi",
+
+  "kat-szamitastechnika",
+  "kat-mobil",
+  "kat-gaming",
+  "kat-smart-home",
+  "kat-lakberendezes",
+  "kat-konyha-fozes",
+  "kat-drogeria",
+  "kat-baba",
+  "kat-egeszseg",
+  "kat-iroda-iskola",
+  "kat-szerszam-barkacs",
+  "kat-auto-motor",
 ];
+
 
 // Backend findora_main / cat → front-end kat-* ID
 // (a backend findora_main mezőben ideális esetben ezek a "kat-..." értékek vannak)
@@ -407,31 +421,52 @@ const FINDORA_MAIN_TO_CATID = {
   "kat-konyv": "kat-konyv",
   "kat-utazas": "kat-utazas",
   "kat-multi": "kat-multi",
+
+  "kat-szamitastechnika": "kat-szamitastechnika",
+  "kat-mobil": "kat-mobil",
+  "kat-gaming": "kat-gaming",
+  "kat-smart-home": "kat-smart-home",
+  "kat-lakberendezes": "kat-lakberendezes",
+  "kat-konyha-fozes": "kat-konyha-fozes",
+  "kat-drogeria": "kat-drogeria",
+  "kat-baba": "kat-baba",
+  "kat-egeszseg": "kat-egeszseg",
+  "kat-iroda-iskola": "kat-iroda-iskola",
+  "kat-szerszam-barkacs": "kat-szerszam-barkacs",
+  "kat-auto-motor": "kat-auto-motor",
 };
+
 
 // Backend szinonimák (Python-ból jövő kulcsok → kat-* ID)
 const BACKEND_SYNONYM_TO_CATID = {
   elektronika: "kat-elektronika",
   haztartasi_gepek: "kat-gepek",
-  "háztartási_gepek": "kat-gepek",
   otthon: "kat-otthon",
   kert: "kat-kert",
   jatekok: "kat-jatekok",
-  játékok: "kat-jatekok",
   divat: "kat-divat",
   szepseg: "kat-szepseg",
-  szépség: "kat-szepseg",
   sport: "kat-sport",
   latas: "kat-latas",
-  látas: "kat-latas",
   allatok: "kat-allatok",
-  állatok: "kat-allatok",
   konyv: "kat-konyv",
-  könyv: "kat-konyv",
   utazas: "kat-utazas",
-  utazás: "kat-utazas",
   multi: "kat-multi",
+
+  szamitastechnika: "kat-szamitastechnika",
+  mobil: "kat-mobil",
+  gaming: "kat-gaming",
+  smart_home: "kat-smart-home",
+  lakberendezes: "kat-lakberendezes",
+  konyha_fozes: "kat-konyha-fozes",
+  drogeria: "kat-drogeria",
+  baba: "kat-baba",
+  egeszseg: "kat-egeszseg",
+  iroda_iskola: "kat-iroda-iskola",
+  szerszam_barkacs: "kat-szerszam-barkacs",
+  auto_motor: "kat-auto-motor",
 };
+
 
 // backend cat kulcs → kat-* ID (fordított map)
 const BACKEND_FROM_CATID = {};
@@ -1871,6 +1906,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
 
