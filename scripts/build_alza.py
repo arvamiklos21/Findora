@@ -14,7 +14,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from category_assign import assign_category, assign_product_group
+# ÚJ API: csak assign_category, ami egy dict-et vár
+from category_assign import assign_category
 
 
 # ===== Feed URL-ek beolvasása (több XML támogatása) =====
@@ -202,6 +203,7 @@ def parse_items(xml_text):
     items = []
     for n in candidates:
         m = collect_node(n)
+        # MINDEN kulcsot kisbetűsre tesszük
         m = {k.lower(): v for k, v in m.items()}
 
         pid = first(m, ("g:id", "id", "item_id", "sku"))
@@ -250,16 +252,16 @@ def parse_items(xml_text):
             else None
         )
 
-        # ===== Findora kategória + termékcsoport (új category_assign API) =====
-        fields = dict(m)
-        fields.setdefault("title", title or "")
-        fields.setdefault("description", raw_desc or "")
-        if cat_path:
-            fields.setdefault("category", cat_path)
-            fields.setdefault("categorytext", cat_path)
-
-        findora_main = assign_category(fields)
-        product_group = assign_product_group(fields)
+        # ===== Kategória → Findora (ÚJ API: assign_category(fields: dict)) =====
+        fields_for_cat = {
+            "title": title or "",
+            "description": raw_desc or "",
+            "category": cat_path or "",
+            "product_type": cat_path or "",
+            "categorytext": cat_path or "",
+            "brand": m.get("brand") or m.get("manufacturer") or "",
+        }
+        findora_main = assign_category(fields_for_cat)
 
         # category_root (első szegmens, ha '|' vagy '>' van)
         category_root = (cat_path or "").strip()
@@ -281,7 +283,6 @@ def parse_items(xml_text):
             "category_root": category_root,
             "findora_main": findora_main,
             "cat": findora_main,
-            "product_group": product_group,
         }
 
         items.append(item)
@@ -354,9 +355,7 @@ def dedup_size_variants(items):
     buckets = {}
     for it in items:
         tnorm = normalize_title_for_size(it.get("title"))
-        color = detect_color_token(it.get("title")) or detect_color_token(
-            it.get("desc") or ""
-        )
+        color = detect_color_token(it.get("title")) or detect_color_token(it.get("desc") or "")
         base_url = strip_size_from_url(it.get("url"))
         key = (tnorm, color or "", base_url or "")
         cur = buckets.get(key)
