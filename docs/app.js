@@ -877,7 +877,7 @@ async function buildAkciosBlokk() {
 
     // Főoldali előnézet (pl. 12 / lap)
     const PREVIEW_PAGE_SIZE = 12;
-    AKCIO_PAGES = [2];
+    AKCIO_PAGES = [];
     for (let i = 0; i < merged.length; i += PREVIEW_PAGE_SIZE) {
       AKCIO_PAGES.push(merged.slice(i, i + PREVIEW_PAGE_SIZE));
     }
@@ -1990,6 +1990,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
 
