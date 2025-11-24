@@ -5,48 +5,6 @@ const PARTNERS = new Map();
 const META = new Map();
 const PAGES = new Map();
 
-const ALGOLIA_CONFIG =
-  (typeof window !== "undefined" && window.FINDORA_ALGOLIA_CONFIG) || null;
-const ALGOLIA_ENABLED =
-  !!(
-    ALGOLIA_CONFIG &&
-    ALGOLIA_CONFIG.appId &&
-    ALGOLIA_CONFIG.searchKey &&
-    ALGOLIA_CONFIG.indexName
-  );
-
-let ALGOLIA_INDEX = null;
-
-async function ensureAlgoliaIndex() {
-  if (!ALGOLIA_ENABLED) return null;
-  if (ALGOLIA_INDEX) return ALGOLIA_INDEX;
-
-  // ha nincs még betöltve az Algolia kliens, betöltjük CDN-ről
-  if (typeof window.algoliasearch === "undefined") {
-    await new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src =
-        "https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js";
-      s.async = true;
-      s.onload = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
-  }
-
-  try {
-    const client = window.algoliasearch(
-      ALGOLIA_CONFIG.appId,
-      ALGOLIA_CONFIG.searchKey
-    );
-    ALGOLIA_INDEX = client.initIndex(ALGOLIA_CONFIG.indexName);
-    return ALGOLIA_INDEX;
-  } catch (e) {
-    console.error("Algolia kliens inicializálási hiba:", e);
-    return null;
-  }
-}
-
 // ===== category-map.json =====
 const CATEGORY_MAP_URL = FEEDS_BASE + "/feeds/category-map.json";
 const CATEGORY_MAP = {};
@@ -403,9 +361,7 @@ const CATEGORY_IDS = [
   "kat-multi",
 ];
 
-
 // Backend findora_main / cat → front-end kat-* ID
-// (a backend findora_main mezőben ideális esetben ezek a "kat-..." értékek vannak)
 const FINDORA_MAIN_TO_CATID = {
   "kat-elektronika": "kat-elektronika",
   "kat-gepek": "kat-gepek",
@@ -433,7 +389,6 @@ const FINDORA_MAIN_TO_CATID = {
   "kat-auto-motor": "kat-auto-motor",
   "kat-multi": "kat-multi",
 };
-
 
 // Backend szinonimák (Python-ból jövő kulcsok → kat-* ID)
 const BACKEND_SYNONYM_TO_CATID = {
@@ -464,14 +419,13 @@ const BACKEND_SYNONYM_TO_CATID = {
   multi: "kat-multi",
 };
 
-
 // backend cat kulcs → kat-* ID (fordított map)
 const BACKEND_FROM_CATID = {};
 Object.entries(FINDORA_MAIN_TO_CATID).forEach(([backendKey, catId]) => {
   BACKEND_FROM_CATID[catId] = backendKey;
 });
 
-// CATID → findora_main (Algolia filterhez – itt a kanonikus kulcs marad)
+// CATID → findora_main (Algolia filterhez – kanonikus kulcs, de itt főleg meta infó)
 const CATID_TO_FINDORA_MAIN = {};
 Object.keys(FINDORA_MAIN_TO_CATID).forEach((key) => {
   const cid = FINDORA_MAIN_TO_CATID[key];
@@ -482,7 +436,7 @@ Object.keys(FINDORA_MAIN_TO_CATID).forEach((key) => {
 function getCategoriesForItem(pid, it) {
   const cfg = PARTNERS.get(pid) || {};
 
-  // 0) Backend cat / findora_main mező (Python-ból / Algolia rekordból)
+  // 0) Backend cat / findora_main mező (Python-ból)
   const backendCatRaw =
     it &&
     (it.findora_main ||
@@ -497,10 +451,10 @@ function getCategoriesForItem(pid, it) {
   if (backendCatRaw) {
     const backendCat = String(backendCatRaw).toLowerCase();
 
-    // először közvetlen "kat-..." kulcs
+    // közvetlen "kat-..." kulcs
     let mappedFromBackend = FINDORA_MAIN_TO_CATID[backendCat];
 
-    // ha nem kat-..., akkor próbáljuk a szinonima mapet (elektronika, haztartasi_gepek, stb.)
+    // ha nem kat-..., akkor próbáljuk a szinonima mapet
     if (!mappedFromBackend && BACKEND_SYNONYM_TO_CATID[backendCat]) {
       mappedFromBackend = BACKEND_SYNONYM_TO_CATID[backendCat];
     }
@@ -535,7 +489,7 @@ function getCategoryName(catId) {
   return el ? el.textContent.trim() : "";
 }
 
-// ===== Akciós blokk + Black Friday (Algolia alapú) =====
+// ===== Akciós blokk + Black Friday (JSON FEED ALAPÚ) =====
 let AKCIO_PAGES = [];
 let AKCIO_CURRENT = 1;
 
@@ -624,7 +578,6 @@ function renderAkcioCards(itemsWithPartner) {
     })
     .join("");
 }
-
 
 function renderAkcioPage(page) {
   const grid = document.getElementById("akciok-grid");
@@ -717,6 +670,7 @@ function renderAkcioFullPage(page) {
   };
 }
 
+// AKCIÓS BLOKK – CSAK JSON FEED
 async function buildAkciosBlokk() {
   const host = document.getElementById("akciok-grid");
   if (!host) return;
@@ -727,65 +681,38 @@ async function buildAkciosBlokk() {
     const nav = document.getElementById("akciok-nav");
     if (nav) nav.innerHTML = "";
 
-    const index = await ensureAlgoliaIndex();
-    if (!index) {
-      host.innerHTML =
-        '<div class="empty">Jelenleg nem érhető el az akciós lista (Algolia hiba).</div>';
-      const bfGrid = document.getElementById("bf-grid");
-      if (bfGrid) {
-        bfGrid.innerHTML =
-          '<div class="empty">Jelenleg nem érhető el a Black Friday lista (Algolia hiba).</div>';
-      }
-      return;
-    }
-
     const collected = [];
-    const partnerIds =
-      ALGOLIA_CONFIG && Array.isArray(ALGOLIA_CONFIG.partners)
-        ? ALGOLIA_CONFIG.partners
-        : [];
+    const partnerIds = Array.from(PARTNERS.keys());
+    const MAX_PAGES_PER_PARTNER = 5; // első 5 oldal / partner az akciókhoz
 
-    const tasks = partnerIds.map(async (pid) => {
+    for (const pid of partnerIds) {
       try {
-        const HITS_PER_PAGE = 500;
-        const MAX_HITS = 15000;
-        let page = 0;
-        let total = 0;
+        const meta = await getMeta(pid);
+        const pageSize = meta.pageSize || 300;
+        const totalPages =
+          meta.pages ||
+          Math.ceil((meta.total || 0) / pageSize) ||
+          1;
 
-        while (true) {
-          const res = await index.search("", {
-            filters:
-              'partner:"' + pid + '" AND discount >= 10 AND discount <= 70',
-            page,
-            hitsPerPage: HITS_PER_PAGE,
+        const limit = Math.min(totalPages, MAX_PAGES_PER_PARTNER);
+
+        for (let pg = 1; pg <= limit; pg++) {
+          const arr = await getPageItems(pid, pg);
+          (arr || []).forEach((it) => {
+            const disc = getDiscountNumber(it);
+            if (disc !== null) {
+              collected.push({ pid, item: it });
+            }
           });
-
-          const hits = (res && res.hits) || [];
-          if (!hits.length) break;
-
-          hits.forEach((hit) => {
-            collected.push({ pid, item: hit });
-          });
-
-          total += hits.length;
-          const reachedMax = total >= MAX_HITS;
-          const lastPage = page + 1 >= (res.nbPages || 1);
-          if (reachedMax || lastPage) break;
-          page++;
         }
-
-        console.log("Akciók Algoliából betöltve partnerre:", pid);
       } catch (e) {
-        console.error("Akciók Algolia lekérdezés hiba:", pid, e);
+        console.error("Akciók betöltése hiba partnernél:", pid, e);
       }
-    });
-
-    await Promise.all(tasks);
+    }
 
     if (!collected.length) {
       host.innerHTML =
         '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
-      const nav = document.getElementById("akciok-nav");
       if (nav) nav.innerHTML = "";
       const bfGrid = document.getElementById("bf-grid");
       if (bfGrid) {
@@ -818,7 +745,7 @@ async function buildAkciosBlokk() {
 
     renderAkcioPage(1);
 
-    // Black Friday blokk – Algolia akciós listából szűrve
+    // Black Friday blokk – akciós listából szűrve
     const bfGrid = document.getElementById("bf-grid");
     if (bfGrid) {
       const bfItems = merged.filter(({ item }) => {
@@ -872,64 +799,6 @@ const FULL_CATEGORY_STATE = {
   pageSize: 20,
 };
 window.fullCatPager = window.fullCatPager || {};
-
-// Algolia alapú teljes betöltés egy partner–kategória kombinációra (partner nézethez)
-async function hydratePartnerFromAlgolia(pid, catId) {
-  const index = await ensureAlgoliaIndex();
-  if (!index) return null;
-
-  const mainKey = CATID_TO_FINDORA_MAIN[catId] || null;
-  const filters = [];
-
-  filters.push('partner:"' + pid + '"');
-  if (mainKey && mainKey !== "kat-multi") {
-    filters.push('findora_main:"' + mainKey + '"');
-  }
-
-  const MAX_HITS = 6000;
-  const HITS_PER_PAGE = 500;
-  const rows = [];
-  let page = 0;
-
-  while (true) {
-    const res = await index.search("", {
-      filters: filters.join(" AND "),
-      page,
-      hitsPerPage: HITS_PER_PAGE,
-    });
-
-    if (res.hits && res.hits.length) {
-      res.hits.forEach((hit) => {
-        rows.push({ pid, item: hit });
-      });
-    }
-
-    const reachedMax = rows.length >= MAX_HITS;
-    const lastPage = page + 1 >= (res.nbPages || 1);
-
-    if (reachedMax || lastPage) break;
-    page++;
-  }
-
-  const ded = dedupeRowsStrong(rows);
-
-  if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-  PARTNER_CATEGORY_ITEMS[pid][catId] = ded;
-
-  return ded;
-}
-
-let PARTNER_VIEW_STATE = {
-  pid: null,
-  catId: null,
-  items: [],
-  filtered: [],
-  page: 1,
-  pageSize: 20,
-  sort: "default",
-  query: "",
-  loading: false,
-};
 
 function renderCategoryCards(itemsWithPartner, catId, showPartnerRow) {
   const list = itemsWithPartner || [];
@@ -1206,7 +1075,7 @@ function renderFullCategoryPage(catId, page) {
   };
 }
 
-// TELJES partner–kategória lista háttérben
+// TELJES partner–kategória lista háttérben – CSAK JSON FEED
 async function hydratePartnerCategoryItems(pid, catId) {
   const key = pid + "||" + catId;
   if (PARTNER_CATEGORY_LOAD_PROMISES[key]) {
@@ -1218,34 +1087,6 @@ async function hydratePartnerCategoryItems(pid, catId) {
       const cfg = PARTNERS.get(pid);
       if (!cfg) return;
 
-      // 0) ha Algolia engedélyezve erre a partnerre → onnan töltjük
-      const useAlgolia =
-        ALGOLIA_ENABLED &&
-        ALGOLIA_CONFIG &&
-        Array.isArray(ALGOLIA_CONFIG.partners) &&
-        ALGOLIA_CONFIG.partners.indexOf(pid) !== -1;
-
-      if (useAlgolia) {
-        const rows = await hydratePartnerFromAlgolia(pid, catId);
-        if (rows && rows.length) {
-          if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-          PARTNER_CATEGORY_ITEMS[pid][catId] = rows;
-
-          if (
-            PARTNER_VIEW_STATE.pid === pid &&
-            PARTNER_VIEW_STATE.catId === catId
-          ) {
-            PARTNER_VIEW_STATE.items = rows.slice();
-            PARTNER_VIEW_STATE.loading = false;
-            applyPartnerFilters();
-            renderPartnerViewPage(1);
-          }
-          return;
-        }
-        // ha Algoliából nem jött semmi, esünk vissza feed-re
-      }
-
-      // 1) feed-alapú fallback
       const meta = await getMeta(pid);
       const pageSize = meta.pageSize || 300;
       const totalPages =
@@ -1318,6 +1159,18 @@ async function hydratePartnerCategoryItems(pid, catId) {
 }
 
 // ===== PARTNER NÉZET – KERESÉS, RENDEZÉS, LAPOZÁS =====
+let PARTNER_VIEW_STATE = {
+  pid: null,
+  catId: null,
+  items: [],
+  filtered: [],
+  page: 1,
+  pageSize: 20,
+  sort: "default",
+  query: "",
+  loading: false,
+};
+
 function applyPartnerFilters() {
   if (!PARTNER_VIEW_STATE.items) {
     PARTNER_VIEW_STATE.filtered = [];
@@ -1504,8 +1357,9 @@ function showFullCategoryList(catId) {
   const bf = document.getElementById("black-friday");
   const akciok = document.getElementById("akciok");
   const pv = document.getElementById("partner-view");
+  const homeDescs = document.getElementById("home-category-descriptions");
 
-  [hero, catbarWrap, bf, akciok].forEach((el) => {
+  [hero, catbarWrap, bf, akciok, homeDescs].forEach((el) => {
     if (el) el.classList.add("hidden");
   });
   if (pv) pv.classList.add("hidden");
@@ -1525,7 +1379,7 @@ function showFullCategoryList(catId) {
   smoothScrollTo("#" + catId);
 }
 
-// ===== Hero kereső → Algolia search.html =====
+// ===== Hero kereső → Algolia search.html (globális kereső, külön oldal JS-sel) =====
 function attachSearchForm() {
   const form = document.getElementById("searchFormAll");
   const input = document.getElementById("qAll");
@@ -1585,35 +1439,6 @@ function attachScrollHandlers() {
 }
 
 // ===== FELSŐ NAV – FŐOLDAL vs KATEGÓRIA =====
-function showFullCategoryList(catId) {
-  const hero = document.querySelector(".hero");
-  const catbarWrap = document.querySelector(".catbar-wrap");
-  const bf = document.getElementById("black-friday");
-  const akciok = document.getElementById("akciok");
-  const pv = document.getElementById("partner-view");
-  const homeDescs = document.getElementById("home-category-descriptions");
-
-  [hero, catbarWrap, bf, akciok, homeDescs].forEach((el) => {
-    if (el) el.classList.add("hidden");
-  });
-  if (pv) pv.classList.add("hidden");
-
-  CATEGORY_IDS.forEach((id) => {
-    const sec = document.getElementById(id);
-    if (!sec) return;
-    if (id === catId) {
-      sec.classList.remove("hidden");
-    } else {
-      sec.classList.add("hidden");
-    }
-  });
-
-  buildFullCategoryState(catId);
-  renderFullCategoryPage(catId, 1);
-  smoothScrollTo("#" + catId);
-}
-
-
 function showAllSections() {
   const hero = document.querySelector(".hero");
   const catbarWrap = document.querySelector(".catbar-wrap");
@@ -1639,7 +1464,6 @@ function showAllSections() {
 
   smoothScrollTo("#akciok");
 }
-
 
 function handleNavClick(event) {
   const btn = event.target.closest(".nav-btn[data-view]");
@@ -1755,90 +1579,87 @@ function attachAkcioTitleHandler() {
   if (!title) return;
   title.style.cursor = "pointer";
   title.addEventListener("click", function () {
-    // KÜLÖN AKCIÓ NÉZET – 20/lap, minden más elrejtve
     showAkcioOnly();
   });
 }
 
+function showAkcioOnly() {
+  const hero = document.querySelector(".hero");
+  const catbarWrap = document.querySelector(".catbar-wrap");
+  const bf = document.getElementById("black-friday");
+  const pv = document.getElementById("partner-view");
+  const homeDescs = document.getElementById("home-category-descriptions");
 
-// ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) – Algolia ALAPÚ, PARTNERENKÉNT 6/LAP, MAX 5 LAP =====
+  [hero, catbarWrap, bf, homeDescs].forEach((el) => {
+    if (el) el.classList.add("hidden");
+  });
+  if (pv) pv.classList.add("hidden");
+
+  CATEGORY_IDS.forEach((id) => {
+    const sec = document.getElementById(id);
+    if (sec) sec.classList.add("hidden");
+  });
+
+  const ak = document.getElementById("akciok");
+  if (ak) ak.classList.remove("hidden");
+
+  renderAkcioFullPage(1);
+  smoothScrollTo("#akciok");
+}
+
+// ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) – JSON FEED ALAPÚ, PARTNERENKÉNT 6/LAP, MAX 5 LAP =====
 async function buildCategoryBlocks() {
   const PAGE_SIZE = 6; // 6 kártya / partner / oldal
-  const MAX_PAGES_PER_PARTNER = 5; // max 5 oldal / partner / kategória
+  const MAX_PAGES_PER_PARTNER = 5; // max 5 oldal / partner / kategória főoldali mintához
 
-  // fallback (ha nincs Algolia): most csak kiürítjük
-  async function buildCategoryBlocksFromFeeds() {
-    CATEGORY_IDS.forEach((catId) => {
-      CATEGORY_PAGES[catId] = [];
-      CATEGORY_CURRENT[catId] = 0;
-    });
-  }
-
-  const index = await ensureAlgoliaIndex();
-  if (!index) {
-    console.warn("Algolia nem elérhető – buildCategoryBlocksFromFeeds fut.");
-    return buildCategoryBlocksFromFeeds();
-  }
+  // Tisztítás
+  CATEGORY_IDS.forEach((catId) => {
+    CATEGORY_PAGES[catId] = [];
+    CATEGORY_CURRENT[catId] = 0;
+  });
+  Object.keys(PARTNER_CATEGORY_ITEMS).forEach((k) => {
+    delete PARTNER_CATEGORY_ITEMS[k];
+  });
 
   // buffers[catId][pid] = [{ pid, item }, ...]
   const buffers = {};
 
-  // Algoliából egyszer töltjük a partnerek termékeit, és itt kategorizálunk
-  const partnerIds =
-    ALGOLIA_CONFIG && Array.isArray(ALGOLIA_CONFIG.partners)
-      ? ALGOLIA_CONFIG.partners
-      : [];
+  const partnerIds = Array.from(PARTNERS.keys());
 
-  const tasks = partnerIds.map(async (pid) => {
+  for (const pid of partnerIds) {
     try {
-      const HITS_PER_PAGE = 1000;
-      const MAX_HITS = 8000;
-      let page = 0;
-      const rows = [];
+      const cfg = PARTNERS.get(pid);
+      const meta = await getMeta(pid);
+      const pageSize = meta.pageSize || 300;
+      const totalPages =
+        meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
 
-      while (true) {
-        const res = await index.search("", {
-          filters: 'partner:"' + pid + '"',
-          page,
-          hitsPerPage: HITS_PER_PAGE,
-        });
+      const limit = Math.min(totalPages, MAX_PAGES_PER_PARTNER);
 
-        const hits = (res && res.hits) || [];
-        if (!hits.length) break;
-
-        hits.forEach((hit) => {
-          const cats = getCategoriesForItem(pid, hit) || [];
+      for (let pg = 1; pg <= limit; pg++) {
+        const arr = await getPageItems(pid, pg);
+        (arr || []).forEach((it) => {
+          const cats = getCategoriesForItem(pid, it) || [];
           const catId = cats[0] || "kat-multi";
           if (!CATEGORY_IDS.includes(catId)) return;
 
           // főoldali bufferek – partnerenként külön
           if (!buffers[catId]) buffers[catId] = {};
           if (!buffers[catId][pid]) buffers[catId][pid] = [];
-          buffers[catId][pid].push({ pid, item: hit });
+          buffers[catId][pid].push({ pid, item: it });
 
-          // partner–kategória tároló (partner nézethez, felső menü kategória-nézethez, full kategóriához)
+          // partner–kategória tároló (partner nézethez, full kategóriához)
           if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
           if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
             PARTNER_CATEGORY_ITEMS[pid][catId] = [];
           }
-          PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: hit });
+          PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
         });
-
-        rows.push(...hits);
-
-        const reachedMax = rows.length >= MAX_HITS;
-        const lastPage = page + 1 >= (res.nbPages || 1);
-        if (reachedMax || lastPage) break;
-        page++;
       }
-
-      console.log("Algolia betöltve partnerre:", pid);
     } catch (e) {
-      console.error("Algolia partner query hiba:", pid, e);
+      console.error("buildCategoryBlocks hiba partnernél:", pid, e);
     }
-  });
-
-  await Promise.all(tasks);
+  }
 
   // oldalak felépítése kategóriánként
   CATEGORY_IDS.forEach((catId) => {
@@ -1886,30 +1707,6 @@ async function buildCategoryBlocks() {
   });
 }
 
-function showAkcioOnly() {
-  const hero = document.querySelector(".hero");
-  const catbarWrap = document.querySelector(".catbar-wrap");
-  const bf = document.getElementById("black-friday");
-  const pv = document.getElementById("partner-view");
-  const homeDescs = document.getElementById("home-category-descriptions");
-
-  [hero, catbarWrap, bf, homeDescs].forEach((el) => {
-    if (el) el.classList.add("hidden");
-  });
-  if (pv) pv.classList.add("hidden");
-
-  CATEGORY_IDS.forEach((id) => {
-    const sec = document.getElementById(id);
-    if (sec) sec.classList.add("hidden");
-  });
-
-  const ak = document.getElementById("akciok");
-  if (ak) ak.classList.remove("hidden");
-
-  renderAkcioFullPage(1);
-  smoothScrollTo("#akciok");
-}
-
 // ===== INIT =====
 async function init() {
   try {
@@ -1935,11 +1732,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
-
-
-
-
-
-
-
