@@ -1,4 +1,4 @@
-# category_assign_alza.py
+# category_assign.py
 """
 ALZA termékkategória besorolás a 25 végső Findora kategóriába.
 
