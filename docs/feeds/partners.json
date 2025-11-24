@@ -175,7 +175,6 @@
   "pagePattern": "feeds/alza/page-{NNNN}.json",
   "categoryMetaPattern": "feeds/alza/{CAT}/meta.json",
   "categoryPagePattern": "feeds/alza/{CAT}/page-{NNNN}.json",
-  ...
   },
 
       "games": {
