@@ -1,7 +1,8 @@
 {
-  "partner": "alza",
-  "generated_at": "2025-11-24T13:57:12.074897Z",
   "total_items": 309006,
   "page_size": 300,
-  "page_count": 1031
+  "page_count": 1031,
+  "partner": "alza",
+  "generated_at": "2025-11-24T15:29:53.640114Z",
+  "scope": "global"
 }
