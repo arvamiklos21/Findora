@@ -168,21 +168,16 @@
     "categoryIndex": {}
   },
   {
-    "id": "alza",
-    "name": "Alza",
-    "group": "tech",
-    "meta": "feeds/alza/meta.json",
-    "pagePattern": "feeds/alza/page-{NNNN}.json",
-    "categoryMetaPattern": "feeds/alza/{CAT}/meta.json",
-    "categoryPagePattern": "feeds/alza/{CAT}/page-{NNNN}.json",
-    "deeplinkPartner": "alza",
-    "placements": {
-      "home": { "enabled": true, "pageSize": 6 },
-      "tech": {
-        "enabled": true,
-        "pageSize": 12,
-        "full": { "enabled": true, "pageSize": 24 }
-      },
+  "id": "alza",
+  "name": "Alza",
+  "group": "tech",
+  "meta": "feeds/alza/meta.json",
+  "pagePattern": "feeds/alza/page-{NNNN}.json",
+  "categoryMetaPattern": "feeds/alza/{CAT}/meta.json",
+  "categoryPagePattern": "feeds/alza/{CAT}/page-{NNNN}.json",
+  ...
+  },
+
       "games": {
         "enabled": true,
         "pageSize": 6
