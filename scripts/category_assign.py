@@ -1,52 +1,52 @@
-# category_assign.py
+# category_assign_alza.py
 """
 Speciális ALZA kategorizáló Findora számára.
 
-Három rétegű logika:
-1) Kiemelt prefix- / path-override szabályok (legmagasabb prioritás).
-2) Felső + második szint (category_path részek) -> Findora fő kategória (slug).
-3) Kulcsszó-alapú finomhangolás a category_path + title + desc szövegeken.
+Fő elv: először KŐKEMÉNYEN a category_path első szintje ("category_root")
+alapján döntünk, és csak a néhány valóban vitás rootnál (Játék/Baba, Drogéria,
+Otthon–Barkács–Kert) finomítunk. Kulcsszavak csak ott lépnek be, ahol MUSZÁJ.
 
-Kimenet: Findora kategória SLUG (pl. "elektronika", "haztartasi_gepek", "szerszam_barkacs", "auto_motor", ...).
-Ha nem tud dönteni, "multi" kategóriát ad vissza (konfigurálható).
+Kimenet: Findora fő kategória SLUG (pl. "elektronika", "haztartasi_gepek",
+"szerszam_barkacs", "auto_motor", ...).
+
+Ha nem tud dönteni, "multi" kategóriát ad vissza (DEFAULT_FALLBACK_CATEGORY).
 """
 
 from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional
 
 
 # ====== FINDORA FŐ KATEGÓRIA SLUGOK (referencia) ======
-# Elektronika                  -> elektronika
-# Háztartási gépek             -> haztartasi_gepek
-# Számítástechnika             -> szamitastechnika
-# Mobil & kiegészítők          -> mobil
-# Gaming                       -> gaming
-# Smart Home                   -> smart_home
-# Otthon                       -> otthon
-# Lakberendezés                -> lakberendezes
-# Konyha & főzés               -> konyha_fozes
-# Kert                         -> kert
-# Játékok                      -> jatekok
-# Divat                        -> divat
-# Szépség                      -> szepseg
-# Drogéria                     -> drogeria
-# Baba                         -> baba
-# Sport                        -> sport
-# Egészség                     -> egeszseg
-# Látás                        -> latas
-# Állatok                      -> allatok
-# Könyv                        -> konyv
-# Utazás                       -> utazas
-# Iroda & iskola               -> iroda_iskola
-# Szerszám & barkács           -> szerszam_barkacs
-# Autó/Motor & autóápolás      -> auto_motor
-# Multi                        -> multi
+# elektronika
+# haztartasi_gepek
+# szamitastechnika
+# mobil
+# gaming
+# smart_home
+# otthon
+# lakberendezes
+# konyha_fozes
+# kert
+# jatekok
+# divat
+# szepseg
+# drogeria
+# baba
+# sport
+# egeszseg
+# latas
+# allatok
+# konyv
+# utazas
+# iroda_iskola
+# szerszam_barkacs
+# auto_motor
+# multi
 
-
-DEFAULT_FALLBACK_CATEGORY = "multi"  # ha semmit nem találunk, ide essen
+DEFAULT_FALLBACK_CATEGORY = "multi"
 
 
 def normalize_text(text: str) -> str:
@@ -63,217 +63,6 @@ def normalize_text(text: str) -> str:
     return text
 
 
-# ====== 1. RÉTEG – SPECIFIKUS PATH OVERRIDES ======
-# Ha egy category_path ezzel a prefixszel kezdődik, akkor fix kategóriát kap.
-
-PATH_OVERRIDES: Dict[str, str] = {
-    # Ékszer -> divat, ne szépség
-    "Illatszer, ékszer|Ékszerek": "divat",
-    "Illatszer, ékszer|Karórák": "divat",
-
-    # Babaszoba, bababútor -> baba
-    "Játék, baba-mama|Babaszoba gyerekszoba": "baba",
-
-    # Drogéria|Baba-mama teljes ág -> baba (baba cuccok)
-    "Drogéria|Baba-mama": "baba",
-
-    # Sport, szabadidő|Egészséges ételek -> Egészség (ne sport)
-    "Sport, szabadidő|Egészséges ételek": "egeszseg",
-
-    # KERÉKPÁROS KENŐANYAGOK / TISZTÍTÓSZEREK – menjenek sportba, ne drogeriába
-    "Sport, szabadidő|Kerékpározás|Kenőanyagok és tisztítószerek": "sport",
-
-    # Lakberendezés – külön fülre
-    "Otthon, barkács, kert|Bútorok és lakberendezés": "lakberendezes",
-    "Otthon, barkács, kert|Lakberendezési kellékek": "lakberendezes",
-    "Otthon, barkács, kert|Lakberendezési kiegészítők": "lakberendezes",
-
-    # Állatos path – ha így jön (bővíthető)
-    "Otthon, barkács, kert|Állateledel és felszerelés": "allatok",
-    "Állateledel és felszerelés": "allatok",
-    # Állatfigurák: menjen baba (gyerekjáték, nem állatok fül)
-    "Játék, baba-mama|Állatfigurák": "baba",
-
-    # MAKETTEK / MODELLEZÉS TARTOZÉKOK – JÁTÉK, NE AUTÓ
-    "Játék, baba-mama|Autók, vonatok és makettek|Modellezés": "jatekok",
-
-    # Szerszám & barkács – biztosan barkács
-    "Otthon, barkács, kert|Szerszámok": "szerszam_barkacs",
-    "Otthon, barkács, kert|Kéziszerszámok": "szerszam_barkacs",
-    "Otthon, barkács, kert|Műhely felszerelés": "szerszam_barkacs",
-    "Otthon, barkács, kert|Festés, tapétázás": "szerszam_barkacs",
-    "Otthon, barkács, kert|Építőipar": "szerszam_barkacs",
-
-    # Autós kategóriák biztosan autóba menjenek
-    "Autó-motor|Autókozmetika": "auto_motor",
-    "Autó-motor|Autó felszerelések": "auto_motor",
-    "Autó-motor|Motor felszerelések": "auto_motor",
-}
-
-
-# ====== 2. RÉTEG – FELSŐ SZINT (ELSŐ SEGMENTUM) MAPPING ======
-
-FIRST_LEVEL_MAP: Dict[str, str] = {
-    # HU fő prefexek
-    "Telefon, tablet, okosóra": "mobil",
-    "TV, fotó, audió, videó": "elektronika",
-    "PC és laptop": "szamitastechnika",
-    "Gaming és szórakozás": "gaming",
-    "Játék, baba-mama": "jatekok",
-    "Háztartási kisgép": "haztartasi_gepek",
-    "Háztartási nagygép": "haztartasi_gepek",
-    "Otthon, barkács, kert": "otthon",  # később finomítjuk második szinttel
-    "Illatszer, ékszer": "szepseg",
-    "Sport, szabadidő": "sport",
-    "Autó-motor": "auto_motor",
-    "Irodai felszerelés": "iroda_iskola",
-    "Drogéria": "drogeria",
-    "Egészségmegőrzés": "egeszseg",
-    "Élelmiszer": "egeszseg",
-    "Konyha, háztartás": "konyha_fozes",
-    "Okosotthon": "smart_home",
-
-    # CZ prefexek – alap becslés
-    "Kancelář a papírnictví": "iroda_iskola",
-    "Mobily, chytré hodinky, tablety": "mobil",
-    "Dům, dílna a zahrada": "otthon",
-    "Domácí a osobní spotřebiče": "haztartasi_gepek",
-    "Počítače a notebooky": "szamitastechnika",
-    "TV, foto, audio-video": "elektronika",
-    "Auto-moto": "auto_motor",
-    "Drogerie": "drogeria",
-    "Kosmetika, parfémy a krása": "szepseg",
-    "Sport a outdoor": "sport",
-    "Lékárna a zdraví": "egeszseg",
-    "Velké spotřebiče": "haztartasi_gepek",
-    "Kuchyňské a domácí potřeby": "konyha_fozes",
-    "Hračky, pro děti a miminka": "jatekok",
-}
-
-
-# ====== 2/B RÉTEG – (FELSŐ + MÁSODIK SZINT) FINOMÍTÁS ======
-# (first, second) -> Findora kategória
-
-SECOND_LEVEL_MAP: Dict[Tuple[str, str], str] = {
-    # Otthon, barkács, kert szétbontása
-    ("Otthon, barkács, kert", "Világítástechnika"): "otthon",
-
-    # Kert ágak
-    ("Otthon, barkács, kert", "Kert"): "kert",
-    ("Otthon, barkács, kert", "Kerti gépek"): "kert",
-    ("Otthon, barkács, kert", "Kert dekoráció"): "kert",
-    ("Otthon, barkács, kert", "Kerti bútor"): "kert",
-    ("Otthon, barkács, kert", "Kerti bútorok"): "kert",
-    ("Otthon, barkács, kert", "Kerttechnika"): "kert",
-    ("Otthon, barkács, kert", "Öntözéstechnika"): "kert",
-    ("Otthon, barkács, kert", "Ültetés"): "kert",
-
-    # Barkács / szerszám ágak
-    ("Otthon, barkács, kert", "Barkács"): "szerszam_barkacs",
-    ("Otthon, barkács, kert", "Szerszámok"): "szerszam_barkacs",
-    ("Otthon, barkács, kert", "Kéziszerszámok"): "szerszam_barkacs",
-    ("Otthon, barkács, kert", "Fúrógépek"): "szerszam_barkacs",
-    ("Otthon, barkács, kert", "Csiszolók"): "szerszam_barkacs",
-    ("Otthon, barkács, kert", "Műhely felszerelés"): "szerszam_barkacs",
-    ("Otthon, barkács, kert", "Építőipar"): "szerszam_barkacs",
-
-    # Lakberendezés ágak
-    ("Otthon, barkács, kert", "Lakberendezési kellékek"): "lakberendezes",
-    ("Otthon, barkács, kert", "Lakberendezési kiegészítők"): "lakberendezes",
-    ("Otthon, barkács, kert", "Bútorok és lakberendezés"): "lakberendezes",
-
-    # Konyhai / háztartási kategóriák
-    ("Háztartási kisgép", "Konyhai kisgépek"): "haztartasi_gepek",
-    ("Háztartási kisgép", "Robotgépek és mixerek"): "haztartasi_gepek",
-    ("Háztartási kisgép", "Varró- és hímzőgépek"): "haztartasi_gepek",
-    ("Konyha, háztartás", "Konyhai eszközök"): "konyha_fozes",
-    ("Konyha, háztartás", "Élelmiszer tárolás"): "konyha_fozes",
-
-    # Játék / baba finomítás
-    ("Játék, baba-mama", "Építő- és kirakós játékok"): "jatekok",
-    ("Játék, baba-mama", "Bébijátékok"): "baba",
-    ("Játék, baba-mama", "Pelenkázás"): "baba",
-
-    # Drogéria + Baba-mama – teljes ág baba (plusz a PATH_OVERRIDE is)
-    ("Drogéria", "Baba-mama"): "baba",
-
-    # Iroda finomítás
-    ("Irodai felszerelés", "Irodaszerek"): "iroda_iskola",
-    ("Irodai felszerelés", "Irodabútorok"): "iroda_iskola",
-
-    # Autós finomítás
-    ("Autó-motor", "Autókozmetika"): "auto_motor",
-    ("Autó-motor", "Autó felszerelések"): "auto_motor",
-    ("Autó-motor", "Motor felszerelések"): "auto_motor",
-}
-
-
-# ====== 3. RÉTEG – KULCSSZÓS FELÜLÍРÓ SZABÁLYOK ======
-# (kulcsszó lista, cél kategória)
-
-KEYWORD_RULES: List[Tuple[List[str], str]] = [
-    # Állatok
-    (["kutya", "kutyatap", "kutyajatek", "poraz", "nyakorv", "pet"], "allatok"),
-    (["macska", "macskatap", "cicatap", "cicajatek"], "allatok"),
-    (["akvarium", "akvarisztika", "terrarium"], "allatok"),
-
-    # Baba – extra erősítés baba cuccokra
-    ([
-        "pelenka", "pelenkatarto", "babakocsi", "bundazsak",
-        "babaagy", "baba agy", "cumisuveg", "etetoszek",
-        "bebi or", "babaor", "babatakaro", "babaszoba"
-    ], "baba"),
-
-    # Szerszám & barkács
-    ([
-        "csavarhuzo", "csavarhuzo keszlet", "furogep", "furo",
-        "furesz", "csiszolo", "kalapacs", "szerszamkoffer",
-        "ragasztopisztoly", "forrasztopaka", "multiszerszam",
-        "multitool", "szereloszerszam", "krova", "krovakeszlet",
-        "szeg", "csavar", "fogok", "reszelo"
-    ], "szerszam_barkacs"),
-
-    # Autó/motor
-    ([
-        "auto", "autos", "motoros", "autokozmetika",
-        "autoolaj", "motorolaj", "szelvedo", "felni"
-    ], "auto_motor"),
-
-    # Utazás
-    (["utazotaska", "borond", "utazo taska", "utazoparna"], "utazas"),
-
-    # Kert
-    (["kerti", "kerti szerszam", "locsolo", "ontozes", "fukaszalo", "lombszivo"], "kert"),
-
-    # Lakberendezés
-    ([
-        "diszparna", "fali dekoracio", "faldekor", "kepkeret",
-        "poszter", "fenyo", "karacsonyfa", "vaza", "lakastextil"
-    ], "lakberendezes"),
-
-    # Könyv
-    (["konyv", "regeny", "szakkonyv"], "konyv"),
-
-    # Drogéria – extra biztosítás
-    (["tisztitoszer", "folttisztito", "mososzer"], "drogeria"),
-]
-
-
-def apply_keyword_rules(norm_text: str) -> Optional[str]:
-    """
-    Végigmegy a kulcsszó-szabályokon, és ha bármelyik kulcsszó-lista bármely eleme
-    szerepel a norm_text-ben, visszaadja a cél kategóriát.
-    """
-    if not norm_text:
-        return None
-
-    for keywords, target_cat in KEYWORD_RULES:
-        for kw in keywords:
-            if kw in norm_text:
-                return target_cat
-    return None
-
-
 def split_category_path(category_path: str) -> Tuple[str, str, str]:
     """
     Visszaadja az első három szintet (ha kevesebb van, üres stringgel tölti ki).
@@ -287,6 +76,165 @@ def split_category_path(category_path: str) -> Tuple[str, str, str]:
     return p1, p2, p3
 
 
+# ====== 1. RÉTEG – SPECIFIKUS PATH-PREFIX OVERRIDES ======
+# Itt mindent olyan cuccot lekezelünk, amire már konkrétan láttunk rossz
+# kategóriát, és biztosan tudjuk, hova kell mennie.
+
+PATH_OVERRIDES: List[Tuple[str, str]] = [
+    # Utazás – bőrönd, bőrönd kiegészítők sport root alatt
+    ("Sport, szabadidő|Hátizsák - táska|Bőröndök", "utazas"),
+
+    # Látás – szemüvegek, védőszemüvegek
+    ("Egészségmegőrzés|Szemüvegek", "latas"),
+    (
+        "Egészségmegőrzés|Gyógyászati segédeszközök|Reszpirátorok, maszkok és pajzsok|Szem védelme|Szemüvegek",
+        "latas",
+    ),
+
+    # Lakberendezés
+    ("Otthon, barkács, kert|Bútorok és lakberendezés", "lakberendezes"),
+    ("Otthon, barkács, kert|Lakberendezési kellékek", "lakberendezes"),
+    ("Otthon, barkács, kert|Lakberendezési kiegészítők", "lakberendezes"),
+
+    # Állatok
+    ("Otthon, barkács, kert|Állateledel és felszerelés", "allatok"),
+    ("Állateledel és felszerelés", "allatok"),
+
+    # Szerszám & barkács (biztosan barkács, ne „otthon”)
+    ("Otthon, barkács, kert|Szerszámok", "szerszam_barkacs"),
+    ("Otthon, barkács, kert|Kéziszerszámok", "szerszam_barkacs"),
+    ("Otthon, barkács, kert|Műhely felszerelés", "szerszam_barkacs"),
+    ("Otthon, barkács, kert|Építőipar", "szerszam_barkacs"),
+
+    # Drogéria|Baba-mama – teljes ág baba
+    ("Drogéria|Baba-mama", "baba"),
+
+    # Állatfigurák – játék, ne „állatok”
+    ("Játék, baba-mama|Állatfigurák", "baba"),
+
+    # Kerékpár kenőanyagok – sport maradjon, ne drogeria
+    ("Sport, szabadidő|Kerékpározás|Kenőanyagok és tisztítószerek", "sport"),
+]
+
+
+# ====== 2. RÉTEG – ROOT (ELSŐ SZINT) ALAPÚ MAPPING ======
+
+ROOT_MAP: Dict[str, Optional[str]] = {
+    # Magyar root-ok
+    "pc es laptop": "szamitastechnika",
+    "telefon, tablet, okosora": "mobil",
+    "tv, foto, audio, video": "elektronika",
+    "gaming es szorakozas": "gaming",
+
+    "haztartasi kisgep": "haztartasi_gepek",
+    "haztartasi nagygep": "haztartasi_gepek",
+
+    "sport, szabadido": "sport",
+
+    "illatszer, ekszer": "szepseg",
+    "egeszsegmegorzes": "egeszseg",
+    "elelmiszer": "egeszseg",  # teák, vitamin jellegű cuccok – egészség fülre
+
+    "auto-motor": "auto_motor",
+    "irodai felszereles": "iroda_iskola",
+    "iroda es iskola": "iroda_iskola",
+
+    "allateledel es allattartas": "allatok",
+
+    "konyv, e-konyv": "konyv",
+
+    "konyha, haztartas": "konyha_fozes",
+
+    "okosotthon": "smart_home",
+
+    # ezek szándékosan „None” → külön finomítjuk:
+    "jatek, baba-mama": None,
+    "jatekok, baba-mama": None,
+    "drogeria": None,
+    "otthon, barkacs, kert": None,
+
+    # Cseh/angol variánsok – ha ilyen root jön
+    "pocitace a notebooky": "szamitastechnika",
+    "mobily, chytre hodinky, tablety": "mobil",
+    "tv, foto, audio-video": "elektronika",
+    "auto-moto": "auto_motor",
+    "drogerie": None,
+    "sport a outdoor": "sport",
+    "lekarny a zdravi": "egeszseg",
+    "kuchynske a domaci potreby": "konyha_fozes",
+    "hracky, pro deti a miminka": None,  # játék/baba típus
+    "dum, dilna a zahrada": None,  # otthon/barkács/kert
+}
+
+
+# ====== 3. RÉTEG – KULCSSZÓ CSOMAGOK, CSAK FINOMÍTÁSHOZ ======
+
+BABY_KEYWORDS = [
+    "pelenka",
+    "popsitorlo",
+    "baba ",
+    "babat",
+    "babaszoba",
+    "babakocsi",
+    "bundazsak",
+    "cumisuveg",
+    "cumi",
+    "szoptatos",
+    "kismama",
+]
+
+KERT_KEYWORDS = [
+    "kert",
+    "kerti",
+    "locsolo",
+    "ontozes",
+    "onto berendezes",
+    "fukaszalo",
+    "lancfuresz",
+    "fukasza",
+    "sovenynyiro",
+]
+
+BARKACS_KEYWORDS = [
+    "szerszam",
+    "csavarhuzo",
+    "csavarhuzo keszlet",
+    "furogep",
+    "furo",
+    "furesz",
+    "csiszolo",
+    "kalapacs",
+    "szerszamkoffer",
+    "ragasztopisztoly",
+    "forrasztopaka",
+    "multiszerszam",
+    "multitool",
+    "krova",
+    "krovakeszlet",
+]
+
+LAKBER_KEYWORDS = [
+    "diszparna",
+    "fali dekoracio",
+    "faldekor",
+    "kepkeret",
+    "poszter",
+    "falikep",
+    "vaza",
+    "lakastextil",
+]
+
+KONYV_KEYWORDS = [
+    " konyv",
+    " regeny",
+    " szakkonyv",
+]
+
+
+def _has_any(text: str, keywords: List[str]) -> bool:
+    return any(kw in text for kw in keywords)
+
+
 def assign_alza_category(category_path: str, title: str = "", desc: str = "") -> str:
     """
     Fő belépési pont: ALZA termék -> Findora kategória SLUG.
@@ -295,93 +243,117 @@ def assign_alza_category(category_path: str, title: str = "", desc: str = "") ->
         category_path: pl. "Otthon, barkács, kert|Világítástechnika|..."
         title:         termék címe
         desc:          termék leírása (opcionális)
+
+    Lépések:
+        1) PATH_OVERRIDES – konkrét prefixek, amikre már láttunk rossz class-t.
+        2) ROOT_MAP – category_path első szintje alapján dönt (nagyon stabil).
+        3) Speciális finomítás a problémás rootokra:
+           - Játék, baba-mama  -> jatekok / baba
+           - Drogéria          -> drogeria / baba
+           - Otthon, barkács, kert -> otthon / kert / szerszam_barkacs / lakberendezes
+        4) Ha root ismeretlen, akkor nagyon óvatos kulcsszavas fallback.
+        5) Ha semmi nem talál, DEFAULT_FALLBACK_CATEGORY ("multi").
     """
     category_path = category_path or ""
     title = title or ""
     desc = desc or ""
 
-    # 1) PATH_OVERRIDES – prefix-illesztés
-    for prefix, cat in PATH_OVERRIDES.items():
+    # ===== 0. Normalizált szövegek egyszer legyártva =====
+    first, second, third = split_category_path(category_path)
+    root_raw = first or ""
+    root_norm = normalize_text(root_raw)
+    path_norm = normalize_text(category_path)
+    text_norm = normalize_text(title + " " + desc)
+
+    # ===== 1. PATH_OVERRIDES – prefixek (eredeti, nem normalizált path-on) =====
+    for prefix, cat in PATH_OVERRIDES:
         if category_path.startswith(prefix):
             return cat
 
-    # 2) Felső + második szint
-    first, second, third = split_category_path(category_path)
-    if first and second:
-        key = (first, second)
-        if key in SECOND_LEVEL_MAP:
-            base_cat = SECOND_LEVEL_MAP[key]
+    # ===== 2. ROOT_MAP – első szint alapján =====
+    base_cat = ROOT_MAP.get(root_norm)
+
+    # ===== 3. Speciális rootok finomítása =====
+
+    # 3.1 Játék, baba-mama → jatekok / baba
+    if base_cat is None and root_norm in ("jatek, baba-mama", "jatekok, baba-mama", "hracky, pro deti a miminka"):
+        # baba jelek path-ban vagy szövegben
+        if _has_any(path_norm, BABY_KEYWORDS) or _has_any(text_norm, BABY_KEYWORDS):
+            base_cat = "baba"
         else:
-            # 3) csak felső szint
-            base_cat = FIRST_LEVEL_MAP.get(first)
-    else:
-        base_cat = FIRST_LEVEL_MAP.get(first) if first else None
+            base_cat = "jatekok"
 
-    # 4) Kulcsszavas felülírás
-    norm_text = normalize_text(" ".join([category_path, title, desc]))
-    kw_cat = apply_keyword_rules(norm_text)
-    if kw_cat:
-        return kw_cat
+    # 3.2 Drogéria → drogeria / baba
+    if base_cat is None and root_norm in ("drogeria", "drogerie"):
+        if _has_any(path_norm, BABY_KEYWORDS) or _has_any(text_norm, BABY_KEYWORDS):
+            base_cat = "baba"
+        else:
+            base_cat = "drogeria"
 
-    # Ha nincs kulcsszavas felülírás, de van alap kategória, azt adjuk
-    if base_cat:
-        return base_cat
+    # 3.3 Otthon, barkács, kert → otthon / kert / szerszam_barkacs / lakberendezes
+    if base_cat is None and root_norm in ("otthon, barkacs, kert", "dum, dilna a zahrada"):
+        # kert
+        if _has_any(path_norm, KERT_KEYWORDS) or _has_any(text_norm, KERT_KEYWORDS):
+            base_cat = "kert"
+        # szerszám/barkács
+        elif _has_any(path_norm, BARKACS_KEYWORDS) or _has_any(text_norm, BARKACS_KEYWORDS):
+            base_cat = "szerszam_barkacs"
+        # lakberendezés
+        elif _has_any(path_norm, LAKBER_KEYWORDS) or _has_any(text_norm, LAKBER_KEYWORDS):
+            base_cat = "lakberendezes"
+        else:
+            base_cat = "otthon"
 
-    # fallback
-    return DEFAULT_FALLBACK_CATEGORY
+    # 3.4 Konyha, háztartás – ha valamiért root_map nem fogta
+    if base_cat is None and root_norm == "konyha, haztartas":
+        base_cat = "konyha_fozes"
 
+    # 3.5 Élelmiszer – ha ide jutott, menjen egészségre
+    if base_cat is None and root_norm == "elelmiszer":
+        base_cat = "egeszseg"
 
-# ===== Publikus API – ezt hívja a build_alza.py =====
-def assign_category(fields: Dict[str, Any]) -> str:
-    """
-    Publikus belépési pont a build_alza.py számára.
-    Vár egy dict-et (fields):
+    # ===== 4. Ha még mindig nincs kategória, nagyon óvatos fallback kulcsszavakkal =====
+    if base_cat is None:
+        # könyv
+        if _has_any(path_norm, KONYV_KEYWORDS) or _has_any(text_norm, KONYV_KEYWORDS):
+            base_cat = "konyv"
+        # állatok
+        elif "allat" in path_norm or "allat" in text_norm or "pet" in text_norm:
+            base_cat = "allatok"
+        # sport
+        elif "sport" in path_norm or "fitness" in path_norm:
+            base_cat = "sport"
+        # mobil
+        elif "okosora" in path_norm or "apple watch" in text_norm:
+            base_cat = "mobil"
+        # ha semmi:
+        else:
+            base_cat = DEFAULT_FALLBACK_CATEGORY
 
-        {
-            "title": "...",
-            "description": "...",
-            "category": "...",
-            "product_type": "...",
-            "categorytext": "...",
-            "brand": "...",
-        }
-
-    és ez alapján ALZA-specifikusan kategorizál.
-    """
-    if not isinstance(fields, dict):
-        return DEFAULT_FALLBACK_CATEGORY
-
-    category_path = (
-        fields.get("product_type")
-        or fields.get("category")
-        or fields.get("categorytext")
-        or ""
-    )
-    title = fields.get("title") or ""
-    desc = fields.get("description") or ""
-
-    return assign_alza_category(str(category_path), str(title), str(desc))
+    return base_cat or DEFAULT_FALLBACK_CATEGORY
 
 
 if __name__ == "__main__":
     # Egyszerű kézi teszt – VS Code-ból futtatva megnézheted, mit dob.
     samples = [
+        # Autókozmetika
         ("Autó-motor|Autókozmetika|Autó külső|Polírozás, mosás", "Autó sampon Turtle Wax", ""),
+        # Klasszikus barkács
         ("Otthon, barkács, kert|Szerszámok|Csavarhúzók", "Bosch csavarhúzó készlet", ""),
-        ("Otthon, barkács, kert|Műhely felszerelés|Bakok", "Hajtható acél bak", ""),
-        ("Otthon, barkács, kert|Lakberendezési kellékek|Fali dekorációk", "Vászon falikép", ""),
+        # Kerti cucc
         ("Otthon, barkács, kert|Kert|Ültetés", "Ültető lapát", ""),
-        ("Játék, baba-mama|Építő- és kirakós játékok|LEGO®", "LEGO City Rendőrkapitányság", ""),
-        ("Játék, baba-mama|Autók, vonatok és makettek|Modellezés|Tartozékok", "RC modell kiegészítő", ""),
-        ("Játék, baba-mama|Állatfigurák", "Plüss kutyafigura", ""),
-        ("Illatszer, ékszer|Ékszerek|Nyakláncok", "Arany nyaklánc", ""),
-        ("Drogéria|Gyertyák és illatpálcák|Gyertyák", "Illatgyertya levendula", ""),
-        ("PC és laptop|Kiegészítők|PC-hez|Egerek", "Gaming egér RGB", ""),
-        ("Telefon, tablet, okosóra|Mobiltelefon tartozékok|Tokok", "Tok iPhone 15 Pro-hoz", ""),
-        ("Sport, szabadidő|Kerékpározás|Kenőanyagok és tisztítószerek|Szettek", "Bicikli tisztító szett", ""),
-        ("Sport, szabadidő|Egészséges ételek|Diófélék", "Dió mix egészséges snack", ""),
-        ("Drogéria|Baba-mama|Babakocsik|Kiegészítők|Esővédők", "Babakocsi esővédő", ""),
-        ("Otthon, barkács, kert|Bútorok és lakberendezés|Lakástextil|Törölközők", "Frottír törölköző szett", ""),
+        # Lakberendezés
+        ("Otthon, barkács, kert|Lakberendezési kellékek|Fali dekorációk", "Vászon falikép", ""),
+        # Bőrönd – utazás (sport root alól override)
+        ("Sport, szabadidő|Hátizsák - táska|Bőröndök|Tartozékok|Mérlegek", "Bőröndmérleg Emos PT-506", ""),
+        # Szemüveg – látás
+        ("Egészségmegőrzés|Szemüvegek", "SPY HALE 58 Matte Black", ""),
+        # Baba-mama
+        ("Drogéria|Baba-mama|Pelenkák", "Pelenka 0-3 kg", ""),
+        ("Játék, baba-mama|Bébijátékok", "Rágóka újszülöttnek", ""),
+        ("Játék, baba-mama|Társasjátékok", "Monopoly Gamer társasjáték", ""),
+        # Sporttápszer – sport
+        ("Sport, szabadidő|Sporttápszerek|Proteinek", "Czech Virus Pure Elite CFM", ""),
     ]
     for cp, t, d in samples:
         print(cp, "=>", assign_alza_category(cp, t, d))
