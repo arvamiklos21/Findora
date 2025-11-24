@@ -18,10 +18,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-# assign_category(fields: dict) -> egyik slug:
-# elektronika, haztartasi_gepek, otthon, kert, jatekok, divat,
-# szepseg, sport, latas, allatok, konyv, utazas, multi
-from category_assign_pepita import assign_category
+from category_assign_pepita import assign_category  # def assign_category(fields: dict) -> kategória slug (pl. "elektronika", "otthon", "multi")
 
 
 # ===== KONFIG =====
@@ -33,7 +30,7 @@ PAGE_SIZE_GLOBAL = 300
 # Kategória nézet (pl. 20/lap a menüknél)
 PAGE_SIZE_CAT = 20
 
-# Findora fő kategória SLUG-ok – a 25 menüdhöz igazítva
+# Findora fő kategória SLUG-ok – a 25 menühöz igazítva
 FINDORA_CATS = [
     "elektronika",
     "haztartasi_gepek",
@@ -110,6 +107,10 @@ def load_feed_urls():
 
     if not urls:
         raise RuntimeError("Nem találtam egyetlen PEPITA feed URL-t sem!")
+
+    print(f"[INFO] PEPITA feed URL-ek száma: {len(urls)}")
+    for u in urls:
+        print(f"[INFO]  - {u}")
 
     return urls
 
@@ -250,18 +251,16 @@ def main():
         }
 
         try:
-            # assign_category_pepita közvetlenül ilyen slugs-ot ad vissza:
-            # elektronika, haztartasi_gepek, otthon, kert, jatekok, divat,
-            # szepseg, sport, latas, allatok, konyv, utazas, multi
-            kat_id = assign_category(fields_for_cat)
+            # category_assign_pepita.assign_category() SLUG-ot ad vissza:
+            #   elektronika, haztartasi_gepek, otthon, kert, jatekok, divat,
+            #   szepseg, sport, latas, allatok, konyv, utazas, multi
+            cat_slug = assign_category(fields_for_cat)
         except Exception as e:
             print(f"[WARN] assign_category (Pepita) hiba (id={pid}): {e}")
-            kat_id = "multi"
+            cat_slug = "multi"
 
-        # Pepitánál a kat_id már maga a FINDORA_CATS slug
-        findora_main = kat_id
-        if findora_main not in FINDORA_CATS:
-            findora_main = "multi"
+        if cat_slug not in FINDORA_CATS:
+            cat_slug = "multi"
 
         row = {
             "id": pid,
@@ -274,12 +273,16 @@ def main():
             "partner": "pepita",
             "category_path": cat_path,
             "category_root": cat_root,
-            "findora_main": findora_main,
-            "cat": findora_main,
+            "findora_main": cat_slug,
+            "cat": cat_slug,
         }
         rows.append(row)
 
     print(f"[INFO] Normalizált sorok (Pepita): {len(rows)}")
+
+    if not rows:
+        print("[WARN] Nincs egyetlen normalizált PEPITA sor sem – nem lesznek JSON oldalak.")
+        return
 
     # 1) Globális PEPITA feed – docs/feeds/pepita/page-0001.json ...
     paginate_and_write(
@@ -301,6 +304,10 @@ def main():
         if slug not in buckets:
             slug = "multi"
         buckets[slug].append(row)
+
+    print("[INFO] Bucket statisztika (PEPITA):")
+    for slug, items in buckets.items():
+        print(f"  - {slug}: {len(items)} db")
 
     for slug, items in buckets.items():
         if not items:
