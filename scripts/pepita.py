@@ -18,7 +18,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from category_assign_pepita import assign_category  # def assign_category(fields: dict) -> "kat-..."
+from category_assign_pepita import assign_category  # def assign_category(fields: dict) -> pl. "otthon"
 
 
 # ===== KONFIG =====
@@ -32,28 +32,29 @@ PAGE_SIZE_CAT = 20
 
 # Findora fő kategória SLUG-ok – a 25 menüdhöz igazítva
 FINDORA_CATS = [
+    "akciok",
     "elektronika",
     "haztartasi_gepek",
-    "szamitastechnika",
-    "mobil",
-    "gaming",
-    "smart_home",
     "otthon",
-    "lakberendezes",
-    "konyha_fozes",
     "kert",
     "jatekok",
     "divat",
     "szepseg",
-    "drogeria",
-    "baba",
-    "sport",
     "egeszseg",
+    "baba",
+    "drogeria",
+    "iroda_iskola",
+    "sport",
     "latas",
     "allatok",
     "konyv",
     "utazas",
-    "iroda_iskola",
+    "szamitastechnika",
+    "mobil",
+    "gaming",
+    "smart_home",
+    "lakberendezes",
+    "konyha_fozes",
     "szerszam_barkacs",
     "auto_motor",
     "multi",
@@ -89,8 +90,6 @@ def load_feed_urls():
     Több URL támogatása:
       - FEED_PEPITA_URL  : lehet 1 URL, vagy több sorba tördelve, vagy vesszővel elválasztva
       - FEED_PEPITA_URLS : ugyanaz, fallbackként
-
-    A kettő közül bármelyik használható.
     """
     raw = os.environ.get("FEED_PEPITA_URL", "").strip()
     if not raw:
@@ -126,7 +125,7 @@ def parse_pepita_xml(xml_text: str):
     """
     PEPITA-specifikus XML parser.
 
-    A Pepita feed szerkezete:
+    Struktúra:
       <products>
         <product>
           <identifier>...</identifier>
@@ -156,14 +155,13 @@ def parse_pepita_xml(xml_text: str):
                     return el.text.strip()
             return ""
 
-        # Pepita mezők leképezése a "Google style" belső kulcsokra
         m["id"] = gettext(["identifier", "id", "code"])
         m["title"] = gettext(["name", "title"])
         m["description"] = gettext(["description"])
         m["link"] = gettext(["product_url", "link", "url"])
         m["image_link"] = gettext(["image_link", "image_url"])
         m["price"] = gettext(["price"])
-        m["sale_price"] = ""  # jelenlegi Pepita feedben nincs külön akciós ár mező
+        m["sale_price"] = ""  # Pepitánál nincs külön akciós ár mező
         m["product_type"] = gettext(["category"])
         m["brand"] = gettext(["manufacturer"])
 
@@ -187,9 +185,8 @@ def normalize_pepita_url(raw_url: str) -> str:
 
 def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
     """
-    Általános lapozó + fájlkiíró:
-      base_dir/meta.json
-      base_dir/page-0001.json, page-0002.json, ...
+    base_dir/meta.json
+    base_dir/page-0001.json, page-0002.json, ...
     """
     os.makedirs(base_dir, exist_ok=True)
     total = len(items)
@@ -220,38 +217,8 @@ def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
         print(f"[INFO] {out_path} ({len(page_items)} db)")
 
 
-# ===== KAT → Findora slug mapping (kat-elektronika → elektronika, stb.) =====
-KAT_TO_FINDORA = {
-    "kat-elektronika": "elektronika",
-    "kat-gepek": "haztartasi_gepek",
-    "kat-szamitastechnika": "szamitastechnika",
-    "kat-mobil": "mobil",
-    "kat-gaming": "gaming",
-    "kat-smart-home": "smart_home",
-    "kat-otthon": "otthon",
-    "kat-lakberendezes": "lakberendezes",
-    "kat-konyha": "konyha_fozes",
-    "kat-kert": "kert",
-    "kat-jatekok": "jatekok",
-    "kat-divat": "divat",
-    "kat-szepseg": "szepseg",
-    "kat-drogeria": "drogeria",
-    "kat-baba": "baba",
-    "kat-sport": "sport",
-    "kat-egeszseg": "egeszseg",
-    "kat-latas": "latas",
-    "kat-allatok": "allatok",
-    "kat-konyv": "konyv",
-    "kat-utazas": "utazas",
-    "kat-iroda": "iroda_iskola",
-    "kat-szerszam": "szerszam_barkacs",
-    "kat-auto": "auto_motor",
-    "kat-multi": "multi",
-}
-
-
 def main():
-    # 1) XML feedek letöltése (több URL is lehet)
+    # 1) XML feed(ek) letöltése
     urls = load_feed_urls()
 
     all_items = []
@@ -274,11 +241,11 @@ def main():
 
         price_raw = m.get("sale_price") or m.get("price")
         price = norm_price(price_raw)
-        discount = None  # később számolhatsz %-ot, ha lesz akciós ár
+        discount = None
 
         cat_path = m.get("product_type") or ""
-        # Pepitánál a '>' a fő elválasztó (Otthon & Kert > ...), de legyen tartalék a '|' is.
         if cat_path:
+            # "Otthon & Kert > Dekorációk > ..." → csak az első rész kell ide
             cat_root = re.split(r"\s*[>\|]\s*", cat_path)[0].strip()
         else:
             cat_root = ""
@@ -295,12 +262,12 @@ def main():
         }
 
         try:
-            kat_id = assign_category(fields_for_cat)  # pl. "kat-elektronika"
+            # KÖZVETLENÜL azt használjuk, amit a kategorizáló ad vissza (pl. "otthon", "szepseg", "sport"...)
+            findora_main = assign_category(fields_for_cat)
         except Exception as e:
             print(f"[WARN] assign_category (Pepita) hiba (id={pid}): {e}")
-            kat_id = "kat-multi"
+            findora_main = "multi"
 
-        findora_main = KAT_TO_FINDORA.get(kat_id, "multi")
         if findora_main not in FINDORA_CATS:
             findora_main = "multi"
 
@@ -326,7 +293,7 @@ def main():
         print("[WARN] Nincs egyetlen normalizált PEPITA sor sem – nem lesznek JSON oldalak.")
         return
 
-    # 1) Globális PEPITA feed – docs/feeds/pepita/page-0001.json ...
+    # 1) Globális Pepita feed: docs/feeds/pepita/page-0001.json ...
     paginate_and_write(
         OUT_DIR,
         rows,
@@ -338,8 +305,7 @@ def main():
         },
     )
 
-    # 2) Kategória szerinti feedek:
-    #    docs/feeds/pepita/<findora_main>/page-0001.json (20/lap)
+    # 2) Kategória feedek: docs/feeds/pepita/<findora_main>/page-0001.json (20/lap)
     buckets = {slug: [] for slug in FINDORA_CATS}
     for row in rows:
         slug = row.get("findora_main") or "multi"
