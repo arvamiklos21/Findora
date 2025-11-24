@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 
 
 # ====== FINDORA FŐ KATEGÓRIA SLUGOK (referencia) ======
@@ -208,7 +208,7 @@ SECOND_LEVEL_MAP: Dict[Tuple[str, str], str] = {
 }
 
 
-# ====== 3. RÉTEG – KULCSSZÓS FELÜLÍRÓ SZABÁLYOK ======
+# ====== 3. RÉTEG – KULCSSZÓS FELÜLÍРÓ SZABÁLYOK ======
 # (kulcsszó lista, cél kategória)
 
 KEYWORD_RULES: List[Tuple[List[str], str]] = [
@@ -295,13 +295,6 @@ def assign_alza_category(category_path: str, title: str = "", desc: str = "") ->
         category_path: pl. "Otthon, barkács, kert|Világítástechnika|..."
         title:         termék címe
         desc:          termék leírása (opcionális)
-
-    Lépések:
-        1) PATH_OVERRIDES – legspecifikusabb prefix szabályok
-        2) SECOND_LEVEL_MAP – (first, second) alapján pontosított kategória
-        3) FIRST_LEVEL_MAP – csak felső szint alapján
-        4) KEYWORD_RULES – cím + path + leírás kulcsszavak alapján felülír
-        5) fallback: DEFAULT_FALLBACK_CATEGORY ("multi")
     """
     category_path = category_path or ""
     title = title or ""
@@ -336,6 +329,38 @@ def assign_alza_category(category_path: str, title: str = "", desc: str = "") ->
 
     # fallback
     return DEFAULT_FALLBACK_CATEGORY
+
+
+# ===== Publikus API – ezt hívja a build_alza.py =====
+def assign_category(fields: Dict[str, Any]) -> str:
+    """
+    Publikus belépési pont a build_alza.py számára.
+    Vár egy dict-et (fields):
+
+        {
+            "title": "...",
+            "description": "...",
+            "category": "...",
+            "product_type": "...",
+            "categorytext": "...",
+            "brand": "...",
+        }
+
+    és ez alapján ALZA-specifikusan kategorizál.
+    """
+    if not isinstance(fields, dict):
+        return DEFAULT_FALLBACK_CATEGORY
+
+    category_path = (
+        fields.get("product_type")
+        or fields.get("category")
+        or fields.get("categorytext")
+        or ""
+    )
+    title = fields.get("title") or ""
+    desc = fields.get("description") or ""
+
+    return assign_alza_category(str(category_path), str(title), str(desc))
 
 
 if __name__ == "__main__":
