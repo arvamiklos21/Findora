@@ -18,7 +18,10 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from category_assign_pepita import assign_category  # def assign_category(fields: dict) -> "kat-..."
+# assign_category(fields: dict) -> egyik slug:
+# elektronika, haztartasi_gepek, otthon, kert, jatekok, divat,
+# szepseg, sport, latas, allatok, konyv, utazas, multi
+from category_assign_pepita import assign_category
 
 
 # ===== KONFIG =====
@@ -206,36 +209,6 @@ def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
         print(f"[INFO] {out_path} ({len(page_items)} db)")
 
 
-# ===== KAT → Findora slug mapping (kat-elektronika → elektronika, stb.) =====
-KAT_TO_FINDORA = {
-    "kat-elektronika": "elektronika",
-    "kat-gepek": "haztartasi_gepek",
-    "kat-szamitastechnika": "szamitastechnika",
-    "kat-mobil": "mobil",
-    "kat-gaming": "gaming",
-    "kat-smart-home": "smart_home",
-    "kat-otthon": "otthon",
-    "kat-lakberendezes": "lakberendezes",
-    "kat-konyha": "konyha_fozes",
-    "kat-kert": "kert",
-    "kat-jatekok": "jatekok",
-    "kat-divat": "divat",
-    "kat-szepseg": "szepseg",
-    "kat-drogeria": "drogeria",
-    "kat-baba": "baba",
-    "kat-sport": "sport",
-    "kat-egeszseg": "egeszseg",
-    "kat-latas": "latas",
-    "kat-allatok": "allatok",
-    "kat-konyv": "konyv",
-    "kat-utazas": "utazas",
-    "kat-iroda": "iroda_iskola",
-    "kat-szerszam": "szerszam_barkacs",
-    "kat-auto": "auto_motor",
-    "kat-multi": "multi",
-}
-
-
 def main():
     # 1) XML feedek letöltése (több URL is lehet)
     urls = load_feed_urls()
@@ -263,7 +236,7 @@ def main():
         discount = None  # később számolhatsz %-ot, ha lesz akciós ár
 
         cat_path = m.get("product_type") or ""
-        # Pepitánál a '|' vagy '>' vagy '|' jel lehet elválasztó – most '|'
+        # Pepitánál a '|' vagy '>' jel lehet elválasztó – most '|'
         cat_root = cat_path.split("|", 1)[0].strip() if cat_path else ""
 
         # ===== Pepita-specifikus kategorizálás =====
@@ -277,12 +250,16 @@ def main():
         }
 
         try:
-            kat_id = assign_category(fields_for_cat)  # pl. "kat-elektronika"
+            # assign_category_pepita közvetlenül ilyen slugs-ot ad vissza:
+            # elektronika, haztartasi_gepek, otthon, kert, jatekok, divat,
+            # szepseg, sport, latas, allatok, konyv, utazas, multi
+            kat_id = assign_category(fields_for_cat)
         except Exception as e:
             print(f"[WARN] assign_category (Pepita) hiba (id={pid}): {e}")
-            kat_id = "kat-multi"
+            kat_id = "multi"
 
-        findora_main = KAT_TO_FINDORA.get(kat_id, "multi")
+        # Pepitánál a kat_id már maga a FINDORA_CATS slug
+        findora_main = kat_id
         if findora_main not in FINDORA_CATS:
             findora_main = "multi"
 
