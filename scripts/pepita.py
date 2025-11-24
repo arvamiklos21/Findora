@@ -18,7 +18,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from category_assign_pepita import assign_category  # def assign_category(fields: dict) -> kategória slug (pl. "elektronika", "otthon", "multi")
+from category_assign_pepita import assign_category  # def assign_category(fields: dict) -> "kat-..."
 
 
 # ===== KONFIG =====
@@ -30,7 +30,7 @@ PAGE_SIZE_GLOBAL = 300
 # Kategória nézet (pl. 20/lap a menüknél)
 PAGE_SIZE_CAT = 20
 
-# Findora fő kategória SLUG-ok – a 25 menühöz igazítva
+# Findora fő kategória SLUG-ok – a 25 menüdhöz igazítva
 FINDORA_CATS = [
     "elektronika",
     "haztartasi_gepek",
@@ -124,38 +124,48 @@ def fetch_xml(url: str) -> str:
 
 def parse_pepita_xml(xml_text: str):
     """
-    Generikus Google Merchant stílusú XML parser PEPITA-hoz.
-    Ha a Pepita feed tag-nevei eltérnek, itt kell finomhangolni.
+    PEPITA-specifikus XML parser.
+
+    A Pepita feed szerkezete:
+      <products>
+        <product>
+          <identifier>...</identifier>
+          <name>...</name>
+          <description>...</description>
+          <product_url>...</product_url>
+          <image_url>...</image_url>
+          <price>...</price>
+          <category>...</category>
+          <manufacturer>...</manufacturer>
+          ...
+        </product>
+        ...
+      </products>
     """
     items = []
     root = ET.fromstring(xml_text)
 
-    for item in root.findall(".//item"):
+    # FONTOS: itt <product>, NEM <item>!
+    for prod in root.findall(".//product"):
         m = {}
 
         def gettext(tag_names):
             for tn in tag_names:
-                # prefixelt tag (g:id stb.)
-                el = item.find(tn)
-                if el is not None and el.text:
-                    return el.text.strip()
-                # namespace-független fallback (id, price stb.)
-                bare = tn.split(":")[-1]
-                el = item.find(f".//{{*}}{bare}")
+                el = prod.find(tn)
                 if el is not None and el.text:
                     return el.text.strip()
             return ""
 
-        m["id"] = gettext(["g:id", "id", "ITEM_ID"])
-        m["title"] = gettext(["g:title", "title", "ITEM_NAME"])
-        m["description"] = gettext(["g:description", "description"])
-        m["link"] = gettext(["g:link", "link", "URL"])
-        m["image_link"] = gettext(["g:image_link", "image_link", "g:image", "image"])
-        m["price"] = gettext(["g:price", "price"])
-        m["sale_price"] = gettext(["g:sale_price", "sale_price"])
-        # tipikusan 'g:product_type' alakú Google product_type
-        m["product_type"] = gettext(["g:product_type", "product_type", "category_path"])
-        m["brand"] = gettext(["g:brand", "brand", "g:manufacturer", "manufacturer"])
+        # Pepita mezők leképezése a "Google style" belső kulcsokra
+        m["id"] = gettext(["identifier", "id", "code"])
+        m["title"] = gettext(["name", "title"])
+        m["description"] = gettext(["description"])
+        m["link"] = gettext(["product_url", "link", "url"])
+        m["image_link"] = gettext(["image_link", "image_url"])
+        m["price"] = gettext(["price"])
+        m["sale_price"] = ""  # jelenlegi Pepita feedben nincs külön akciós ár mező
+        m["product_type"] = gettext(["category"])
+        m["brand"] = gettext(["manufacturer"])
 
         items.append(m)
 
@@ -210,6 +220,36 @@ def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
         print(f"[INFO] {out_path} ({len(page_items)} db)")
 
 
+# ===== KAT → Findora slug mapping (kat-elektronika → elektronika, stb.) =====
+KAT_TO_FINDORA = {
+    "kat-elektronika": "elektronika",
+    "kat-gepek": "haztartasi_gepek",
+    "kat-szamitastechnika": "szamitastechnika",
+    "kat-mobil": "mobil",
+    "kat-gaming": "gaming",
+    "kat-smart-home": "smart_home",
+    "kat-otthon": "otthon",
+    "kat-lakberendezes": "lakberendezes",
+    "kat-konyha": "konyha_fozes",
+    "kat-kert": "kert",
+    "kat-jatekok": "jatekok",
+    "kat-divat": "divat",
+    "kat-szepseg": "szepseg",
+    "kat-drogeria": "drogeria",
+    "kat-baba": "baba",
+    "kat-sport": "sport",
+    "kat-egeszseg": "egeszseg",
+    "kat-latas": "latas",
+    "kat-allatok": "allatok",
+    "kat-konyv": "konyv",
+    "kat-utazas": "utazas",
+    "kat-iroda": "iroda_iskola",
+    "kat-szerszam": "szerszam_barkacs",
+    "kat-auto": "auto_motor",
+    "kat-multi": "multi",
+}
+
+
 def main():
     # 1) XML feedek letöltése (több URL is lehet)
     urls = load_feed_urls()
@@ -237,8 +277,11 @@ def main():
         discount = None  # később számolhatsz %-ot, ha lesz akciós ár
 
         cat_path = m.get("product_type") or ""
-        # Pepitánál a '|' vagy '>' jel lehet elválasztó – most '|'
-        cat_root = cat_path.split("|", 1)[0].strip() if cat_path else ""
+        # Pepitánál a '>' a fő elválasztó (Otthon & Kert > ...), de legyen tartalék a '|' is.
+        if cat_path:
+            cat_root = re.split(r"\s*[>\|]\s*", cat_path)[0].strip()
+        else:
+            cat_root = ""
 
         # ===== Pepita-specifikus kategorizálás =====
         fields_for_cat = {
@@ -248,19 +291,18 @@ def main():
             "category": cat_root,
             "product_type": m.get("product_type") or "",
             "brand": m.get("brand") or "",
+            "categorytext": cat_path,
         }
 
         try:
-            # category_assign_pepita.assign_category() SLUG-ot ad vissza:
-            #   elektronika, haztartasi_gepek, otthon, kert, jatekok, divat,
-            #   szepseg, sport, latas, allatok, konyv, utazas, multi
-            cat_slug = assign_category(fields_for_cat)
+            kat_id = assign_category(fields_for_cat)  # pl. "kat-elektronika"
         except Exception as e:
             print(f"[WARN] assign_category (Pepita) hiba (id={pid}): {e}")
-            cat_slug = "multi"
+            kat_id = "kat-multi"
 
-        if cat_slug not in FINDORA_CATS:
-            cat_slug = "multi"
+        findora_main = KAT_TO_FINDORA.get(kat_id, "multi")
+        if findora_main not in FINDORA_CATS:
+            findora_main = "multi"
 
         row = {
             "id": pid,
@@ -273,8 +315,8 @@ def main():
             "partner": "pepita",
             "category_path": cat_path,
             "category_root": cat_root,
-            "findora_main": cat_slug,
-            "cat": cat_slug,
+            "findora_main": findora_main,
+            "cat": findora_main,
         }
         rows.append(row)
 
@@ -304,10 +346,6 @@ def main():
         if slug not in buckets:
             slug = "multi"
         buckets[slug].append(row)
-
-    print("[INFO] Bucket statisztika (PEPITA):")
-    for slug, items in buckets.items():
-        print(f"  - {slug}: {len(items)} db")
 
     for slug, items in buckets.items():
         if not items:
