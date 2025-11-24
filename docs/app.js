@@ -3,6 +3,7 @@ const PARTNERS_URL = "feeds/partners.json";
 
 const PARTNERS = new Map();
 const META = new Map();
+const CATEGORY_META = new Map();
 const PAGES = new Map();
 
 // ===== category-map.json =====
@@ -267,6 +268,7 @@ async function loadPartners() {
   PARTNERS.clear();
   arr.forEach((p) => {
     if (!p.id || !p.meta || !p.pagePattern || !p.deeplinkPartner) return;
+    // categoryMetaPattern, categoryPagePattern opcionális
     PARTNERS.set(p.id, p);
   });
   console.log("PARTNEREK BETÖLTVE:", PARTNERS.size);
@@ -300,6 +302,99 @@ async function getPageItems(pid, pageNum) {
   const cfg = PARTNERS.get(pid);
   const r = await fetch(pageUrl(cfg, pageNum), { cache: "no-cache" });
   if (!r.ok) throw new Error(pid + " " + key + " nem elérhető");
+  const d = await r.json();
+  const arr = d && d.items ? d.items : [];
+  store.set(key, arr);
+  return arr;
+}
+
+// ===== Meta helper függvények (régi + új formátum) =====
+function metaPageSize(meta, fallback) {
+  if (!meta || typeof meta !== "object") return fallback;
+  return meta.pageSize || meta.page_size || fallback;
+}
+
+function metaTotalItems(meta) {
+  if (!meta || typeof meta !== "object") return 0;
+  return meta.total || meta.total_items || meta.totalItems || 0;
+}
+
+function metaPageCount(meta, pageSizeFallback) {
+  if (!meta || typeof meta !== "object") return 0;
+  return (
+    meta.pages ||
+    meta.page_count ||
+    meta.pageCount ||
+    (pageSizeFallback
+      ? Math.ceil(metaTotalItems(meta) / pageSizeFallback)
+      : 0)
+  );
+}
+
+// ===== Kategória meta + kategória page (pl. ALZA /feeds/alza/{CAT}/...) =====
+async function getCategoryMeta(pid, catId) {
+  const cfg = PARTNERS.get(pid);
+  if (!cfg || !cfg.categoryMetaPattern) return null;
+
+  const backendSlug = CATID_TO_BACKEND[catId];
+  if (!backendSlug) return null;
+
+  const key = pid + "||" + backendSlug;
+  if (CATEGORY_META.has(key)) return CATEGORY_META.get(key);
+
+  const url =
+    FEEDS_BASE +
+    "/" +
+    cfg.categoryMetaPattern.replace("{CAT}", backendSlug);
+
+  const r = await fetch(url, { cache: "no-cache" });
+  if (!r.ok) {
+    console.warn(
+      "Category meta nem elérhető:",
+      pid,
+      backendSlug,
+      r.status
+    );
+    return null;
+  }
+  const m = await r.json();
+  CATEGORY_META.set(key, m);
+  return m;
+}
+
+async function getCategoryFeedItems(pid, catId, pageNum) {
+  const cfg = PARTNERS.get(pid);
+  if (!cfg || !cfg.categoryPagePattern) return null;
+
+  const backendSlug = CATID_TO_BACKEND[catId];
+  if (!backendSlug) return null;
+
+  if (!PAGES.has(pid)) PAGES.set(pid, new Map());
+  const store = PAGES.get(pid);
+  const key =
+    backendSlug + "-page-" + String(pageNum).padStart(4, "0");
+  if (store.has(key)) return store.get(key);
+
+  const url =
+    FEEDS_BASE +
+    "/" +
+    cfg.categoryPagePattern
+      .replace("{CAT}", backendSlug)
+      .replace("{NNNN}", String(pageNum).padStart(4, "0"));
+
+  const r = await fetch(url, { cache: "no-cache" });
+  if (!r.ok) {
+    console.warn(
+      "Category feed page nem elérhető:",
+      pid,
+      backendSlug,
+      pageNum,
+      r.status
+    );
+    store.set(key, []);
+    return [];
+  }
+
   const d = await r.json();
   const arr = d && d.items ? d.items : [];
   store.set(key, arr);
@@ -414,7 +509,7 @@ const BACKEND_SYNONYM_TO_CATID = {
   smart_home: "kat-smart-home",
   otthon: "kat-otthon",
   lakberendezes: "kat-lakberendezes",
-  konyha: "kat-konyha",
+  konyha_fozes: "kat-konyha",
   kert: "kat-kert",
   jatekok: "kat-jatekok",
   divat: "kat-divat",
@@ -437,6 +532,12 @@ const BACKEND_SYNONYM_TO_CATID = {
 const BACKEND_FROM_CATID = {};
 Object.entries(FINDORA_MAIN_TO_CATID).forEach(([backendKey, catId]) => {
   BACKEND_FROM_CATID[catId] = backendKey;
+});
+
+// CATID → backend slug (Python findora_main) – ALZA /feeds/alza/{CAT}/... miatt
+const CATID_TO_BACKEND = {};
+Object.entries(BACKEND_SYNONYM_TO_CATID).forEach(([backendKey, catId]) => {
+  CATID_TO_BACKEND[catId] = backendKey;
 });
 
 // CATID → findora_main (Algolia filterhez – kanonikus kulcs, de itt főleg meta infó)
@@ -702,11 +803,8 @@ async function buildAkciosBlokk() {
     for (const pid of partnerIds) {
       try {
         const meta = await getMeta(pid);
-        const pageSize = meta.pageSize || 300;
-        const totalPages =
-          meta.pages ||
-          Math.ceil((meta.total || 0) / pageSize) ||
-          1;
+        const pageSize = metaPageSize(meta, 300);
+        const totalPages = metaPageCount(meta, pageSize) || 1;
 
         const limit = Math.min(totalPages, MAX_PAGES_PER_PARTNER);
 
@@ -1222,7 +1320,7 @@ function renderPartnerViewPage(page) {
   updatePartnerSubtitle();
 }
 
-// TELJES partner–kategória lista háttérben – CSAK JSON FEED, FOLYAMATOS TÖLTÉS
+// TELJES partner–kategória lista háttérben – JSON FEED, FOLYAMATOS TÖLTÉS
 async function hydratePartnerCategoryItems(pid, catId) {
   const key = pid + "||" + catId;
   if (PARTNER_CATEGORY_LOAD_PROMISES[key]) {
@@ -1233,21 +1331,6 @@ async function hydratePartnerCategoryItems(pid, catId) {
     try {
       const cfg = PARTNERS.get(pid);
       if (!cfg) return;
-
-      const meta = await getMeta(pid);
-      const pageSize = meta.pageSize || 300;
-      const totalPages =
-        meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
-
-      let pagesToScan = null;
-      if (cfg.categoryIndex && cfg.categoryIndex[catId]) {
-        const idx = cfg.categoryIndex[catId];
-        if (idx && Array.isArray(idx.pages) && idx.pages.length) {
-          pagesToScan = idx.pages
-            .map((n) => parseInt(n, 10))
-            .filter((n) => Number.isFinite(n) && n >= 1 && n <= totalPages);
-        }
-      }
 
       if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
       if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
@@ -1275,6 +1358,58 @@ async function hydratePartnerCategoryItems(pid, catId) {
         }
       };
 
+      const canUseCategoryFeed =
+        cfg.categoryPagePattern &&
+        cfg.categoryMetaPattern &&
+        CATID_TO_BACKEND[catId];
+
+      if (canUseCategoryFeed) {
+        // ÚJ: kategória-specifikus feedek (pl. ALZA /feeds/alza/{CAT}/...)
+        const catMeta = await getCategoryMeta(pid, catId);
+        if (catMeta) {
+          const pageSize = metaPageSize(catMeta, 20);
+          const totalPages = metaPageCount(catMeta, pageSize) || 1;
+          const scanList = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+          for (const pg of scanList) {
+            const arr = await getCategoryFeedItems(pid, catId, pg);
+            const rowsForPage = (arr || []).map((it) => ({ pid, item: it }));
+            pushAndUpdate(rowsForPage);
+          }
+
+          if (
+            PARTNER_VIEW_STATE.pid === pid &&
+            PARTNER_VIEW_STATE.catId === catId
+          ) {
+            PARTNER_VIEW_STATE.loading = false;
+            applyPartnerFilters();
+            renderPartnerViewPage(PARTNER_VIEW_STATE.page || 1);
+          }
+          return;
+        } else {
+          console.warn(
+            "Category meta hiányzik, visszaesés globál scanre:",
+            pid,
+            catId
+          );
+        }
+      }
+
+      // RÉGI / FALLBACK: globál page-ek végigscannelése kategória szerint
+      const meta = await getMeta(pid);
+      const pageSize = metaPageSize(meta, 300);
+      const totalPages = metaPageCount(meta, pageSize) || 1;
+
+      let pagesToScan = null;
+      if (cfg.categoryIndex && cfg.categoryIndex[catId]) {
+        const idx = cfg.categoryIndex[catId];
+        if (idx && Array.isArray(idx.pages) && idx.pages.length) {
+          pagesToScan = idx.pages
+            .map((n) => parseInt(n, 10))
+            .filter((n) => Number.isFinite(n) && n >= 1 && n <= totalPages);
+        }
+      }
+
       const scanList =
         pagesToScan && pagesToScan.length
           ? pagesToScan
@@ -1294,7 +1429,6 @@ async function hydratePartnerCategoryItems(pid, catId) {
         pushAndUpdate(rowsForPage);
       }
 
-      // amikor minden JSON page bejött, lezárjuk a „loading” állapotot
       if (PARTNER_VIEW_STATE.pid === pid && PARTNER_VIEW_STATE.catId === catId) {
         PARTNER_VIEW_STATE.loading = false;
         applyPartnerFilters();
@@ -1684,9 +1818,8 @@ async function buildCategoryBlocks() {
     try {
       const cfg = PARTNERS.get(pid);
       const meta = await getMeta(pid);
-      const pageSize = meta.pageSize || 300;
-      const totalPages =
-        meta.pages || Math.ceil((meta.total || 0) / pageSize) || 1;
+      const pageSize = metaPageSize(meta, 300);
+      const totalPages = metaPageCount(meta, pageSize) || 1;
 
       const limit = Math.min(totalPages, MAX_PAGES_PER_PARTNER);
 
