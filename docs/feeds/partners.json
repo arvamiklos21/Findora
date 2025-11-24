@@ -56,15 +56,14 @@
     "deeplinkPartner": "decathlon"
   },
   {
-    "id": "alza",
-    "name": "Alza.hu",
-    "group": "tech",
-    "meta": "feeds/alza/meta.json",
-    "pagePattern": "feeds/alza/page-{NNNN}.json",
-    "deeplinkPartner": "alza",
-    "categoryMetaPattern": "feeds/alza/{CAT}/meta.json",
-    "categoryPagePattern": "feeds/alza/{CAT}/page-{NNNN}.json"
-  },
+  "id": "alza",
+  "name": "Alza",
+  "meta": "feeds/alza/meta.json",
+  "pagePattern": "feeds/alza/page-{NNNN}.json",          // csak fallback
+  "categoryMetaPattern": "feeds/alza/{CAT}/meta.json",   // <-- EZ A LÉNYEG
+  "categoryPagePattern": "feeds/alza/{CAT}/page-{NNNN}.json",
+  "deeplinkPartner": "alza"
+},
   {
     "id": "kozmetikaotthon",
     "name": "KozmetikaOtthon",
