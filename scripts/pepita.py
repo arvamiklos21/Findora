@@ -1,19 +1,66 @@
+# scripts/pepita.py
+#
+# PEPITA feed → Findora JSON oldalak (globál + kategória bontás)
+
 import os
+import sys
 import re
 import json
 import math
 import xml.etree.ElementTree as ET
 import requests
+
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
-from category_assign_pepita import assign_category as assign_pepita_cat
+# --- hogy a scripts/ alatti category_assign_pepita.py-t is lássa ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
 
-FEED_URL = os.environ.get("FEED_PEPITA_URL")
+from category_assign_pepita import assign_category  # def assign_category(fields: dict) -> "kat-..."
+
+
+# ===== KONFIG =====
 OUT_DIR = "docs/feeds/pepita"
-PAGE_SIZE = 300
+
+# Globális PEPITA feed (összes termék) – 300/lap
+PAGE_SIZE_GLOBAL = 300
+
+# Kategória nézet (pl. 20/lap a menüknél)
+PAGE_SIZE_CAT = 20
+
+# Findora fő kategória SLUG-ok – a 25 menüdhöz igazítva
+FINDORA_CATS = [
+    "elektronika",
+    "haztartasi_gepek",
+    "szamitastechnika",
+    "mobil",
+    "gaming",
+    "smart_home",
+    "otthon",
+    "lakberendezes",
+    "konyha_fozes",
+    "kert",
+    "jatekok",
+    "divat",
+    "szepseg",
+    "drogeria",
+    "baba",
+    "sport",
+    "egeszseg",
+    "latas",
+    "allatok",
+    "konyv",
+    "utazas",
+    "iroda_iskola",
+    "szerszam_barkacs",
+    "auto_motor",
+    "multi",
+]
 
 
+# ===== Segédfüggvények =====
 def norm_price(v):
     if v is None:
         return None
@@ -27,337 +74,273 @@ def norm_price(v):
         return int(digits) if digits else None
 
 
-def short_desc(t, maxlen=180):
+def short_desc(t, maxlen=220):
     if not t:
         return None
-    t = re.sub(r"<[^>]+>", " ", str(t))
+    t = re.sub(r"<[^>]+>", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
-    return (t[: maxlen - 1] + "…") if len(t) > maxlen else t
+    if len(t) <= maxlen:
+        return t
+    return t[: maxlen - 1].rstrip() + "…"
 
 
-def strip_ns(tag):
-    return tag.split("}")[-1].split(":")[-1].lower()
+def load_feed_urls():
+    """
+    Több URL támogatása:
+      - FEED_PEPITA_URL  : lehet 1 URL, vagy több sorba tördelve, vagy vesszővel elválasztva
+      - FEED_PEPITA_URLS : ugyanaz, fallbackként
+
+    A kettő közül bármelyik használható.
+    """
+    raw = os.environ.get("FEED_PEPITA_URL", "").strip()
+    if not raw:
+        raw = os.environ.get("FEED_PEPITA_URLS", "").strip()
+
+    if not raw:
+        raise RuntimeError("Hiányzik a FEED_PEPITA_URL vagy FEED_PEPITA_URLS beállítás!")
+
+    urls = []
+    for line in raw.replace(",", "\n").splitlines():
+        u = line.strip()
+        if u:
+            urls.append(u)
+
+    if not urls:
+        raise RuntimeError("Nem találtam egyetlen PEPITA feed URL-t sem!")
+
+    return urls
 
 
-def collect_node(n):
-    m = {}
-    txt = (n.text or "").strip()
-    k0 = strip_ns(n.tag)
-    if txt:
-        m.setdefault(k0, txt)
-
-    for ak, av in (n.attrib or {}).items():
-        m.setdefault(strip_ns(ak), av)
-
-    for c in list(n):
-        k = strip_ns(c.tag)
-        v = (c.text or "").strip()
-
-        if k in (
-            "imgurl_alternative",
-            "additional_image_link",
-            "additional_image_url",
-            "images",
-            "image2",
-            "image3",
-        ):
-            m.setdefault(k, [])
-            if v:
-                m[k].append(v)
-        else:
-            if v:
-                m[k] = v
-            else:
-                sub = collect_node(c)
-                for sk, sv in sub.items():
-                    m.setdefault(sk, sv)
-
-    return m
+def fetch_xml(url: str) -> str:
+    print(f"[INFO] Letöltés: {url}")
+    resp = requests.get(url, timeout=120)
+    resp.raise_for_status()
+    return resp.text
 
 
-def first(d, keys):
-    for raw in keys:
-        k = raw.lower()
-        v = d.get(k)
-        if isinstance(v, list) and v:
-            return v[0]
-        if isinstance(v, str) and v.strip():
-            return v.strip()
-        if v not in (None, "", []):
-            return v
-    return None
-
-
-TITLE_KEYS = ("productname", "title", "g:title", "name", "product_name")
-LINK_KEYS = ("url", "link", "g:link", "product_url", "product_link", "deeplink")
-IMG_KEYS = (
-    "imgurl",
-    "image_link",
-    "image",
-    "image_url",
-    "g:image_link",
-    "image1",
-    "main_image_url",
-)
-IMG_ALT_KEYS = (
-    "imgurl_alternative",
-    "additional_image_link",
-    "additional_image_url",
-    "images",
-    "image2",
-    "image3",
-)
-DESC_KEYS = (
-    "description",
-    "g:description",
-    "long_description",
-    "short_description",
-    "desc",
-    "popis",
-)
-
-NEW_PRICE_KEYS = (
-    "price_vat",
-    "price_with_vat",
-    "price_final",
-    "price_huf",
-    "g:sale_price",
-    "sale_price",
-    "g:price",
-    "price",
-    "price_amount",
-    "current_price",
-    "amount",
-)
-
-OLD_PRICE_KEYS = (
-    "old_price",
-    "price_before",
-    "was_price",
-    "list_price",
-    "regular_price",
-    "g:price",
-    "price",
-)
-
-
-def parse_items(xml_text):
+def parse_pepita_xml(xml_text: str):
+    """
+    Generikus Google Merchant stílusú XML parser PEPITA-hoz.
+    Ha a Pepita feed tag-nevei eltérnek, itt kell finomhangolni.
+    """
+    items = []
     root = ET.fromstring(xml_text)
 
-    # 1) klasszikus utak
-    candidates = []
-    for path in (
-        ".//channel/item",
-        ".//item",
-        ".//products/product",
-        ".//product",
-        ".//SHOPITEM",
-        ".//shopitem",
-        ".//entry",
-    ):
-        nodes = root.findall(path)
-        if nodes:
-            candidates = nodes
-            break
+    for item in root.findall(".//item"):
+        m = {}
 
-    # 2) fallback – bármilyen product/item node
-    if not candidates:
-        for n in root.iter():
-            t = strip_ns(n.tag)
-            if any(x in t for x in ("product", "item", "shopitem", "entry")):
-                candidates.append(n)
+        def gettext(tag_names):
+            for tn in tag_names:
+                # prefixelt tag (g:id stb.)
+                el = item.find(tn)
+                if el is not None and el.text:
+                    return el.text.strip()
+                # namespace-független fallback (id, price stb.)
+                bare = tn.split(":")[-1]
+                el = item.find(f".//{{*}}{bare}")
+                if el is not None and el.text:
+                    return el.text.strip()
+            return ""
 
-    if not candidates:
-        print("⚠ Pepita: parse_items – nem találtam termék node-ot.")
-        return []
+        m["id"] = gettext(["g:id", "id", "ITEM_ID"])
+        m["title"] = gettext(["g:title", "title", "ITEM_NAME"])
+        m["description"] = gettext(["g:description", "description"])
+        m["link"] = gettext(["g:link", "link", "URL"])
+        m["image_link"] = gettext(["g:image_link", "image_link", "g:image", "image"])
+        m["price"] = gettext(["g:price", "price"])
+        m["sale_price"] = gettext(["g:sale_price", "sale_price"])
+        # tipikusan 'g:product_type' alakú Google product_type
+        m["product_type"] = gettext(["g:product_type", "product_type", "category_path"])
+        m["brand"] = gettext(["g:brand", "brand", "g:manufacturer", "manufacturer"])
 
-    items = []
-    for n in candidates:
-        m = collect_node(n)
-        # minden kulcsot kisbetűsre húzunk
-        m = {(k.lower() if isinstance(k, str) else k): v for k, v in m.items()}
+        items.append(m)
 
-        pid = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid", "identifier"))
-        title = first(m, TITLE_KEYS) or "Ismeretlen termék"
-        link = first(m, LINK_KEYS)
-
-        img = first(m, IMG_KEYS)
-        if not img:
-            alt = first(m, IMG_ALT_KEYS)
-            if isinstance(alt, list) and alt:
-                img = alt[0]
-            elif isinstance(alt, str):
-                img = alt
-
-        raw_desc = first(m, DESC_KEYS)
-        desc = short_desc(raw_desc)
-
-        # Pepita saját kategória mező
-        category_raw = first(
-            m,
-            ("category", "categorytext", "g:product_type", "product_type"),
-        ) or ""
-
-        # Findora fő kategória Pepitára – AZ ÚJ KATEGORIZÁLÓVAL
-        # Az egész field-dictet odaadjuk neki, ahogy elvárja.
-        findora_main = assign_pepita_cat(m)
-
-        price_new = None
-        for k in NEW_PRICE_KEYS:
-            price_new = norm_price(m.get(k))
-            if price_new:
-                break
-
-        old = None
-        for k in OLD_PRICE_KEYS:
-            old = norm_price(m.get(k))
-            if old:
-                break
-
-        discount = (
-            round((1 - price_new / old) * 100)
-            if old and price_new and old > price_new
-            else None
-        )
-
-        items.append(
-            {
-                "id": pid or link or title,
-                "title": title,
-                "img": img or "",
-                "desc": desc,
-                "price": price_new,
-                "discount": discount,
-                "url": link or "",
-                "categoryPath": category_raw,
-                # KATEGÓRIA MEZŐK – frontend + Algolia:
-                "kat": findora_main,
-                "findora_main": findora_main,
-            }
-        )
-
-    print(f"ℹ Pepita: parse_items → {len(items)} nyers termék")
+    print(f"[INFO] XML-ből termékek száma (Pepita): {len(items)}")
     return items
 
 
-# ===== dedup: méret összevonás, szín marad =====
-SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
-COLOR_WORDS = (
-    "fekete",
-    "fehér",
-    "feher",
-    "szürke",
-    "szurke",
-    "kék",
-    "kek",
-    "piros",
-    "zöld",
-    "zold",
-    "lila",
-    "sárga",
-    "sarga",
-    "narancs",
-    "barna",
-    "bézs",
-    "bezs",
-    "rózsaszín",
-    "rozsaszin",
-    "bordó",
-    "bordeaux",
-)
-
-
-def normalize_title_for_size(t):
-    if not t:
+def normalize_pepita_url(raw_url: str) -> str:
+    if not raw_url:
         return ""
-    t0 = re.sub(r"\s+", " ", t.strip(), flags=re.I)
-    t1 = re.sub(rf"\b{SIZE_TOKENS}\b", "", t0, flags=re.I)
-    t1 = re.sub(r"\s{2,}", " ", t1).strip()
-    return t1.lower()
-
-
-def detect_color_token(t):
-    if not t:
-        return ""
-    tl = t.lower()
-    for w in COLOR_WORDS:
-        if re.search(rf"\b{re.escape(w)}\b", tl, flags=re.I):
-            return w
-    return ""
-
-
-def strip_size_from_url(u):
-    if not u:
-        return u
     try:
-        p = urlparse(u)
-        q = dict(parse_qsl(p.query, keep_blank_values=True))
-        for k in list(q.keys()):
-            if k.lower() in ("size", "meret", "merete", "variant_size", "size_id", "meret_id"):
-                q.pop(k, None)
-        new_q = urlencode(q, doseq=True)
-        return urlunparse((p.scheme, p.netloc, p.path, p.params, new_q, p.fragment))
+        u = urlparse(raw_url)
+        qs = dict(parse_qsl(u.query, keep_blank_values=True))
+        new_qs = urlencode(qs, doseq=True)
+        return urlunparse((u.scheme, u.netloc, u.path, u.params, new_qs, u.fragment))
     except Exception:
-        return u
+        return raw_url
 
 
-def dedup_size_variants(items):
-    buckets = {}
-    for it in items:
-        tnorm = normalize_title_for_size(it.get("title"))
-        color = detect_color_token(it.get("title")) or detect_color_token(it.get("desc") or "")
-        base_url = strip_size_from_url(it.get("url") or "")
-        key = (tnorm, color or "", base_url or "")
-        cur = buckets.get(key)
-        if not cur:
-            buckets[key] = it
-        else:
-            if not cur.get("img") and it.get("img"):
-                cur["img"] = it["img"]
-            if (it.get("price") or 0) and (not cur.get("price") or it["price"] < cur["price"]):
-                cur["price"] = it["price"]
-            if (it.get("discount") or 0) > (cur.get("discount") or 0):
-                cur["discount"] = it["discount"]
-    return list(buckets.values())
+def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
+    """
+    Általános lapozó + fájlkiíró:
+      base_dir/meta.json
+      base_dir/page-0001.json, page-0002.json, ...
+    """
+    os.makedirs(base_dir, exist_ok=True)
+    total = len(items)
+    page_count = int(math.ceil(total / page_size)) if total else 0
+
+    meta = {
+        "total_items": total,
+        "page_size": page_size,
+        "page_count": page_count,
+    }
+    if meta_extra:
+        meta.update(meta_extra)
+
+    meta_path = os.path.join(base_dir, "meta.json")
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    print(f"[INFO] meta.json kiírva: {meta_path} (items={total}, pages={page_count})")
+
+    for i in range(page_count):
+        start = i * page_size
+        end = start + page_size
+        page_items = items[start:end]
+        page_no = i + 1
+        page_name = f"page-{page_no:04d}.json"
+        out_path = os.path.join(base_dir, page_name)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump({"items": page_items}, f, ensure_ascii=False)
+        print(f"[INFO] {out_path} ({len(page_items)} db)")
+
+
+# ===== KAT → Findora slug mapping (kat-elektronika → elektronika, stb.) =====
+KAT_TO_FINDORA = {
+    "kat-elektronika": "elektronika",
+    "kat-gepek": "haztartasi_gepek",
+    "kat-szamitastechnika": "szamitastechnika",
+    "kat-mobil": "mobil",
+    "kat-gaming": "gaming",
+    "kat-smart-home": "smart_home",
+    "kat-otthon": "otthon",
+    "kat-lakberendezes": "lakberendezes",
+    "kat-konyha": "konyha_fozes",
+    "kat-kert": "kert",
+    "kat-jatekok": "jatekok",
+    "kat-divat": "divat",
+    "kat-szepseg": "szepseg",
+    "kat-drogeria": "drogeria",
+    "kat-baba": "baba",
+    "kat-sport": "sport",
+    "kat-egeszseg": "egeszseg",
+    "kat-latas": "latas",
+    "kat-allatok": "allatok",
+    "kat-konyv": "konyv",
+    "kat-utazas": "utazas",
+    "kat-iroda": "iroda_iskola",
+    "kat-szerszam": "szerszam_barkacs",
+    "kat-auto": "auto_motor",
+    "kat-multi": "multi",
+}
 
 
 def main():
-    assert FEED_URL, "FEED_PEPITA_URL hiányzik (Settings → Secrets → Actions)."
+    # 1) XML feedek letöltése (több URL is lehet)
+    urls = load_feed_urls()
+
+    all_items = []
+    for url in urls:
+        xml_text = fetch_xml(url)
+        items = parse_pepita_xml(xml_text)
+        all_items.extend(items)
+
+    print(f"[INFO] Összesített PEPITA termék szám: {len(all_items)}")
+
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    r = requests.get(
-        FEED_URL,
-        headers={"User-Agent": "Mozilla/5.0", "Accept": "application/xml"},
-        timeout=120,
+    rows = []
+    for m in all_items:
+        pid = m.get("id") or ""
+        title = m.get("title") or ""
+        raw_desc = m.get("description") or ""
+        url = normalize_pepita_url(m.get("link") or "")
+        img = m.get("image_link") or ""
+
+        price_raw = m.get("sale_price") or m.get("price")
+        price = norm_price(price_raw)
+        discount = None  # később számolhatsz %-ot, ha lesz akciós ár
+
+        cat_path = m.get("product_type") or ""
+        # Pepitánál a '|' vagy '>' vagy '|' jel lehet elválasztó – most '|'
+        cat_root = cat_path.split("|", 1)[0].strip() if cat_path else ""
+
+        # ===== Pepita-specifikus kategorizálás =====
+        fields_for_cat = {
+            "title": title,
+            "description": raw_desc,
+            "categorypath": cat_path,
+            "category": cat_root,
+            "product_type": m.get("product_type") or "",
+            "brand": m.get("brand") or "",
+        }
+
+        try:
+            kat_id = assign_category(fields_for_cat)  # pl. "kat-elektronika"
+        except Exception as e:
+            print(f"[WARN] assign_category (Pepita) hiba (id={pid}): {e}")
+            kat_id = "kat-multi"
+
+        findora_main = KAT_TO_FINDORA.get(kat_id, "multi")
+        if findora_main not in FINDORA_CATS:
+            findora_main = "multi"
+
+        row = {
+            "id": pid,
+            "title": title,
+            "img": img,
+            "desc": short_desc(raw_desc),
+            "price": price,
+            "discount": discount,
+            "url": url,
+            "partner": "pepita",
+            "category_path": cat_path,
+            "category_root": cat_root,
+            "findora_main": findora_main,
+            "cat": findora_main,
+        }
+        rows.append(row)
+
+    print(f"[INFO] Normalizált sorok (Pepita): {len(rows)}")
+
+    # 1) Globális PEPITA feed – docs/feeds/pepita/page-0001.json ...
+    paginate_and_write(
+        OUT_DIR,
+        rows,
+        PAGE_SIZE_GLOBAL,
+        meta_extra={
+            "partner": "pepita",
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "scope": "global",
+        },
     )
-    r.raise_for_status()
 
-    raw_items = parse_items(r.text)
-    items = dedup_size_variants(raw_items)
-    print(f"ℹ Pepita: dedup után {len(items)} termék")
+    # 2) Kategória szerinti feedek:
+    #    docs/feeds/pepita/<findora_main>/page-0001.json (20/lap)
+    buckets = {slug: [] for slug in FINDORA_CATS}
+    for row in rows:
+        slug = row.get("findora_main") or "multi"
+        if slug not in buckets:
+            slug = "multi"
+        buckets[slug].append(row)
 
-    pages = max(1, math.ceil(len(items) / PAGE_SIZE))
-    for i in range(pages):
-        data = {"items": items[i * PAGE_SIZE: (i + 1) * PAGE_SIZE]}
-        with open(
-            os.path.join(OUT_DIR, f"page-{str(i + 1).zfill(4)}.json"),
-            "w",
-            encoding="utf-8",
-        ) as f:
-            json.dump(data, f, ensure_ascii=False)
+    for slug, items in buckets.items():
+        if not items:
+            continue
+        base_dir = os.path.join(OUT_DIR, slug)
+        paginate_and_write(
+            base_dir,
+            items,
+            PAGE_SIZE_CAT,
+            meta_extra={
+                "partner": "pepita",
+                "generated_at": datetime.utcnow().isoformat() + "Z",
+                "scope": f"category:{slug}",
+            },
+        )
 
-    meta = {
-        "partner": "pepita",
-        "pageSize": PAGE_SIZE,
-        "total": len(items),
-        "pages": pages,
-        "lastUpdated": datetime.utcnow().isoformat() + "Z",
-        "source": "feed",
-    }
-    with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False)
-
-    print(f"✅ Pepita: {len(items)} termék, {pages} oldal → {OUT_DIR}")
+    print("[INFO] Kész: PEPITA feed JSON oldalak legenerálva (globál + kategória-bontás).")
 
 
 if __name__ == "__main__":
