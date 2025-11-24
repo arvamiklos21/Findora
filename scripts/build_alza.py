@@ -44,6 +44,7 @@ def norm_price(v):
 def short_desc(t, maxlen=220):
     if not t:
         return None
+    # HTML tagek kiszedése
     t = re.sub(r"<[^>]+>", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
     if len(t) <= maxlen:
@@ -51,8 +52,12 @@ def short_desc(t, maxlen=220):
     return t[: maxlen - 1].rstrip() + "…"
 
 
-# ===== Feed URL-ek beolvasása (több XML támogatása) =====
+# ===== Feed URL-ek beolvasása (több XML támogatása) ======
 def load_feed_urls():
+    """
+    FEED_ALZA_URLS: több soros vagy vesszővel elválasztott lista
+    FEED_ALZA_URL: 1 darab URL (fallback)
+    """
     raw = os.environ.get("FEED_ALZA_URLS", "").strip()
     if not raw:
         raw = os.environ.get("FEED_ALZA_URL", "").strip()
@@ -70,7 +75,7 @@ def load_feed_urls():
     return urls
 
 
-# ===== XML letöltése =====
+# ===== XML letöltése ======
 def fetch_xml(url: str) -> str:
     print(f"[INFO] Letöltés: {url}")
     resp = requests.get(url, timeout=120)
@@ -78,7 +83,7 @@ def fetch_xml(url: str) -> str:
     return resp.text
 
 
-# ===== XML → item lista =====
+# ===== XML → item lista ======
 def parse_alza_xml(xml_text: str):
     items = []
     root = ET.fromstring(xml_text)
@@ -88,9 +93,11 @@ def parse_alza_xml(xml_text: str):
 
         def gettext(tag_names):
             for tn in tag_names:
+                # 1) teljes tag (pl. g:id)
                 el = item.find(tn)
                 if el is not None and el.text:
                     return el.text.strip()
+                # 2) namespace-független keresés: csak a bare név
                 bare = tn.split(":")[-1]
                 el = item.find(f".//{{*}}{bare}")
                 if el is not None and el.text:
@@ -113,7 +120,7 @@ def parse_alza_xml(xml_text: str):
     return items
 
 
-# ===== Deeplink normalizálás =====
+# ===== Deeplink normalizálás ======
 def normalize_alza_url(raw_url: str) -> str:
     if not raw_url:
         return ""
@@ -126,7 +133,7 @@ def normalize_alza_url(raw_url: str) -> str:
         return raw_url
 
 
-# ===== Fő build =====
+# ===== Fő build ======
 def main():
     urls = load_feed_urls()
 
@@ -155,15 +162,9 @@ def main():
         cat_path = m.get("product_type") or ""
         cat_root = cat_path.split("|", 1)[0].strip() if cat_path else ""
 
-        fields_for_cat = {
-            "title": title or "",
-            "description": raw_desc or "",
-            "category": cat_path or "",
-            "product_type": cat_path or "",
-            "categorytext": cat_path or "",
-            "brand": m.get("brand") or "",
-        }
-        findora_main = assign_category(fields_for_cat) or "kat-multi"
+        # === KATEGORIZÁLÁS – JELENLEGI category_assign.assign_category API-JÁHOZ IGAZÍTVA ===
+        # category_assign.assign_category(category_root, category_path, title, desc)
+        findora_main = assign_category(cat_root, cat_path, title, raw_desc) or "multi"
 
         row = {
             "id": pid,
