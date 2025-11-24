@@ -600,7 +600,7 @@ function getCategoryName(catId) {
 }
 
 // ===== Akciós blokk + Black Friday (JSON FEED ALAPÚ) =====
-let AKCIO_PAGES = [];
+let AKCIO_PAGES = [2];
 let AKCIO_CURRENT = 1;
 
 let AKCIO_FULL_STATE = {
@@ -1990,5 +1990,6 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
