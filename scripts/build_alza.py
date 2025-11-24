@@ -1,11 +1,6 @@
 # scripts/build_alza.py
 #
 # ALZA feed → Findora JSON oldalak
-#
-# - Több ALZA feed URL-t is tud fogadni (FEED_ALZA_URLS vagy FEED_ALZA_URL)
-# - XML → normalizált termék sorok
-# - Kategória hozzárendelés: scripts/category_assign.assign_category(...)
-# - Kimenet: docs/feeds/alza/meta.json + page-0001.json, page-0002.json, ...
 
 import os
 import sys
@@ -49,7 +44,6 @@ def norm_price(v):
 def short_desc(t, maxlen=220):
     if not t:
         return None
-    # HTML tagek kivágása
     t = re.sub(r"<[^>]+>", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
     if len(t) <= maxlen:
@@ -59,10 +53,6 @@ def short_desc(t, maxlen=220):
 
 # ===== Feed URL-ek beolvasása (több XML támogatása) =====
 def load_feed_urls():
-    """
-    FEED_ALZA_URLS: több soros vagy vesszővel elválasztott lista
-    FEED_ALZA_URL: 1 darab URL (fallback)
-    """
     raw = os.environ.get("FEED_ALZA_URLS", "").strip()
     if not raw:
         raw = os.environ.get("FEED_ALZA_URL", "").strip()
@@ -93,17 +83,14 @@ def parse_alza_xml(xml_text: str):
     items = []
     root = ET.fromstring(xml_text)
 
-    # Google merchant jellegű feed: <item> elemek
     for item in root.findall(".//item"):
         m = {}
 
         def gettext(tag_names):
             for tn in tag_names:
-                # namespace nélkül
                 el = item.find(tn)
                 if el is not None and el.text:
                     return el.text.strip()
-                # namespace-es (pl. g:price → {…}price)
                 bare = tn.split(":")[-1]
                 el = item.find(f".//{{*}}{bare}")
                 if el is not None and el.text:
@@ -126,7 +113,7 @@ def parse_alza_xml(xml_text: str):
     return items
 
 
-# ===== Deeplink normalizálás (idp, banner_id maradhat, csak rendbe tesszük a query-t) =====
+# ===== Deeplink normalizálás =====
 def normalize_alza_url(raw_url: str) -> str:
     if not raw_url:
         return ""
@@ -151,7 +138,6 @@ def main():
 
     print(f"[INFO] Összesített ALZA termék szám: {len(all_items)}")
 
-    # Kimeneti könyvtár
     os.makedirs(OUT_DIR, exist_ok=True)
 
     rows = []
@@ -164,12 +150,11 @@ def main():
 
         price_raw = m.get("sale_price") or m.get("price")
         price = norm_price(price_raw)
-        discount = None  # jelenleg nem számolunk külön kedvezményt
+        discount = None
 
         cat_path = m.get("product_type") or ""
         cat_root = cat_path.split("|", 1)[0].strip() if cat_path else ""
 
-        # Kategória motor hívása
         fields_for_cat = {
             "title": title or "",
             "description": raw_desc or "",
@@ -198,7 +183,6 @@ def main():
 
     print(f"[INFO] Normalizált sorok: {len(rows)}")
 
-    # META + oldalak írása
     total = len(rows)
     page_count = int(math.ceil(total / PAGE_SIZE)) if total else 0
 
