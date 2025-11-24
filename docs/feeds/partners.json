@@ -175,26 +175,32 @@
   "pagePattern": "feeds/alza/page-{NNNN}.json",
   "categoryMetaPattern": "feeds/alza/{CAT}/meta.json",
   "categoryPagePattern": "feeds/alza/{CAT}/page-{NNNN}.json",
-  },
-
-      "games": {
-        "enabled": true,
-        "pageSize": 6
-      },
-      "otthon": {
-        "enabled": true,
-        "pageSize": 6
-      }
-    },
-    "bf": {
+  "deeplinkPartner": "alza",
+  "placements": {
+    "home": { "enabled": true, "pageSize": 6 },
+    "tech": {
       "enabled": true,
-      "scanPages": 2,
-      "minDiscount": 10
+      "pageSize": 12,
+      "full": { "enabled": true, "pageSize": 24 }
     },
-    "itemCount": 0,
-    "hasAkcio": true,
-    "categoryIndex": {}
+    "games": {
+      "enabled": true,
+      "pageSize": 6
+    },
+    "otthon": {
+      "enabled": true,
+      "pageSize": 6
+    }
   },
+  "bf": {
+    "enabled": true,
+    "scanPages": 2,
+    "minDiscount": 10
+  },
+  "itemCount": 0,
+  "hasAkcio": true,
+  "categoryIndex": {}
+},
   {
     "id": "kozmetikaotthon",
     "name": "KozmetikaOtthon",
