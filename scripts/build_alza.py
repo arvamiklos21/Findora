@@ -18,6 +18,9 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
+# Jelenlegi aláírás:
+# def assign_category(partner: str, category_root: str, category_path: str,
+#                     title: str, desc: str) -> Tuple[str, str]:
 from category_assign import assign_category
 
 
@@ -44,7 +47,7 @@ def norm_price(v):
 def short_desc(t, maxlen=220):
     if not t:
         return None
-    # HTML tagek kiszedése
+    # HTML tagek lecsupaszítása
     t = re.sub(r"<[^>]+>", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
     if len(t) <= maxlen:
@@ -52,30 +55,41 @@ def short_desc(t, maxlen=220):
     return t[: maxlen - 1].rstrip() + "…"
 
 
-# ===== Feed URL-ek beolvasása (több XML támogatása) ======
+# ===== Feed URL-ek beolvasása (több XML támogatása) =====
 def load_feed_urls():
     """
-    FEED_ALZA_URLS: több soros vagy vesszővel elválasztott lista
-    FEED_ALZA_URL: 1 darab URL (fallback)
+    Több ALZA feed URL támogatása egy ENV alatt:
+
+    FEED_ALZA_URL:
+      - több sor:
+          http://...1.zip
+          http://...2.zip
+      - vagy vesszővel elválasztva:
+          http://...1.zip,http://...2.zip
+
+    FEED_ALZA_URLS-t opcionálisan még támogatjuk visszafelé kompatibilitás miatt.
     """
-    raw = os.environ.get("FEED_ALZA_URLS", "").strip()
+    raw = os.environ.get("FEED_ALZA_URL", "").strip()
     if not raw:
-        raw = os.environ.get("FEED_ALZA_URL", "").strip()
+        raw = os.environ.get("FEED_ALZA_URLS", "").strip()
 
     if not raw:
-        raise RuntimeError("Hiányzik a FEED_ALZA_URLS vagy FEED_ALZA_URL beállítás!")
+        raise RuntimeError("Hiányzik a FEED_ALZA_URL (vagy FEED_ALZA_URLS) beállítás!")
 
     urls = []
+    # vesszőt is, sortörést is kezeljük
     for line in raw.replace(",", "\n").splitlines():
         u = line.strip()
         if u:
             urls.append(u)
+
     if not urls:
-        raise RuntimeError("Nem találtam egyetlen ALZA feed URL-t sem!")
+        raise RuntimeError("Nem találtam egyetlen ALZA feed URL-t sem a FEED_ALZA_URL-ben!")
+
     return urls
 
 
-# ===== XML letöltése ======
+# ===== XML letöltése =====
 def fetch_xml(url: str) -> str:
     print(f"[INFO] Letöltés: {url}")
     resp = requests.get(url, timeout=120)
@@ -83,7 +97,7 @@ def fetch_xml(url: str) -> str:
     return resp.text
 
 
-# ===== XML → item lista ======
+# ===== XML → item lista =====
 def parse_alza_xml(xml_text: str):
     items = []
     root = ET.fromstring(xml_text)
@@ -92,12 +106,17 @@ def parse_alza_xml(xml_text: str):
         m = {}
 
         def gettext(tag_names):
+            """
+            Egyszerű namespace-toleráns getter:
+            - először konkrét név (pl. g:id)
+            - ha nincs, akkor namespace-független keresés az utolsó komponensre (id)
+            """
             for tn in tag_names:
-                # 1) teljes tag (pl. g:id)
+                # 1) direkt név
                 el = item.find(tn)
                 if el is not None and el.text:
                     return el.text.strip()
-                # 2) namespace-független keresés: csak a bare név
+                # 2) namespace-független (pl. {ns}id)
                 bare = tn.split(":")[-1]
                 el = item.find(f".//{{*}}{bare}")
                 if el is not None and el.text:
@@ -120,7 +139,7 @@ def parse_alza_xml(xml_text: str):
     return items
 
 
-# ===== Deeplink normalizálás ======
+# ===== Deeplink normalizálás =====
 def normalize_alza_url(raw_url: str) -> str:
     if not raw_url:
         return ""
@@ -133,7 +152,7 @@ def normalize_alza_url(raw_url: str) -> str:
         return raw_url
 
 
-# ===== Fő build ======
+# ===== Fő build =====
 def main():
     urls = load_feed_urls()
 
@@ -157,14 +176,23 @@ def main():
 
         price_raw = m.get("sale_price") or m.get("price")
         price = norm_price(price_raw)
-        discount = None
+        discount = None  # ALZA feedből most nem számolunk külön %-ot
 
         cat_path = m.get("product_type") or ""
         cat_root = cat_path.split("|", 1)[0].strip() if cat_path else ""
 
-        # === KATEGORIZÁLÁS – JELENLEGI category_assign.assign_category API-JÁHOZ IGAZÍTVA ===
-        # category_assign.assign_category(category_root, category_path, title, desc)
-        findora_main = assign_category(cat_root, cat_path, title, raw_desc) or "multi"
+        # assign_category partner-first szignatúrával:
+        # (findora_main, debug_info) = assign_category("alza", cat_root, cat_path, title, raw_desc)
+        try:
+            findora_main, _debug = assign_category("alza", cat_root, cat_path, title, raw_desc)
+        except TypeError as e:
+            # Ha véletlenül megint változna a szignatúra, inkább fail-eljen hangosan
+            raise RuntimeError(
+                f"assign_category hívási hiba Alza terméknél (id={pid}): {e}"
+            )
+
+        if not findora_main:
+            findora_main = "multi"
 
         row = {
             "id": pid,
