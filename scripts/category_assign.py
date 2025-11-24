@@ -1,4 +1,4 @@
-# category_assign_alza.py
+# category_assign.py
 """
 Speciális ALZA kategorizáló Findora számára.
 
