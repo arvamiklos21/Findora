@@ -1,6 +1,6 @@
 # scripts/build_alza.py
 #
-# ALZA feed → Findora JSON oldalak
+# ALZA feed → Findora JSON oldalak (globál + kategória bontás)
 
 import os
 import sys
@@ -18,18 +18,49 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-# Jelenlegi aláírás:
-# def assign_category(partner: str, category_root: str, category_path: str,
-#                     title: str, desc: str) -> Tuple[str, str]:
-from category_assign import assign_category
+from category_assign import assign_category  # def assign_category(partner, category_root, category_path, title, desc)
 
 
-# ====== KONFIG ======
+# ===== KONFIG =====
 OUT_DIR = "docs/feeds/alza"
-PAGE_SIZE = 300  # kb. ennyi termék / JSON oldal
+
+# Globális ALZA feed (összes termék) – 300/lap
+PAGE_SIZE_GLOBAL = 300
+
+# Kategória nézet (pl. 20/lap a menüknél)
+PAGE_SIZE_CAT = 20
+
+# Findora fő kategória SLUG-ok – a 25 menüdhöz igazítva
+FINDORA_CATS = [
+    "elektronika",
+    "haztartasi_gepek",
+    "szamitastechnika",
+    "mobil",
+    "gaming",
+    "smart_home",
+    "otthon",
+    "lakberendezes",
+    "konyha_fozes",
+    "kert",
+    "jatekok",
+    "divat",
+    "szepseg",
+    "drogeria",
+    "baba",
+    "sport",
+    "egeszseg",
+    "latas",
+    "allatok",
+    "konyv",
+    "utazas",
+    "iroda_iskola",
+    "szerszam_barkacs",
+    "auto_motor",
+    "multi",
+]
 
 
-# ====== Segéd: ár normalizálása ======
+# ===== Segédfüggvények =====
 def norm_price(v):
     if v is None:
         return None
@@ -43,11 +74,9 @@ def norm_price(v):
         return int(digits) if digits else None
 
 
-# ====== Rövid leírás ======
 def short_desc(t, maxlen=220):
     if not t:
         return None
-    # HTML tagek lecsupaszítása
     t = re.sub(r"<[^>]+>", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
     if len(t) <= maxlen:
@@ -55,41 +84,33 @@ def short_desc(t, maxlen=220):
     return t[: maxlen - 1].rstrip() + "…"
 
 
-# ===== Feed URL-ek beolvasása (több XML támogatása) =====
 def load_feed_urls():
     """
-    Több ALZA feed URL támogatása egy ENV alatt:
+    Több URL támogatása:
+      - FEED_ALZA_URL  : lehet 1 URL, vagy több sorba tördelve, vagy vesszővel elválasztva
+      - FEED_ALZA_URLS : ugyanaz, fallbackként
 
-    FEED_ALZA_URL:
-      - több sor:
-          http://...1.zip
-          http://...2.zip
-      - vagy vesszővel elválasztva:
-          http://...1.zip,http://...2.zip
-
-    FEED_ALZA_URLS-t opcionálisan még támogatjuk visszafelé kompatibilitás miatt.
+    A kettő közül bármelyik használható.
     """
     raw = os.environ.get("FEED_ALZA_URL", "").strip()
     if not raw:
         raw = os.environ.get("FEED_ALZA_URLS", "").strip()
 
     if not raw:
-        raise RuntimeError("Hiányzik a FEED_ALZA_URL (vagy FEED_ALZA_URLS) beállítás!")
+        raise RuntimeError("Hiányzik a FEED_ALZA_URL vagy FEED_ALZA_URLS beállítás!")
 
     urls = []
-    # vesszőt is, sortörést is kezeljük
     for line in raw.replace(",", "\n").splitlines():
         u = line.strip()
         if u:
             urls.append(u)
 
     if not urls:
-        raise RuntimeError("Nem találtam egyetlen ALZA feed URL-t sem a FEED_ALZA_URL-ben!")
+        raise RuntimeError("Nem találtam egyetlen ALZA feed URL-t sem!")
 
     return urls
 
 
-# ===== XML letöltése =====
 def fetch_xml(url: str) -> str:
     print(f"[INFO] Letöltés: {url}")
     resp = requests.get(url, timeout=120)
@@ -97,7 +118,6 @@ def fetch_xml(url: str) -> str:
     return resp.text
 
 
-# ===== XML → item lista =====
 def parse_alza_xml(xml_text: str):
     items = []
     root = ET.fromstring(xml_text)
@@ -106,17 +126,12 @@ def parse_alza_xml(xml_text: str):
         m = {}
 
         def gettext(tag_names):
-            """
-            Egyszerű namespace-toleráns getter:
-            - először konkrét név (pl. g:id)
-            - ha nincs, akkor namespace-független keresés az utolsó komponensre (id)
-            """
             for tn in tag_names:
-                # 1) direkt név
+                # prefixelt tag (g:id stb.)
                 el = item.find(tn)
                 if el is not None and el.text:
                     return el.text.strip()
-                # 2) namespace-független (pl. {ns}id)
+                # namespace-független fallback (id, price stb.)
                 bare = tn.split(":")[-1]
                 el = item.find(f".//{{*}}{bare}")
                 if el is not None and el.text:
@@ -139,7 +154,6 @@ def parse_alza_xml(xml_text: str):
     return items
 
 
-# ===== Deeplink normalizálás =====
 def normalize_alza_url(raw_url: str) -> str:
     if not raw_url:
         return ""
@@ -152,8 +166,43 @@ def normalize_alza_url(raw_url: str) -> str:
         return raw_url
 
 
-# ===== Fő build =====
+def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
+    """
+    Általános lapozó + fájlkiíró:
+      base_dir/meta.json
+      base_dir/page-0001.json, page-0002.json, ...
+    """
+    os.makedirs(base_dir, exist_ok=True)
+    total = len(items)
+    page_count = int(math.ceil(total / page_size)) if total else 0
+
+    meta = {
+        "total_items": total,
+        "page_size": page_size,
+        "page_count": page_count,
+    }
+    if meta_extra:
+        meta.update(meta_extra)
+
+    meta_path = os.path.join(base_dir, "meta.json")
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    print(f"[INFO] meta.json kiírva: {meta_path} (items={total}, pages={page_count})")
+
+    for i in range(page_count):
+        start = i * page_size
+        end = start + page_size
+        page_items = items[start:end]
+        page_no = i + 1
+        page_name = f"page-{page_no:04d}.json"
+        out_path = os.path.join(base_dir, page_name)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump({"items": page_items}, f, ensure_ascii=False)
+        print(f"[INFO] {out_path} ({len(page_items)} db)")
+
+
 def main():
+    # 1) XML feedek letöltése (több URL is lehet)
     urls = load_feed_urls()
 
     all_items = []
@@ -176,22 +225,29 @@ def main():
 
         price_raw = m.get("sale_price") or m.get("price")
         price = norm_price(price_raw)
-        discount = None  # ALZA feedből most nem számolunk külön %-ot
+        discount = None
 
         cat_path = m.get("product_type") or ""
         cat_root = cat_path.split("|", 1)[0].strip() if cat_path else ""
 
-        # assign_category partner-first szignatúrával:
-        # (findora_main, debug_info) = assign_category("alza", cat_root, cat_path, title, raw_desc)
+        # ===== ÚJ: univerzális kategorizáló hívás ALZA partnerrel =====
         try:
-            findora_main, _debug = assign_category("alza", cat_root, cat_path, title, raw_desc)
-        except TypeError as e:
-            # Ha véletlenül megint változna a szignatúra, inkább fail-eljen hangosan
-            raise RuntimeError(
-                f"assign_category hívási hiba Alza terméknél (id={pid}): {e}"
+            main_cat, _ = assign_category(
+                "alza",
+                cat_root,
+                cat_path,
+                title,
+                raw_desc or "",
             )
+        except TypeError:
+            # Ha valamiért még a régi szignó fut, utolsó mentőöv
+            main_cat = assign_category(cat_root, cat_path, title, raw_desc or "")  # type: ignore
+        except Exception as e:
+            print(f"[WARN] assign_category hiba (id={pid}): {e}")
+            main_cat = None
 
-        if not findora_main:
+        findora_main = main_cat or "multi"
+        if findora_main not in FINDORA_CATS:
             findora_main = "multi"
 
         row = {
@@ -212,34 +268,43 @@ def main():
 
     print(f"[INFO] Normalizált sorok: {len(rows)}")
 
-    total = len(rows)
-    page_count = int(math.ceil(total / PAGE_SIZE)) if total else 0
+    # 1) Globális ALZA feed – docs/feeds/alza/page-0001.json (visszafelé kompatibilis)
+    paginate_and_write(
+        OUT_DIR,
+        rows,
+        PAGE_SIZE_GLOBAL,
+        meta_extra={
+            "partner": "alza",
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "scope": "global",
+        },
+    )
 
-    meta = {
-        "partner": "alza",
-        "generated_at": datetime.utcnow().isoformat() + "Z",
-        "total_items": total,
-        "page_size": PAGE_SIZE,
-        "page_count": page_count,
-    }
+    # 2) Kategória szerinti feedek:
+    #    docs/feeds/alza/<findora_main>/page-0001.json (20/lap)
+    buckets = {slug: [] for slug in FINDORA_CATS}
+    for row in rows:
+        slug = row.get("findora_main") or "multi"
+        if slug not in buckets:
+            slug = "multi"
+        buckets[slug].append(row)
 
-    meta_path = os.path.join(OUT_DIR, "meta.json")
-    with open(meta_path, "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
-    print(f"[INFO] meta.json kiírva: {meta_path}")
+    for slug, items in buckets.items():
+        if not items:
+            continue
+        base_dir = os.path.join(OUT_DIR, slug)
+        paginate_and_write(
+            base_dir,
+            items,
+            PAGE_SIZE_CAT,
+            meta_extra={
+                "partner": "alza",
+                "generated_at": datetime.utcnow().isoformat() + "Z",
+                "scope": f"category:{slug}",
+            },
+        )
 
-    for i in range(page_count):
-        start = i * PAGE_SIZE
-        end = start + PAGE_SIZE
-        page_items = rows[start:end]
-        page_no = i + 1
-        page_name = f"page-{page_no:04d}.json"
-        out_path = os.path.join(OUT_DIR, page_name)
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump({"items": page_items}, f, ensure_ascii=False)
-        print(f"[INFO] {out_path} ({len(page_items)} db)")
-
-    print("[INFO] Kész: ALZA feed JSON oldalak legenerálva.")
+    print("[INFO] Kész: ALZA feed JSON oldalak legenerálva (globál + kategória-bontás).")
 
 
 if __name__ == "__main__":
