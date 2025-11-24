@@ -1,39 +1,61 @@
 # scripts/build-onlinemarkabolt.py
+#
+# OnlineMárkaboltok → Findora paginált JSON feed
+#
+# Bemenet:
+#   - XML feed (FEED_ONLINEMARKABOLT_URL környezeti változó)
+#
+# Kimenet:
+#   - docs/feeds/onlinemarkabolt/meta.json
+#   - docs/feeds/onlinemarkabolt/page-0001.json, page-0002.json, ...
+#
+# Struktúra (page-*.json):
+#   {
+#     "items": [
+#       {
+#         "id": "553",
+#         "title": "...",
+#         "img": "https://...",
+#         "desc": "rövid leírás",
+#         "price": 151840,
+#         "discount": null,
+#         "url": "https://www.onlinemarkaboltok.hu/...",
+#         "categoryPath": "BLANCO > ...",
+#         "kat": "otthon",
+#         "findora_main": "otthon"
+#       },
+#       ...
+#     ]
+#   }
+
 import os
-import re
 import sys
+import re
 import json
 import math
+import shutil
 import xml.etree.ElementTree as ET
 import requests
 
 from datetime import datetime
-from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
-# --- hogy a scripts/ alatti kategorizálót is lássa ---
+# --- hogy a scripts/ alatti assign modul is látszódjon ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-# Próbáljuk több néven is betölteni az onlinemarkabolt kategorizálót
-try:
-    from category_onlinemarkabolt_assign import assign_category
-except ImportError:
-    try:
-        # ha véletlenül elgépelve lett a fájlnév
-        from category_onlinemarkabotl_assign import assign_category
-    except ImportError:
-        # végső fallback: általános category_assign.py
-        from category_assign import assign_category
+from category_onlinemarkabolt_assign import assign_category  # saját kategória-assigner
 
 
 # ====== KONFIG ======
-FEED_URL = os.environ.get("FEED_ONLINEMARKABOLT_URL")
-OUT_DIR = "docs/feeds/onlinemarkabolt"
-PAGE_SIZE = 300  # lapméret
+FEED_URL  = os.environ.get("FEED_ONLINEMARKABOLT_URL")
+OUT_DIR   = "docs/feeds/onlinemarkabolt"
+PAGE_SIZE = 300  # forrásoldal / JSON page méret
 
 
+# ====== SEGÉDFÜGGVÉNYEK ======
 def norm_price(v):
+    """Árat egész forintra normalizál (int vagy None)."""
     if v is None:
         return None
     s = re.sub(r"[^\d.,-]", "", str(v)).replace(" ", "")
@@ -46,318 +68,182 @@ def norm_price(v):
         return int(digits) if digits else None
 
 
-def short_desc(t, maxlen=180):
+def short_desc(t, maxlen=280):
+    """HTML-ből rövidített, plain-text leírás."""
     if not t:
         return None
+    # HTML tagek lecsupaszítása
     t = re.sub(r"<[^>]+>", " ", str(t))
     t = re.sub(r"\s+", " ", t).strip()
-    return (t[: maxlen - 1] + "…") if len(t) > maxlen else t
+    if len(t) <= maxlen:
+        return t
+    # vágjuk szóhatáron
+    cut = t[: maxlen + 10]
+    m = re.search(r"\s+\S*$", cut)
+    if m:
+        cut = cut[: m.start()].rstrip()
+    return cut + "…"
 
 
-def strip_ns(tag: str) -> str:
-    # namespace + prefix levágása, mindent kisbetűsre
-    return tag.split("}")[-1].split(":")[-1].lower()
+def ensure_out_dir(path):
+    os.makedirs(path, exist_ok=True)
+    # régi page-*.json törlése, meta.json-t felülírjuk később
+    for fn in os.listdir(path):
+        if fn.startswith("page-") and fn.endswith(".json"):
+            os.remove(os.path.join(path, fn))
 
 
-def collect_node(n):
-    m = {}
-    txt = (n.text or "").strip()
-    k0 = strip_ns(n.tag)
-    if txt:
-        m.setdefault(k0, txt)
-
-    for ak, av in (n.attrib or {}).items():
-        m.setdefault(strip_ns(ak), av)
-
-    for c in list(n):
-        k = strip_ns(c.tag)
-        v = (c.text or "").strip()
-        if k in (
-            "imgurl_alternative",
-            "additional_image_link",
-            "additional_image_url",
-            "images",
-            "image2",
-            "image3",
-        ):
-            m.setdefault(k, [])
-            if v:
-                m[k].append(v)
-        else:
-            if v:
-                m[k] = v
-            else:
-                sub = collect_node(c)
-                for sk, sv in sub.items():
-                    m.setdefault(sk, sv)
-    return m
+def parse_xml_products(xml_bytes):
+    """Visszaadja a <product> elemek listáját (Element)."""
+    root = ET.fromstring(xml_bytes)
+    # tipikus struktúra: <products><product>...</product>...</products>
+    return list(root.findall(".//product"))
 
 
-def first(d, keys):
-    for raw in keys:
-        k = raw.lower()
-        v = d.get(k)
-        if isinstance(v, list) and v:
-            return v[0]
-        if isinstance(v, str) and v.strip():
-            return v.strip()
-        if v not in (None, "", []):
-            return v
-    return None
+def get_text(elem, tag):
+    child = elem.find(tag)
+    if child is None or child.text is None:
+        return None
+    return str(child.text).strip()
 
 
-TITLE_KEYS = ("productname", "title", "g:title", "name", "product_name")
-LINK_KEYS = ("url", "link", "g:link", "product_url", "product_link", "deeplink")
-IMG_KEYS = ("imgurl", "image_link", "image", "image_url", "g:image_link", "image1", "main_image_url")
-IMG_ALT_KEYS = (
-    "imgurl_alternative",
-    "additional_image_link",
-    "additional_image_url",
-    "images",
-    "image2",
-    "image3",
-)
-DESC_KEYS = ("description", "g:description", "long_description", "short_description", "desc", "popis")
+def normalize_item(prod):
+    """
+    Egy <product> → nyers dict + Findora item.
+    prod: xml.etree.ElementTree.Element
+    """
+    identifier   = get_text(prod, "identifier") or get_text(prod, "code")
+    name         = get_text(prod, "name")
+    desc_html    = get_text(prod, "description")
+    price_raw    = get_text(prod, "price")
+    category     = get_text(prod, "category")
+    img          = get_text(prod, "image_url")
+    url          = get_text(prod, "product_url")
+    manufacturer = get_text(prod, "manufacturer")
 
-NEW_PRICE_KEYS = (
-    "price_vat",
-    "price_with_vat",
-    "price_final",
-    "price_huf",
-    "g:sale_price",
-    "sale_price",
-    "g:price",
-    "price",
-    "price_amount",
-    "current_price",
-    "amount",
-)
+    # kötelező mezők hiánya esetén dobjuk
+    if not identifier or not name or not url:
+        return None
 
-OLD_PRICE_KEYS = (
-    "old_price",
-    "price_before",
-    "was_price",
-    "list_price",
-    "regular_price",
-    "g:price",
-    "price",
-)
+    price = norm_price(price_raw)
 
+    # --- assign_category-hez mezők előkészítése ---
+    fields_raw = {
+        "id": identifier,
+        "code": get_text(prod, "code"),
+        "identifier": identifier,
+        "name": name,
+        "title": name,
+        "description": desc_html,
+        "category": category,
+        "manufacturer": manufacturer,
+        # extra aliasok, hogy a TEXT_TAG_KEYS biztosan találjon valamit
+        "productname": name,
+        "categorytext": category,
+    }
 
-def parse_items(xml_text):
-    root = ET.fromstring(xml_text)
+    # kulcsok kisbetűsítve, None → ""
+    fields = {str(k).lower(): (v if v is not None else "") for k, v in fields_raw.items()}
 
-    # 1) próbáljuk a tipikus struktúrákat
-    candidates = []
-    for path in (
-        ".//channel/item",
-        ".//item",
-        ".//products/product",
-        ".//product",
-        ".//SHOPITEM",
-        ".//shopitem",
-        ".//entry",
-    ):
-        nodes = root.findall(path)
-        if nodes:
-            candidates = nodes
-            break
+    kat = assign_category(fields) or "multi"
+    findora_main = kat  # később ha akarod, itt lehet külön mappinget csinálni
 
-    # 2) ha nem találtunk semmit, iteráljuk az összes node-ot
-    if not candidates:
-        candidates = [
-            n for n in root.iter() if strip_ns(n.tag) in ("item", "product", "shopitem", "entry")
-        ]
-
-    items = []
-    for n in candidates:
-        m = collect_node(n)
-        # MINDEN kulcs kisbetűsre
-        m = {(k.lower() if isinstance(k, str) else k): v for k, v in m.items()}
-
-        pid = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid"))
-        title = first(m, TITLE_KEYS) or "Ismeretlen termék"
-        link = first(m, LINK_KEYS)
-
-        img = first(m, IMG_KEYS)
-        if not img:
-            alt = first(m, IMG_ALT_KEYS)
-            if isinstance(alt, list) and alt:
-                img = alt[0]
-            elif isinstance(alt, str):
-                img = alt
-
-        desc = short_desc(first(m, DESC_KEYS))
-
-        price_new = None
-        for k in NEW_PRICE_KEYS:
-            price_new = norm_price(m.get(k))
-            if price_new:
-                break
-
-        old = None
-        for k in OLD_PRICE_KEYS:
-            old = norm_price(m.get(k))
-            if old:
-                break
-
-        discount = (
-            round((1 - price_new / old) * 100)
-            if old and price_new and old > price_new
-            else None
-        )
-
-        # ===== KATEGÓRIA MEGHATÁROZÁSA – OnlineMárkabolt specifikus assign_category =====
-        cat_fields = {
-            # a kategorizáló TEXT_TAG_KEYS-hez igazítva
-            "PRODUCTNAME": m.get("productname"),
-            "ITEMNAME": m.get("itemname"),
-            "PRODUCTNAME_FULL": m.get("productname_full"),
-            "CATEGORYTEXT": m.get("categorytext"),
-            # a g:product_type az XML-ben namespace/prefix nélkül "product_type" lett
-            "g:product_type": m.get("product_type"),
-            # onlinemarkabolt-specifikus mezők
-            "name": m.get("name"),
-            "category": m.get("category"),
-        }
-        kat = assign_category(cat_fields)
-
-        items.append(
-            {
-                "id": pid or link or title,
-                "title": title,
-                "img": img or "",
-                "desc": desc,
-                "price": price_new,
-                "discount": discount,
-                "url": link or "",
-                "kat": kat,  # ← EBBŐL FOG TUDNI AZ APP.JS SZŰRNI
-            }
-        )
-
-    print(f"ℹ OnlineMárkabolt: parse_items → {len(items)} nyers termék")
-    return items
-
-
-# ===== dedup: méret összevonás, szín marad =====
-SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
-COLOR_WORDS = (
-    "fekete",
-    "fehér",
-    "feher",
-    "szürke",
-    "szurke",
-    "kék",
-    "kek",
-    "piros",
-    "zöld",
-    "zold",
-    "lila",
-    "sárga",
-    "sarga",
-    "narancs",
-    "barna",
-    "bézs",
-    "bezs",
-    "rózsaszín",
-    "rozsaszin",
-    "bordó",
-    "bordeaux",
-)
-
-
-def normalize_title_for_size(t):
-    if not t:
-        return ""
-    t0 = re.sub(r"\s+", " ", t.strip(), flags=re.I)
-    t1 = re.sub(rf"\b{SIZE_TOKENS}\b", "", t0, flags=re.I)
-    t1 = re.sub(r"\s{2,}", " ", t1).strip()
-    return t1.lower()
-
-
-def detect_color_token(t):
-    if not t:
-        return ""
-    tl = t.lower()
-    for w in COLOR_WORDS:
-        if re.search(rf"\b{re.escape(w)}\b", tl, flags=re.I):
-            return w
-    return ""
-
-
-def strip_size_from_url(u):
-    if not u:
-        return u
-    try:
-        p = urlparse(u)
-        q = dict(parse_qsl(p.query, keep_blank_values=True))
-        for k in list(q.keys()):
-            if k.lower() in ("size", "meret", "merete", "variant_size", "size_id", "meret_id"):
-                q.pop(k, None)
-        new_q = urlencode(q, doseq=True)
-        return urlunparse((p.scheme, p.netloc, p.path, p.params, new_q, p.fragment))
-    except Exception:
-        return u
-
-
-def dedup_size_variants(items):
-    buckets = {}
-    for it in items:
-        tnorm = normalize_title_for_size(it.get("title"))
-        color = detect_color_token(it.get("title")) or detect_color_token(it.get("desc") or "")
-        base_url = strip_size_from_url(it.get("url") or "")
-        key = (tnorm, color or "", base_url or "")
-        cur = buckets.get(key)
-        if not cur:
-            buckets[key] = it
-        else:
-            if not cur.get("img") and it.get("img"):
-                cur["img"] = it["img"]
-            if (it.get("price") or 0) and (not cur.get("price") or it["price"] < cur["price"]):
-                cur["price"] = it["price"]
-            if (it.get("discount") or 0) > (cur.get("discount") or 0):
-                cur["discount"] = it["discount"]
-    out = list(buckets.values())
-    print(f"ℹ OnlineMárkabolt: dedup után {len(out)} termék")
-    return out
+    item = {
+        "id": identifier,
+        "title": name,
+        "img": img,
+        "desc": short_desc(desc_html),
+        "price": price,
+        "discount": None,          # a feedben jelenleg nincs külön akciós ár mező
+        "url": url,
+        "categoryPath": category or "",
+        "kat": kat,
+        "findora_main": findora_main,
+    }
+    return item, kat
 
 
 def main():
-    assert FEED_URL, "Hiányzó URL. Állítsd be a FEED_ONLINEMARKABOLT_URL secretet."
-    os.makedirs(OUT_DIR, exist_ok=True)
+    if not FEED_URL:
+        raise RuntimeError("Hiányzik a FEED_ONLINEMARKABOLT_URL környezeti változó!")
 
-    r = requests.get(
-        FEED_URL,
-        headers={"User-Agent": "Mozilla/5.0", "Accept": "application/xml"},
-        timeout=120,
-    )
-    r.raise_for_status()
+    print(f"[INFO] OnlineMárkaboltok feed letöltése: {FEED_URL}")
+    resp = requests.get(FEED_URL, timeout=90)
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"Nem sikerült letölteni az OnlineMárkaboltok feedet "
+            f"(HTTP {resp.status_code})"
+        )
 
-    raw_items = parse_items(r.text)
-    items = dedup_size_variants(raw_items)
+    products = parse_xml_products(resp.content)
+    print(f"[INFO] OnlineMárkaboltok – XML termékek száma: {len(products)}")
 
-    pages = max(1, math.ceil(len(items) / PAGE_SIZE))
-    for i in range(pages):
-        data = {"items": items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]}
-        with open(
-            os.path.join(OUT_DIR, f"page-{str(i + 1).zfill(4)}.json"),
-            "w",
-            encoding="utf-8",
-        ) as f:
-            json.dump(data, f, ensure_ascii=False)
+    ensure_out_dir(OUT_DIR)
 
+    items = []
+    seen_ids = set()
+    cat_counts = {}
+
+    for prod in products:
+        try:
+            norm = normalize_item(prod)
+        except Exception as e:
+            # egy termék se törje el az egész futást
+            print(f"[WARN] Hibás termék, kihagyva: {e!r}")
+            continue
+
+        if not norm:
+            continue
+
+        item, kat = norm
+
+        if item["id"] in seen_ids:
+            continue
+        seen_ids.add(item["id"])
+
+        items.append(item)
+        cat_counts[kat] = cat_counts.get(kat, 0) + 1
+
+    print(f"[INFO] OnlineMárkaboltok – normalizált sorok: {len(items)}")
+    print("[INFO] OnlineMárkaboltok – kategória statisztika:")
+    for k in sorted(cat_counts.keys()):
+        print(f"  - {k}: {cat_counts[k]} db")
+
+    # ===== Pagelés + fájlírás =====
+    total = len(items)
+    if total == 0:
+        print("[WARN] OnlineMárkaboltok – nincs egyetlen normalizált termék sem!")
+    page_count = int(math.ceil(total / float(PAGE_SIZE))) if total else 0
+
+    # stabil sorrend: azonosító szerint
+    items.sort(key=lambda x: str(x["id"]))
+
+    for i in range(page_count):
+        start = i * PAGE_SIZE
+        end = start + PAGE_SIZE
+        page_items = items[start:end]
+
+        page_obj = {"items": page_items}
+        page_no = i + 1
+        fn = os.path.join(OUT_DIR, f"page-{page_no:04d}.json")
+        with open(fn, "w", encoding="utf-8") as f:
+            json.dump(page_obj, f, ensure_ascii=False, separators=(",", ":"))
+        print(f"[INFO] OnlineMárkaboltok – írtam: {fn} ({len(page_items)} db)")
+
+    # meta.json
     meta = {
         "partner": "onlinemarkabolt",
+        "sourceUrl": FEED_URL,
+        "generatedAt": datetime.utcnow().isoformat() + "Z",
+        "totalItems": total,
         "pageSize": PAGE_SIZE,
-        "total": len(items),
-        "pages": pages,
-        "lastUpdated": datetime.utcnow().isoformat() + "Z",
-        "source": "onlinemarkabolt",
+        "pageCount": page_count,
+        "categories": cat_counts,
     }
-    with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False)
-
-    print(f"✅ OnlineMárkabolt: {len(items)} termék, {pages} oldal → {OUT_DIR}")
+    meta_fn = os.path.join(OUT_DIR, "meta.json")
+    with open(meta_fn, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    print(f"[INFO] OnlineMárkaboltok – meta írás kész: {meta_fn}")
 
 
 if __name__ == "__main__":
