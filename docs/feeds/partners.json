@@ -5,7 +5,23 @@
     "group": "otthon",
     "meta": "feeds/tchibo/meta.json",
     "pagePattern": "feeds/tchibo/page-{NNNN}.json",
-    "deeplinkPartner": "tchibo"
+    "deeplinkPartner": "tchibo",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "cj-karcher",
@@ -13,7 +29,23 @@
     "group": "otthon",
     "meta": "feeds/cj-karcher/meta.json",
     "pagePattern": "feeds/cj-karcher/page-{NNNN}.json",
-    "deeplinkPartner": "cj-karcher"
+    "deeplinkPartner": "cj-karcher",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "cj-eoptika",
@@ -21,7 +53,23 @@
     "group": "vision",
     "meta": "feeds/cj-eoptika/meta.json",
     "pagePattern": "feeds/cj-eoptika/page-{NNNN}.json",
-    "deeplinkPartner": "cj-eoptika"
+    "deeplinkPartner": "cj-eoptika",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "vision": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "cj-jateknet",
@@ -29,7 +77,23 @@
     "group": "games",
     "meta": "feeds/cj-jateknet/meta.json",
     "pagePattern": "feeds/cj-jateknet/page-{NNNN}.json",
-    "deeplinkPartner": "cj-jateknet"
+    "deeplinkPartner": "cj-jateknet",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "games": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "jateksziget",
@@ -37,7 +101,23 @@
     "group": "games",
     "meta": "feeds/jateksziget/meta.json",
     "pagePattern": "feeds/jateksziget/page-{NNNN}.json",
-    "deeplinkPartner": "jateksziget"
+    "deeplinkPartner": "jateksziget",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "games": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "regiojatek",
@@ -45,7 +125,23 @@
     "group": "games",
     "meta": "feeds/regiojatek/meta.json",
     "pagePattern": "feeds/regiojatek/page-{NNNN}.json",
-    "deeplinkPartner": "regiojatek"
+    "deeplinkPartner": "regiojatek",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "games": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "decathlon",
@@ -53,24 +149,81 @@
     "group": "sport",
     "meta": "feeds/decathlon/meta.json",
     "pagePattern": "feeds/decathlon/page-{NNNN}.json",
-    "deeplinkPartner": "decathlon"
+    "deeplinkPartner": "decathlon",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "sport": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
-  "id": "alza",
-  "name": "Alza",
-  "meta": "feeds/alza/meta.json",
-  "pagePattern": "feeds/alza/page-{NNNN}.json",          // csak fallback
-  "categoryMetaPattern": "feeds/alza/{CAT}/meta.json",   // <-- EZ A LÉNYEG
-  "categoryPagePattern": "feeds/alza/{CAT}/page-{NNNN}.json",
-  "deeplinkPartner": "alza"
-},
+    "id": "alza",
+    "name": "Alza",
+    "group": "tech",
+    "meta": "feeds/alza/meta.json",
+    "pagePattern": "feeds/alza/page-{NNNN}.json",
+    "categoryMetaPattern": "feeds/alza/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/alza/{CAT}/page-{NNNN}.json",
+    "deeplinkPartner": "alza",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 6 },
+      "tech": {
+        "enabled": true,
+        "pageSize": 12,
+        "full": { "enabled": true, "pageSize": 24 }
+      },
+      "games": {
+        "enabled": true,
+        "pageSize": 6
+      },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 6
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
+  },
   {
     "id": "kozmetikaotthon",
     "name": "KozmetikaOtthon",
     "group": "vision",
     "meta": "feeds/kozmetikaotthon/meta.json",
     "pagePattern": "feeds/kozmetikaotthon/page-{NNNN}.json",
-    "deeplinkPartner": "kozmetikaotthon"
+    "deeplinkPartner": "kozmetikaotthon",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "vision": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "pepita",
@@ -78,7 +231,23 @@
     "group": "travel",
     "meta": "feeds/pepita/meta.json",
     "pagePattern": "feeds/pepita/page-{NNNN}.json",
-    "deeplinkPartner": "pepita"
+    "deeplinkPartner": "pepita",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "travel": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 5,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "ekszereshop",
@@ -86,7 +255,23 @@
     "group": "vision",
     "meta": "feeds/ekszereshop/meta.json",
     "pagePattern": "feeds/ekszereshop/page-{NNNN}.json",
-    "deeplinkPartner": "ekszereshop"
+    "deeplinkPartner": "ekszereshop",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "vision": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "karacsonydekor",
@@ -94,7 +279,23 @@
     "group": "otthon",
     "meta": "feeds/karacsonydekor/meta.json",
     "pagePattern": "feeds/karacsonydekor/page-{NNNN}.json",
-    "deeplinkPartner": "karacsonydekor"
+    "deeplinkPartner": "karacsonydekor",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "otthonmarket",
@@ -102,7 +303,23 @@
     "group": "otthon",
     "meta": "feeds/otthonmarket/meta.json",
     "pagePattern": "feeds/otthonmarket/page-{NNNN}.json",
-    "deeplinkPartner": "otthonmarket"
+    "deeplinkPartner": "otthonmarket",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
   {
     "id": "onlinemarkabolt",
@@ -110,6 +327,22 @@
     "group": "otthon",
     "meta": "feeds/onlinemarkabolt/meta.json",
     "pagePattern": "feeds/onlinemarkabolt/page-{NNNN}.json",
-    "deeplinkPartner": "onlinemarkabolt"
+    "deeplinkPartner": "onlinemarkabolt",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 3 },
+      "tech": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": true,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   }
 ]
