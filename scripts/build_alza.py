@@ -1,6 +1,6 @@
 # scripts/build_alza.py
 #
-# ALZA feed → Findora JSON oldalak (globál + kategória bontás)
+# ALZA feed → Findora JSON oldalak (csak kategória bontás, ML modellel)
 
 import os
 import sys
@@ -13,22 +13,21 @@ import requests
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
-# --- hogy a scripts/ alatti category_assign.py-t is lássa ---
+import joblib  # <-- ML modell betöltéséhez
+
+# --- hogy a scripts/ alatti dolgokat (ha kellenek) lássa ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from category_assign import assign_category  # def assign_category(partner, category_root, category_path, title, desc)
-
-
 # ===== KONFIG =====
 OUT_DIR = "docs/feeds/alza"
 
-# Globális ALZA feed (összes termék) – 300/lap
-PAGE_SIZE_GLOBAL = 300
-
 # Kategória nézet (pl. 20/lap a menüknél)
 PAGE_SIZE_CAT = 20
+
+# ML modell fájl – a scripts mappában
+MODEL_FILE = os.path.join(SCRIPT_DIR, "model.pkl")
 
 # Findora fő kategória SLUG-ok – a 25 menüdhöz igazítva
 FINDORA_CATS = [
@@ -59,6 +58,35 @@ FINDORA_CATS = [
     "multi",
 ]
 
+# Modell címkék (szép nevek) → Findora slug
+LABEL_TO_SLUG = {
+    "Elektronika": "elektronika",
+    "Háztartási gépek": "haztartasi_gepek",
+    "Számítástechnika": "szamitastechnika",
+    "Mobil & kiegészítők": "mobil",
+    "Gaming": "gaming",
+    "Smart Home": "smart_home",
+    "Otthon": "otthon",
+    "Lakberendezés": "lakberendezes",
+    "Konyha & főzés": "konyha_fozes",
+    "Kert": "kert",
+    "Játékok": "jatekok",
+    "Divat": "divat",
+    "Szépség": "szepseg",
+    "Drogéria": "drogeria",
+    "Baba": "baba",
+    "Sport": "sport",
+    "Egészség": "egeszseg",
+    "Látás": "latas",
+    "Állatok": "allatok",
+    "Könyv": "konyv",
+    "Utazás": "utazas",
+    "Iroda & iskola": "iroda_iskola",
+    "Szerszám & barkács": "szerszam_barkacs",
+    "Autó/Motor & autóápolás": "auto_motor",
+    "Multi": "multi",
+}
+
 
 # ===== Segédfüggvények =====
 def norm_price(v):
@@ -82,6 +110,44 @@ def short_desc(t, maxlen=220):
     if len(t) <= maxlen:
         return t
     return t[: maxlen - 1].rstrip() + "…"
+
+
+def build_text_for_model(cat_root, cat_path, title, desc):
+    """
+    Modell bemeneti szöveg: root + teljes kategóriaút + cím + leírás
+    (ezt használtuk a D:\scan-es tréningnél is logikailag)
+    """
+    parts = []
+    if cat_root:
+        parts.append(str(cat_root))
+    if cat_path:
+        parts.append(str(cat_path))
+    if title:
+        parts.append(str(title))
+    if desc:
+        parts.append(str(desc))
+    return " | ".join(parts)
+
+
+def classify_with_model(model, cat_root, cat_path, title, desc):
+    """
+    ML modell meghívása, majd label → slug konverzió.
+    Ha bármi gáz van, 'multi' a fallback.
+    """
+    text = build_text_for_model(cat_root, cat_path, title, desc)
+    if not text.strip():
+        return "multi"
+
+    try:
+        label = model.predict([text])[0]  # pl. "Sport", "Elektronika"
+    except Exception as e:
+        print(f"[WARN] model.predict hiba: {e}")
+        return "multi"
+
+    slug = LABEL_TO_SLUG.get(label, "multi")
+    if slug not in FINDORA_CATS:
+        slug = "multi"
+    return slug
 
 
 def load_feed_urls():
@@ -202,6 +268,10 @@ def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
 
 
 def main():
+    # 0) Modell betöltése
+    print(f"[INFO] Modell betöltése: {MODEL_FILE}")
+    model = joblib.load(MODEL_FILE)
+
     # 1) XML feedek letöltése (több URL is lehet)
     urls = load_feed_urls()
 
@@ -225,30 +295,19 @@ def main():
 
         price_raw = m.get("sale_price") or m.get("price")
         price = norm_price(price_raw)
-        discount = None
+        discount = None  # ide rakhatsz később %-os kedvezményt
 
         cat_path = m.get("product_type") or ""
         cat_root = cat_path.split("|", 1)[0].strip() if cat_path else ""
 
-        # ===== ÚJ: univerzális kategorizáló hívás ALZA partnerrel =====
-        try:
-            main_cat, _ = assign_category(
-                "alza",
-                cat_root,
-                cat_path,
-                title,
-                raw_desc or "",
-            )
-        except TypeError:
-            # Ha valamiért még a régi szignó fut, utolsó mentőöv
-            main_cat = assign_category(cat_root, cat_path, title, raw_desc or "")  # type: ignore
-        except Exception as e:
-            print(f"[WARN] assign_category hiba (id={pid}): {e}")
-            main_cat = None
-
-        findora_main = main_cat or "multi"
-        if findora_main not in FINDORA_CATS:
-            findora_main = "multi"
+        # ===== ÚJ: ML alapú kategorizálás =====
+        findora_main = classify_with_model(
+            model,
+            cat_root,
+            cat_path,
+            title,
+            raw_desc or "",
+        )
 
         row = {
             "id": pid,
@@ -266,19 +325,7 @@ def main():
         }
         rows.append(row)
 
-    print(f"[INFO] Normalizált sorok: {len(rows)}")
-
-    # 1) Globális ALZA feed – docs/feeds/alza/page-0001.json (visszafelé kompatibilis)
-    paginate_and_write(
-        OUT_DIR,
-        rows,
-        PAGE_SIZE_GLOBAL,
-        meta_extra={
-            "partner": "alza",
-            "generated_at": datetime.utcnow().isoformat() + "Z",
-            "scope": "global",
-        },
-    )
+    print(f"[INFO] Normalizált sorok (ML kategorizálással): {len(rows)}")
 
     # 2) Kategória szerinti feedek:
     #    docs/feeds/alza/<findora_main>/page-0001.json (20/lap)
@@ -304,7 +351,7 @@ def main():
             },
         )
 
-    print("[INFO] Kész: ALZA feed JSON oldalak legenerálva (globál + kategória-bontás).")
+    print("[INFO] Kész: ALZA feed JSON oldalak legenerálva (csak kategória-bontás).")
 
 
 if __name__ == "__main__":
