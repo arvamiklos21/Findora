@@ -875,14 +875,21 @@ async function buildAkciosBlokk() {
     AKCIO_FULL_STATE.items = merged;
     AKCIO_FULL_STATE.page = 1;
 
-    // Főoldali előnézet (pl. 12 / lap)
+    // Főoldali előnézet – max 2 oldal, 12 kártya / oldal
     const PREVIEW_PAGE_SIZE = 12;
+    const MAX_PREVIEW_PAGES = 2;
+
     AKCIO_PAGES = [];
-    for (let i = 0; i < merged.length; i += PREVIEW_PAGE_SIZE) {
+    for (
+      let i = 0;
+      i < merged.length && AKCIO_PAGES.length < MAX_PREVIEW_PAGES;
+      i += PREVIEW_PAGE_SIZE
+    ) {
       AKCIO_PAGES.push(merged.slice(i, i + PREVIEW_PAGE_SIZE));
     }
 
     renderAkcioPage(1);
+
 
     // Black Friday blokk – akciós listából szűrve
     const bfGrid = document.getElementById("bf-grid");
@@ -1990,6 +1997,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
 
