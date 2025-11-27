@@ -1,6 +1,6 @@
 # scripts/pepita.py
 #
-# PEPITA feed → Findora JSON oldalak (globál + kategória bontás)
+# PEPITA feed → Findora JSON oldalak (globál + ML-alapú kategória bontás)
 
 import os
 import sys
@@ -9,17 +9,18 @@ import json
 import math
 import xml.etree.ElementTree as ET
 import requests
+import joblib
 
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
-# --- hogy a scripts/ alatti category_assign_pepita.py-t is lássa ---
+# --- alap pathok ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from category_assign_pepita import assign_category  # def assign_category(fields: dict) -> pl. "otthon"
-
+# ML modell fájl – ezt használjuk kategorizálásra
+MODEL_FILE = os.path.join(SCRIPT_DIR, "model_pepita.pkl")
 
 # ===== KONFIG =====
 OUT_DIR = "docs/feeds/pepita"
@@ -187,6 +188,7 @@ def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
     """
     base_dir/meta.json
     base_dir/page-0001.json, page-0002.json, ...
+    Üres lista esetén is ír meta.json-t (page_count=0), hogy a frontend ne kapjon 404-et.
     """
     os.makedirs(base_dir, exist_ok=True)
     total = len(items)
@@ -218,6 +220,16 @@ def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
 
 
 def main():
+    # 0) ML-modell betöltése
+    if not os.path.exists(MODEL_FILE):
+        raise FileNotFoundError(
+            f"[HIBA] Nem találom a Pepita ML modellt: {MODEL_FILE}. "
+            f"Győződj meg róla, hogy a model_pepita.pkl a scripts mappában van."
+        )
+
+    print(f"[INFO] Modell betöltése: {MODEL_FILE}")
+    model = joblib.load(MODEL_FILE)
+
     # 1) XML feed(ek) letöltése
     urls = load_feed_urls()
 
@@ -250,22 +262,23 @@ def main():
         else:
             cat_root = ""
 
-        # ===== Pepita-specifikus kategorizálás =====
-        fields_for_cat = {
-            "title": title,
-            "description": raw_desc,
-            "categorypath": cat_path,
-            "category": cat_root,
-            "product_type": m.get("product_type") or "",
-            "brand": m.get("brand") or "",
-            "categorytext": cat_path,
-        }
+        brand = m.get("brand") or ""
+        sdesc = short_desc(raw_desc) or ""
+
+        # ===== ML-alapú kategorizálás (ugyanaz a logika, mint a train_pepita_slim-ben) =====
+        text_parts = [
+            title,
+            cat_path,
+            brand,
+            sdesc,
+        ]
+        text_for_model = " | ".join([p for p in text_parts if p])
 
         try:
-            # KÖZVETLENÜL azt használjuk, amit a kategorizáló ad vissza (pl. "otthon", "szepseg", "sport"...)
-            findora_main = assign_category(fields_for_cat)
+            pred = model.predict([text_for_model])
+            findora_main = str(pred[0])
         except Exception as e:
-            print(f"[WARN] assign_category (Pepita) hiba (id={pid}): {e}")
+            print(f"[WARN] ML kategorizálás hiba (id={pid}): {e}")
             findora_main = "multi"
 
         if findora_main not in FINDORA_CATS:
@@ -275,7 +288,7 @@ def main():
             "id": pid,
             "title": title,
             "img": img,
-            "desc": short_desc(raw_desc),
+            "desc": sdesc,
             "price": price,
             "discount": discount,
             "url": url,
@@ -290,8 +303,7 @@ def main():
     print(f"[INFO] Normalizált sorok (Pepita): {len(rows)}")
 
     if not rows:
-        print("[WARN] Nincs egyetlen normalizált PEPITA sor sem – nem lesznek JSON oldalak.")
-        return
+        print("[WARN] Nincs egyetlen normalizált PEPITA sor sem – csak üres meta.json-ok fognak készülni.")
 
     # 1) Globális Pepita feed: docs/feeds/pepita/page-0001.json ...
     paginate_and_write(
@@ -314,8 +326,7 @@ def main():
         buckets[slug].append(row)
 
     for slug, items in buckets.items():
-        if not items:
-            continue
+        # FONTOS: üres listánál is írunk meta.json-t, hogy a frontend ne kapjon 404-et
         base_dir = os.path.join(OUT_DIR, slug)
         paginate_and_write(
             base_dir,
@@ -328,7 +339,7 @@ def main():
             },
         )
 
-    print("[INFO] Kész: PEPITA feed JSON oldalak legenerálva (globál + kategória-bontás).")
+    print("[INFO] Kész: PEPITA feed JSON oldalak legenerálva (globál + kategória-bontás, ML).")
 
 
 if __name__ == "__main__":
