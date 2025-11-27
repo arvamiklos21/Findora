@@ -15,7 +15,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -39,7 +39,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -63,7 +63,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -87,7 +87,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -111,7 +111,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -135,7 +135,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -159,7 +159,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -193,7 +193,7 @@
     }
   },
   "bf": {
-    "enabled": true,
+    "enabled": fals,
     "scanPages": 2,
     "minDiscount": 10
   },
@@ -217,7 +217,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -241,7 +241,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 5,
       "minDiscount": 10
     },
@@ -265,7 +265,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -289,7 +289,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -313,7 +313,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -337,7 +337,7 @@
       }
     },
     "bf": {
-      "enabled": true,
+      "enabled": fals,
       "scanPages": 2,
       "minDiscount": 10
     },
