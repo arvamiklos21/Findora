@@ -27,7 +27,8 @@ OUT_DIR = "docs/feeds/alza"
 PAGE_SIZE_CAT = 20
 
 # ML modell fájl – a scripts mappában
-MODEL_FILE = os.path.join(SCRIPT_DIR, "model.pkl")
+MODEL_FILE = os.path.join(SCRIPT_DIR, "model_alza.pkl")
+
 
 # Findora fő kategória SLUG-ok – a 25 menüdhöz igazítva
 FINDORA_CATS = [
