@@ -15,7 +15,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -39,7 +39,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -63,7 +63,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -87,7 +87,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -111,7 +111,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -135,7 +135,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -159,7 +159,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -168,39 +168,39 @@
     "categoryIndex": {}
   },
   {
-  "id": "alza",
-  "name": "Alza",
-  "group": "tech",
-  "meta": "feeds/alza/meta.json",
-  "pagePattern": "feeds/alza/page-{NNNN}.json",
-  "categoryMetaPattern": "feeds/alza/{CAT}/meta.json",
-  "categoryPagePattern": "feeds/alza/{CAT}/page-{NNNN}.json",
-  "deeplinkPartner": "alza",
-  "placements": {
-    "home": { "enabled": true, "pageSize": 6 },
-    "tech": {
-      "enabled": true,
-      "pageSize": 12,
-      "full": { "enabled": true, "pageSize": 24 }
+    "id": "alza",
+    "name": "Alza",
+    "group": "tech",
+    "meta": "feeds/alza/meta.json",
+    "pagePattern": "feeds/alza/page-{NNNN}.json",
+    "categoryMetaPattern": "feeds/alza/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/alza/{CAT}/page-{NNNN}.json",
+    "deeplinkPartner": "alza",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 6 },
+      "tech": {
+        "enabled": true,
+        "pageSize": 12,
+        "full": { "enabled": true, "pageSize": 24 }
+      },
+      "games": {
+        "enabled": true,
+        "pageSize": 6
+      },
+      "otthon": {
+        "enabled": true,
+        "pageSize": 6
+      }
     },
-    "games": {
-      "enabled": true,
-      "pageSize": 6
+    "bf": {
+      "enabled": false,
+      "scanPages": 2,
+      "minDiscount": 10
     },
-    "otthon": {
-      "enabled": true,
-      "pageSize": 6
-    }
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
-  "bf": {
-    "enabled": fals,
-    "scanPages": 2,
-    "minDiscount": 10
-  },
-  "itemCount": 0,
-  "hasAkcio": true,
-  "categoryIndex": {}
-},
   {
     "id": "kozmetikaotthon",
     "name": "KozmetikaOtthon",
@@ -217,7 +217,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -241,7 +241,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 5,
       "minDiscount": 10
     },
@@ -265,7 +265,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -289,7 +289,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -313,7 +313,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
@@ -337,7 +337,7 @@
       }
     },
     "bf": {
-      "enabled": fals,
+      "enabled": false,
       "scanPages": 2,
       "minDiscount": 10
     },
