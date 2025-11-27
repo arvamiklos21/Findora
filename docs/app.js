@@ -606,7 +606,7 @@ let AKCIO_CURRENT = 1;
 let AKCIO_FULL_STATE = {
   items: [],
   page: 1,
-  pageSize: 12,
+  pageSize: 6,
 };
 
 function renderAkcioCards(itemsWithPartner) {
@@ -1838,7 +1838,7 @@ function showAkcioOnly() {
 
 // ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) – JSON FEED, kategória-feed ahol lehet =====
 async function buildCategoryBlocks() {
-  const PAGE_SIZE = 6; // 6 kártya / partner / oldal
+  const PAGE_SIZE = 3; // 3 kártya / partner / oldal
   const MAX_PAGES_PER_PARTNER = 1; // max 1 oldal / partner / kategória főoldali mintához
 
   // Tisztítás
@@ -1997,6 +1997,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
 
 
 
