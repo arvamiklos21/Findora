@@ -17,7 +17,7 @@ jobs:
       - name: Checkout (full)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          lfs: true
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -46,11 +46,9 @@ jobs:
 
           echo "Sanity check (category-based pages):"
 
-          # első kategória mappa keresése
           FIRST_DIR=$(ls -1 docs/feeds/alza | head -n 1)
           echo "First dir: $FIRST_DIR"
 
-          # első page JSON gyors ellenőrzése
           if command -v jq >/dev/null 2>&1; then
             jq '.items[0]' "docs/feeds/alza/$FIRST_DIR/page-0001.json" || true
           else
