@@ -15,9 +15,10 @@ jobs:
 
     steps:
       - name: Checkout (full)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        - uses: actions/checkout@v4
+            with:
+            lfs: true
+
 
       - name: Setup Python
         uses: actions/setup-python@v5
