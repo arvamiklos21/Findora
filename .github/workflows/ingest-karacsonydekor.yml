@@ -7,11 +7,7 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
-
-concurrency:
-  group: ingest-karacsonydekor-${{ github.ref }}
-  cancel-in-progress: true
+  # pull-requests: write  # NEM kell, mert nem csinálunk PR-t
 
 jobs:
   ingest:
@@ -25,7 +21,7 @@ jobs:
 
       - name: Sync with origin/main
         run: |
-          set -euo pipefail
+          set -e
           git fetch origin
           git checkout main
           git reset --hard origin/main
@@ -37,26 +33,21 @@ jobs:
 
       - name: Install deps
         run: |
-          set -euo pipefail
-          python -m pip install --upgrade pip
+          pip install --upgrade pip
           pip install requests
 
       - name: Build Karacsonydekor feed pages (global + categories + akcios-block)
         env:
           FEED_KARACSONYDEKOR_URL: ${{ secrets.FEED_KARACSONYDEKOR_URL }}
         run: |
-          set -euo pipefail
-          if [ -z "${FEED_KARACSONYDEKOR_URL:-}" ]; then
+          set -e
+          if [ -z "$FEED_KARACSONYDEKOR_URL" ]; then
             echo "::error title=Missing secret::FEED_KARACSONYDEKOR_URL nincs beállítva (Settings → Secrets → Actions)."
             exit 1
           fi
 
           mkdir -p docs/feeds/karacsonydekor
 
-          # build_karacsonydekor.py:
-          #  - globál feed (docs/feeds/karacsonydekor/page-0001.json, ... + meta.json)
-          #  - kategória feedek (docs/feeds/karacsonydekor/<category>/...)
-          #  - akcios-block (docs/feeds/karacsonydekor/akcios-block/...)
           python scripts/build_karacsonydekor.py
 
           echo "Sanity check (global page-0001):"
@@ -69,30 +60,13 @@ jobs:
           echo "Tree of docs/feeds/karacsonydekor:"
           ls -R docs/feeds/karacsonydekor || true
 
-      - name: Commit feed updates to bot branch
+      - name: Commit feed updates directly to main
         run: |
-          set -euo pipefail
+          set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          BR="bot/update-karacsonydekor"
-          git checkout -B "$BR"
 
           git add docs/feeds/karacsonydekor
 
           git commit -m "karacsonydekor: update feed pages" || echo "No changes"
-          git push --force-with-lease origin "$BR"
-
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: bot/update-karacsonydekor
-          delete-branch: true
-          title: "karacsonydekor: update feed pages"
-          commit-message: "karacsonydekor: update feed pages"
-          body: |
-            Automated update of Karacsonydekor feed pages:
-            - global feed (docs/feeds/karacsonydekor)
-            - category feeds (docs/feeds/karacsonydekor/<category>/)
-            - akcios-block (docs/feeds/karacsonydekor/akcios-block/).
-          base: main
+          git push origin main || echo "No changes to push"
