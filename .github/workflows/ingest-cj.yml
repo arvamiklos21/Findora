@@ -23,6 +23,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
+          # ha kell extra lib, itt lehet:
+          # pip install -r requirements.txt
 
       # ============================
       # === EOPTIKA FEED DOWNLOAD ===
@@ -33,15 +35,15 @@ jobs:
           CJ_HTTP_PASS: ${{ secrets.CJ_HTTP_PASS }}
           FEED_URL: ${{ secrets.CJ_FEED_EOPTIKA_URL }}
         run: |
-          mkdir -p cj-feeds/eoptika
+          mkdir -p cj-eoptika-feed
           curl -u "$CJ_HTTP_USER:$CJ_HTTP_PASS" -L "$FEED_URL" -o eoptika.zip
-          unzip -o eoptika.zip -d cj-feeds/eoptika
-          TXT=$(find cj-feeds/eoptika -type f -name "*.txt" | head -n 1)
-          echo "TXT: $TXT"
-          python scripts/build_cj_txt.py "$TXT" cj-eoptika
+          unzip -o eoptika.zip -d cj-eoptika-feed
+          ls -R cj-eoptika-feed
+          python scripts/build_cj_eoptika.py
 
       # ============================
       # === KARCHER FEED DOWNLOAD ===
+      # (még a régi generikus builderrel)
       # ============================
       - name: Download CJ Karcher feed
         env:
@@ -65,12 +67,11 @@ jobs:
           CJ_HTTP_PASS: ${{ secrets.CJ_HTTP_PASS }}
           FEED_URL: ${{ secrets.CJ_FEED_JATEKNET_URL }}
         run: |
-          mkdir -p cj-feeds/jateknet
+          mkdir -p cj-jateknet-feed
           curl -u "$CJ_HTTP_USER:$CJ_HTTP_PASS" -L "$FEED_URL" -o jateknet.zip
-          unzip -o jateknet.zip -d cj-feeds/jateknet
-          TXT=$(find cj-feeds/jateknet -type f -name "*.txt" | head -n 1)
-          echo "TXT: $TXT"
-          python scripts/build_cj_txt.py "$TXT" cj-jateknet
+          unzip -o jateknet.zip -d cj-jateknet-feed
+          ls -R cj-jateknet-feed
+          python scripts/build_cj_jateknet.py
 
       # ============================
       # === GIT COMMIT + REBASE PUSH ===
