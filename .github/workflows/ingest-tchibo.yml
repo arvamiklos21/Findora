@@ -12,44 +12,71 @@ permissions:
 jobs:
   ingest:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Sync with origin/main
+        run: |
+          set -e
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.11"
 
       - name: Install deps
-        run: pip install requests
+        run: |
+          pip install --upgrade pip
+          pip install requests
 
-      - name: Build Tchibo feed pages
+      - name: Build Tchibo feed pages (global + categories + akcios-block)
         env:
           FEED_TCHIBO_URL: ${{ secrets.FEED_TCHIBO_URL }}
         run: |
           set -e
           if [ -z "$FEED_TCHIBO_URL" ]; then
-            echo "::error title=Missing secret::FEED_TCHIBO_URL nincs beállítva (Settings → Secrets → Actions)."; exit 1
+            echo "::error title=Missing secret::FEED_TCHIBO_URL nincs beállítva (Settings → Secrets → Actions)."
+            exit 1
           fi
+
           mkdir -p docs/feeds/tchibo
+
+          # build_tchibo.py:
+          #  - globál feed (docs/feeds/tchibo/page-0001.json, ... + meta.json)
+          #  - kategória feedek (docs/feeds/tchibo/<category>/...)
+          #  - akcios-block (docs/feeds/tchibo/akcios-block/...)
           python scripts/build_tchibo.py
-          echo "Sanity check (first item):"
+
+          echo "Sanity check (global page-0001):"
           if command -v jq >/dev/null 2>&1; then
             jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/tchibo/page-0001.json || true
           else
             head -c 600 docs/feeds/tchibo/page-0001.json || true
           fi
-          ls -la docs/feeds/tchibo
 
-      - name: Commit changes
+          echo "Tree of docs/feeds/tchibo:"
+          ls -R docs/feeds/tchibo || true
+
+      - name: Commit feed updates to bot branch
         run: |
+          set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BR="bot/update-tchibo"
+          git checkout -B "$BR"
+
           git add docs/feeds/tchibo
+
           git commit -m "tchibo: update feed pages" || echo "No changes"
+          git push --force-with-lease origin "$BR"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
@@ -59,4 +86,8 @@ jobs:
           title: "tchibo: update feed pages"
           commit-message: "tchibo: update feed pages"
           body: |
-            Automated update of Tchibo feed pages (JSON pagination).
+            Automated update of Tchibo feed pages:
+            - global feed (docs/feeds/tchibo)
+            - category feeds (docs/feeds/tchibo/<category>/)
+            - akcios-block (docs/feeds/tchibo/akcios-block/).
+          base: main
