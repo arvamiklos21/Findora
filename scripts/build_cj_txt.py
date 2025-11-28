@@ -6,6 +6,9 @@
 # Használat:
 #   python scripts/build_cj_txt.py <input_txt> <partner_slug>
 #
+# Példa:
+#   python scripts/build_cj_txt.py eoptika/eOptika_HU-eOptikaHU_google_all-shopping.txt cj-eoptika
+#
 # Kimenet:
 #   docs/feeds/<partner_slug>/meta.json
 #   docs/feeds/<partner_slug>/page-0001.json, page-0002.json, ...
@@ -20,14 +23,22 @@ from datetime import datetime
 OUT_BASE = os.path.join("docs", "feeds")
 PAGE_SIZE = 500  # tetszés szerint: 200 / 500 / 1000
 
+
 def pick_first(dct, keys, default=""):
+    """
+    Első nem üres mező a megadott kulcsok listájából.
+    """
     for k in keys:
         v = dct.get(k)
         if v is not None and str(v).strip() != "":
             return v
     return default
 
+
 def price_to_int(price_str):
+    """
+    Árat int HUF-ra konvertál (összeg rész), pl. "1234.00 HUF" -> 1234.
+    """
     if not price_str:
         return None
     s = str(price_str).strip().replace(",", ".")
@@ -37,10 +48,11 @@ def price_to_int(price_str):
     except ValueError:
         return None
 
+
 def sniff_delimiter(path):
     """
     Egyszerű delimiter-szimatoló:
-    megszámolja a TAB / vessző / '|' előfordulásokat, és amelyik a legtöbb, azt használja.
+    megszámolja TAB / vessző / '|' / ';' előfordulásait, és amelyik a legtöbb, azt használja.
     """
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         sample = f.read(4096)
@@ -57,7 +69,12 @@ def sniff_delimiter(path):
 
     return delim
 
+
 def load_cj_txt(path, partner_slug):
+    """
+    CJ TXT beolvasása (Google shopping stílusú, nagybetűs header),
+    minden sort kisbetűs kulcsokkal dolgozunk fel.
+    """
     items = []
 
     # delimiter automatikus felismerése
@@ -66,57 +83,63 @@ def load_cj_txt(path, partner_slug):
 
     with open(path, "r", encoding="utf-8", errors="replace", newline="") as f:
         reader = csv.DictReader(f, delimiter=delim)
-        print(f"[DEBUG] {partner_slug}: fieldnames = {reader.fieldnames}")
+        print(f"[DEBUG] {partner_slug}: RAW fieldnames = {reader.fieldnames}")
 
         for row in reader:
+            # MINDEN KULCSOT KISBETŰSÍTÜNK
+            row_lc = {}
+            for k, v in row.items():
+                if k is None:
+                    continue
+                row_lc[k.lower()] = v
+
             # ID
-            pid = pick_first(row, [
+            pid = pick_first(row_lc, [
                 "cj-sku", "sku", "sku-id", "sku_id",
                 "id", "product-id", "product_id"
             ])
 
-            # Termék neve – itt már a 'title'-t is figyeljük (Google shopping compat)
-            title = pick_first(row, [
+            # Termék neve
+            title = pick_first(row_lc, [
                 "name", "product-name", "product_name", "item-name",
                 "title"
             ])
 
             # Leírás + keywords
-            desc = pick_first(row, [
+            desc = pick_first(row_lc, [
                 "description", "long-description", "long_description",
                 "product-description", "product_description", "description_long"
             ])
-            keywords = pick_first(row, ["keywords", "keyword"], "")
+            keywords = pick_first(row_lc, ["keywords", "keyword"], "")
             if keywords:
                 desc = (desc or "") + " " + keywords
 
-            # Képlink – Google feedben: image_link
-            img = pick_first(row, [
+            # Képlink
+            img = pick_first(row_lc, [
                 "image-url", "image_url", "image-link", "image-link-url",
                 "image_link"
             ])
 
-            # Termék URL – Google feedben: link
-            url = pick_first(row, [
+            # Termék URL
+            url = pick_first(row_lc, [
                 "buy-url", "buy_url", "sku-url",
                 "link", "url", "product-url", "product_url"
             ])
 
-            # Ár / akciós ár – Google feed: price (pl. "1234.00 HUF")
-            sale_price_raw = pick_first(row, [
+            # Ár / akciós ár (Google: PRICE, SALE_PRICE – ezek most már kisbetűs: price, sale_price)
+            sale_price_raw = pick_first(row_lc, [
                 "sale-price", "sale_price", "discount-price", "discount_price",
                 "sale_price_amount"
             ])
-            list_price_raw = pick_first(row, [
+            list_price_raw = pick_first(row_lc, [
                 "price", "list-price", "list_price", "price_amount"
             ])
 
-            # Ha Google formátum: "1234.00 HUF", akkor vágjuk le a valutát
             def clean_price_str(s):
                 if not s:
                     return s
                 parts = str(s).split()
-                return parts[0]  # első rész: 1234.00
+                return parts[0]  # "1234.00 HUF" -> "1234.00"
 
             sale_price_raw = clean_price_str(sale_price_raw)
             list_price_raw = clean_price_str(list_price_raw)
@@ -128,14 +151,15 @@ def load_cj_txt(path, partner_slug):
             discount = None
 
             category_path = pick_first(
-                row,
+                row_lc,
                 [
                     "advertiser-category", "merchant-category",
-                    "category", "categories", "category-name", "product_type"
+                    "category", "categories", "category-name", "product_type",
+                    "google_product_category", "google_product_category_name"
                 ]
             )
 
-            # kötelező mezők
+            # kötelező mezők: id, title, url
             if not pid or not title or not url:
                 continue
 
@@ -154,7 +178,11 @@ def load_cj_txt(path, partner_slug):
 
     return items
 
+
 def write_pages(items, partner_slug):
+    """
+    items listából meta.json + page-0001.json, page-0002.json... generálása.
+    """
     out_dir = os.path.join(OUT_BASE, partner_slug)
     os.makedirs(out_dir, exist_ok=True)
 
@@ -209,10 +237,11 @@ def write_pages(items, partner_slug):
 
     print(f"[OK] {partner_slug}: {total} termék, {page_count} oldal -> {out_dir}")
 
+
 def main():
     if len(sys.argv) != 3:
         print("Használat: python scripts/build_cj_txt.py <input_txt> <partner_slug>")
-        print("Példa:   python scripts/build_cj_txt.py cj-eoptika/valami.txt cj-eoptika")
+        print("Példa:   python scripts/build_cj_txt.py eoptika/eOptika_HU-eOptikaHU_google_all-shopping.txt cj-eoptika")
         sys.exit(1)
 
     input_txt = sys.argv[1]
@@ -224,6 +253,7 @@ def main():
 
     items = load_cj_txt(input_txt, partner_slug)
     write_pages(items, partner_slug)
+
 
 if __name__ == "__main__":
     main()
