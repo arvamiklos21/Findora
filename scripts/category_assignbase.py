@@ -1,31 +1,17 @@
-# scripts/category_assign_base.py
+# scripts/category_assignbase.py
 #
-# Egyszerű, univerzális kategória-besoroló minden partnernek.
+# Központi, nagyon alap szabály-alapú kategorizáló.
+# Minden partner ezt használhatja.
 #
-# LOGIKA:
-#   - cím + leírás + kategória mező + brand alapján kulcsszavas pontozás
-#   - a legmagasabb pontszámú kategória nyer
-#   - ha semmi nem talál (minden 0 pont), akkor:
-#       1) ha van partner_default (pl. jatekok), azt adja vissza
-#       2) különben 'multi'
+# Két fő belépési pont:
+#   - assign_category(...)
+#   - assign_category_from_fields(fields, partner, partner_default)
 #
-# Használat partner scriptekben:
-#
-#   from category_assign_base import assign_category
-#
-#   cat = assign_category(
-#       title=title,
-#       desc=description,
-#       category_path=cat_path,
-#       brand=brand,
-#       partner="jateksziget",        # opcionális
-#       partner_default=None          # opcionális – ha None, partner alapján próbál tippelni
-#   )
 
 import re
 import unicodedata
 
-# 25 Findora fő kategória
+# ===== Findora fő kategória SLUG-ok (25) =====
 FINDORA_CATS = [
     "elektronika",
     "haztartasi_gepek",
@@ -54,281 +40,332 @@ FINDORA_CATS = [
     "multi",
 ]
 
-# Partner → alap kategória fallback
-# Ha nem találunk semmilyen kulcsszót, erre esik vissza.
-PARTNER_DEFAULTS = {
-    # Játékos boltok
-    "jateksziget": "jatekok",
-    "regiojatek": "jatekok",
-    "jateknet": "jatekok",
-    "jatekshop": "jatekok",
 
-    # Tchibo – főleg otthon/lakás, ruha
-    "tchibo": "otthon",
+# ===== Normalizáló =====
 
-    # Pepita sok minden – maradhat multi
-    "pepita": "multi",
-
-    # Alza: vegyes, hagyjuk multi-n
-    "alza": "multi",
-}
-
-
-def _normalize_text(text: str) -> str:
-    """
-    Kisbetű, ékezetmentesítés, extra whitespace eltávolítása.
-    """
-    if not text:
+def _normalize_text(s: str) -> str:
+    if not s:
         return ""
-    t = str(text)
-    t = t.lower()
-    t = unicodedata.normalize("NFD", t)
-    t = "".join(ch for ch in t if unicodedata.category(ch) != "Mn")  # ékezetmentes
-    t = re.sub(r"\s+", " ", t).strip()
-    return t
+    s = str(s)
+    # ékezetek levétele
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+    # kisbetű, whitespace tisztítás
+    s = s.lower()
+    s = re.sub(r"\s+", " ", s)
+    return s.strip()
 
 
-# Alap kulcsszó-lista kategóriákhoz.
-# Ezt később bármikor bővíthetjük, finomíthatjuk.
-CATEGORY_KEYWORDS = {
-    "elektronika": [
-        "tv", "televizio", "televizor", "hangfal", "hangszoro", "hifi",
-        "projektor", "erősítő", "erosito", "radio", "bluetooth hangszoro",
-        "dron", "videojatek konzol", "soundbar",
-    ],
-    "haztartasi_gepek": [
-        "porszivo", "mosogep", "mosogatogep", "hutogep", "mikrohullamu",
-        "mikro", "parologtato", "levegoparologtato", "klima", "futotest",
-        "kapszulas kavefozo", "kavefozo", "vasalo", "botmixer", "turmix",
-        "konyhai robotgep", "szeletelo", "levegofritozo", "fritoz",
-    ],
-    "szamitastechnika": [
-        "laptop", "notebook", "pc", "szamitogep", "asztali gep", "monitor",
-        "bilentyuzet", "eger", "ssd", "merevlemez", "hard drive",
-        "videokartya", "grafikus kartya", "router", "switch", "nas",
-        "webkamera", "dokkolo allomas",
-    ],
-    "mobil": [
-        "okostelefon", "okos telefon", "smartphone", "mobiltelefon",
-        "telefon tok", "telefon tok", "screen protector", "kijelzovedo",
-        "powerbank", "vezetek nelkuli tolto", "autostarto" ,
-    ],
-    "gaming": [
-        "gamer", "gaming", "jatek konzol", "playstation", "xbox", "nintendo",
-        "gaming szek", "gamer szek", "gaming eger", "gamer eger",
-        "gaming billentyuzet", "gamer billentyuzet",
-    ],
-    "smart_home": [
-        "okos izzo", "okosizzó", "okos dugalj", "okos konnektor",
-        "okos otthon", "smart home", "wifi kamera", "ip kamera",
-        "kamera rendszer", "biztonsagi kamera", "termosztat okos",
-    ],
-    "otthon": [
-        "dekoracio", "dekoracio", "fuggony", "parna", "takaro", "paplan",
-        "agyruha", "szonyeg", "fali ora", "fali dekor", "lampa",
-        "asztali lampa", "allolampa", "lakberendezesi targy",
-    ],
-    "lakberendezes": [
-        "kanape", "fotel", "szek", "asztal", "konyhaszekreny", "komod",
-        "szekreny", "polc", "butor", "gardrob", "agykeret", "elo szoba butor",
-    ],
-    "konyha_fozes": [
-        "edeny", "fazek", "labas", "serpenyo", "tepsi", "sutotál",
-        "sutotal", "vago deszka", "keskeszlet", "konyhai kes",
-        "merokanna", "kavecsesze", "tányér", "tanyer", "konyhai kiegészítő",
-    ],
-    "kert": [
-        "fukosza", "fukaszalo", "fuvago", "funyiro", "lancfuresz",
-        "agvago", "ontozorendszer", "locsolotomeg", "kerti szerszam",
-        "kerti butor", "trampolin", "trambulin", "medence", "napernyo",
-        "kerti grill", "grillsuto", "kerti haz", "kerti tarolo",
-    ],
-    "jatekok": [
-        "jatekszett", "tarsasjatek", "tarsas", "lego", "playmobil",
-        "barbibaba", "baba jatek", "jatekbaba", "kartyajatek",
-        "kirako", "puzzle", "tarsasjatek", "baby jatek", "pluss jatek",
-        "jatek figura", "jatekvonat", "jatekkonyha", "jatekgari",
-    ],
-    "divat": [
-        "polo", "poloing", "nadrag", "farmer", "szoknya", "ruha",
-        "pulover", "kapucnis", "dzseki", "kabat", "zako", "cipő",
-        "cipo", "csizma", "szandál", "szandal", "papucs", "taska",
-        "hatizsak", "oldaltaska", "penztarca", "ov", "kesztyu",
-        "sapka", "sál", "sal",
-    ],
-    "szepseg": [
-        "parfum", "parfüm", "dezodor", "smink", "alapozó", "alapozo",
-        "szempillaspiral", "szempilla spirál", "ruzs", "szajfeny",
-        "borapolas", "hajapolo", "sampon", "kondicionalo", "hajfixalo",
-        "kozmetikum", "kozmetikai szer",
-    ],
-    "drogeria": [
-        "mosopor", "mososzer", "oblito", "tisztitoszer", "fertotlenito",
-        "wc tisztito", "zsebkendo", "papirzsebkendo", "toalettpapir",
-        "szalveta", "mosogatoszer", "mosogatotabletta",
-    ],
-    "baba": [
-        "pelenka", "bepantos pelenka", "babaapolo", "baba apolo",
-        "babaolaj", "babakrem", "baba krem", "kismama", "eteto szek",
-        "hordozo", "babakocsi", "jaroka", "baba ruhazat", "babaruha",
-        "cumisuveg", "cumi", "baba jatek",
-    ],
-    "sport": [
-        "futocipo", "edzocipo", "fitnesz", "edzopad", "sulyzo",
-        "kettlebell", "futopad", "kerekpar", "bicikli", "roller",
-        "focilabda", "kosarlabda", "edzoruha", "melegito", "sportmelltarto",
-    ],
-    "egeszseg": [
-        "vitamin", "taplalekkiegeszito", "taplalek kiegeszito",
-        "vernyomasmero", "lazmero", "inhalator", "maszk", "fogyokuras",
-        "gyogyaszati", "csuklotamasz", "hatmasziro", "massziro",
-    ],
-    "latas": [
-        "kontaktlencse", "napi lencse", "heti lencse", "havi lencse",
-        "optikai", "szemuvegkeret", "szemuveg keret", "napszemuveg",
-        "lencseapolo", "lencse folyadek", "kontaktlencse folyadek",
-    ],
-    "allatok": [
-        "kutyatap", "macskatap", "allateledel", "allat eledel",
-        "macskaalom", "kutya fekhely", "macska fekhely", "póráz",
-        "poraz", "nyakörv", "nyakorv", "kaparofa", "akvarium",
-        "terrarium", "hazallat",
-    ],
-    "konyv": [
-        "regeny", "szakkonyv", "szak konyv", "gyerekkonyv", "mese konyv",
-        "kifesto", "album", "konyvsorozat", "novellaskotet",
-    ],
-    "utazas": [
-        "borond", "bőrönd", "utazotaska", "utazo taska", "utazo parna",
-        "utazasi szett", "borton cimke", "bőrönd cimke",
-    ],
-    "iroda_iskola": [
-        "tolltarto", "fuzet", "spiralfuzet", "spiral fuzet", "toll",
-        "ceruza", "radir", "filctoll", "markero", "irodai szek",
-        "iroasztal", "nyomtatopapir", "post it", "irattarto",
-    ],
-    "szerszam_barkacs": [
-        "csavarozo", "furogep", "akkus furo", "flex", "sarokcsiszolo",
-        "csiszologep", "kalapacs", "csavarhuzo", "keszlet szerszam",
-        "fogó", "fogo", "lemezvago", "villaskulcs",
-    ],
-    "auto_motor": [
-        "motorolaj", "motor olaj", "autogumi", "teligumi", "nyarigumi",
-        "szelvedo", "ablakmoso", "illatosito", "autosoft", "csomagtarto",
-        "kerekpar tarto", "vonohorog", "autokiegeszito",
-    ],
-    # 'multi' – tudatosan nem kap kulcsszavakat; ez a “minden-amire-nincs-jó-szabály”
-}
+# ===== Nagyon alap kulcsszó-szabályok =====
+#
+# Ezek CSAK durva irányt mutatnak; cél:
+#   - minél kevesebb multi
+#   - de mégse teljes káosz
+#
+# Ha nem talál semmit, akkor partner_default → ha az sincs, akkor multi.
+
+CATEGORY_KEYWORD_RULES = [
+    # elektronika
+    (
+        "elektronika",
+        [
+            "televizio", "tv ", " tv", "hangfal", "hangszoro", "hifi",
+            "projektor", "erősito", "erosito", "bluetooth hangszoro",
+            "radio", "drón", "dron",
+        ],
+    ),
+    # haztartasi_gepek
+    (
+        "haztartasi_gepek",
+        [
+            "mosogep", "moso gep", "hutoszekreny", "hutogep",
+            "porszivo", "porszívó", "mikrohullamu", "mikrohullamu suto",
+            "konyhai robotgep", "piritos", "toaster",
+        ],
+    ),
+    # szamitastechnika
+    (
+        "szamitastechnika",
+        [
+            "laptop", "notebook", "monitor", "asztali gep",
+            "szamitogep", "videokartya", "alaplap", "processzor",
+            "ram memoria", "ssd ", " ssd", "hdd", "egér", "eger", "billentyuzet",
+        ],
+    ),
+    # mobil
+    (
+        "mobil",
+        [
+            "okostelefon", "okos telefon", "mobiltelefon", "mobil telefon",
+            "iphone", "galaxy s", "xiaomi", "redmi", "oneplus",
+            "tok iphone", "telefon tok", "screen protector", "kijelzovedo",
+        ],
+    ),
+    # gaming
+    (
+        "gaming",
+        [
+            "gaming", "jatek konzol", "jatek konzol", "playstation",
+            "xbox", "nintendo switch", "gamer egér", "gamer eger",
+            "gamer billentyuzet", "gamer fejhallgato",
+        ],
+    ),
+    # smart_home
+    (
+        "smart_home",
+        [
+            "okosizzó", "okosizzo", "okos otthon", "okos dugalj",
+            "wifi izzo", "wi-fi izzo", "smart plug", "smart bulb",
+            "kamera rendszer", "biztonsagi kamera",
+        ],
+    ),
+    # otthon
+    (
+        "otthon",
+        [
+            "porszivo szuro", "hepa szuro", "parnav", "pléd", "pl ed",
+            "matrac", "fuggony", "fuggöny", "agynemu", "takaró", "takaro",
+            "szonyeg", "szőnyeg", "roló", "rolo",
+        ],
+    ),
+    # lakberendezes
+    (
+        "lakberendezes",
+        [
+            "dekoracio", "dekoráci", "fali dekor", "kepkeret", "kep keret",
+            "vaza", "gyertya", "karacsonyi disz", "karacsonyi dekor",
+        ],
+    ),
+    # konyha_fozes
+    (
+        "konyha_fozes",
+        [
+            "fazek", "serpenyo", "konyhakés", "konyhakes", "edeny",
+            "sutőforma", "suto forma", "kanal", "villa", "kavefozo", "kávéfőző",
+        ],
+    ),
+    # kert
+    (
+        "kert",
+        [
+            "kerti szek", "kerti asztal", "kerti butor", "locsolo",
+            "fuvvago", "fuvnyiro", "trimmer", "kertiszerszam", "kerti szerszam",
+        ],
+    ),
+    # jatekok
+    (
+        "jatekok",
+        [
+            "lego", "playmobil", "barbie", "tarsasjatek", "társasjáték",
+            "plussjatek", "plüssjáték", "jatek", "játékszett", "babakocsi jatek",
+        ],
+    ),
+    # divat
+    (
+        "divat",
+        [
+            "polo", "póló", "nadrag", "dzseki", "kabát", "kabat",
+            "szoknya", "ruha", "cipo", "cipő", "csizma", "pulover", "pulóver",
+        ],
+    ),
+    # szepseg
+    (
+        "szepseg",
+        [
+            "parfum", "parfüm", "smink", "alapozó", "szempillaspiral",
+            "körömlakk", "koremlakk", "kozmetikum", "borapolo", "bőrápoló",
+        ],
+    ),
+    # drogeria
+    (
+        "drogeria",
+        [
+            "mososzer", "mosószer", "oblito", "öblítö", "fertoetlenito",
+            "tisztitoszer", "tisztítószer", "wc tisztito",
+        ],
+    ),
+    # baba
+    (
+        "baba",
+        [
+            "pelenka", "babakocsi", "járóka", "jároka", "baba etetőszék",
+            "baba etetoszek", "babatakaro", "cumisüveg", "cumisuveg",
+        ],
+    ),
+    # sport
+    (
+        "sport",
+        [
+            "futócipő", "futocipo", "edzokabat", "futokabat",
+            "fitness", "fitnesz", "jóga", "joga", "edzopad", "sulyzo", "súlyzó",
+            "labda", "foci labda", "kosarlabda",
+        ],
+    ),
+    # egeszseg
+    (
+        "egeszseg",
+        [
+            "vitamin", "taplalekkiegeszito", "taplalkozas kiegeszito",
+            "masszazs", "masszírozó", "lazmero", "lázmérő", "vernyomasmero",
+        ],
+    ),
+    # latas
+    (
+        "latas",
+        [
+            "kontaktlencse", "kontakt lencse", "napszemuveg", "latasvizsgalat",
+        ],
+    ),
+    # allatok
+    (
+        "allatok",
+        [
+            "kutyaeledel", "macskaeledel", "cicatap", "kutyatap",
+            "kaparofa", "macskaalom", "kutyafekhely",
+        ],
+    ),
+    # konyv
+    (
+        "konyv",
+        [
+            "regeny", "regény", "kepeskonyv", "kepes konyv",
+            "gyerekkonyv", "gyerek konyv", "szotar", "szótár",
+        ],
+    ),
+    # utazas
+    (
+        "utazas",
+        [
+            "bőrönd", "borond", "utazotaska", "utazótáska",
+            "hátizsák", "hatizsak", "nyakpárna utazashoz",
+        ],
+    ),
+    # iroda_iskola
+    (
+        "iroda_iskola",
+        [
+            "fuzet", "spiralfuzet", "toll", "ceruza", "filctoll",
+            "jegyzettomb", "irattarto", "hatizsak iskolas", "iskolataska",
+        ],
+    ),
+    # szerszam_barkacs
+    (
+        "szerszam_barkacs",
+        [
+            "furogep", "fúró", "csavarbehajto", "csavarhúzó", "csavarhuzo",
+            "készlet szerszám", "keszlet szerszam", "kulcskeszlet",
+        ],
+    ),
+    # auto_motor
+    (
+        "auto_motor",
+        [
+            "autós töltő", "autostolto", "motorolaj", "autoolaj", "szélvédőmosó",
+            "szelvedomoso", "autószivargyújtó", "szivargyujto",
+        ],
+    ),
+]
 
 
-def _score_category(slug: str, text: str) -> int:
-    """
-    Egyszerű pontozás: minden talált kulcsszó +1 pont.
-    (Lehet később súlyozni, regexezni stb.)
-    """
-    if slug not in CATEGORY_KEYWORDS:
-        return 0
-    score = 0
-    for kw in CATEGORY_KEYWORDS[slug]:
-        if kw in text:
-            score += 1
-    return score
-
-
-def _auto_partner_default(partner: str | None) -> str | None:
-    """
-    Ha nincs explicit partner_default megadva, de ismerjük a partnert,
-    próbálunk kitalálni egy ésszerű alap kategóriát.
-    """
-    if not partner:
+def _match_category_by_keywords(text_norm: str) -> str | None:
+    if not text_norm:
         return None
-    partner = partner.lower()
-    return PARTNER_DEFAULTS.get(partner)
 
+    for cat_slug, keywords in CATEGORY_KEYWORD_RULES:
+        for kw in keywords:
+            if kw in text_norm:
+                return cat_slug
+    return None
+
+
+# ===== FŐ FÜGGVÉNY – KÖZVETLEN PARAMÉTEREK =====
 
 def assign_category(
     title: str = "",
     desc: str = "",
     category_path: str = "",
     brand: str = "",
-    partner: str | None = None,
-    partner_default: str | None = None,
+    partner: str = "",
+    partner_default: str = "multi",
 ) -> str:
     """
-    Általános kategória-besoroló.
-    Visszaad egy Findora fő kategória SLUG-ot.
-
-    Fallback logika:
-      - ha nem talál kulcsszavakat → partner_default (ha van és érvényes)
-      - különben: 'multi'
+    Általános Findora-kategorizáló.
+    Ha nem talál semmilyen szabályt, partner_default-ot ad vissza (nem multi-t).
     """
-    # 1) Partner default eldöntése
-    if not partner_default:
-        partner_default = _auto_partner_default(partner)
 
-    if partner_default not in FINDORA_CATS:
-        partner_default = None
+    # szöveg összeépítése
+    parts = []
+    for v in (category_path, title, desc, brand):
+        if v:
+            parts.append(str(v))
+    full_text_norm = _normalize_text(" | ".join(parts))
 
-    # 2) Szövegek összefűzése, normalizálása
-    combined = " | ".join(
-        x for x in [title, desc, category_path, brand] if x
+    # 1) kulcsszó alapú meccselés
+    cat = _match_category_by_keywords(full_text_norm)
+
+    # 2) ha semmi nincs → partner_default (ha az is üres, akkor multi)
+    if not cat:
+        cat = partner_default or "multi"
+
+    # 3) biztonság kedvéért: ha valami fura slug jött ki
+    if cat not in FINDORA_CATS:
+        cat = partner_default or "multi"
+
+    return cat
+
+
+# ===== KÉNYELMI FÜGGVÉNY – fields dict esetén =====
+
+def assign_category_from_fields(
+    fields: dict,
+    partner: str,
+    partner_default: str = "multi",
+) -> str:
+    """
+    Olyan feedekhez, ahol egyetlen dict-ben kapjuk a mezőket, pl.:
+
+      fields = {
+        "product_type": "...",
+        "category": "...",
+        "categorytext": "...",
+        "title": "...",
+        "description": "...",
+        "brand": "...",
+      }
+
+    Minden partner (Tchibo, Pepita, stb.) használhatja.
+    """
+
+    fields = fields or {}
+
+    # category_path: első nem üres a megszokott kulcsok közül
+    category_path = (
+        fields.get("product_type")
+        or fields.get("category")
+        or fields.get("categorytext")
+        or ""
     )
-    norm = _normalize_text(combined)
 
-    if not norm:
-        # nincs semmi használható szöveg → direkt fallback
-        return partner_default or "multi"
+    title = (
+        fields.get("title")
+        or fields.get("name")
+        or fields.get("productname")
+        or ""
+    )
 
-    # 3) Pontozás minden kategóriára
-    best_slug = None
-    best_score = 0
+    desc = (
+        fields.get("description")
+        or fields.get("desc")
+        or ""
+    )
 
-    for slug in FINDORA_CATS:
-        if slug == "multi":
-            # a "multi" csak fallback, szándékosan nem pontozzuk
-            continue
-        s = _score_category(slug, norm)
-        if s > best_score:
-            best_score = s
-            best_slug = slug
+    brand = fields.get("brand") or ""
 
-    # 4) Eredmény eldöntése
-    if best_slug is None or best_score <= 0:
-        # nincs találat → partner default vagy multi
-        return partner_default or "multi"
-
-    return best_slug
-
-
-if __name__ == "__main__":
-    # Gyors kézi teszt, hogy lásd nagyjából hogy működik.
-    tests = [
-        {
-            "title": "Lego City rendőrautó készlet",
-            "desc": "Szuper építőjáték gyerekeknek",
-            "category_path": "Játékok | Építőjáték",
-            "partner": "jateksziget",
-        },
-        {
-            "title": "Samsung 55\" 4K UHD Smart TV",
-            "desc": "Modern okostévé HDR funkcióval",
-            "category_path": "Elektronika | TV",
-            "partner": "alza",
-        },
-        {
-            "title": "Pelenka csomag újszülötteknek",
-            "desc": "Kiváló nedvszívó képesség",
-            "category_path": "Baba-mama | Pelenkák",
-            "partner": "pepita",
-        },
-    ]
-
-    for t in tests:
-        cat = assign_category(
-            title=t.get("title", ""),
-            desc=t.get("desc", ""),
-            category_path=t.get("category_path", ""),
-            brand=t.get("brand", ""),
-            partner=t.get("partner"),
-        )
-        print(f"[TEST] {t['title']}  →  {cat}")
+    return assign_category(
+        title=title,
+        desc=desc,
+        category_path=category_path,
+        brand=brand,
+        partner=partner,
+        partner_default=partner_default,
+    )
