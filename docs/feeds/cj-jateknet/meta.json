@@ -1,1 +1,8 @@
-{"ok": true, "partner": "cj-jateknet", "total": 8531, "pages": 43, "page_size": 200}
+{
+  "partner": "cj-jateknet",
+  "total": 0,
+  "pageSize": 500,
+  "pageCount": 0,
+  "currency": "HUF",
+  "updatedAt": "2025-11-28T08:38:17Z"
+}

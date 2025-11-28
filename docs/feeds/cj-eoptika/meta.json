@@ -1,1 +1,8 @@
-{"ok": true, "partner": "cj-eoptika", "total": 29512, "pages": 148, "page_size": 200, "pageSize": 200}
+{
+  "partner": "cj-eoptika",
+  "total": 0,
+  "pageSize": 500,
+  "pageCount": 0,
+  "currency": "HUF",
+  "updatedAt": "2025-11-28T08:38:16Z"
+}

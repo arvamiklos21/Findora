@@ -1,1 +1,8 @@
-{"ok": true, "partner": "cj-karcher", "total": 3059, "pages": 16, "page_size": 200}
+{
+  "partner": "cj-karcher",
+  "total": 0,
+  "pageSize": 500,
+  "pageCount": 0,
+  "currency": "HUF",
+  "updatedAt": "2025-11-28T08:38:16Z"
+}
