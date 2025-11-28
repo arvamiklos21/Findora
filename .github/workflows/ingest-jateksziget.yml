@@ -33,15 +33,15 @@ jobs:
 
       - name: Install deps
         run: |
-          pip install --upgrade pip
-          pip install requests
+          python -m pip install --upgrade pip
+          python -m pip install requests
 
       - name: Build Jateksziget feed pages (global + categories + akcios-block)
         env:
           FEED_JATEKSZIGET_URL: ${{ secrets.FEED_JATEKSZIGET_URL }}
         run: |
-          set -e
-          if [ -z "$FEED_JATEKSZIGET_URL" ]; then
+          set -euo pipefail
+          if [ -z "${FEED_JATEKSZIGET_URL:-}" ]; then
             echo "::error title=Missing secret::FEED_JATEKSZIGET_URL nincs beállítva (Settings → Secrets → Actions)."
             exit 1
           fi
@@ -53,6 +53,10 @@ jobs:
           #  - kategória feedek (docs/feeds/jateksziget/<category>/...)
           #  - akcios-block (docs/feeds/jateksziget/akcios-block/...)
           python scripts/build_jateksziget.py
+
+          # Szigorú sanity check: legyen meta.json és page-0001.json
+          test -s docs/feeds/jateksziget/meta.json
+          test -s docs/feeds/jateksziget/page-0001.json
 
           echo "Sanity check (global page-0001):"
           if command -v jq >/dev/null 2>&1; then
