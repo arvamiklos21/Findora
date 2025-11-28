@@ -398,3 +398,135 @@ def main():
         url = it.get("url") or ""
         img = it.get("img") or ""
         price = it.get("price")
+        discount = it.get("discount")
+        category_path = it.get("category_path") or ""
+        brand = it.get("brand") or ""
+
+        findora_main = assign_category(
+            title=title,
+            desc=desc,
+            category_path=category_path,
+            brand=brand,
+            partner="jateksziget",
+            partner_default="jatekok",
+        )
+
+        row = {
+            "id": pid,
+            "title": title,
+            "img": img,
+            "desc": desc,
+            "price": price,
+            "discount": discount,
+            "url": url,
+            "partner": "jateksziget",
+            "category_path": category_path,
+            "findora_main": findora_main,
+            "cat": findora_main,
+        }
+        rows.append(row)
+
+    total = len(rows)
+    print(f"[INFO] Játéksziget: normalizált sorok: {total}")
+
+    # ===== HA NINCS EGYETLEN TERMÉK SEM =====
+    if total == 0:
+        # Globál üres meta
+        paginate_and_write(
+            OUT_DIR,
+            [],
+            PAGE_SIZE_GLOBAL,
+            meta_extra={
+                "partner": "jateksziget",
+                "scope": "global",
+            },
+        )
+
+        # Minden kategóriára üres meta
+        for slug in FINDORA_CATS:
+            base_dir = OUT_DIR / slug
+            paginate_and_write(
+                base_dir,
+                [],
+                PAGE_SIZE_CAT,
+                meta_extra={
+                    "partner": "jateksziget",
+                    "scope": f"category:{slug}",
+                },
+            )
+
+        # Akciós blokk üres meta
+        akcio_dir = OUT_DIR / "akcios-block"
+        paginate_and_write(
+            akcio_dir,
+            [],
+            PAGE_SIZE_AKCIO_BLOCK,
+            meta_extra={
+                "partner": "jateksziget",
+                "scope": "akcios-block",
+            },
+        )
+
+        print("⚠️ Játéksziget: nincs termék → csak üres meta-k készültek.")
+        return
+
+    # ===== GLOBÁL FEED =====
+    paginate_and_write(
+        OUT_DIR,
+        rows,
+        PAGE_SIZE_GLOBAL,
+        meta_extra={
+            "partner": "jateksziget",
+            "scope": "global",
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+        },
+    )
+
+    # ===== KATEGÓRIA FEED-EK =====
+    buckets = {slug: [] for slug in FINDORA_CATS}
+    for row in rows:
+        slug = row.get("findora_main") or "multi"
+        if slug not in buckets:
+            slug = "multi"
+        buckets[slug].append(row)
+
+    for slug, items_cat in buckets.items():
+        base_dir = OUT_DIR / slug
+        paginate_and_write(
+            base_dir,
+            items_cat,
+            PAGE_SIZE_CAT,
+            meta_extra={
+                "partner": "jateksziget",
+                "scope": f"category:{slug}",
+                "generated_at": datetime.utcnow().isoformat() + "Z",
+            },
+        )
+
+    # ===== AKCIÓS BLOKK (discount >= 10%) =====
+    akcios_items = [
+        row for row in rows
+        if row.get("discount") is not None and row["discount"] >= 10
+    ]
+
+    akcio_dir = OUT_DIR / "akcios-block"
+    paginate_and_write(
+        akcio_dir,
+        akcios_items,
+        PAGE_SIZE_AKCIO_BLOCK,
+        meta_extra={
+            "partner": "jateksziget",
+            "scope": "akcios-block",
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+        },
+    )
+
+    print(
+        f"✅ Játéksziget kész: {total} termék, "
+        f"{len(buckets)} kategória (mindegyiknek meta), "
+        f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR}"
+    )
+
+
+if __name__ == "__main__":
+    main()
