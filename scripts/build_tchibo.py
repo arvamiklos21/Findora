@@ -49,6 +49,9 @@ FINDORA_CATS = [
     "multi",
 ]
 
+# Akciós minimum százalék
+AKCIO_MIN_PERCENT = 10
+
 
 def norm_price(v):
     if v is None:
@@ -394,6 +397,48 @@ def dedup_size_variants(items):
     return list(buckets.values())
 
 
+def write_paged_json(base_dir: str, items: list, page_size: int, meta_extra: dict):
+    """
+    Általános író függvény:
+      - base_dir alatt page-0001.json, page-0002.json, ...
+      - ugyanoda meta.json a megadott meta_extra mezőkkel kiegészítve.
+    Üres listánál is készül egy page-0001.json üres items tömbbel.
+    """
+    os.makedirs(base_dir, exist_ok=True)
+
+    total = len(items)
+    pages = max(1, math.ceil(total / page_size))
+
+    # stabil sorrend
+    items.sort(key=lambda x: str(x.get("id", "")))
+
+    for i in range(pages):
+        start = i * page_size
+        end = (i + 1) * page_size
+        chunk = items[start:end]
+        data = {"items": chunk}
+
+        page_path = os.path.join(base_dir, f"page-{str(i + 1).zfill(4)}.json")
+        with open(page_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+
+    meta = {
+        "partner": "tchibo",
+        "pageSize": page_size,
+        "total": total,
+        "pages": pages,
+        "lastUpdated": datetime.utcnow().isoformat() + "Z",
+        "source": "productsup",
+    }
+    meta.update(meta_extra or {})
+
+    meta_path = os.path.join(base_dir, "meta.json")
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+
+    return {"total": total, "pages": pages}
+
+
 def main():
     assert FEED_URL, "FEED_TCHIBO_URL hiányzik (repo Secrets)."
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -417,44 +462,45 @@ def main():
             cat = "multi"
         cat_buckets[cat].append(it)
 
-    # Per-kategória oldal + meta
+    # Kategória mappák + meta-k
     categories_meta = {}
     for cat in FINDORA_CATS:
         items_cat = cat_buckets.get(cat, [])
         cat_dir = os.path.join(OUT_DIR, cat)
-        os.makedirs(cat_dir, exist_ok=True)
+        stats = write_paged_json(
+            base_dir=cat_dir,
+            items=list(items_cat),
+            page_size=PAGE_SIZE,
+            meta_extra={
+                "category": cat,
+            },
+        )
+        categories_meta[cat] = stats
+        print(
+            f"ℹ Tchibo: kat='{cat}' → {stats['total']} termék, "
+            f"{stats['pages']} oldal ({cat_dir})"
+        )
 
-        total_cat = len(items_cat)
-        pages_cat = max(1, math.ceil(total_cat / PAGE_SIZE))
-
-        # Oldalak írása – üres kategóriánál is 1 üres page-0001.json,
-        # hogy a frontend biztosan ne dobjon 404-et.
-        for i in range(pages_cat):
-            start = i * PAGE_SIZE
-            end = (i + 1) * PAGE_SIZE
-            chunk = items_cat[start:end]
-            data = {"items": chunk}
-
-            page_path = os.path.join(cat_dir, f"page-{str(i + 1).zfill(4)}.json")
-            with open(page_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False)
-
-        meta_cat = {
-            "partner": "tchibo",
-            "category": cat,
-            "pageSize": PAGE_SIZE,
-            "total": total_cat,
-            "pages": pages_cat,
-            "lastUpdated": datetime.utcnow().isoformat() + "Z",
-            "source": "productsup",
-        }
-        with open(os.path.join(cat_dir, "meta.json"), "w", encoding="utf-8") as f:
-            json.dump(meta_cat, f, ensure_ascii=False)
-
-        categories_meta[cat] = {
-            "total": total_cat,
-            "pages": pages_cat,
-        }
+    # ===== AKCIÓS MAPPÁBA A 10%+ kedvezmények =====
+    akcio_items = [
+        it for it in items
+        if isinstance(it.get("discount"), int) and it["discount"] >= AKCIO_MIN_PERCENT
+    ]
+    akcio_dir = os.path.join(OUT_DIR, "akciok")
+    akcio_stats = write_paged_json(
+        base_dir=akcio_dir,
+        items=list(akcio_items),
+        page_size=PAGE_SIZE,
+        meta_extra={
+            "category": "akciok",
+            "akcioMinPercent": AKCIO_MIN_PERCENT,
+        },
+    )
+    categories_meta["akciok"] = akcio_stats
+    print(
+        f"ℹ Tchibo: akciok (>= {AKCIO_MIN_PERCENT}%) → "
+        f"{akcio_stats['total']} termék, {akcio_stats['pages']} oldal ({akcio_dir})"
+    )
 
     # TOP-LEVEL meta összesítve (NINCS többé közös page-*.json)
     grand_total = len(items)
@@ -465,13 +511,13 @@ def main():
         "lastUpdated": datetime.utcnow().isoformat() + "Z",
         "source": "productsup",
         "categories": categories_meta,
+        "akcioMinPercent": AKCIO_MIN_PERCENT,
     }
     with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
-        json.dump(top_meta, f, ensure_ascii=False)
+        json.dump(top_meta, f, ensure_ascii=False, indent=2)
 
     print(f"✅ Tchibo: {grand_total} termék kategóriákra bontva → {OUT_DIR}")
-    for cat in FINDORA_CATS:
-        info = categories_meta[cat]
+    for cat, info in categories_meta.items():
         print(f"   - {cat:20s}: {info['total']} termék, {info['pages']} oldal")
 
 
