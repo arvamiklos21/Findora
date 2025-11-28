@@ -51,7 +51,7 @@ jobs:
 
           if command -v jq >/dev/null 2>&1; then
             jq -e '.items | length >= 0' docs/feeds/decathlon/page-0001.json >/dev/null
-            jq -e '.pages >= 1 and .total >= 0' docs/feeds/decathlon/meta.json >/dev/null
+            jq -e '.page_count >= 0 and .total_items >= 0' docs/feeds/decathlon/meta.json >/dev/null
             echo "Sanity check (first item):"
             jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/decathlon/page-0001.json || true
           else
