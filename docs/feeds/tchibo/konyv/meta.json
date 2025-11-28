@@ -1,1 +1,9 @@
-{"partner": "tchibo", "category": "konyv", "pageSize": 300, "total": 0, "pages": 1, "lastUpdated": "2025-11-28T11:21:20.631947Z", "source": "productsup"}
+{
+  "partner": "tchibo",
+  "pageSize": 300,
+  "total": 0,
+  "pages": 1,
+  "lastUpdated": "2025-11-28T12:33:19.980269Z",
+  "source": "productsup",
+  "category": "konyv"
+}

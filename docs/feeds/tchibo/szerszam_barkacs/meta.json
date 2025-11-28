@@ -1,1 +1,9 @@
-{"partner": "tchibo", "category": "szerszam_barkacs", "pageSize": 300, "total": 20, "pages": 1, "lastUpdated": "2025-11-28T11:21:20.633097Z", "source": "productsup"}
+{
+  "partner": "tchibo",
+  "pageSize": 300,
+  "total": 20,
+  "pages": 1,
+  "lastUpdated": "2025-11-28T12:33:19.981008Z",
+  "source": "productsup",
+  "category": "szerszam_barkacs"
+}
