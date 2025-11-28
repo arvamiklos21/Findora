@@ -14,6 +14,7 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
 import joblib  # <-- ML modell betöltéséhez
+from collections import Counter
 
 # --- hogy a scripts/ alatti dolgokat (ha kellenek) lássa ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -59,35 +60,6 @@ FINDORA_CATS = [
     "multi",
 ]
 
-# Modell címkék (szép nevek) → Findora slug
-LABEL_TO_SLUG = {
-    "Elektronika": "elektronika",
-    "Háztartási gépek": "haztartasi_gepek",
-    "Számítástechnika": "szamitastechnika",
-    "Mobil & kiegészítők": "mobil",
-    "Gaming": "gaming",
-    "Smart Home": "smart_home",
-    "Otthon": "otthon",
-    "Lakberendezés": "lakberendezes",
-    "Konyha & főzés": "konyha_fozes",
-    "Kert": "kert",
-    "Játékok": "jatekok",
-    "Divat": "divat",
-    "Szépség": "szepseg",
-    "Drogéria": "drogeria",
-    "Baba": "baba",
-    "Sport": "sport",
-    "Egészség": "egeszseg",
-    "Látás": "latas",
-    "Állatok": "allatok",
-    "Könyv": "konyv",
-    "Utazás": "utazas",
-    "Iroda & iskola": "iroda_iskola",
-    "Szerszám & barkács": "szerszam_barkacs",
-    "Autó/Motor & autóápolás": "auto_motor",
-    "Multi": "multi",
-}
-
 
 # ===== Segédfüggvények =====
 def norm_price(v):
@@ -116,7 +88,7 @@ def short_desc(t, maxlen=220):
 def build_text_for_model(cat_root, cat_path, title, desc):
     """
     Modell bemeneti szöveg: root + teljes kategóriaút + cím + leírás
-    (ezt használtuk a D:\scan-es tréningnél is logikailag)
+    (ezt használtuk a D:/scan-es tréningnél is logikailag)
     """
     parts = []
     if cat_root:
@@ -132,7 +104,8 @@ def build_text_for_model(cat_root, cat_path, title, desc):
 
 def classify_with_model(model, cat_root, cat_path, title, desc):
     """
-    ML modell meghívása, majd label → slug konverzió.
+    ML modell meghívása.
+    A modell közvetlenül Findora slugokat ad vissza (pl. "gaming", "konyv").
     Ha bármi gáz van, 'multi' a fallback.
     """
     text = build_text_for_model(cat_root, cat_path, title, desc)
@@ -140,12 +113,12 @@ def classify_with_model(model, cat_root, cat_path, title, desc):
         return "multi"
 
     try:
-        label = model.predict([text])[0]  # pl. "Sport", "Elektronika"
+        label = model.predict([text])[0]
     except Exception as e:
         print(f"[WARN] model.predict hiba: {e}")
         return "multi"
 
-    slug = LABEL_TO_SLUG.get(label, "multi")
+    slug = str(label)
     if slug not in FINDORA_CATS:
         slug = "multi"
     return slug
@@ -301,7 +274,7 @@ def main():
         cat_path = m.get("product_type") or ""
         cat_root = cat_path.split("|", 1)[0].strip() if cat_path else ""
 
-        # ===== ÚJ: ML alapú kategorizálás =====
+        # ===== ML alapú kategorizálás =====
         findora_main = classify_with_model(
             model,
             cat_root,
@@ -327,6 +300,12 @@ def main():
         rows.append(row)
 
     print(f"[INFO] Normalizált sorok (ML kategorizálással): {len(rows)}")
+
+    # DEBUG: kategória eloszlás
+    dist = Counter(row["findora_main"] for row in rows)
+    print("[INFO] Kategória eloszlás (findora_main):")
+    for k, v in sorted(dist.items(), key=lambda kv: (-kv[1], kv[0])):
+        print(f"  {k:20s} {v:7d}")
 
     # 2) Kategória szerinti feedek:
     #    docs/feeds/alza/<findora_main>/page-0001.json (20/lap)

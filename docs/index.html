@@ -42,6 +42,7 @@
       color:var(--text);
     }
     a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
     main{max-width:1200px;margin:0 auto;padding:16px 12px 40px}
 
     .hidden{
@@ -124,6 +125,7 @@
       background-size:cover;
       background-position:center;
       background-repeat:no-repeat;
+      min-height:220px;
     }
     @media (max-width:900px){
       .hero{grid-template-columns:1fr}
@@ -255,6 +257,23 @@
       box-shadow:0 8px 22px rgba(15,23,42,.08);
       margin-top:18px;
       overflow:hidden;
+      content-visibility:auto;
+      contain-intrinsic-size:600px 800px;
+    }
+    .home-cat-descriptions{
+      content-visibility:auto;
+      contain-intrinsic-size:400px 800px;
+    }
+    .bf-section{
+      background:radial-gradient(circle at 0 0,#111827 0,#020617 60%);
+      color:#e5e7eb;
+      border-radius:18px;
+      border:1px solid #111827;
+      box-shadow:0 10px 26px rgba(0,0,0,.5);
+      margin-top:18px;
+      overflow:hidden;
+      content-visibility:auto;
+      contain-intrinsic-size:600px 800px;
     }
     .section-header{
       padding:10px 14px;
@@ -307,6 +326,11 @@
       align-items:center;
       justify-content:center;
       font-size:24px;
+    }
+    .thumb img{
+      max-height:100%;
+      width:auto;
+      margin:0 auto;
     }
     .title{
       font-size:13px;
@@ -364,15 +388,6 @@
       text-decoration:none;
     }
 
-    .bf-section{
-      background:radial-gradient(circle at 0 0,#111827 0,#020617 60%);
-      color:#e5e7eb;
-      border-radius:18px;
-      border:1px solid #111827;
-      box-shadow:0 10px 26px rgba(0,0,0,.5);
-      margin-top:18px;
-      overflow:hidden;
-    }
     .bf-header{
       padding:10px 14px;
       border-bottom:1px solid #1f2937;
@@ -513,7 +528,12 @@
   <header>
     <div class="topbar">
       <div class="brand">
-        <img src="assets/img/findora-header.png" alt="Findora logó">
+        <img src="assets/img/findora-header.png"
+             alt="Findora logó"
+             width="80"
+             height="40"
+             loading="eager"
+             decoding="async">
         <div>
           <div class="brand-title">Findora</div>
           <div class="brand-sub">Irányt mutat a legjobb ajánlatokhoz</div>
