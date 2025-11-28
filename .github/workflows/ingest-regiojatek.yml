@@ -3,7 +3,7 @@ name: ingest-regiojatek
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 9,19 * * *"   # reggel 10:00 és este 20:00 magyar idő (9 és 19 UTC)
+    - cron: "0 9,19 * * *"
 
 permissions:
   contents: write
@@ -19,6 +19,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Sync with origin/main
+        run: |
+          set -e
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -32,9 +39,9 @@ jobs:
           FEED_REGIOJATEK_URL: ${{ secrets.FEED_REGIOJATEK_URL }}
         run: |
           set -e
+
           if [ -z "$FEED_REGIOJATEK_URL" ]; then
-            echo "::error title=Missing secret::FEED_REGIOJATEK_URL nincs beállítva (Settings → Secrets → Actions)."
-            exit 1
+            echo "::error title=Missing secret::FEED_REGIOJATEK_URL nincs beállítva."; exit 1
           fi
 
           mkdir -p docs/feeds/regiojatek
@@ -45,24 +52,27 @@ jobs:
           if command -v jq >/dev/null 2>&1; then
             jq -r '.items[0]' docs/feeds/regiojatek/page-0001.json || true
           else
-            head -c 500 docs/feeds/regiojatek/page-0001.json || true
+            head -c 800 docs/feeds/regiojatek/page-0001.json || true
           fi
 
           ls -R docs/feeds/regiojatek || true
 
-      - name: Commit feed updates to bot branch (autopush)
+      - name: Commit feed updates to bot branch (autopush, stable)
         run: |
           set -e
+
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           BR="bot/update-regiojatek"
+
+          # új ág létrehozása mindig tiszta állapotról
           git checkout -B "$BR"
 
           git add docs/feeds/regiojatek
           git commit -m "regiojatek: update feed pages" || echo "No changes"
 
-          git pull --rebase origin "$BR" || true
+          # nincs rebase, nincs pull – stabil force push
           git push --force-with-lease origin "$BR"
 
       - name: Create pull request
