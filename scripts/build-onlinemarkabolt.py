@@ -22,7 +22,7 @@
 #         "img": "https://...",
 #         "desc": "rövid leírás",
 #         "price": 151840,
-#         "discount": null,
+#         "discount": 23,              # kedvezmény % (ha van, különben null)
 #         "url": "https://www.onlinemarkaboltok.hu/...",
 #         "partner": "onlinemarkabolt",
 #         "category_path": "BLANCO > ...",
@@ -67,6 +67,10 @@ ONLINEMARKABOLT_CATS = [
 
 # Akciós bucket slug
 AKCIO_SLUG = "akciok"
+
+# Akciós szabály: csak azok menjenek az akciós bucketbe,
+# ahol a discount (százalék) legalább 10%
+AKCIO_MIN_DISCOUNT = 10
 
 
 # ====== SEGÉDFÜGGVÉNYEK ======
@@ -139,6 +143,19 @@ def extract_category_root(category: str, manufacturer: str | None) -> str:
     return cat
 
 
+def compute_discount(price, old_price):
+    """
+    Kedvezmény százalék számítás (ha van értelme).
+    Visszatér: int (%) vagy None.
+    """
+    if old_price and price and old_price > price:
+        try:
+            return round((1 - price / float(old_price)) * 100)
+        except Exception:
+            return None
+    return None
+
+
 def normalize_item(prod):
     """
     Egy <product> → Findora item + kat (Findora fő kategória).
@@ -153,11 +170,22 @@ def normalize_item(prod):
     url = get_text(prod, "product_url")
     manufacturer = get_text(prod, "manufacturer")
 
+    # lehetséges régi ár mezők (ha a feed tartalmaz ilyet)
+    old_price_raw = (
+        get_text(prod, "old_price")
+        or get_text(prod, "oldprice")
+        or get_text(prod, "price_old")
+        or get_text(prod, "original_price")
+        or get_text(prod, "price_without_discount")
+    )
+
     # kötelező mezők hiánya esetén dobjuk
     if not identifier or not name or not url:
         return None
 
     price = norm_price(price_raw)
+    old_price = norm_price(old_price_raw)
+    discount = compute_discount(price, old_price)
 
     # --- assign_category-hez mezők előkészítése ---
     fields_raw = {
@@ -191,7 +219,7 @@ def normalize_item(prod):
         "img": img,
         "desc": short_desc(desc_html),
         "price": price,
-        "discount": None,  # a feedben jelenleg nincs külön akciós ár mező
+        "discount": discount,  # itt már számolt kedvezmény %
         "url": url,
         "partner": "onlinemarkabolt",
         "category_path": category or "",
@@ -292,6 +320,8 @@ def main():
         if kat not in items_by_cat:
             # ha valami fura slug jön, dobjuk "otthon"-ba
             kat = "otthon"
+            item["findora_main"] = "otthon"
+            item["cat"] = "otthon"
 
         items_by_cat[kat].append(item)
         cat_counts[kat] = cat_counts.get(kat, 0) + 1
@@ -308,9 +338,15 @@ def main():
         cat_items = items_by_cat.get(cat_slug, [])
         write_category_pages(cat_slug, cat_items, PAGE_SIZE)
 
-    # ===== Akciós bucket: minden, ahol a category_root == 'Leértékelt' =====
-    akcio_items = [it for it in all_items if it.get("category_root") == "Leértékelt"]
-    print(f"[INFO] OnlineMárkaboltok – akciós termékek (category_root='Leértékelt'): {len(akcio_items)} db")
+    # ===== Akciós bucket: minden, ahol discount >= 10% =====
+    akcio_items = [
+        it for it in all_items
+        if (it.get("discount") is not None and it.get("discount") >= AKCIO_MIN_DISCOUNT)
+    ]
+    print(
+        f"[INFO] OnlineMárkaboltok – akciós termékek (discount>={AKCIO_MIN_DISCOUNT}%): "
+        f"{len(akcio_items)} db"
+    )
     write_category_pages(AKCIO_SLUG, akcio_items, PAGE_SIZE)
 
     # opcionális globális meta (nem tartalmaz page-*.json-t)
@@ -323,6 +359,7 @@ def main():
         "categories": cat_counts,
         "categoriesList": ONLINEMARKABOLT_CATS,
         "akcioItems": len(akcio_items),
+        "akcioMinDiscount": AKCIO_MIN_DISCOUNT,
     }
     meta_fn = os.path.join(OUT_BASE, "meta.json")
     with open(meta_fn, "w", encoding="utf-8") as f:
