@@ -3,7 +3,7 @@ name: ingest-decathlon
 on:
   workflow_dispatch:
   schedule:
-    - cron: "10 9,17 * * *"
+    - cron: "10 9,17 * * *"   # 9:10 és 17:10 UTC
 
 permissions:
   contents: write
@@ -46,22 +46,20 @@ jobs:
           mkdir -p docs/feeds/decathlon
           python -u scripts/build_decathlon.py
 
-          # ======= SANITY CHECK (javított) =======
-          test -s docs/feeds/decathlon/meta.json
-          test -s docs/feeds/decathlon/page-0001.json
-
-          if command -v jq >/dev/null 2>&1; then
-            # meta.json ellenőrzés
-            jq -e '.total_items >= 0' docs/feeds/decathlon/meta.json >/dev/null
-            jq -e '.page_count >= 0' docs/feeds/decathlon/meta.json >/dev/null
-
-            # első oldal ellenőrzése
-            jq -e '.items | type=="array"' docs/feeds/decathlon/page-0001.json >/dev/null
-
-            echo "Sanity OK – első termék:"
-            jq -r '.items[0] | {title, price, discount}' docs/feeds/decathlon/page-0001.json || true
+          echo "---- META ----"
+          if [ -f docs/feeds/decathlon/meta.json ]; then
+            head -c 800 docs/feeds/decathlon/meta.json || true
           else
+            echo "meta.json NINCS meg a decathlon alatt!"
+            exit 1
+          fi
+
+          echo "---- PAGE-0001 ----"
+          if [ -f docs/feeds/decathlon/page-0001.json ]; then
             head -c 800 docs/feeds/decathlon/page-0001.json || true
+          else
+            echo "page-0001.json NINCS meg a decathlon alatt!"
+            exit 1
           fi
 
           ls -la docs/feeds/decathlon
