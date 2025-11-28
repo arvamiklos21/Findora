@@ -48,13 +48,9 @@ jobs:
 
           mkdir -p docs/feeds/jateksziget
 
-          # build_jateksziget.py:
-          #  - globál feed (docs/feeds/jateksziget/page-0001.json, ... + meta.json)
-          #  - kategória feedek (docs/feeds/jateksziget/<category>/...)
-          #  - akcios-block (docs/feeds/jateksziget/akcios-block/...)
           python scripts/build_jateksziget.py
 
-          # Szigorú sanity check: legyen meta.json és page-0001.json
+          # Szigorú sanity check
           test -s docs/feeds/jateksziget/meta.json
           test -s docs/feeds/jateksziget/page-0001.json
 
@@ -80,7 +76,8 @@ jobs:
           git add docs/feeds/jateksziget
 
           git commit -m "jateksziget: update feed pages" || echo "No changes"
-          git push --force-with-lease origin "$BR"
+          # Itt a lényeg: sima --force, ne with-lease
+          git push --force origin "$BR"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
