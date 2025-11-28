@@ -10,6 +10,8 @@
 #   - docs/feeds/onlinemarkabolt/haztartasi_gepek/page-0001.json, ...
 #   - docs/feeds/onlinemarkabolt/otthon/meta.json
 #   - docs/feeds/onlinemarkabolt/otthon/page-0001.json, ...
+#   - docs/feeds/onlinemarkabolt/akciok/meta.json
+#   - docs/feeds/onlinemarkabolt/akciok/page-0001.json, ...
 #
 # Struktúra (page-*.json):
 #   {
@@ -40,7 +42,7 @@ import math
 import xml.etree.ElementTree as ET
 import requests
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 # --- hogy a scripts/ alatti assign modul is látszódjon ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -62,6 +64,9 @@ ONLINEMARKABOLT_CATS = [
     "haztartasi_gepek",
     "otthon",
 ]
+
+# Akciós bucket slug
+AKCIO_SLUG = "akciok"
 
 
 # ====== SEGÉDFÜGGVÉNYEK ======
@@ -235,7 +240,7 @@ def write_category_pages(cat_slug: str, items_for_cat, page_size: int):
         "pageSize": page_size,
         "total": total,
         "pages": pages,
-        "lastUpdated": datetime.utcnow().isoformat() + "Z",
+        "lastUpdated": datetime.now(timezone.utc).isoformat(),
     }
     meta_fn = os.path.join(cat_dir, "meta.json")
     with open(meta_fn, "w", encoding="utf-8") as f:
@@ -265,6 +270,8 @@ def main():
     seen_ids = set()
     cat_counts = {slug: 0 for slug in ONLINEMARKABOLT_CATS}
 
+    all_items = []  # akciós buckethez is jól jön
+
     for prod in products:
         try:
             norm = normalize_item(prod)
@@ -288,6 +295,7 @@ def main():
 
         items_by_cat[kat].append(item)
         cat_counts[kat] = cat_counts.get(kat, 0) + 1
+        all_items.append(item)
 
     total_items = sum(cat_counts.values())
     print(f"[INFO] OnlineMárkaboltok – normalizált sorok összesen: {total_items}")
@@ -300,15 +308,21 @@ def main():
         cat_items = items_by_cat.get(cat_slug, [])
         write_category_pages(cat_slug, cat_items, PAGE_SIZE)
 
+    # ===== Akciós bucket: minden, ahol a category_root == 'Leértékelt' =====
+    akcio_items = [it for it in all_items if it.get("category_root") == "Leértékelt"]
+    print(f"[INFO] OnlineMárkaboltok – akciós termékek (category_root='Leértékelt'): {len(akcio_items)} db")
+    write_category_pages(AKCIO_SLUG, akcio_items, PAGE_SIZE)
+
     # opcionális globális meta (nem tartalmaz page-*.json-t)
     global_meta = {
         "partner": "onlinemarkabolt",
         "sourceUrl": FEED_URL,
-        "generatedAt": datetime.utcnow().isoformat() + "Z",
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
         "totalItems": total_items,
         "pageSize": PAGE_SIZE,
         "categories": cat_counts,
         "categoriesList": ONLINEMARKABOLT_CATS,
+        "akcioItems": len(akcio_items),
     }
     meta_fn = os.path.join(OUT_BASE, "meta.json")
     with open(meta_fn, "w", encoding="utf-8") as f:
