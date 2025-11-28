@@ -6,9 +6,6 @@
 # Használat:
 #   python scripts/build_cj_txt.py <input_txt> <partner_slug>
 #
-# Példa:
-#   python scripts/build_cj_txt.py cj-eoptika/eOptika_HU-eOptikaHU_google_all-shopping.txt cj-eoptika
-#
 # Kimenet:
 #   docs/feeds/<partner_slug>/meta.json
 #   docs/feeds/<partner_slug>/page-0001.json, page-0002.json, ...
@@ -24,9 +21,6 @@ OUT_BASE = os.path.join("docs", "feeds")
 PAGE_SIZE = 500  # tetszés szerint: 200 / 500 / 1000
 
 def pick_first(dct, keys, default=""):
-    """
-    Első nem üres mező a megadott kulcsok listájából.
-    """
     for k in keys:
         v = dct.get(k)
         if v is not None and str(v).strip() != "":
@@ -34,11 +28,6 @@ def pick_first(dct, keys, default=""):
     return default
 
 def price_to_int(price_str):
-    """
-    CJ feedben ár mező: "1234.56" vagy "1234,56".
-    Ebből int HUF-ot csinálunk (kerekítés).
-    Ha nem értelmezhető, None.
-    """
     if not price_str:
         return None
     s = str(price_str).strip().replace(",", ".")
@@ -48,54 +37,105 @@ def price_to_int(price_str):
     except ValueError:
         return None
 
+def sniff_delimiter(path):
+    """
+    Egyszerű delimiter-szimatoló:
+    megszámolja a TAB / vessző / '|' előfordulásokat, és amelyik a legtöbb, azt használja.
+    """
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        sample = f.read(4096)
+
+    candidates = ["\t", ",", "|", ";"]
+    counts = {c: sample.count(c) for c in candidates}
+    # alapértelmezett: TAB
+    delim = "\t"
+    best = counts.get(delim, 0)
+    for c, cnt in counts.items():
+        if cnt > best:
+            best = cnt
+            delim = c
+
+    return delim
+
 def load_cj_txt(path, partner_slug):
-    """
-    CJ TXT beolvasása (tab-szeparált), DictReaderrel.
-    Visszatér: Findora item listával.
-    """
     items = []
 
-    # Tipikus CJ encoding utf-8, ha nem, majd módosítunk később
-    with open(path, "r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+    # delimiter automatikus felismerése
+    delim = sniff_delimiter(path)
+    print(f"[DEBUG] {partner_slug}: feltételezett delimiter = {repr(delim)}")
+
+    with open(path, "r", encoding="utf-8", errors="replace", newline="") as f:
+        reader = csv.DictReader(f, delimiter=delim)
+        print(f"[DEBUG] {partner_slug}: fieldnames = {reader.fieldnames}")
 
         for row in reader:
-            # ID – CJ sku / merchant sku
-            pid = pick_first(row, ["cj-sku", "sku", "sku-id", "sku_id", "id", "product-id"])
+            # ID
+            pid = pick_first(row, [
+                "cj-sku", "sku", "sku-id", "sku_id",
+                "id", "product-id", "product_id"
+            ])
 
-            # Név
-            title = pick_first(row, ["name", "product-name", "product_name", "item-name"])
+            # Termék neve – itt már a 'title'-t is figyeljük (Google shopping compat)
+            title = pick_first(row, [
+                "name", "product-name", "product_name", "item-name",
+                "title"
+            ])
 
             # Leírás + keywords
-            desc = pick_first(row, ["description", "long-description", "long_description", "product-description"])
+            desc = pick_first(row, [
+                "description", "long-description", "long_description",
+                "product-description", "product_description", "description_long"
+            ])
             keywords = pick_first(row, ["keywords", "keyword"], "")
             if keywords:
                 desc = (desc or "") + " " + keywords
 
-            # Kép
-            img = pick_first(row, ["image-url", "image_url", "image-link", "image-link-url"])
+            # Képlink – Google feedben: image_link
+            img = pick_first(row, [
+                "image-url", "image_url", "image-link", "image-link-url",
+                "image_link"
+            ])
 
-            # Termék URL
-            url = pick_first(row, ["buy-url", "buy_url", "sku-url", "link", "url", "product-url"])
+            # Termék URL – Google feedben: link
+            url = pick_first(row, [
+                "buy-url", "buy_url", "sku-url",
+                "link", "url", "product-url", "product_url"
+            ])
 
-            # Ár / akciós ár
-            sale_price_raw = pick_first(row, ["sale-price", "sale_price", "discount-price", "discount_price"])
-            list_price_raw = pick_first(row, ["price", "list-price", "list_price"])
+            # Ár / akciós ár – Google feed: price (pl. "1234.00 HUF")
+            sale_price_raw = pick_first(row, [
+                "sale-price", "sale_price", "discount-price", "discount_price",
+                "sale_price_amount"
+            ])
+            list_price_raw = pick_first(row, [
+                "price", "list-price", "list_price", "price_amount"
+            ])
+
+            # Ha Google formátum: "1234.00 HUF", akkor vágjuk le a valutát
+            def clean_price_str(s):
+                if not s:
+                    return s
+                parts = str(s).split()
+                return parts[0]  # első rész: 1234.00
+
+            sale_price_raw = clean_price_str(sale_price_raw)
+            list_price_raw = clean_price_str(list_price_raw)
 
             price = price_to_int(sale_price_raw)
             if price is None:
                 price = price_to_int(list_price_raw)
 
-            # Kedvezmény most None – később lehet számolni
             discount = None
 
-            # Merchant kategória
             category_path = pick_first(
                 row,
-                ["advertiser-category", "merchant-category", "category", "categories", "category-name"]
+                [
+                    "advertiser-category", "merchant-category",
+                    "category", "categories", "category-name", "product_type"
+                ]
             )
 
-            # Kötelezők: id, title, url
+            # kötelező mezők
             if not pid or not title or not url:
                 continue
 
@@ -109,23 +149,18 @@ def load_cj_txt(path, partner_slug):
                 "url": str(url).strip(),
                 "partner": partner_slug,
                 "category_path": str(category_path).strip() if category_path else None,
-                # "findora_main": majd külön category_assign fogja kitölteni
             }
             items.append(item)
 
     return items
 
 def write_pages(items, partner_slug):
-    """
-    items listából meta.json + page-0001.json, page-0002.json... generálása.
-    """
     out_dir = os.path.join(OUT_BASE, partner_slug)
     os.makedirs(out_dir, exist_ok=True)
 
     total = len(items)
     if total == 0:
         print(f"[INFO] {partner_slug}: 0 termék – nem írok ki oldalakat.")
-        # meta.json azért legyen meg, üresként is
         meta = {
             "partner": partner_slug,
             "total": 0,
@@ -146,7 +181,7 @@ def write_pages(items, partner_slug):
         "total": total,
         "pageSize": PAGE_SIZE,
         "pageCount": page_count,
-        "currency": "HUF",  # CJ HU feed -> HUF, ha más lenne, majd finomítjuk
+        "currency": "HUF",
         "updatedAt": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     meta_path = os.path.join(out_dir, "meta.json")
