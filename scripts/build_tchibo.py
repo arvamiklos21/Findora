@@ -18,7 +18,36 @@ from category_assign_tchibo import assign_category as assign_tchibo_category
 
 FEED_URL = os.environ.get("FEED_TCHIBO_URL")
 OUT_DIR = "docs/feeds/tchibo"
-PAGE_SIZE = 300  # forrás-oldal méret (bőven lehet nagy)
+PAGE_SIZE = 300  # kategória-oldal méret
+
+# Findora 25 fő kategória (slugok) – mindig lesz mappa + meta.json
+FINDORA_CATS = [
+    "elektronika",
+    "haztartasi_gepek",
+    "szamitastechnika",
+    "mobiltelefon",
+    "gaming",
+    "smart_home",
+    "otthon",
+    "lakberendezes",
+    "konyha_fozes",
+    "kert",
+    "jatekok",
+    "divat",
+    "szepseg",
+    "drogeria",
+    "baba",
+    "sport",
+    "egeszseg",
+    "latas",
+    "allatok",
+    "konyv",
+    "utazas",
+    "iroda_iskola",
+    "szerszam_barkacs",
+    "auto_motor",
+    "multi",
+]
 
 
 def norm_price(v):
@@ -242,10 +271,7 @@ def parse_items(xml_text):
         )
 
         # ===== Tchibo → Findora fő kategória (category_assign_tchibo.assign_category) =====
-        # Itt MÁR NEM 4 paramétert adunk, hanem egy fields dictet,
-        # mert a category_assign_tchibo.assign_category(fields: Dict[str, Any]) ezt várja.
         fields = {
-            # a globális kategorizáló ezeket a kulcsokat nézi:
             "product_type": cat_path or "",
             "category": cat_path or "",
             "categorytext": cat_path or "",
@@ -253,9 +279,10 @@ def parse_items(xml_text):
             "name": title or "",
             "description": raw_desc or "",
             "long_description": raw_desc or "",
-            # ha akarod, később ide betehetsz még bármit a TEXT_TAG_KEYS-ből
         }
-        findora_main = assign_tchibo_category(fields)
+        findora_main = assign_tchibo_category(fields) or "multi"
+        if findora_main not in FINDORA_CATS:
+            findora_main = "multi"
 
         # Gyökér kategória kivétele (category_root)
         if cat_path and ">" in cat_path:
@@ -272,8 +299,6 @@ def parse_items(xml_text):
             "price": price_new,
             "discount": discount,
             "url": link or "",
-
-            # ÚJ FINDORA / ALGOLIA MEZŐK
             "partner": "tchibo",
             "category_path": cat_path or "",
             "category_root": category_root,
@@ -384,28 +409,70 @@ def main():
     items = dedup_size_variants(raw_items)
     print(f"ℹ Tchibo: dedup után {len(items)} termék")
 
-    pages = max(1, math.ceil(len(items) / PAGE_SIZE))
-    for i in range(pages):
-        data = {"items": items[i * PAGE_SIZE: (i + 1) * PAGE_SIZE]}
-        with open(
-            os.path.join(OUT_DIR, f"page-{str(i + 1).zfill(4)}.json"),
-            "w",
-            encoding="utf-8",
-        ) as f:
-            json.dump(data, f, ensure_ascii=False)
+    # ===== KATEGÓRIA SZERINT SZÉTOSZTÁS =====
+    cat_buckets = {cat: [] for cat in FINDORA_CATS}
+    for it in items:
+        cat = it.get("findora_main") or "multi"
+        if cat not in FINDORA_CATS:
+            cat = "multi"
+        cat_buckets[cat].append(it)
 
-    meta = {
+    # Per-kategória oldal + meta
+    categories_meta = {}
+    for cat in FINDORA_CATS:
+        items_cat = cat_buckets.get(cat, [])
+        cat_dir = os.path.join(OUT_DIR, cat)
+        os.makedirs(cat_dir, exist_ok=True)
+
+        total_cat = len(items_cat)
+        pages_cat = max(1, math.ceil(total_cat / PAGE_SIZE))
+
+        # Oldalak írása – üres kategóriánál is 1 üres page-0001.json,
+        # hogy a frontend biztosan ne dobjon 404-et.
+        for i in range(pages_cat):
+            start = i * PAGE_SIZE
+            end = (i + 1) * PAGE_SIZE
+            chunk = items_cat[start:end]
+            data = {"items": chunk}
+
+            page_path = os.path.join(cat_dir, f"page-{str(i + 1).zfill(4)}.json")
+            with open(page_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False)
+
+        meta_cat = {
+            "partner": "tchibo",
+            "category": cat,
+            "pageSize": PAGE_SIZE,
+            "total": total_cat,
+            "pages": pages_cat,
+            "lastUpdated": datetime.utcnow().isoformat() + "Z",
+            "source": "productsup",
+        }
+        with open(os.path.join(cat_dir, "meta.json"), "w", encoding="utf-8") as f:
+            json.dump(meta_cat, f, ensure_ascii=False)
+
+        categories_meta[cat] = {
+            "total": total_cat,
+            "pages": pages_cat,
+        }
+
+    # TOP-LEVEL meta összesítve (NINCS többé közös page-*.json)
+    grand_total = len(items)
+    top_meta = {
         "partner": "tchibo",
         "pageSize": PAGE_SIZE,
-        "total": len(items),
-        "pages": pages,
+        "total": grand_total,
         "lastUpdated": datetime.utcnow().isoformat() + "Z",
         "source": "productsup",
+        "categories": categories_meta,
     }
     with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False)
+        json.dump(top_meta, f, ensure_ascii=False)
 
-    print(f"✅ Tchibo: {len(items)} termék, {pages} oldal → {OUT_DIR}")
+    print(f"✅ Tchibo: {grand_total} termék kategóriákra bontva → {OUT_DIR}")
+    for cat in FINDORA_CATS:
+        info = categories_meta[cat]
+        print(f"   - {cat:20s}: {info['total']} termék, {info['pages']} oldal")
 
 
 if __name__ == "__main__":
