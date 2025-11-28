@@ -1,7 +1,22 @@
+# scripts/build_cj_eoptika.py
+#
+# CJ eOptika feed → Findora JSON oldalak (globál + kategória + akciós blokk)
+#
+# Kategorizálás: category_assignbase.assign_category
+#   - partner: "cj-eoptika"
+#   - partner_default: "latas" (ha nem talál semmit, visszarakja "latas"-ba, NEM multi-ba)
+#
+# Kimenet:
+#   docs/feeds/cj-eoptika/meta.json, page-0001.json...           (globál)
+#   docs/feeds/cj-eoptika/<findora_cat>/meta.json, page-....json (kategória)
+#   docs/feeds/cj-eoptika/akcios-block/meta.json, page-....json  (akciós blokk, discount >= 10%)
+
 import csv
 import json
 import math
 from pathlib import Path
+
+from category_assignbase import assign_category, FINDORA_CATS
 
 # BEMENET: CJ txt feed kicsomagolva ide
 IN_DIR = Path("cj-eoptika-feed")
@@ -9,24 +24,19 @@ IN_DIR = Path("cj-eoptika-feed")
 # KIMENET: GitHub Pages alá, innen megy ki: https://www.findora.hu/feeds/cj-eoptika/...
 OUT_DIR = Path("docs/feeds/cj-eoptika")
 
-PAGE_SIZE = 200
+# Globál feed: nagyobb lapméret
+PAGE_SIZE_GLOBAL = 200
+
+# Kategória feedek: 20/lap
+PAGE_SIZE_CAT = 20
+
+# Akciós blokk: 20/lap
+PAGE_SIZE_AKCIO_BLOCK = 20
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# ---- RÉGI OLDALAK TÖRLÉSE, HOGY NE MARADJON ROSSZ page-0001.json ----
-for old in OUT_DIR.glob("page-*.json"):
-    try:
-        old.unlink()
-    except OSError:
-        pass
 
-txt_files = sorted(IN_DIR.glob("*.txt"))
-if not txt_files:
-    raise SystemExit("Nincs .txt fájl a CJ eOptika feedben :(")
-
-feed_file = txt_files[0]
-items = []
-
+# ====================== SEGÉDFÜGGVÉNYEK ======================
 
 def first_nonempty(row, *keys):
     """Adj vissza az első nem üres mezőt a kulcsok közül."""
@@ -64,7 +74,58 @@ def parse_price(raw_value, row_currency=None):
     return value, currency
 
 
-# ---- CSV olvasás / delimiter felismerés ----
+def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
+    """
+    Általános lapozó + fájlkiíró:
+      base_dir/meta.json
+      base_dir/page-0001.json, page-0002.json, ...
+    Üres lista esetén is ír meta.json-t (page_count=0), hogy a frontend ne kapjon 404-et.
+    """
+    base_dir.mkdir(parents=True, exist_ok=True)
+    total = len(items)
+    page_count = int(math.ceil(total / page_size)) if total else 0
+
+    meta = {
+        "total_items": total,
+        "page_size": page_size,
+        "page_count": page_count,
+    }
+    if meta_extra:
+        meta.update(meta_extra)
+
+    meta_path = base_dir / "meta.json"
+    with meta_path.open("w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+
+    for page_no in range(1, page_count + 1):
+        start = (page_no - 1) * page_size
+        end = start + page_size
+        page_items = items[start:end]
+
+        out_path = base_dir / f"page-{page_no:04d}.json"
+        with out_path.open("w", encoding="utf-8") as f:
+            json.dump({"items": page_items}, f, ensure_ascii=False)
+
+
+# ====================== RÉGI FÁJLOK TAKARÍTÁSA ======================
+
+# Minden régi JSON törlése (globál + kategória + akcios-block)
+for old_json in OUT_DIR.rglob("*.json"):
+    try:
+        old_json.unlink()
+    except OSError:
+        pass
+
+
+# ====================== FEED BETÖLTÉS ======================
+
+txt_files = sorted(IN_DIR.glob("*.txt"))
+if not txt_files:
+    raise SystemExit("Nincs .txt fájl a CJ eOptika feedben :(")
+
+feed_file = txt_files[0]
+raw_items = []
+
 with feed_file.open("r", encoding="utf-8", newline="") as f:
     sample = f.read(4096)
     f.seek(0)
@@ -121,85 +182,172 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
             "product_type",
         )
 
-        item = {
-            "id": pid,
-            "title": title,
-            "desc": description,
-            "url": url,
-            "image": image,
-            "price": final_price,
-            "original_price": original_price,
-            "currency": currency or "HUF",
-            "brand": brand,
-            "category": category,
-            "partner": "eOptika (CJ)",
-            "discount": discount,
-        }
-        items.append(item)
+        raw_items.append(
+            {
+                "id": pid,
+                "title": title,
+                "desc": description,
+                "url": url,
+                "image": image,
+                "price": final_price,
+                "original_price": original_price,
+                "currency": currency or "HUF",
+                "brand": brand,
+                "category_path": category or "",
+                "discount": discount,
+            }
+        )
 
-total = len(items)
-print(f"DEBUG CJ EOPTIKA: összes termék: {total}")
+total_raw = len(raw_items)
+print(f"DEBUG CJ EOPTIKA: nyers termékek: {total_raw}")
 
-# Ha tényleg nincs egyetlen termék sem: generáljunk egy üres 1. oldalt, hogy ne legyen 404
+
+# ====================== NORMALIZÁLÁS + KATEGORIZÁLÁS ======================
+
+rows = []
+
+for m in raw_items:
+    pid = m["id"]
+    title = m["title"]
+    desc = m["desc"] or ""
+    url = m["url"]
+    img = m["image"]
+    price = m["price"]
+    original_price = m["original_price"]
+    currency = m["currency"]
+    brand = m["brand"] or ""
+    category_path = m["category_path"] or ""
+    discount = m["discount"]
+
+    # Kategória besorolás – közös base
+    findora_main = assign_category(
+        title=title,
+        desc=desc,
+        category_path=category_path,
+        brand=brand,
+        partner="cj-eoptika",
+        partner_default="latas",  # eOptika: alapértelmezett "látás"
+    )
+
+    row = {
+        "id": pid,
+        "title": title,
+        "img": img,
+        "desc": desc,
+        "price": price,
+        "original_price": original_price,
+        "currency": currency,
+        "discount": discount,
+        "url": url,
+        "partner": "cj-eoptika",
+        "category_path": category_path,
+        "findora_main": findora_main,
+        "cat": findora_main,
+    }
+    rows.append(row)
+
+total = len(rows)
+print(f"[INFO] CJ eOptika: normalizált sorok: {total}")
+
+# ====================== HA NINCS EGYETLEN TERMÉK SEM ======================
+
 if total == 0:
-    empty_payload = {
-        "ok": True,
-        "partner": "cj-eoptika",
-        "page": 1,
-        "total": 0,
-        "items": [],
-    }
-    with (OUT_DIR / "page-0001.json").open("w", encoding="utf-8") as f:
-        json.dump(empty_payload, f, ensure_ascii=False)
+    # Globál üres meta
+    paginate_and_write(
+        OUT_DIR,
+        [],
+        PAGE_SIZE_GLOBAL,
+        meta_extra={
+            "partner": "cj-eoptika",
+            "scope": "global",
+        },
+    )
 
-    meta = {
-        "ok": True,
-        "partner": "cj-eoptika",
-        "total": 0,
-        "pages": 1,
-        "page_size": PAGE_SIZE,
-        "pageSize": PAGE_SIZE,
-    }
-    with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False)
+    # Minden kategóriára üres meta
+    for slug in FINDORA_CATS:
+        base_dir = OUT_DIR / slug
+        paginate_and_write(
+            base_dir,
+            [],
+            PAGE_SIZE_CAT,
+            meta_extra={
+                "partner": "cj-eoptika",
+                "scope": f"category:{slug}",
+            },
+        )
 
-    print("⚠️ CJ eOptika: nincs termék → üres page-0001.json létrehozva.")
+    # Akciós blokk üres meta
+    akcio_dir = OUT_DIR / "akcios-block"
+    paginate_and_write(
+        akcio_dir,
+        [],
+        PAGE_SIZE_AKCIO_BLOCK,
+        meta_extra={
+            "partner": "cj-eoptika",
+            "scope": "akcios-block",
+        },
+    )
+
+    print("⚠️ CJ eOptika: nincs termék → csak üres meta-k készültek.")
     raise SystemExit(0)
 
-# ---- NEM ÜRES FEED: normál lapozás, page-0001.json MINDIG TELE LESZ ----
-pages = math.ceil(total / PAGE_SIZE)
 
-for page_num in range(1, pages + 1):
-    start = (page_num - 1) * PAGE_SIZE
-    end = start + PAGE_SIZE
-    chunk = items[start:end]
+# ====================== GLOBÁL FEED ======================
 
-    if not chunk:
-        continue  # elvileg nem fordulhat elő, de biztos ami biztos
-
-    payload = {
-        "ok": True,
+paginate_and_write(
+    OUT_DIR,
+    rows,
+    PAGE_SIZE_GLOBAL,
+    meta_extra={
         "partner": "cj-eoptika",
-        "page": page_num,
-        "total": total,
-        "items": chunk,
-    }
+        "scope": "global",
+    },
+)
 
-    out_path = OUT_DIR / f"page-{page_num:04d}.json"
-    with out_path.open("w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False)
 
-# ---- META ÍRÁSA ----
-meta = {
-    "ok": True,
-    "partner": "cj-eoptika",
-    "total": total,
-    "pages": pages,
-    "page_size": PAGE_SIZE,  # backend oldali név
-    "pageSize": PAGE_SIZE,   # frontend JS is tudja olvasni
-}
+# ====================== KATEGÓRIA FEED-EK ======================
 
-with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
-    json.dump(meta, f, ensure_ascii=False)
+buckets = {slug: [] for slug in FINDORA_CATS}
 
-print(f"✅ CJ eOptika kész: {total} termék, {pages} oldal.")
+for row in rows:
+    slug = row.get("findora_main") or "multi"
+    if slug not in buckets:
+        slug = "multi"
+    buckets[slug].append(row)
+
+for slug, items in buckets.items():
+    base_dir = OUT_DIR / slug
+    paginate_and_write(
+        base_dir,
+        items,
+        PAGE_SIZE_CAT,
+        meta_extra={
+            "partner": "cj-eoptika",
+            "scope": f"category:{slug}",
+        },
+    )
+
+
+# ====================== AKCIÓS BLOKK (discount >= 10%) ======================
+
+akcios_items = [
+    row for row in rows
+    if row.get("discount") is not None and row["discount"] >= 10
+]
+
+akcio_dir = OUT_DIR / "akcios-block"
+paginate_and_write(
+    akcio_dir,
+    akcios_items,
+    PAGE_SIZE_AKCIO_BLOCK,
+    meta_extra={
+        "partner": "cj-eoptika",
+        "scope": "akcios-block",
+    },
+)
+
+print(
+    f"✅ CJ eOptika kész: {total} termék, "
+    f"{len(buckets)} kategória (mindegyiknek meta), "
+    f"akciós blokk tételek: {len(akcios_items)}"
+)
