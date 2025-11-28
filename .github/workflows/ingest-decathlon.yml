@@ -3,7 +3,7 @@ name: ingest-decathlon
 on:
   workflow_dispatch:
   schedule:
-    - cron: "10 9,17 * * *"   # 9:10 és 17:10 UTC
+    - cron: "10 9,17 * * *"   # reggel 10:10 és este 18:10 magyar idő (9:10 és 17:10 UTC)
 
 permissions:
   contents: write
@@ -16,6 +16,7 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (full)
         uses: actions/checkout@v4
@@ -39,30 +40,38 @@ jobs:
           set -euo pipefail
 
           if [ -z "${FEED_DECATHLON_URL:-}" ]; then
-            echo "::error title=Missing secret::FEED_DECATHLON_URL nincs beállítva."
+            echo "::error title=Missing secret::FEED_DECATHLON_URL nincs beállítva (Settings → Secrets → Actions)."
             exit 1
           fi
 
           mkdir -p docs/feeds/decathlon
+
+          echo "▶️ Decathlon build indul..."
           python -u scripts/build_decathlon.py
 
-          echo "---- META ----"
-          if [ -f docs/feeds/decathlon/meta.json ]; then
-            head -c 800 docs/feeds/decathlon/meta.json || true
-          else
-            echo "meta.json NINCS meg a decathlon alatt!"
+          echo "✅ Decathlon build lefutott."
+
+          # Sanity check – csak összefoglaló meta, NINCS globál page-0001.json
+          if [ ! -s docs/feeds/decathlon/meta.json ]; then
+            echo "::error title=Missing meta::docs/feeds/decathlon/meta.json nem létezik vagy üres."
             exit 1
           fi
 
-          echo "---- PAGE-0001 ----"
-          if [ -f docs/feeds/decathlon/page-0001.json ]; then
-            head -c 800 docs/feeds/decathlon/page-0001.json || true
-          else
-            echo "page-0001.json NINCS meg a decathlon alatt!"
-            exit 1
+          echo "---- META (rövidített) ----"
+          head -c 800 docs/feeds/decathlon/meta.json || true
+          echo
+          echo "---------------------------"
+
+          if command -v jq >/dev/null 2>&1; then
+            # total_items >= 0 és van categories mező
+            jq -e '.total_items >= 0 and (.categories != null)' docs/feeds/decathlon/meta.json >/dev/null
           fi
 
+          echo "Elérhető Decathlon mappák:"
           ls -la docs/feeds/decathlon
+
+          echo "Kategoriás meta.json-ok:"
+          find docs/feeds/decathlon -maxdepth 2 -type f -name "meta.json" -printf "  %p\n" || true
 
       - name: Commit changes
         run: |
@@ -71,6 +80,7 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
           git add docs/feeds/decathlon
+
           git commit -m "decathlon: update feed pages" || echo "No changes"
 
       - name: Create pull request
@@ -81,4 +91,4 @@ jobs:
           title: "decathlon: update feed pages"
           commit-message: "decathlon: update feed pages"
           body: |
-            Automated update of Decathlon feed pages (JSON pagination).
+            Automated update of Decathlon feed pages (category-only JSON + akcios-block).
