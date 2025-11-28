@@ -6,10 +6,8 @@
 #   - XML feed (FEED_ONLINEMARKABOLT_URL környezeti változó)
 #
 # Kimenet:
-#   - docs/feeds/onlinemarkabolt/haztartasi_gepek/meta.json
-#   - docs/feeds/onlinemarkabolt/haztartasi_gepek/page-0001.json, ...
-#   - docs/feeds/onlinemarkabolt/otthon/meta.json
-#   - docs/feeds/onlinemarkabolt/otthon/page-0001.json, ...
+#   - docs/feeds/onlinemarkabolt/<findora_cat>/meta.json
+#   - docs/feeds/onlinemarkabolt/<findora_cat>/page-0001.json, ...
 #   - docs/feeds/onlinemarkabolt/akciok/meta.json
 #   - docs/feeds/onlinemarkabolt/akciok/page-0001.json, ...
 #
@@ -22,15 +20,14 @@
 #         "img": "https://...",
 #         "desc": "rövid leírás",
 #         "price": 151840,
-#         "discount": 23,              # kedvezmény % (ha van, különben null)
+#         "discount": 23,
 #         "url": "https://www.onlinemarkaboltok.hu/...",
 #         "partner": "onlinemarkabolt",
 #         "category_path": "BLANCO > ...",
 #         "category_root": "BLANCO",
-#         "findora_main": "haztartasi_gepek" | "otthon",
-#         "cat": "haztartasi_gepek" | "otthon"
-#       },
-#       ...
+#         "findora_main": "haztartasi_gepek" | "otthon" | ...,
+#         "cat": "haztartasi_gepek" | "otthon" | ...
+#       }
 #     ]
 #   }
 
@@ -44,12 +41,13 @@ import requests
 
 from datetime import datetime, timezone
 
-# --- hogy a scripts/ alatti assign modul is látszódjon ---
+# --- hogy a scripts/ alatti modulok is látszódjanak ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from category_onlinemarkabolt_assign import assign_category  # saját kategória-assigner
+from category_onlinemarkabolt_assign import assign_category  # partner-specifikus assigner
+from category_assignbase import FINDORA_CATS  # közös 25 Findora fő kategória
 
 
 # ====== KONFIG ======
@@ -59,11 +57,15 @@ OUT_BASE = "docs/feeds/onlinemarkabolt"
 # JSON oldal méret
 PAGE_SIZE = 300
 
-# Ennél a partnernél jelenleg csak ez a két Findora fő kategória játszik:
-ONLINEMARKABOLT_CATS = [
+# Ennél a partnernél valójában leginkább ezek játszanak,
+# de a FEEDBEN bármelyik FINDORA_CATS előjöhet:
+ONLINEMARKABOLT_PRIMARY_CATS = [
     "haztartasi_gepek",
     "otthon",
 ]
+
+# Minden elérhető Findora fő kategória – ÜRESRE IS csinálunk meta.json-t
+ALL_FINDORA_CATS = list(FINDORA_CATS)
 
 # Akciós bucket slug
 AKCIO_SLUG = "akciok"
@@ -92,12 +94,10 @@ def short_desc(t, maxlen=280):
     """HTML-ből rövidített, plain-text leírás."""
     if not t:
         return None
-    # HTML tagek lecsupaszítása
-    t = re.sub(r"<[^>]+>", " ", str(t))
+    t = re.sub(r"<[^>]+>", " ", str(t))  # HTML tagek
     t = re.sub(r"\s+", " ", t).strip()
     if len(t) <= maxlen:
         return t
-    # vágjuk szóhatáron
     cut = t[: maxlen + 10]
     m = re.search(r"\s+\S*$", cut)
     if m:
@@ -119,7 +119,6 @@ def ensure_clean_category_dir(path: str):
 def parse_xml_products(xml_bytes):
     """Visszaadja a <product> elemek listáját (Element)."""
     root = ET.fromstring(xml_bytes)
-    # tipikus struktúra: <products><product>...</product>...</products>
     return list(root.findall(".//product"))
 
 
@@ -159,7 +158,6 @@ def compute_discount(price, old_price):
 def normalize_item(prod):
     """
     Egy <product> → Findora item + kat (Findora fő kategória).
-    prod: xml.etree.ElementTree.Element
     """
     identifier = get_text(prod, "identifier") or get_text(prod, "code")
     name = get_text(prod, "name")
@@ -170,7 +168,6 @@ def normalize_item(prod):
     url = get_text(prod, "product_url")
     manufacturer = get_text(prod, "manufacturer")
 
-    # lehetséges régi ár mezők (ha a feed tartalmaz ilyet)
     old_price_raw = (
         get_text(prod, "old_price")
         or get_text(prod, "oldprice")
@@ -179,7 +176,6 @@ def normalize_item(prod):
         or get_text(prod, "price_without_discount")
     )
 
-    # kötelező mezők hiánya esetén dobjuk
     if not identifier or not name or not url:
         return None
 
@@ -187,7 +183,7 @@ def normalize_item(prod):
     old_price = norm_price(old_price_raw)
     discount = compute_discount(price, old_price)
 
-    # --- assign_category-hez mezők előkészítése ---
+    # assign_category input
     fields_raw = {
         "id": identifier,
         "code": get_text(prod, "code"),
@@ -198,17 +194,14 @@ def normalize_item(prod):
         "category": category,
         "category_text": category,
         "manufacturer": manufacturer,
-        # extra aliasok, ha az assigner ilyet keresne
         "productname": name,
         "categorytext": category,
     }
-
-    # kulcsok kisbetűsítve, None → ""
     fields = {str(k).lower(): (v if v is not None else "") for k, v in fields_raw.items()}
 
     kat = assign_category(fields) or "multi"
-    if kat not in ONLINEMARKABOLT_CATS:
-        # fallback: ami ismeretlen, menjen "otthon"-ba
+    if kat not in ALL_FINDORA_CATS:
+        # ha az assigner valami ismeretlen slugot dob, otthon-ba tereljük
         kat = "otthon"
 
     category_root = extract_category_root(category, manufacturer)
@@ -219,7 +212,7 @@ def normalize_item(prod):
         "img": img,
         "desc": short_desc(desc_html),
         "price": price,
-        "discount": discount,  # itt már számolt kedvezmény %
+        "discount": discount,
         "url": url,
         "partner": "onlinemarkabolt",
         "category_path": category or "",
@@ -232,20 +225,17 @@ def normalize_item(prod):
 
 def write_category_pages(cat_slug: str, items_for_cat, page_size: int):
     """
-    Egy konkrét Findora kategóriához (pl. 'haztartasi_gepek') kiírja
+    Egy konkrét Findora kategóriához kiírja
     a page-*.json oldalakat és a meta.json-t.
+    Üres lista esetén is LÉTREHOZ meta.json-t, pages=0-val.
     """
     cat_dir = os.path.join(OUT_BASE, cat_slug)
     ensure_clean_category_dir(cat_dir)
 
     total = len(items_for_cat)
-    if total == 0:
-        pages = 0
-    else:
-        pages = int(math.ceil(total / float(page_size)))
+    pages = int(math.ceil(total / float(page_size))) if total else 0
 
-    # stabil sorrend azonosító szerint
-    items_for_cat.sort(key=lambda x: str(x["id"]))
+    items_for_cat.sort(key=lambda x: str(x["id"]))  # stabil sorrend
 
     for i in range(pages):
         start = i * page_size
@@ -293,18 +283,17 @@ def main():
 
     os.makedirs(OUT_BASE, exist_ok=True)
 
-    # kat → item lista
-    items_by_cat = {slug: [] for slug in ONLINEMARKABOLT_CATS}
+    # kat → item lista MINDEN Findora-kategóriára
+    items_by_cat = {slug: [] for slug in ALL_FINDORA_CATS}
     seen_ids = set()
-    cat_counts = {slug: 0 for slug in ONLINEMARKABOLT_CATS}
+    cat_counts = {slug: 0 for slug in ALL_FINDORA_CATS}
 
-    all_items = []  # akciós buckethez is jól jön
+    all_items = []
 
     for prod in products:
         try:
             norm = normalize_item(prod)
         except Exception as e:
-            # egy termék se törje el az egész futást
             print(f"[WARN] Hibás termék, kihagyva: {e!r}")
             continue
 
@@ -318,7 +307,6 @@ def main():
         seen_ids.add(item["id"])
 
         if kat not in items_by_cat:
-            # ha valami fura slug jön, dobjuk "otthon"-ba
             kat = "otthon"
             item["findora_main"] = "otthon"
             item["cat"] = "otthon"
@@ -333,8 +321,8 @@ def main():
     for k in sorted(cat_counts.keys()):
         print(f"  - {k}: {cat_counts[k]} db")
 
-    # ===== Kategória-specifikus page-*.json + meta.json =====
-    for cat_slug in ONLINEMARKABOLT_CATS:
+    # ===== MINDEN Findora-kategóriára page-*.json + meta.json =====
+    for cat_slug in ALL_FINDORA_CATS:
         cat_items = items_by_cat.get(cat_slug, [])
         write_category_pages(cat_slug, cat_items, PAGE_SIZE)
 
@@ -349,7 +337,7 @@ def main():
     )
     write_category_pages(AKCIO_SLUG, akcio_items, PAGE_SIZE)
 
-    # opcionális globális meta (nem tartalmaz page-*.json-t)
+    # Globális meta – itt is felvesszük az ÖSSZES kategóriát (0-val is)
     global_meta = {
         "partner": "onlinemarkabolt",
         "sourceUrl": FEED_URL,
@@ -357,7 +345,7 @@ def main():
         "totalItems": total_items,
         "pageSize": PAGE_SIZE,
         "categories": cat_counts,
-        "categoriesList": ONLINEMARKABOLT_CATS,
+        "categoriesList": ALL_FINDORA_CATS,
         "akcioItems": len(akcio_items),
         "akcioMinDiscount": AKCIO_MIN_DISCOUNT,
     }
