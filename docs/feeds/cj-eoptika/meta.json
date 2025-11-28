@@ -1,8 +1,7 @@
 {
+  "total_items": 29854,
+  "page_size": 200,
+  "page_count": 150,
   "partner": "cj-eoptika",
-  "total": 29854,
-  "pageSize": 500,
-  "pageCount": 60,
-  "currency": "HUF",
-  "updatedAt": "2025-11-28T12:55:17Z"
+  "scope": "global"
 }

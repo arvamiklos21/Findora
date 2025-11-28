@@ -1,8 +1,7 @@
 {
+  "total_items": 8068,
+  "page_size": 200,
+  "page_count": 41,
   "partner": "cj-jateknet",
-  "total": 8068,
-  "pageSize": 500,
-  "pageCount": 17,
-  "currency": "HUF",
-  "updatedAt": "2025-11-28T12:55:18Z"
+  "scope": "global"
 }
