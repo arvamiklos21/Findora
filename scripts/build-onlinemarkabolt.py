@@ -1,13 +1,15 @@
 # scripts/build-onlinemarkabolt.py
 #
-# OnlineMárkaboltok → Findora paginált JSON feed
+# OnlineMárkaboltok → Findora paginált JSON feed, kategóriákra bontva
 #
 # Bemenet:
 #   - XML feed (FEED_ONLINEMARKABOLT_URL környezeti változó)
 #
 # Kimenet:
-#   - docs/feeds/onlinemarkabolt/meta.json
-#   - docs/feeds/onlinemarkabolt/page-0001.json, page-0002.json, ...
+#   - docs/feeds/onlinemarkabolt/haztartasi_gepek/meta.json
+#   - docs/feeds/onlinemarkabolt/haztartasi_gepek/page-0001.json, ...
+#   - docs/feeds/onlinemarkabolt/otthon/meta.json
+#   - docs/feeds/onlinemarkabolt/otthon/page-0001.json, ...
 #
 # Struktúra (page-*.json):
 #   {
@@ -20,9 +22,11 @@
 #         "price": 151840,
 #         "discount": null,
 #         "url": "https://www.onlinemarkaboltok.hu/...",
-#         "categoryPath": "BLANCO > ...",
-#         "kat": "otthon",
-#         "findora_main": "otthon"
+#         "partner": "onlinemarkabolt",
+#         "category_path": "BLANCO > ...",
+#         "category_root": "BLANCO",
+#         "findora_main": "haztartasi_gepek" | "otthon",
+#         "cat": "haztartasi_gepek" | "otthon"
 #       },
 #       ...
 #     ]
@@ -33,7 +37,6 @@ import sys
 import re
 import json
 import math
-import shutil
 import xml.etree.ElementTree as ET
 import requests
 
@@ -48,9 +51,17 @@ from category_onlinemarkabolt_assign import assign_category  # saját kategória
 
 
 # ====== KONFIG ======
-FEED_URL  = os.environ.get("FEED_ONLINEMARKABOLT_URL")
-OUT_DIR   = "docs/feeds/onlinemarkabolt"
-PAGE_SIZE = 300  # forrásoldal / JSON page méret
+FEED_URL = os.environ.get("FEED_ONLINEMARKABOLT_URL")
+OUT_BASE = "docs/feeds/onlinemarkabolt"
+
+# JSON oldal méret
+PAGE_SIZE = 300
+
+# Ennél a partnernél jelenleg csak ez a két Findora fő kategória játszik:
+ONLINEMARKABOLT_CATS = [
+    "haztartasi_gepek",
+    "otthon",
+]
 
 
 # ====== SEGÉDFÜGGVÉNYEK ======
@@ -85,9 +96,12 @@ def short_desc(t, maxlen=280):
     return cut + "…"
 
 
-def ensure_out_dir(path):
+def ensure_clean_category_dir(path: str):
+    """
+    Létrehozza a mappát (ha nem létezik),
+    és kitörli az esetleges régi page-*.json fájlokat.
+    """
     os.makedirs(path, exist_ok=True)
-    # régi page-*.json törlése, meta.json-t felülírjuk később
     for fn in os.listdir(path):
         if fn.startswith("page-") and fn.endswith(".json"):
             os.remove(os.path.join(path, fn))
@@ -107,18 +121,31 @@ def get_text(elem, tag):
     return str(child.text).strip()
 
 
+def extract_category_root(category: str, manufacturer: str | None) -> str:
+    """
+    A category_path első szintjét adja vissza (pl. BLANCO),
+    ha nincs '>' benne, akkor fallback a manufacturer-re.
+    """
+    cat = (category or "").strip()
+    if ">" in cat:
+        return cat.split(">")[0].strip()
+    if manufacturer:
+        return str(manufacturer).strip()
+    return cat
+
+
 def normalize_item(prod):
     """
-    Egy <product> → nyers dict + Findora item.
+    Egy <product> → Findora item + kat (Findora fő kategória).
     prod: xml.etree.ElementTree.Element
     """
-    identifier   = get_text(prod, "identifier") or get_text(prod, "code")
-    name         = get_text(prod, "name")
-    desc_html    = get_text(prod, "description")
-    price_raw    = get_text(prod, "price")
-    category     = get_text(prod, "category")
-    img          = get_text(prod, "image_url")
-    url          = get_text(prod, "product_url")
+    identifier = get_text(prod, "identifier") or get_text(prod, "code")
+    name = get_text(prod, "name")
+    desc_html = get_text(prod, "description")
+    price_raw = get_text(prod, "price")
+    category = get_text(prod, "category")
+    img = get_text(prod, "image_url")
+    url = get_text(prod, "product_url")
     manufacturer = get_text(prod, "manufacturer")
 
     # kötelező mezők hiánya esetén dobjuk
@@ -136,8 +163,9 @@ def normalize_item(prod):
         "title": name,
         "description": desc_html,
         "category": category,
+        "category_text": category,
         "manufacturer": manufacturer,
-        # extra aliasok, hogy a TEXT_TAG_KEYS biztosan találjon valamit
+        # extra aliasok, ha az assigner ilyet keresne
         "productname": name,
         "categorytext": category,
     }
@@ -146,7 +174,11 @@ def normalize_item(prod):
     fields = {str(k).lower(): (v if v is not None else "") for k, v in fields_raw.items()}
 
     kat = assign_category(fields) or "multi"
-    findora_main = kat  # később ha akarod, itt lehet külön mappinget csinálni
+    if kat not in ONLINEMARKABOLT_CATS:
+        # fallback: ami ismeretlen, menjen "otthon"-ba
+        kat = "otthon"
+
+    category_root = extract_category_root(category, manufacturer)
 
     item = {
         "id": identifier,
@@ -154,13 +186,61 @@ def normalize_item(prod):
         "img": img,
         "desc": short_desc(desc_html),
         "price": price,
-        "discount": None,          # a feedben jelenleg nincs külön akciós ár mező
+        "discount": None,  # a feedben jelenleg nincs külön akciós ár mező
         "url": url,
-        "categoryPath": category or "",
-        "kat": kat,
-        "findora_main": findora_main,
+        "partner": "onlinemarkabolt",
+        "category_path": category or "",
+        "category_root": category_root or "",
+        "findora_main": kat,
+        "cat": kat,
     }
     return item, kat
+
+
+def write_category_pages(cat_slug: str, items_for_cat, page_size: int):
+    """
+    Egy konkrét Findora kategóriához (pl. 'haztartasi_gepek') kiírja
+    a page-*.json oldalakat és a meta.json-t.
+    """
+    cat_dir = os.path.join(OUT_BASE, cat_slug)
+    ensure_clean_category_dir(cat_dir)
+
+    total = len(items_for_cat)
+    if total == 0:
+        pages = 0
+    else:
+        pages = int(math.ceil(total / float(page_size)))
+
+    # stabil sorrend azonosító szerint
+    items_for_cat.sort(key=lambda x: str(x["id"]))
+
+    for i in range(pages):
+        start = i * page_size
+        end = start + page_size
+        page_items = items_for_cat[start:end]
+
+        page_obj = {"items": page_items}
+        page_no = i + 1
+        fn = os.path.join(cat_dir, f"page-{page_no:04d}.json")
+        with open(fn, "w", encoding="utf-8") as f:
+            json.dump(page_obj, f, ensure_ascii=False, separators=(",", ":"))
+        print(
+            f"[INFO] OnlineMárkaboltok – kat='{cat_slug}' page-{page_no:04d}.json "
+            f"({len(page_items)} db)"
+        )
+
+    meta = {
+        "partner": "onlinemarkabolt",
+        "category": cat_slug,
+        "pageSize": page_size,
+        "total": total,
+        "pages": pages,
+        "lastUpdated": datetime.utcnow().isoformat() + "Z",
+    }
+    meta_fn = os.path.join(cat_dir, "meta.json")
+    with open(meta_fn, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    print(f"[INFO] OnlineMárkaboltok – kat='{cat_slug}' meta.json kész: {meta_fn}")
 
 
 def main():
@@ -178,11 +258,12 @@ def main():
     products = parse_xml_products(resp.content)
     print(f"[INFO] OnlineMárkaboltok – XML termékek száma: {len(products)}")
 
-    ensure_out_dir(OUT_DIR)
+    os.makedirs(OUT_BASE, exist_ok=True)
 
-    items = []
+    # kat → item lista
+    items_by_cat = {slug: [] for slug in ONLINEMARKABOLT_CATS}
     seen_ids = set()
-    cat_counts = {}
+    cat_counts = {slug: 0 for slug in ONLINEMARKABOLT_CATS}
 
     for prod in products:
         try:
@@ -201,49 +282,38 @@ def main():
             continue
         seen_ids.add(item["id"])
 
-        items.append(item)
+        if kat not in items_by_cat:
+            # ha valami fura slug jön, dobjuk "otthon"-ba
+            kat = "otthon"
+
+        items_by_cat[kat].append(item)
         cat_counts[kat] = cat_counts.get(kat, 0) + 1
 
-    print(f"[INFO] OnlineMárkaboltok – normalizált sorok: {len(items)}")
+    total_items = sum(cat_counts.values())
+    print(f"[INFO] OnlineMárkaboltok – normalizált sorok összesen: {total_items}")
     print("[INFO] OnlineMárkaboltok – kategória statisztika:")
     for k in sorted(cat_counts.keys()):
         print(f"  - {k}: {cat_counts[k]} db")
 
-    # ===== Pagelés + fájlírás =====
-    total = len(items)
-    if total == 0:
-        print("[WARN] OnlineMárkaboltok – nincs egyetlen normalizált termék sem!")
-    page_count = int(math.ceil(total / float(PAGE_SIZE))) if total else 0
+    # ===== Kategória-specifikus page-*.json + meta.json =====
+    for cat_slug in ONLINEMARKABOLT_CATS:
+        cat_items = items_by_cat.get(cat_slug, [])
+        write_category_pages(cat_slug, cat_items, PAGE_SIZE)
 
-    # stabil sorrend: azonosító szerint
-    items.sort(key=lambda x: str(x["id"]))
-
-    for i in range(page_count):
-        start = i * PAGE_SIZE
-        end = start + PAGE_SIZE
-        page_items = items[start:end]
-
-        page_obj = {"items": page_items}
-        page_no = i + 1
-        fn = os.path.join(OUT_DIR, f"page-{page_no:04d}.json")
-        with open(fn, "w", encoding="utf-8") as f:
-            json.dump(page_obj, f, ensure_ascii=False, separators=(",", ":"))
-        print(f"[INFO] OnlineMárkaboltok – írtam: {fn} ({len(page_items)} db)")
-
-    # meta.json
-    meta = {
+    # opcionális globális meta (nem tartalmaz page-*.json-t)
+    global_meta = {
         "partner": "onlinemarkabolt",
         "sourceUrl": FEED_URL,
         "generatedAt": datetime.utcnow().isoformat() + "Z",
-        "totalItems": total,
+        "totalItems": total_items,
         "pageSize": PAGE_SIZE,
-        "pageCount": page_count,
         "categories": cat_counts,
+        "categoriesList": ONLINEMARKABOLT_CATS,
     }
-    meta_fn = os.path.join(OUT_DIR, "meta.json")
+    meta_fn = os.path.join(OUT_BASE, "meta.json")
     with open(meta_fn, "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
-    print(f"[INFO] OnlineMárkaboltok – meta írás kész: {meta_fn}")
+        json.dump(global_meta, f, ensure_ascii=False, indent=2)
+    print(f"[INFO] OnlineMárkaboltok – globális meta.json kész: {meta_fn}")
 
 
 if __name__ == "__main__":
