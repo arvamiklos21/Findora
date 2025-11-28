@@ -1,15 +1,15 @@
 # scripts/build_decathlon.py
 #
-# Decathlon feed → Findora JSON oldalak (globál + kategória + akciós blokk)
+# Decathlon feed → Findora JSON oldalak (kategória + akciós blokk, NINCS globál page-*.json)
 #
 # Kategorizálás: category_assignbase.assign_category
 #   - partner: "decathlon"
 #   - partner_default: "sport" (ha nem talál semmit, visszarakja "sport"-ba, NEM multi-ba)
 #
 # Kimenet:
-#   docs/feeds/decathlon/meta.json, page-0001.json...              (globál)
-#   docs/feeds/decathlon/<findora_cat>/meta.json, page-....json    (kategória)
-#   docs/feeds/decathlon/akcios-block/meta.json, page-....json     (akciós blokk, discount >= 10%)
+#   docs/feeds/decathlon/meta.json                               (összefoglaló)
+#   docs/feeds/decathlon/<findora_cat>/meta.json, page-....json  (kategória)
+#   docs/feeds/decathlon/akcios-block/meta.json, page-....json   (akciós blokk, discount >= 10%)
 
 import os
 import re
@@ -22,44 +22,14 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
-from category_assignbase import assign_category, FINDORA_CATS
+from category_assignbase import assign_category, FINDORA_CATS  # FINDORA_CATS: 25 fő kategória
 
-# Findora fő kategória SLUG-ok – a 25 menühöz igazítva + "akciok"
-FINDORA_CATS = [
-    "akciok",
-    "elektronika",
-    "haztartasi_gepek",
-    "szamitastechnika",
-    "mobil",
-    "gaming",
-    "smart_home",
-    "otthon",
-    "lakberendezes",
-    "konyha_fozes",
-    "kert",
-    "jatekok",
-    "divat",
-    "szepseg",
-    "drogeria",
-    "baba",
-    "sport",
-    "egeszseg",
-    "latas",
-    "allatok",
-    "konyv",
-    "utazas",
-    "iroda_iskola",
-    "szerszam_barkacs",
-    "auto_motor",
-    "multi",
-]
+# Ha szeretnél külön Decathlon-specifikus listát, itt felülírhatnád, de
+# most a közös 25-ös listát használjuk.
 
 
 FEED_URL = os.environ.get("FEED_DECATHLON_URL")
 OUT_DIR = Path("docs/feeds/decathlon")
-
-# Globál feed: nagyobb lap
-PAGE_SIZE_GLOBAL = 300
 
 # Kategória feedek: 20/lap
 PAGE_SIZE_CAT = 20
@@ -369,10 +339,9 @@ def dedup_size_variants(items):
             # nagyobb kedvezmény
             if (it.get("discount") or 0) > (cur.get("discount") or 0):
                 cur["discount"] = it["discount"]
-            # ha az újban van hosszabb leírás, cseréljük
+            # hosszabb leírás
             if len(it.get("desc") or "") > len(cur.get("desc") or ""):
                 cur["desc"] = it["desc"]
-            # category_path / brand első érték maradhat (nem piszkáljuk)
     return list(buckets.values())
 
 
@@ -414,7 +383,7 @@ def main():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # régi JSON-ok törlése (globál + kategória + akcios-block)
+    # régi JSON-ok törlése (kategória + akcios-block + top meta)
     for old in OUT_DIR.rglob("*.json"):
         try:
             old.unlink()
@@ -443,7 +412,6 @@ def main():
         price = it.get("price")
         discount = it.get("discount")
         category_path = it.get("category_path") or ""
-        # Decathlon feedben brand nem mindig tiszta, de ha lenne:
         brand = it.get("brand") or ""
 
         findora_main = assign_category(
@@ -475,17 +443,6 @@ def main():
 
     # ===== HA NINCS EGYETLEN TERMÉK SEM =====
     if total == 0:
-        # Globál üres meta
-        paginate_and_write(
-            OUT_DIR,
-            [],
-            PAGE_SIZE_GLOBAL,
-            meta_extra={
-                "partner": "decathlon",
-                "scope": "global",
-            },
-        )
-
         # Minden kategóriára üres meta
         for slug in FINDORA_CATS:
             base_dir = OUT_DIR / slug
@@ -511,20 +468,30 @@ def main():
             },
         )
 
+        # Top-level meta (összefoglaló)
+        top_meta = {
+            "partner": "decathlon",
+            "total_items": 0,
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "categories": {
+                slug: {
+                    "total_items": 0,
+                    "page_size": PAGE_SIZE_CAT,
+                    "page_count": 0,
+                }
+                for slug in FINDORA_CATS
+            },
+            "akcios_block": {
+                "total_items": 0,
+                "page_size": PAGE_SIZE_AKCIO_BLOCK,
+                "page_count": 0,
+            },
+        }
+        with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
+            json.dump(top_meta, f, ensure_ascii=False, indent=2)
+
         print("⚠️ Decathlon: nincs termék → csak üres meta-k készültek.")
         return
-
-    # ===== GLOBÁL FEED =====
-    paginate_and_write(
-        OUT_DIR,
-        rows,
-        PAGE_SIZE_GLOBAL,
-        meta_extra={
-            "partner": "decathlon",
-            "scope": "global",
-            "generated_at": datetime.utcnow().isoformat() + "Z",
-        },
-    )
 
     # ===== KATEGÓRIA FEED-EK =====
     buckets = {slug: [] for slug in FINDORA_CATS}
@@ -533,6 +500,8 @@ def main():
         if slug not in buckets:
             slug = "multi"
         buckets[slug].append(row)
+
+    categories_meta = {}
 
     for slug, items_cat in buckets.items():
         base_dir = OUT_DIR / slug
@@ -546,6 +515,13 @@ def main():
                 "generated_at": datetime.utcnow().isoformat() + "Z",
             },
         )
+        total_cat = len(items_cat)
+        page_count_cat = int(math.ceil(total_cat / PAGE_SIZE_CAT)) if total_cat else 0
+        categories_meta[slug] = {
+            "total_items": total_cat,
+            "page_size": PAGE_SIZE_CAT,
+            "page_count": page_count_cat,
+        }
 
     # ===== AKCIÓS BLOKK (discount >= 10%) =====
     akcios_items = [
@@ -564,6 +540,23 @@ def main():
             "generated_at": datetime.utcnow().isoformat() + "Z",
         },
     )
+    total_akcio = len(akcios_items)
+    page_count_akcio = int(math.ceil(total_akcio / PAGE_SIZE_AKCIO_BLOCK)) if total_akcio else 0
+
+    # ===== TOP-LEVEL META (összefoglaló, NINCS globál page-*.json) =====
+    top_meta = {
+        "partner": "decathlon",
+        "total_items": total,
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "categories": categories_meta,
+        "akcios_block": {
+            "total_items": total_akcio,
+            "page_size": PAGE_SIZE_AKCIO_BLOCK,
+            "page_count": page_count_akcio,
+        },
+    }
+    with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
+        json.dump(top_meta, f, ensure_ascii=False, indent=2)
 
     print(
         f"✅ Decathlon kész: {total} termék, "
