@@ -1,6 +1,6 @@
 # scripts/pepita.py
 #
-# PEPITA feed → Findora JSON oldalak (globál + ML-alapú kategória bontás)
+# PEPITA feed → Findora JSON oldalak (globál + ML-alapú kategória bontás + akciós blokk)
 
 import os
 import sys
@@ -30,6 +30,9 @@ PAGE_SIZE_GLOBAL = 300
 
 # Kategória nézet (pl. 20/lap a menüknél)
 PAGE_SIZE_CAT = 20
+
+# Akciós blokk mérete (pl. főoldali blokk)
+PAGE_SIZE_AKCIO_BLOCK = 20
 
 # Findora fő kategória SLUG-ok – a 25 menüdhöz igazítva
 FINDORA_CATS = [
@@ -162,7 +165,7 @@ def parse_pepita_xml(xml_text: str):
         m["link"] = gettext(["product_url", "link", "url"])
         m["image_link"] = gettext(["image_link", "image_url"])
         m["price"] = gettext(["price"])
-        m["sale_price"] = ""  # Pepitánál nincs külön akciós ár mező
+        m["sale_price"] = ""  # Pepitánál jelenleg nincs külön akciós ár mező
         m["product_type"] = gettext(["category"])
         m["brand"] = gettext(["manufacturer"])
 
@@ -253,7 +256,7 @@ def main():
 
         price_raw = m.get("sale_price") or m.get("price")
         price = norm_price(price_raw)
-        discount = None
+        discount = None  # Pepitánál most nem számítunk külön kedvezmény %-ot
 
         cat_path = m.get("product_type") or ""
         if cat_path:
@@ -339,7 +342,23 @@ def main():
             },
         )
 
-    print("[INFO] Kész: PEPITA feed JSON oldalak legenerálva (globál + kategória-bontás, ML).")
+    # 3) Akciós blokk: docs/feeds/pepita/akcios-block/page-0001.json ...
+    # Itt azokat tesszük be, amiket az ML "akciok" kategóriára sorolt.
+    akcios_items = [row for row in rows if row.get("cat") == "akciok"]
+
+    akcio_base_dir = os.path.join(OUT_DIR, "akcios-block")
+    paginate_and_write(
+        akcio_base_dir,
+        akcios_items,
+        PAGE_SIZE_AKCIO_BLOCK,
+        meta_extra={
+            "partner": "pepita",
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "scope": "akcios-block",
+        },
+    )
+
+    print("[INFO] Kész: PEPITA feed JSON oldalak legenerálva (globál + kategória-bontás + akciós blokk).")
 
 
 if __name__ == "__main__":
