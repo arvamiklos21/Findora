@@ -1,1 +1,8 @@
-{"partner": "jateksziget", "pageSize": 300, "total": 215, "pages": 1, "lastUpdated": "2025-11-27T19:25:15.364471Z", "source": "feed"}
+{
+  "total_items": 215,
+  "page_size": 300,
+  "page_count": 1,
+  "partner": "jateksziget",
+  "scope": "global",
+  "generated_at": "2025-11-28T18:50:36.062486Z"
+}
