@@ -3,11 +3,10 @@ name: ingest-onlinemarkabolt
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 9,19 * * *"   # reggel 10:00 és este 20:00 magyar idő (9 és 19 UTC)
+    - cron: "0 9,19 * * *"
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
   group: ingest-onlinemarkabolt-${{ github.ref }}
@@ -16,15 +15,16 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # --- fontos: mindig sync main ---
       - name: Sync with origin/main
         run: |
-          set -e
           git fetch origin
           git checkout main
           git reset --hard origin/main
@@ -36,7 +36,7 @@ jobs:
 
       - name: Install deps
         run: |
-          python -m pip install --upgrade pip
+          pip install --upgrade pip
           pip install requests
 
       - name: Build OnlineMarkabolt feed pages
@@ -44,73 +44,26 @@ jobs:
           FEED_ONLINEMARKABOLT_URL: ${{ secrets.FEED_ONLINEMARKABOLT_URL }}
         run: |
           set -e
-
-          if [ -z "${FEED_ONLINEMARKABOLT_URL:-}" ]; then
-            echo "::error title=Missing secret::FEED_ONLINEMARKABOLT_URL nincs beállítva (Settings → Secrets → Actions)."
+          if [ -z "$FEED_ONLINEMARKABOLT_URL" ]; then
+            echo "::error title=Missing secret::FEED_ONLINEMARKABOLT_URL nincs!"
             exit 1
           fi
 
           mkdir -p docs/feeds/onlinemarkabolt
           python -u scripts/build-onlinemarkabolt.py
 
-          # Globális meta.json kötelező
           test -s docs/feeds/onlinemarkabolt/meta.json
 
-          # Válasszunk egy kategória-mappát ellenőrzéshez (haztartasi_gepek / otthon / akciok)
-          PAGE_DIR=""
-          if [ -d "docs/feeds/onlinemarkabolt/haztartasi_gepek" ]; then
-            PAGE_DIR="docs/feeds/onlinemarkabolt/haztartasi_gepek"
-          elif [ -d "docs/feeds/onlinemarkabolt/otthon" ]; then
-            PAGE_DIR="docs/feeds/onlinemarkabolt/otthon"
-          elif [ -d "docs/feeds/onlinemarkabolt/akciok" ]; then
-            PAGE_DIR="docs/feeds/onlinemarkabolt/akciok"
-          else
-            echo "::error ::Nincs egyetlen kategória mappa sem a docs/feeds/onlinemarkabolt alatt."
-            exit 1
-          fi
-
-          # Legalább az első page-0001.json létezzen a választott kategóriában
-          test -s "$PAGE_DIR/page-0001.json"
-
-          if command -v jq >/dev/null 2>&1; then
-            # page-0001.json minimális szerkezeti ellenőrzés
-            jq -e '.items | length >= 0' "$PAGE_DIR/page-0001.json" >/dev/null
-
-            # Globális meta.json: totalItems mező ellenőrzése
-            jq -e '.totalItems >= 0' docs/feeds/onlinemarkabolt/meta.json >/dev/null
-
-            echo "Sanity check (first item from $PAGE_DIR/page-0001.json):"
-            jq -r '.items[0] | {title, img, url, price, discount, findora_main}' "$PAGE_DIR/page-0001.json" || true
-          else
-            echo "jq nem elérhető, csak az első page elejét mutatom:"
-            head -c 800 "$PAGE_DIR/page-0001.json" || true
-          fi
-
-          echo "Lista a docs/feeds/onlinemarkabolt alatt:"
-          ls -la docs/feeds/onlinemarkabolt
-          echo "Lista a $PAGE_DIR alatt:"
-          ls -la "$PAGE_DIR"
-
-      - name: Commit feed updates to bot branch
+      - name: Commit & push directly to main (no PR)
         run: |
-          set -e
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          BR="bot/update-onlinemarkabolt"
-          git checkout -B "$BR"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
           git add docs/feeds/onlinemarkabolt
-          git commit -m "onlinemarkabolt: update feed pages" || echo "No changes"
-          git push --force-with-lease origin "$BR"
 
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: bot/update-onlinemarkabolt
-          delete-branch: true
-          title: "onlinemarkabolt: update feed pages"
-          commit-message: "onlinemarkabolt: update feed pages"
-          body: |
-            Automated update of OnlineMárkabolt feed pages (JSON pagination).
-          base: main
+          # ha nincs változás → kilép, nincs PR
+          git diff --cached --quiet && echo "No changes, exiting." && exit 0
+
+          git commit -m "onlinemarkabolt: update feed pages"
+          git pull --rebase origin main || true
+          git push origin HEAD:main
