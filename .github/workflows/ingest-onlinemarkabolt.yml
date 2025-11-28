@@ -47,12 +47,14 @@ jobs:
           # Globális meta.json kötelező
           test -s docs/feeds/onlinemarkabolt/meta.json
 
-          # Válasszunk egy kategória-mappát (haztartasi_gepek vagy otthon)
+          # Válasszunk egy kategória-mappát ellenőrzéshez (haztartasi_gepek / otthon / akciok)
           PAGE_DIR=""
           if [ -d "docs/feeds/onlinemarkabolt/haztartasi_gepek" ]; then
             PAGE_DIR="docs/feeds/onlinemarkabolt/haztartasi_gepek"
           elif [ -d "docs/feeds/onlinemarkabolt/otthon" ]; then
             PAGE_DIR="docs/feeds/onlinemarkabolt/otthon"
+          elif [ -d "docs/feeds/onlinemarkabolt/akciok" ]; then
+            PAGE_DIR="docs/feeds/onlinemarkabolt/akciok"
           else
             echo "::error ::Nincs egyetlen kategória mappa sem a docs/feeds/onlinemarkabolt alatt."
             exit 1
@@ -65,8 +67,9 @@ jobs:
             # page-0001.json minimális szerkezeti ellenőrzés
             jq -e '.items | length >= 0' "$PAGE_DIR/page-0001.json" >/dev/null
 
-            # meta.json: az új kulcsnevekhez igazítva (pageCount + totalItems)
-            jq -e '.pageCount >= 0 and .totalItems >= 0' docs/feeds/onlinemarkabolt/meta.json >/dev/null
+            # meta.json: a build-onlinemarkabolt.py globális meta mezőihez igazítva
+            # (nincs pageCount, van viszont totalItems)
+            jq -e '.totalItems >= 0' docs/feeds/onlinemarkabolt/meta.json >/dev/null
 
             echo "Sanity check (first item from $PAGE_DIR/page-0001.json):"
             jq -r '.items[0] | {title, img, url, price, discount, findora_main}' "$PAGE_DIR/page-0001.json" || true
