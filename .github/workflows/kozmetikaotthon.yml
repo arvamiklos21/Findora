@@ -3,7 +3,7 @@ name: ingest-kozmetikaotthon
 on:
   workflow_dispatch:
   schedule:
-    - cron: "10 10,19 * * *"   # 11:10 és 20:10 (Europe/Budapest), azaz 10:10 és 19:10 UTC
+    - cron: "10 10,19 * * *"   # 11:10 és 20:10 (Europe/Budapest) – 10:10 és 19:10 UTC
 
 permissions:
   contents: write
@@ -12,44 +12,78 @@ permissions:
 jobs:
   ingest:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Sync with origin/main
+        run: |
+          set -e
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.11"
 
       - name: Install deps
-        run: pip install requests
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - name: Build KozmetikaOtthon feed pages
+      - name: Build KozmetikaOtthon feed pages (global + categories + akcios-block)
         env:
           FEED_KOZMETIKAOTTHON_URL: ${{ secrets.FEED_KOZMETIKAOTTHON_URL }}
         run: |
           set -e
           if [ -z "$FEED_KOZMETIKAOTTHON_URL" ]; then
-            echo "::error title=Missing secret::FEED_KOZMETIKAOTTHON_URL nincs beállítva (Settings → Secrets → Actions)."; exit 1
+            echo "::error title=Missing secret::FEED_KOZMETIKAOTTHON_URL nincs beállítva (Settings → Secrets → Actions)."
+            exit 1
           fi
+
           mkdir -p docs/feeds/kozmetikaotthon
+
+          # build_kozmetikaotthon.py:
+          #  - globál feed (docs/feeds/kozmetikaotthon/page-0001.json, ... + meta.json)
+          #  - kategória feedek (docs/feeds/kozmetikaotthon/<category>/...)
+          #  - akcios-block (docs/feeds/kozmetikaotthon/akcios-block/...)
           python scripts/build_kozmetikaotthon.py
-          echo "Sanity check (first item):"
+
+          echo "Sanity check (global page-0001 + meta):"
           if command -v jq >/dev/null 2>&1; then
+            # page-0001.json minimális szerkezeti ellenőrzés
+            jq -e '.items | length >= 0' docs/feeds/kozmetikaotthon/page-0001.json >/dev/null
+
+            # meta.json: a build_kozmetikaotthon.py meta mezőihez igazítva
+            jq -e '.total_items >= 0 and .page_size > 0' docs/feeds/kozmetikaotthon/meta.json >/dev/null
+
+            echo "Első item:"
             jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/kozmetikaotthon/page-0001.json || true
           else
-            head -c 600 docs/feeds/kozmetikaotthon/page-0001.json || true
+            head -c 800 docs/feeds/kozmetikaotthon/page-0001.json || true
           fi
-          ls -la docs/feeds/kozmetikaotthon
 
-      - name: Commit changes
+          echo "Tree of docs/feeds/kozmetikaotthon:"
+          ls -R docs/feeds/kozmetikaotthon || true
+
+      - name: Commit feed updates to bot branch
         run: |
+          set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BR="bot/update-kozmetikaotthon"
+          git checkout -B "$BR"
+
           git add docs/feeds/kozmetikaotthon
+
           git commit -m "kozmetikaotthon: update feed pages" || echo "No changes"
+          git push --force-with-lease origin "$BR"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
@@ -59,4 +93,8 @@ jobs:
           title: "kozmetikaotthon: update feed pages"
           commit-message: "kozmetikaotthon: update feed pages"
           body: |
-            Automated update of KozmetikaOtthon feed pages (JSON pagination).
+            Automated update of KozmetikaOtthon feed pages:
+            - global feed (docs/feeds/kozmetikaotthon)
+            - category feeds (docs/feeds/kozmetikaotthon/<category>/)
+            - akcios-block (docs/feeds/kozmetikaotthon/akcios-block/).
+          base: main
