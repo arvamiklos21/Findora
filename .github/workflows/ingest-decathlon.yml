@@ -3,7 +3,7 @@ name: ingest-decathlon
 on:
   workflow_dispatch:
   schedule:
-    - cron: "10 9,17 * * *"   # reggel 10:10 és este 18:10 magyar idő (9:10 és 17:10 UTC)
+    - cron: "10 9,17 * * *"
 
 permissions:
   contents: write
@@ -37,23 +37,29 @@ jobs:
           FEED_DECATHLON_URL: ${{ secrets.FEED_DECATHLON_URL }}
         run: |
           set -euo pipefail
+
           if [ -z "${FEED_DECATHLON_URL:-}" ]; then
-            echo "::error title=Missing secret::FEED_DECATHLON_URL nincs beállítva (Settings → Secrets → Actions)."
+            echo "::error title=Missing secret::FEED_DECATHLON_URL nincs beállítva."
             exit 1
           fi
 
           mkdir -p docs/feeds/decathlon
           python -u scripts/build_decathlon.py
 
-          # Szigorú sanity check
+          # ======= SANITY CHECK (javított) =======
           test -s docs/feeds/decathlon/meta.json
           test -s docs/feeds/decathlon/page-0001.json
 
           if command -v jq >/dev/null 2>&1; then
-            jq -e '.items | length >= 0' docs/feeds/decathlon/page-0001.json >/dev/null
-            jq -e '.page_count >= 0 and .total_items >= 0' docs/feeds/decathlon/meta.json >/dev/null
-            echo "Sanity check (first item):"
-            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/decathlon/page-0001.json || true
+            # meta.json ellenőrzés
+            jq -e '.total_items >= 0' docs/feeds/decathlon/meta.json >/dev/null
+            jq -e '.page_count >= 0' docs/feeds/decathlon/meta.json >/dev/null
+
+            # első oldal ellenőrzése
+            jq -e '.items | type=="array"' docs/feeds/decathlon/page-0001.json >/dev/null
+
+            echo "Sanity OK – első termék:"
+            jq -r '.items[0] | {title, price, discount}' docs/feeds/decathlon/page-0001.json || true
           else
             head -c 800 docs/feeds/decathlon/page-0001.json || true
           fi
@@ -65,6 +71,7 @@ jobs:
           git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
           git add docs/feeds/decathlon
           git commit -m "decathlon: update feed pages" || echo "No changes"
 
