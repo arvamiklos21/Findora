@@ -26,6 +26,7 @@ jobs:
           # ha kell extra lib, itt lehet:
           # pip install -r requirements.txt
 
+
       # ============================
       # === EOPTIKA FEED DOWNLOAD ===
       # ============================
@@ -41,9 +42,10 @@ jobs:
           ls -R cj-eoptika-feed
           python scripts/build_cj_eoptika.py
 
+
       # ============================
       # === KARCHER FEED DOWNLOAD ===
-      # (még a régi generikus builderrel)
+      # (ÚJ: saját builder)
       # ============================
       - name: Download CJ Karcher feed
         env:
@@ -51,12 +53,12 @@ jobs:
           CJ_HTTP_PASS: ${{ secrets.CJ_HTTP_PASS }}
           FEED_URL: ${{ secrets.CJ_FEED_KARCHER_URL }}
         run: |
-          mkdir -p cj-feeds/karcher
+          mkdir -p cj-karcher-feed
           curl -u "$CJ_HTTP_USER:$CJ_HTTP_PASS" -L "$FEED_URL" -o karcher.zip
-          unzip -o karcher.zip -d cj-feeds/karcher
-          TXT=$(find cj-feeds/karcher -type f -name "*.txt" | head -n 1)
-          echo "TXT: $TXT"
-          python scripts/build_cj_txt.py "$TXT" cj-karcher
+          unzip -o karcher.zip -d cj-karcher-feed
+          ls -R cj-karcher-feed
+          python scripts/build_cj_karcher.py
+
 
       # ============================
       # === JATEKNET FEED DOWNLOAD ===
@@ -72,6 +74,7 @@ jobs:
           unzip -o jateknet.zip -d cj-jateknet-feed
           ls -R cj-jateknet-feed
           python scripts/build_cj_jateknet.py
+
 
       # ============================
       # === GIT COMMIT + REBASE PUSH ===
