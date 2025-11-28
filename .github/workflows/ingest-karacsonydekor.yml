@@ -9,6 +9,10 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: ingest-karacsonydekor-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ingest:
     runs-on: ubuntu-latest
@@ -21,7 +25,7 @@ jobs:
 
       - name: Sync with origin/main
         run: |
-          set -e
+          set -euo pipefail
           git fetch origin
           git checkout main
           git reset --hard origin/main
@@ -33,25 +37,26 @@ jobs:
 
       - name: Install deps
         run: |
-          pip install --upgrade pip
+          set -euo pipefail
+          python -m pip install --upgrade pip
           pip install requests
 
       - name: Build Karacsonydekor feed pages (global + categories + akcios-block)
         env:
           FEED_KARACSONYDEKOR_URL: ${{ secrets.FEED_KARACSONYDEKOR_URL }}
         run: |
-          set -e
-          if [ -z "$FEED_KARACSONYDEKOR_URL" ]; then
+          set -euo pipefail
+          if [ -z "${FEED_KARACSONYDEKOR_URL:-}" ]; then
             echo "::error title=Missing secret::FEED_KARACSONYDEKOR_URL nincs beállítva (Settings → Secrets → Actions)."
             exit 1
           fi
 
           mkdir -p docs/feeds/karacsonydekor
 
-          # ÚJ: build_karacsonydekor.py már:
-          #  - globál feedet ír a docs/feeds/karacsonydekor/ alá
-          #  - létrehozza az összes Findora kategória mappát
-          #  - létrehozza az akcios-block mappát, meta.json-nal
+          # build_karacsonydekor.py:
+          #  - globál feed (docs/feeds/karacsonydekor/page-0001.json, ... + meta.json)
+          #  - kategória feedek (docs/feeds/karacsonydekor/<category>/...)
+          #  - akcios-block (docs/feeds/karacsonydekor/akcios-block/...)
           python scripts/build_karacsonydekor.py
 
           echo "Sanity check (global page-0001):"
@@ -66,7 +71,7 @@ jobs:
 
       - name: Commit feed updates to bot branch
         run: |
-          set -e
+          set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
