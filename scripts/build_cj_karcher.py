@@ -1,55 +1,31 @@
-# scripts/build_cj_jateknet.py
+# scripts/build_cj_karcher.py
 #
-# CJ JátékNet feed → Findora JSON oldalak (globál + kategória + akciós blokk)
+# CJ Kärcher feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
 # Kategorizálás: category_assignbase.assign_category
-#   - partner: "cj-jateknet"
-#   - partner_default: "jatekok" (ha nem talál semmit, visszarakja "jatekok"-ba, NEM multi-ba)
+#   - partner: "cj-karcher"
+#   - partner_default: "haztartasi_gepek"
 #
 # Kimenet:
-#   docs/feeds/cj-jateknet/meta.json, page-0001.json...              (globál)
-#   docs/feeds/cj-jateknet/<findora_cat>/meta.json, page-....json    (kategória)
-#   docs/feeds/cj-jateknet/akcios-block/meta.json, page-....json     (akciós blokk, discount >= 10%)
+#   docs/feeds/cj-karcher/meta.json, page-0001.json...              (globál)
+#   docs/feeds/cj-karcher/<findora_cat>/meta.json, page-....json    (kategória)
+#   docs/feeds/cj-karcher/akcios-block/meta.json, page-....json     (akciós blokk, discount >= 10%)
 
 import csv
 import json
 import math
 from pathlib import Path
 
-from category_assignbase import assign_category, FINDORA_CATS
+from category_assignbase import assign_category, FINDORA_CATS as BASE_CATS
 
 # Findora fő kategória SLUG-ok – a 25 menühöz igazítva + "akciok"
 FINDORA_CATS = [
     "akciok",
-    "elektronika",
-    "haztartasi_gepek",
-    "szamitastechnika",
-    "mobil",
-    "gaming",
-    "smart_home",
-    "otthon",
-    "lakberendezes",
-    "konyha_fozes",
-    "kert",
-    "jatekok",
-    "divat",
-    "szepseg",
-    "drogeria",
-    "baba",
-    "sport",
-    "egeszseg",
-    "latas",
-    "allatok",
-    "konyv",
-    "utazas",
-    "iroda_iskola",
-    "szerszam_barkacs",
-    "auto_motor",
-    "multi",
+    *BASE_CATS,  # elektronika, haztartasi_gepek, ... , multi
 ]
 
-IN_DIR = Path("cj-jateknet-feed")
-OUT_DIR = Path("docs/feeds/cj-jateknet")
+IN_DIR = Path("cj-karcher-feed")
+OUT_DIR = Path("docs/feeds/cj-karcher")
 
 # Globál feed: 200/lap
 PAGE_SIZE_GLOBAL = 200
@@ -128,7 +104,7 @@ for old_json in OUT_DIR.rglob("*.json"):
 
 txt_files = list(IN_DIR.glob("*.txt"))
 if not txt_files:
-    raise SystemExit("Nincs .txt fájl a CJ JátékNet feedben :(")
+    raise SystemExit("Nincs .txt fájl a CJ Kärcher feedben :(")
 
 feed_file = sorted(txt_files)[0]
 
@@ -139,16 +115,16 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
     f.seek(0)
     try:
         dialect = csv.Sniffer().sniff(sample, delimiters="\t,;|")
-        print("DEBUG CJ JATEKNET DIALECT delimiter:", repr(dialect.delimiter))
+        print("DEBUG CJ KARCHER DIALECT delimiter:", repr(dialect.delimiter))
     except Exception:
         dialect = csv.excel_tab
-        print("DEBUG CJ JATEKNET DIALECT fallback: TAB")
+        print("DEBUG CJ KARCHER DIALECT fallback: TAB")
 
     reader = csv.DictReader(f, dialect=dialect)
 
     for idx, row in enumerate(reader):
         if idx == 0:
-            print("DEBUG CJ JATEKNET HEADERS:", list(row.keys()))
+            print("DEBUG CJ KARCHER HEADERS:", list(row.keys()))
 
         title = first(row, "TITLE", "title")
         if not title:
@@ -195,7 +171,7 @@ with feed_file.open("r", encoding="utf-8", newline="") as f:
         )
 
 total_raw = len(raw_items)
-print(f"[INFO] CJ JátékNet: nyers termékek: {total_raw}")
+print(f"[INFO] CJ Kärcher: nyers termékek: {total_raw}")
 
 
 # ====================== NORMALIZÁLÁS + KATEGORIZÁLÁS ======================
@@ -221,8 +197,8 @@ for m in raw_items:
         desc=desc,
         category_path=category_path,
         brand=brand,
-        partner="cj-jateknet",
-        partner_default="jatekok",  # játékbolt → alapértelmezett "jatekok"
+        partner="cj-karcher",
+        partner_default="haztartasi_gepek",  # alapértelmezett: háztartási gépek / tisztítógépek
     )
 
     row = {
@@ -235,7 +211,7 @@ for m in raw_items:
         "currency": currency,
         "discount": discount,
         "url": url,
-        "partner": "cj-jateknet",
+        "partner": "cj-karcher",
         "category_path": category_path,
         "findora_main": findora_main,
         "cat": findora_main,
@@ -243,7 +219,7 @@ for m in raw_items:
     rows.append(row)
 
 total = len(rows)
-print(f"[INFO] CJ JátékNet: normalizált sorok: {total}")
+print(f"[INFO] CJ Kärcher: normalizált sorok: {total}")
 
 
 # ====================== HA NINCS EGYETLEN TERMÉK SEM ======================
@@ -255,7 +231,7 @@ if total == 0:
         [],
         PAGE_SIZE_GLOBAL,
         meta_extra={
-            "partner": "cj-jateknet",
+            "partner": "cj-karcher",
             "scope": "global",
         },
     )
@@ -268,7 +244,7 @@ if total == 0:
             [],
             PAGE_SIZE_CAT,
             meta_extra={
-                "partner": "cj-jateknet",
+                "partner": "cj-karcher",
                 "scope": f"category:{slug}",
             },
         )
@@ -280,12 +256,12 @@ if total == 0:
         [],
         PAGE_SIZE_AKCIO_BLOCK,
         meta_extra={
-            "partner": "cj-jateknet",
+            "partner": "cj-karcher",
             "scope": "akcios-block",
         },
     )
 
-    print("⚠️ CJ JátékNet: nincs termék → csak üres meta-k készültek.")
+    print("⚠️ CJ Kärcher: nincs termék → csak üres meta-k készültek.")
     raise SystemExit(0)
 
 
@@ -296,7 +272,7 @@ paginate_and_write(
     rows,
     PAGE_SIZE_GLOBAL,
     meta_extra={
-        "partner": "cj-jateknet",
+        "partner": "cj-karcher",
         "scope": "global",
     },
 )
@@ -319,7 +295,7 @@ for slug, items in buckets.items():
         items,
         PAGE_SIZE_CAT,
         meta_extra={
-            "partner": "cj-jateknet",
+            "partner": "cj-karcher",
             "scope": f"category:{slug}",
         },
     )
@@ -338,13 +314,13 @@ paginate_and_write(
     akcios_items,
     PAGE_SIZE_AKCIO_BLOCK,
     meta_extra={
-        "partner": "cj-jateknet",
+        "partner": "cj-karcher",
         "scope": "akcios-block",
     },
 )
 
 print(
-    f"✅ CJ JátékNet kész: {total} termék, "
+    f"✅ CJ Kärcher kész: {total} termék, "
     f"{len(buckets)} kategória (mindegyiknek meta), "
     f"akciós blokk tételek: {len(akcios_items)}"
 )
