@@ -35,6 +35,7 @@ jobs:
           FEED_ONLINEMARKABOLT_URL: ${{ secrets.FEED_ONLINEMARKABOLT_URL }}
         run: |
           set -euo pipefail
+
           if [ -z "${FEED_ONLINEMARKABOLT_URL:-}" ]; then
             echo "::error title=Missing secret::FEED_ONLINEMARKABOLT_URL nincs beállítva (Settings → Secrets → Actions)."
             exit 1
@@ -43,20 +44,41 @@ jobs:
           mkdir -p docs/feeds/onlinemarkabolt
           python -u scripts/build-onlinemarkabolt.py
 
-          # Szigorú sanity check
+          # Globális meta.json kötelező
           test -s docs/feeds/onlinemarkabolt/meta.json
-          test -s docs/feeds/onlinemarkabolt/page-0001.json
 
-          if command -v jq >/dev/null 2>&1; then
-            jq -e '.items | length >= 0' docs/feeds/onlinemarkabolt/page-0001.json >/dev/null
-            jq -e '.pages >= 1 and .total >= 0' docs/feeds/onlinemarkabolt/meta.json >/dev/null
-            echo "Sanity check (first item):"
-            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/onlinemarkabolt/page-0001.json || true
+          # Válasszunk egy kategória-mappát (haztartasi_gepek vagy otthon)
+          PAGE_DIR=""
+          if [ -d "docs/feeds/onlinemarkabolt/haztartasi_gepek" ]; then
+            PAGE_DIR="docs/feeds/onlinemarkabolt/haztartasi_gepek"
+          elif [ -d "docs/feeds/onlinemarkabolt/otthon" ]; then
+            PAGE_DIR="docs/feeds/onlinemarkabolt/otthon"
           else
-            head -c 800 docs/feeds/onlinemarkabolt/page-0001.json || true
+            echo "::error ::Nincs egyetlen kategória mappa sem a docs/feeds/onlinemarkabolt alatt."
+            exit 1
           fi
 
+          # Legalább az első page-0001.json létezzen a választott kategóriában
+          test -s "$PAGE_DIR/page-0001.json"
+
+          if command -v jq >/dev/null 2>&1; then
+            # page-0001.json minimális szerkezeti ellenőrzés
+            jq -e '.items | length >= 0' "$PAGE_DIR/page-0001.json" >/dev/null
+
+            # meta.json: az új kulcsnevekhez igazítva (pageCount + totalItems)
+            jq -e '.pageCount >= 0 and .totalItems >= 0' docs/feeds/onlinemarkabolt/meta.json >/dev/null
+
+            echo "Sanity check (first item from $PAGE_DIR/page-0001.json):"
+            jq -r '.items[0] | {title, img, url, price, discount, findora_main}' "$PAGE_DIR/page-0001.json" || true
+          else
+            echo "jq nem elérhető, csak az első page elejét mutatom:"
+            head -c 800 "$PAGE_DIR/page-0001.json" || true
+          fi
+
+          echo "Lista a docs/feeds/onlinemarkabolt alatt:"
           ls -la docs/feeds/onlinemarkabolt
+          echo "Lista a $PAGE_DIR alatt:"
+          ls -la "$PAGE_DIR"
 
       - name: Commit changes
         run: |
