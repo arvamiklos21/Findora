@@ -22,19 +22,28 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Sync with origin/main
+        run: |
+          set -e
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
+
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.11"
 
       - name: Install deps
-        run: pip install requests
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
       - name: Build OnlineMarkabolt feed pages
         env:
           FEED_ONLINEMARKABOLT_URL: ${{ secrets.FEED_ONLINEMARKABOLT_URL }}
         run: |
-          set -euo pipefail
+          set -e
 
           if [ -z "${FEED_ONLINEMARKABOLT_URL:-}" ]; then
             echo "::error title=Missing secret::FEED_ONLINEMARKABOLT_URL nincs beállítva (Settings → Secrets → Actions)."
@@ -67,8 +76,7 @@ jobs:
             # page-0001.json minimális szerkezeti ellenőrzés
             jq -e '.items | length >= 0' "$PAGE_DIR/page-0001.json" >/dev/null
 
-            # meta.json: a build-onlinemarkabolt.py globális meta mezőihez igazítva
-            # (nincs pageCount, van viszont totalItems)
+            # Globális meta.json: totalItems mező ellenőrzése
             jq -e '.totalItems >= 0' docs/feeds/onlinemarkabolt/meta.json >/dev/null
 
             echo "Sanity check (first item from $PAGE_DIR/page-0001.json):"
@@ -83,13 +91,18 @@ jobs:
           echo "Lista a $PAGE_DIR alatt:"
           ls -la "$PAGE_DIR"
 
-      - name: Commit changes
+      - name: Commit feed updates to bot branch
         run: |
-          git config --global user.name  "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          set -e
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BR="bot/update-onlinemarkabolt"
+          git checkout -B "$BR"
+
           git add docs/feeds/onlinemarkabolt
           git commit -m "onlinemarkabolt: update feed pages" || echo "No changes"
+          git push --force-with-lease origin "$BR"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
@@ -100,3 +113,4 @@ jobs:
           commit-message: "onlinemarkabolt: update feed pages"
           body: |
             Automated update of OnlineMárkabolt feed pages (JSON pagination).
+          base: main
