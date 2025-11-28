@@ -2,19 +2,20 @@
 
 import re
 
-from category_assign import (
-    KAT_ELEK,
-    KAT_GEPEK,
-    KAT_OTTHON,
-    KAT_JATEK,
-    KAT_DIVAT,
-    KAT_SZEPSEG,
-    KAT_SPORT,
-    KAT_KONYV,
-    KAT_ALLAT,
-    KAT_LATAS,
-    KAT_MULTI,
-)
+# Findora fő kategória ID-k – direktben itt definiálva,
+# hogy ne kelljen a category_assign modulból importálni.
+KAT_ELEK   = "elektronika"
+KAT_GEPEK  = "haztartasi_gepek"
+KAT_OTTHON = "otthon"
+KAT_JATEK  = "jatekok"
+KAT_DIVAT  = "divat"
+KAT_SZEPSEG = "szepseg"
+KAT_SPORT   = "sport"
+KAT_KONYV   = "konyv"
+KAT_ALLAT   = "allatok"
+KAT_LATAS   = "latas"
+KAT_MULTI   = "multi"
+
 
 def _normalize(text: str) -> str:
     return (text or "").lower()
@@ -89,16 +90,22 @@ HOME_KEYWORDS = [
 ]
 
 
-def assign_category(product_type: str = "", google_cat: str = "", title: str = "", desc: str = "") -> str:
+def assign_category(
+    product_type: str = "",
+    google_cat: str = "",
+    title: str = "",
+    desc: str = "",
+) -> str:
     """
     Decathlon-specifikus kategória hozzárendelés.
+
     Bemenet: Decathlon feed mezők:
       - product_type   → g:product_type (pl. "Sportok > Sportgyaloglás > ...")
       - google_cat     → g:google_product_category (pl. "Apparel & Accessories > Shoes")
       - title          → g:title
       - desc           → g:description
 
-    Kimenet: Findora fő kategória ID (pl. KAT_SPORT).
+    Kimenet: Findora fő kategória ID (pl. "sport", "elektronika", stb. – a KAT_* konstansok).
     """
 
     pt_norm = _normalize(product_type)
@@ -117,19 +124,23 @@ def assign_category(product_type: str = "", google_cat: str = "", title: str = "
     if any(kw in full_text for kw in SPORT_KEYWORDS):
         return KAT_SPORT
 
-    # 3) Ha jellemzően sportcipő / sport ruházat (decathlonos esetek 90%-a) → sport
-    if "cipő" in full_text or "cipo" in full_text or "edzőcipő" in full_text or "sportmelltartó" in full_text:
+    # 3) Ha jellemzően sportcipő / sport ruházat (Decathlon esetek 90%-a) → sport
+    if (
+        "cipő" in full_text
+        or "cipo" in full_text
+        or "edzőcipő" in full_text
+        or "sportmelltartó" in full_text
+    ):
         return KAT_SPORT
 
     # 4) Sport elektronika – ha később külön akarjuk venni elektronikába
     if any(kw in full_text for kw in ELECTRO_KEYWORDS):
-        # ha nagyon ragaszkodunk hozzá, maradhat sport is, de most tényleg elektronikába tesszük:
+        # Dönthetsz úgy is, hogy sportban marad, de most elektronikába tesszük:
         return KAT_ELEK
 
-    # 5) Otthon / bútor jellegű termékek (pl. edzőpad a nappaliba, stb.)
+    # 5) Otthon / bútor jellegű termékek
     if any(kw in full_text for kw in HOME_KEYWORDS):
-        # Decathlon esetén ezek is simán mehetnek sportba, de ha külön
-        # otthonba akarjuk tolni:
+        # Ha otthonba akarod tolni:
         # return KAT_OTTHON
         return KAT_SPORT
 
