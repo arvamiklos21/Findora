@@ -1,1 +1,9 @@
-{"partner": "tchibo", "category": "otthon", "pageSize": 300, "total": 1104, "pages": 4, "lastUpdated": "2025-11-28T11:21:20.348723Z", "source": "productsup"}
+{
+  "partner": "tchibo",
+  "pageSize": 300,
+  "total": 1106,
+  "pages": 4,
+  "lastUpdated": "2025-11-28T12:33:19.699710Z",
+  "source": "productsup",
+  "category": "otthon"
+}

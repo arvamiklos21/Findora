@@ -1,1 +1,9 @@
-{"partner": "tchibo", "category": "konyha_fozes", "pageSize": 300, "total": 164, "pages": 1, "lastUpdated": "2025-11-28T11:21:20.351516Z", "source": "productsup"}
+{
+  "partner": "tchibo",
+  "pageSize": 300,
+  "total": 161,
+  "pages": 1,
+  "lastUpdated": "2025-11-28T12:33:19.702153Z",
+  "source": "productsup",
+  "category": "konyha_fozes"
+}

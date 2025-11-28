@@ -1,1 +1,9 @@
-{"partner": "tchibo", "category": "multi", "pageSize": 300, "total": 180, "pages": 1, "lastUpdated": "2025-11-28T11:21:20.635871Z", "source": "productsup"}
+{
+  "partner": "tchibo",
+  "pageSize": 300,
+  "total": 180,
+  "pages": 1,
+  "lastUpdated": "2025-11-28T12:33:19.983516Z",
+  "source": "productsup",
+  "category": "multi"
+}
