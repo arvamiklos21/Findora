@@ -18,6 +18,36 @@ from pathlib import Path
 
 from category_assignbase import assign_category, FINDORA_CATS
 
+# Findora fő kategória SLUG-ok – a 25 menühöz igazítva + "akciok"
+FINDORA_CATS = [
+    "akciok",
+    "elektronika",
+    "haztartasi_gepek",
+    "szamitastechnika",
+    "mobil",
+    "gaming",
+    "smart_home",
+    "otthon",
+    "lakberendezes",
+    "konyha_fozes",
+    "kert",
+    "jatekok",
+    "divat",
+    "szepseg",
+    "drogeria",
+    "baba",
+    "sport",
+    "egeszseg",
+    "latas",
+    "allatok",
+    "konyv",
+    "utazas",
+    "iroda_iskola",
+    "szerszam_barkacs",
+    "auto_motor",
+    "multi",
+]
+
 IN_DIR = Path("cj-jateknet-feed")
 OUT_DIR = Path("docs/feeds/cj-jateknet")
 
