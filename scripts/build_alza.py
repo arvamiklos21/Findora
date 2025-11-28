@@ -1,6 +1,6 @@
 # scripts/build_alza.py
 #
-# ALZA feed → Findora JSON oldalak (csak kategória bontás, ML modellel)
+# ALZA feed → Findora JSON oldalak (kategória bontás, ML modellel + akciós blokk)
 
 import os
 import sys
@@ -27,12 +27,16 @@ OUT_DIR = "docs/feeds/alza"
 # Kategória nézet (pl. 20/lap a menüknél)
 PAGE_SIZE_CAT = 20
 
+# Akciós blokk mérete (pl. főoldali blokk)
+PAGE_SIZE_AKCIO_BLOCK = 20
+
 # ML modell fájl – a scripts mappában
 MODEL_FILE = os.path.join(SCRIPT_DIR, "model_alza.pkl")
 
 
-# Findora fő kategória SLUG-ok – a 25 menüdhöz igazítva
+# Findora fő kategória SLUG-ok – a 25 menühöz igazítva + "akciok"
 FINDORA_CATS = [
+    "akciok",
     "elektronika",
     "haztartasi_gepek",
     "szamitastechnika",
@@ -105,7 +109,7 @@ def build_text_for_model(cat_root, cat_path, title, desc):
 def classify_with_model(model, cat_root, cat_path, title, desc):
     """
     ML modell meghívása.
-    A modell közvetlenül Findora slugokat ad vissza (pl. "gaming", "konyv").
+    A modell közvetlenül Findora slugokat ad vissza (pl. "gaming", "konyv", "akciok").
     Ha bármi gáz van, 'multi' a fallback.
     """
     text = build_text_for_model(cat_root, cat_path, title, desc)
@@ -331,7 +335,23 @@ def main():
             },
         )
 
-    print("[INFO] Kész: ALZA feed JSON oldalak legenerálva (csak kategória-bontás).")
+    # 3) Akciós blokk: docs/feeds/alza/akcios-block/page-0001.json ...
+    # Itt azokat tesszük be, amiket az ML "akciok" kategóriára sorolt.
+    akcios_items = [row for row in rows if row.get("cat") == "akciok"]
+
+    akcio_base_dir = os.path.join(OUT_DIR, "akcios-block")
+    paginate_and_write(
+        akcio_base_dir,
+        akcios_items,
+        PAGE_SIZE_AKCIO_BLOCK,
+        meta_extra={
+            "partner": "alza",
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "scope": "akcios-block",
+        },
+    )
+
+    print("[INFO] Kész: ALZA feed JSON oldalak legenerálva (kategória-bontás + akciós blokk).")
 
 
 if __name__ == "__main__":
