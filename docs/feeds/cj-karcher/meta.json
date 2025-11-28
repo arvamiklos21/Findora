@@ -1,8 +1,7 @@
 {
+  "total_items": 3055,
+  "page_size": 200,
+  "page_count": 16,
   "partner": "cj-karcher",
-  "total": 3055,
-  "pageSize": 500,
-  "pageCount": 7,
-  "currency": "HUF",
-  "updatedAt": "2025-11-28T14:18:30Z"
+  "scope": "global"
 }
