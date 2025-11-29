@@ -2,7 +2,7 @@
 #
 # OtthonMarket feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
-# Kategorizálás: category_assignbase.assign_category
+# Kategorizálás: category_assign_otthonmarket.assign_category
 #   - partner: "otthonmarket"
 #   - partner_default: "otthon" (ha nem talál semmit, visszarakja "otthon"-ba, NEM multi-ba)
 #
@@ -22,7 +22,11 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
-from category_assignbase import assign_category, FINDORA_CATS
+# ===== kategória assignerek =====
+# Közös 25 kategória lista
+from category_assignbase import FINDORA_CATS
+# Partner-specifikus logika
+from category_assign_otthonmarket import assign_category as assign_otthonmarket_category
 
 FEED_URL = os.environ.get("FEED_OTTHONMARKET_URL")
 OUT_DIR = Path("docs/feeds/otthonmarket")
@@ -142,7 +146,6 @@ CATEGORY_KEYS = (
     "g:product_type",
     "product_type",
 )
-
 
 NEW_PRICE_KEYS = (
     "price_vat",
@@ -418,7 +421,7 @@ def main():
     items = dedup_size_variants(raw_items)
     print(f"ℹ OtthonMarket: dedup után {len(items)} termék")
 
-    # ===== NORMALIZÁLÁS + KÖZÖS KATEGORIZÁLÁS =====
+    # ===== NORMALIZÁLÁS + PARTNER-SPECIFIKUS KATEGORIZÁLÁS =====
     rows = []
     for it in items:
         pid = it["id"]
@@ -431,14 +434,17 @@ def main():
         category_path = it.get("category_path") or ""
         brand = it.get("brand") or ""
 
-        findora_main = assign_category(
+        # Partner-specifikus assigner
+        findora_main = assign_otthonmarket_category(
             title=title,
             desc=desc,
             category_path=category_path,
             brand=brand,
-            partner="otthonmarket",
-            partner_default="otthon",
         )
+
+        # fallback: ha bármi hülyeséget ad vissza, menjen "otthon"-ba (nem multi)
+        if not findora_main or findora_main not in FINDORA_CATS:
+            findora_main = "otthon"
 
         row = {
             "id": pid,
@@ -514,9 +520,11 @@ def main():
     # ===== KATEGÓRIA FEED-EK =====
     buckets = {slug: [] for slug in FINDORA_CATS}
     for row in rows:
-        slug = row.get("findora_main") or "multi"
+        slug = row.get("findora_main") or "otthon"
         if slug not in buckets:
-            slug = "multi"
+            slug = "otthon"
+            row["findora_main"] = "otthon"
+            row["cat"] = "otthon"
         buckets[slug].append(row)
 
     for slug, items_cat in buckets.items():
