@@ -19,6 +19,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Sync with origin/main
+        run: |
+          set -e
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -37,7 +44,7 @@ jobs:
           mkdir -p docs/feeds/kozmetikaotthon
           python scripts/build_kozmetikaotthon.py
 
-          echo "Sanity check (kozmetikaotthon tree):"
+          echo "Tree of docs/feeds/kozmetikaotthon:"
           ls -R docs/feeds/kozmetikaotthon || true
 
       - name: Commit feed updates to bot branch (autopush)
@@ -46,12 +53,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git switch -C bot/update-kozmetikaotthon
+          BR="bot/update-kozmetikaotthon"
+          git checkout -B "$BR"
 
           git add docs/feeds/kozmetikaotthon || true
-          git commit -m "kozmetikaotthon: update feed pages" || true
-
-          git push -f origin bot/update-kozmetikaotthon
+          git commit -m "kozmetikaotthon: update feed pages" || echo "No changes"
+          git push --force-with-lease origin "$BR"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
