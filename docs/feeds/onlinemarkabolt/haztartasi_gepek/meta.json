@@ -1,8 +1,7 @@
 {
+  "total_items": 1398,
+  "page_size": 300,
+  "page_count": 5,
   "partner": "onlinemarkabolt",
-  "category": "haztartasi_gepek",
-  "pageSize": 300,
-  "total": 1398,
-  "pages": 5,
-  "lastUpdated": "2025-11-29T11:18:38.738074+00:00"
+  "scope": "category:haztartasi_gepek"
 }

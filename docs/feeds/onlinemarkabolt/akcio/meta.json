@@ -1,8 +1,8 @@
 {
+  "total_items": 0,
+  "page_size": 300,
+  "page_count": 1,
   "partner": "onlinemarkabolt",
-  "category": "akcio",
-  "pageSize": 300,
-  "total": 0,
-  "pages": 1,
-  "lastUpdated": "2025-11-29T11:18:38.779243+00:00"
+  "scope": "akcio",
+  "akcio_min_discount": 10
 }

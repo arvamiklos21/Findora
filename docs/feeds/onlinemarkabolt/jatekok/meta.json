@@ -1,8 +1,7 @@
 {
+  "total_items": 0,
+  "page_size": 300,
+  "page_count": 1,
   "partner": "onlinemarkabolt",
-  "category": "jatekok",
-  "pageSize": 300,
-  "total": 0,
-  "pages": 1,
-  "lastUpdated": "2025-11-29T11:18:38.774575+00:00"
+  "scope": "category:jatekok"
 }

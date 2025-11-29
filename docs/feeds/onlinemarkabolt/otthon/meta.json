@@ -1,8 +1,7 @@
 {
+  "total_items": 2383,
+  "page_size": 300,
+  "page_count": 8,
   "partner": "onlinemarkabolt",
-  "category": "otthon",
-  "pageSize": 300,
-  "total": 2383,
-  "pages": 8,
-  "lastUpdated": "2025-11-29T11:18:38.773408+00:00"
+  "scope": "category:otthon"
 }

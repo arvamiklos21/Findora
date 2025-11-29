@@ -1,9 +1,9 @@
 {
   "partner": "onlinemarkabolt",
-  "sourceUrl": "https://dl.product-service.dognet.sk/fp/onlinemarkaboltok.hu-arukereso.xml",
-  "generatedAt": "2025-11-29T11:18:38.779345+00:00",
-  "totalItems": 3781,
-  "pageSize": 300,
+  "source_url": "https://dl.product-service.dognet.sk/fp/onlinemarkaboltok.hu-arukereso.xml",
+  "generated_at": "2025-11-29T13:04:25.325236+00:00",
+  "total_items": 3781,
+  "page_size": 300,
   "categories": {
     "elektronika": 0,
     "haztartasi_gepek": 1398,
@@ -31,7 +31,7 @@
     "auto_motor": 0,
     "multi": 0
   },
-  "categoriesList": [
+  "categories_list": [
     "elektronika",
     "haztartasi_gepek",
     "szamitastechnika",
@@ -58,6 +58,6 @@
     "auto_motor",
     "multi"
   ],
-  "akcioItems": 0,
-  "akcioMinDiscount": 10
+  "akcio_items": 0,
+  "akcio_min_discount": 10
 }
