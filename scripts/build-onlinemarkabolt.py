@@ -227,30 +227,50 @@ def write_category_pages(cat_slug: str, items_for_cat, page_size: int):
     """
     Egy konkrét Findora kategóriához kiírja
     a page-*.json oldalakat és a meta.json-t.
-    Üres lista esetén is LÉTREHOZ meta.json-t, pages=0-val.
+
+    FONTOS:
+    - Üres lista esetén is létrejön:
+        - meta.json
+        - page-0001.json ({"items": []})
+      így a front-end soha nem kap 404-et a page-0001.json-re.
     """
     cat_dir = os.path.join(OUT_BASE, cat_slug)
     ensure_clean_category_dir(cat_dir)
 
     total = len(items_for_cat)
-    pages = int(math.ceil(total / float(page_size))) if total else 0
+
+    # Üres kategória esetén is legyen legalább 1 oldal
+    if total == 0:
+        pages = 1
+    else:
+        pages = int(math.ceil(total / float(page_size)))
 
     items_for_cat.sort(key=lambda x: str(x["id"]))  # stabil sorrend
 
-    for i in range(pages):
-        start = i * page_size
-        end = start + page_size
-        page_items = items_for_cat[start:end]
-
-        page_obj = {"items": page_items}
-        page_no = i + 1
-        fn = os.path.join(cat_dir, f"page-{page_no:04d}.json")
+    if total == 0:
+        # Egy üres oldal items: []-szel
+        page_obj = {"items": []}
+        fn = os.path.join(cat_dir, "page-0001.json")
         with open(fn, "w", encoding="utf-8") as f:
             json.dump(page_obj, f, ensure_ascii=False, separators=(",", ":"))
         print(
-            f"[INFO] OnlineMárkaboltok – kat='{cat_slug}' page-{page_no:04d}.json "
-            f"({len(page_items)} db)"
+            f"[INFO] OnlineMárkaboltok – kat='{cat_slug}' page-0001.json (0 db, üres kategória)"
         )
+    else:
+        for i in range(pages):
+            start = i * page_size
+            end = start + page_size
+            page_items = items_for_cat[start:end]
+
+            page_obj = {"items": page_items}
+            page_no = i + 1
+            fn = os.path.join(cat_dir, f"page-{page_no:04d}.json")
+            with open(fn, "w", encoding="utf-8") as f:
+                json.dump(page_obj, f, ensure_ascii=False, separators=(",", ":"))
+            print(
+                f"[INFO] OnlineMárkaboltok – kat='{cat_slug}' page-{page_no:04d}.json "
+                f"({len(page_items)} db)"
+            )
 
     meta = {
         "partner": "onlinemarkabolt",
@@ -328,7 +348,8 @@ def main():
 
     # ===== Akciós bucket: minden, ahol discount >= 10% =====
     akcio_items = [
-        it for it in all_items
+        it
+        for it in all_items
         if (it.get("discount") is not None and it.get("discount") >= AKCIO_MIN_DISCOUNT)
     ]
     print(
