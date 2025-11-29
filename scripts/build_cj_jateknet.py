@@ -2,13 +2,13 @@
 #
 # CJ JátékNet feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
-# Kategorizálás: category_assignbase.assign_category
-#   - partner: "cj-jateknet"
-#   - partner_default: "jatekok" (ha nem talál semmit, visszarakja "jatekok"-ba, NEM multi-ba)
+# Kategorizálás:
+#   - NEM használjuk a category_assign-et
+#   - MINDEN JátékNet termék fixen a "jatekok" fő kategóriába kerül
 #
 # Kimenet:
 #   docs/feeds/cj-jateknet/meta.json, page-0001.json...              (globál)
-#   docs/feeds/cj-jateknet/<findora_cat>/meta.json, page-....json    (kategória)
+#   docs/feeds/cj-jateknet/<findora_cat>/meta.json, page-....json    (kategória – mind a 25 mappa létrejön)
 #   docs/feeds/cj-jateknet/akcio/meta.json, page-....json            (akciós blokk, discount >= 10%)
 
 import csv
@@ -16,37 +16,7 @@ import json
 import math
 from pathlib import Path
 
-from category_assignbase import assign_category, FINDORA_CATS
-
-# Findora fő kategória SLUG-ok – a 25 menühöz igazítva + "akciok"
-FINDORA_CATS = [
-    "akciok",
-    "elektronika",
-    "haztartasi_gepek",
-    "szamitastechnika",
-    "mobil",
-    "gaming",
-    "smart_home",
-    "otthon",
-    "lakberendezes",
-    "konyha_fozes",
-    "kert",
-    "jatekok",
-    "divat",
-    "szepseg",
-    "drogeria",
-    "baba",
-    "sport",
-    "egeszseg",
-    "latas",
-    "allatok",
-    "konyv",
-    "utazas",
-    "iroda_iskola",
-    "szerszam_barkacs",
-    "auto_motor",
-    "multi",
-]
+from category_assignbase import FINDORA_CATS  # csak a 25 fő kategória listája kell
 
 IN_DIR = Path("cj-jateknet-feed")
 OUT_DIR = Path("docs/feeds/cj-jateknet")
@@ -214,7 +184,7 @@ total_raw = len(raw_items)
 print(f"[INFO] CJ JátékNet: nyers termékek: {total_raw}")
 
 
-# ====================== NORMALIZÁLÁS + KATEGORIZÁLÁS ======================
+# ====================== NORMALIZÁLÁS + KATEGÓRIA (fixen 'jatekok') ======================
 
 rows = []
 
@@ -231,15 +201,10 @@ for m in raw_items:
     category_path = m["category_path"] or ""
     discount = m["discount"]
 
-    # Kategória besorolás – közös base
-    findora_main = assign_category(
-        title=title,
-        desc=desc,
-        category_path=category_path,
-        brand=brand,
-        partner="cj-jateknet",
-        partner_default="jatekok",  # játékbolt → alapértelmezett "jatekok"
-    )
+    # MINDEN JátékNet termék fő kategóriája: 'jatekok'
+    findora_main = "jatekok"
+    if findora_main not in FINDORA_CATS:
+        findora_main = "multi"
 
     row = {
         "id": pid,
