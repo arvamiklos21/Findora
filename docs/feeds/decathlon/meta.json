@@ -1,7 +1,7 @@
 {
   "partner": "decathlon",
   "total_items": 23545,
-  "generated_at": "2025-11-29T10:55:12.829753Z",
+  "generated_at": "2025-11-29T11:05:50.408258Z",
   "categories": {
     "elektronika": {
       "total_items": 83,
@@ -129,7 +129,7 @@
       "page_count": 1
     }
   },
-  "akcios_block": {
+  "akcio": {
     "total_items": 2376,
     "page_size": 20,
     "page_count": 119
