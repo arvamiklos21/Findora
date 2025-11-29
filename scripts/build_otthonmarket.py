@@ -4,7 +4,7 @@
 #
 # Kategorizálás: category_assign_otthonmarket.assign_category
 #   - partner: "otthonmarket"
-#   - partner_default: "otthon" (ha nem talál semmit, visszarakja "otthon"-ba, NEM multi-ba)
+#   - alap fallback: "otthon" (ha nem talál semmit, visszarakja "otthon"-ba, NEM multi-ba)
 #
 # Kimenet:
 #   docs/feeds/otthonmarket/meta.json, page-0001.json...              (globál)
@@ -39,7 +39,7 @@ PAGE_SIZE_CAT = 20
 PAGE_SIZE_AKCIO_BLOCK = 20
 
 
-# ---------- segédfüggvények (ugyanaz a logika, mint a laifenshop/karacsonydekor skriptekben) ----------
+# ---------- segédfüggvények ----------
 
 def norm_price(v):
     if v is None:
@@ -197,7 +197,7 @@ def parse_items(xml_text):
             if any(x in t for x in ("item", "product", "offer", "shop")):
                 candidates.append(n)
 
-    # 3) ha így sincs semmi → üres listával vissza
+    # 3) ha így sincs semmi → üres lista
     if not candidates:
         print("⚠ OtthonMarket: parse_items – nem találtam termék node-ot.")
         return []
@@ -222,7 +222,6 @@ def parse_items(xml_text):
         full_desc = first(m, DESC_KEYS)
         desc = short_desc(full_desc)
 
-        # OtthonMarket kategória szöveg
         category_raw = first(m, CATEGORY_KEYS) or ""
         brand = first(m, BRAND_KEYS) or ""
 
@@ -254,7 +253,7 @@ def parse_items(xml_text):
                 "price": price_new,
                 "discount": discount,
                 "url": link or "",
-                "category_path": category_raw,  # közös név
+                "category_path": category_raw,
                 "brand": brand,
             }
         )
@@ -363,7 +362,6 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
 
-    # Üres lista esetén is legyen legalább 1 oldal
     if total == 0:
         page_count = 1
     else:
@@ -431,16 +429,28 @@ def main():
         img = it.get("img") or ""
         price = it.get("price")
         discount = it.get("discount")
-        category_path = it.get("category_path") or ""
-        brand = it.get("brand") or ""
 
-        # Partner-specifikus assigner egyetlen dict-et vár
-        fields = {
+        category_path_raw = it.get("category_path")
+        # mindenáron stringgé alakítjuk (ha dict/list is lenne)
+        category_path = "" if category_path_raw is None else str(category_path_raw)
+
+        brand_raw = it.get("brand")
+        brand = "" if brand_raw is None else str(brand_raw)
+
+        # Partner-specifikus assigner – DICT-et vár
+        fields_raw = {
             "title": title,
-            "desc": desc,
-            "category_path": category_path,
+            "name": title,
+            "description": desc,
+            "category": category_path,
+            "category_text": category_path,
             "brand": brand,
-            "partner": "otthonmarket",
+            "manufacturer": brand,
+        }
+        # minden értéket sima stringgé normalizálunk
+        fields = {
+            str(k).lower(): ("" if v is None else str(v))
+            for k, v in fields_raw.items()
         }
 
         findora_main = assign_otthonmarket_category(fields)
@@ -469,7 +479,6 @@ def main():
 
     # ===== HA NINCS EGYETLEN TERMÉK SEM =====
     if total == 0:
-        # Globál üres meta + üres page-0001
         paginate_and_write(
             OUT_DIR,
             [],
@@ -480,7 +489,6 @@ def main():
             },
         )
 
-        # Minden kategóriára üres meta + üres page-0001
         for slug in FINDORA_CATS:
             base_dir = OUT_DIR / slug
             paginate_and_write(
@@ -493,7 +501,6 @@ def main():
                 },
             )
 
-        # Akciós blokk üres meta + üres page-0001
         akcio_dir = OUT_DIR / "akcio"
         paginate_and_write(
             akcio_dir,
