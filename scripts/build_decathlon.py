@@ -2,13 +2,13 @@
 #
 # Decathlon feed → Findora JSON oldalak (kategória + akciós blokk, NINCS globál page-*.json)
 #
-# Kategorizálás: category_assignbase.assign_category
-#   - partner: "decathlon"
-#   - partner_default: "sport" (ha nem talál semmit, visszarakja "sport"-ba, NEM multi-ba)
+# Kategorizálás:
+#   - NEM használjuk az általános category_assign-et
+#   - MINDEN Decathlon termék fixen a "sport" fő kategóriába kerül
 #
 # Kimenet:
 #   docs/feeds/decathlon/meta.json                               (összefoglaló)
-#   docs/feeds/decathlon/<findora_cat>/meta.json, page-....json  (kategória)
+#   docs/feeds/decathlon/<findora_cat>/meta.json, page-....json  (kategória – mind a 25 mappa létrejön)
 #   docs/feeds/decathlon/akcio/meta.json, page-....json          (akciós blokk, discount >= 10%)
 
 import os
@@ -22,7 +22,7 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
-from category_assignbase import assign_category, FINDORA_CATS  # FINDORA_CATS: 25 fő kategória
+from category_assignbase import FINDORA_CATS  # csak a 25 kategória listája kell
 
 FEED_URL = os.environ.get("FEED_DECATHLON_URL")
 OUT_DIR = Path("docs/feeds/decathlon")
@@ -205,18 +205,16 @@ def parse_items(xml_text):
         raw_desc = first(m, DESC_KEYS)
         desc = short_desc(raw_desc)
 
-        # kategóriázáshoz
+        # kategóriázáshoz (most csak lognak / későbbre, a tényleges Findora-kat mindig "sport")
         product_type = first(m, ("product_type", "g:product_type"))
         google_cat = first(m, ("google_product_category", "g:google_product_category"))
         brand = first(m, BRAND_KEYS)
 
-        # category_path: ha mindkettő van, fűzzük össze
         if product_type and google_cat and product_type != google_cat:
             category_path = f"{product_type} | {google_cat}"
         else:
             category_path = product_type or google_cat or ""
 
-        # Ár + akció
         price_new = None
         for k in NEW_PRICE_KEYS:
             price_new = norm_price(m.get(k))
@@ -326,16 +324,12 @@ def dedup_size_variants(items):
         if not cur:
             buckets[key] = it
         else:
-            # kép
             if not cur.get("img") and it.get("img"):
                 cur["img"] = it["img"]
-            # alacsonyabb ár
             if (it.get("price") or 0) and (not cur.get("price") or it["price"] < cur["price"]):
                 cur["price"] = it["price"]
-            # nagyobb kedvezmény
             if (it.get("discount") or 0) > (cur.get("discount") or 0):
                 cur["discount"] = it["discount"]
-            # hosszabb leírás
             if len(it.get("desc") or "") > len(cur.get("desc") or ""):
                 cur["desc"] = it["desc"]
     return list(buckets.values())
@@ -347,16 +341,13 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
       base_dir/meta.json
       base_dir/page-0001.json, page-0002.json, ...
 
-    FONTOS:
-    - Üres lista esetén is létrejön:
-        - meta.json
-        - page-0001.json ({"items": []})
-      így a frontend soha nem kap 404-et a page-0001.json-re.
+    Üres lista esetén is:
+      - meta.json
+      - page-0001.json ({"items": []})
     """
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
 
-    # Üres lista esetén is legyen legalább 1 oldal
     if total == 0:
         page_count = 1
     else:
@@ -412,7 +403,7 @@ def main():
     items = dedup_size_variants(raw_items)
     print(f"ℹ Decathlon: dedup után {len(items)} termék")
 
-    # ===== NORMALIZÁLÁS + KÖZÖS KATEGORIZÁLÁS =====
+    # ===== NORMALIZÁLÁS – MINDEN TERMÉK SPORT =====
     rows = []
     for it in items:
         pid = it["id"]
@@ -425,14 +416,7 @@ def main():
         category_path = it.get("category_path") or ""
         brand = it.get("brand") or ""
 
-        findora_main = assign_category(
-            title=title,
-            desc=desc,
-            category_path=category_path,
-            brand=brand,
-            partner="decathlon",
-            partner_default="sport",
-        )
+        findora_main = "sport"
 
         row = {
             "id": pid,
@@ -454,7 +438,6 @@ def main():
 
     # ===== HA NINCS EGYETLEN TERMÉK SEM =====
     if total == 0:
-        # Minden kategóriára üres meta + üres page-0001
         for slug in FINDORA_CATS:
             base_dir = OUT_DIR / slug
             paginate_and_write(
@@ -467,7 +450,6 @@ def main():
                 },
             )
 
-        # Akciós blokk üres meta + üres page-0001
         akcio_dir = OUT_DIR / "akcio"
         paginate_and_write(
             akcio_dir,
@@ -479,7 +461,6 @@ def main():
             },
         )
 
-        # Top-level meta (összefoglaló)
         top_meta = {
             "partner": "decathlon",
             "total_items": 0,
@@ -488,14 +469,14 @@ def main():
                 slug: {
                     "total_items": 0,
                     "page_size": PAGE_SIZE_CAT,
-                    "page_count": 1,  # üresen is létrejön page-0001.json
+                    "page_count": 1,
                 }
                 for slug in FINDORA_CATS
             },
             "akcio": {
                 "total_items": 0,
                 "page_size": PAGE_SIZE_AKCIO_BLOCK,
-                "page_count": 1,  # üresen is létrejön page-0001.json
+                "page_count": 1,
             },
         }
         with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
@@ -504,7 +485,7 @@ def main():
         print("⚠️ Decathlon: nincs termék → csak üres meta-k + page-0001.json készült.")
         return
 
-    # ===== KATEGÓRIA FEED-EK =====
+    # ===== KATEGÓRIA FEED-EK (minden termék sport, de a 25 mappa akkor is létrejön) =====
     buckets = {slug: [] for slug in FINDORA_CATS}
     for row in rows:
         slug = row.get("findora_main") or "multi"
@@ -527,7 +508,6 @@ def main():
             },
         )
         total_cat = len(items_cat)
-        # meta-ban is tükrözzük, hogy üresen is van 1 oldal
         page_count_cat = 1 if total_cat == 0 else int(math.ceil(total_cat / PAGE_SIZE_CAT))
         categories_meta[slug] = {
             "total_items": total_cat,
@@ -557,7 +537,6 @@ def main():
         1 if total_akcio == 0 else int(math.ceil(total_akcio / PAGE_SIZE_AKCIO_BLOCK))
     )
 
-    # ===== TOP-LEVEL META (összefoglaló, NINCS globál page-*.json) =====
     top_meta = {
         "partner": "decathlon",
         "total_items": total,
@@ -574,7 +553,7 @@ def main():
 
     print(
         f"✅ Decathlon kész: {total} termék, "
-        f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
+        f"{len(buckets)} kategória (mindnek meta + legalább page-0001.json), "
         f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR / 'akcio'}"
     )
 
