@@ -1,6 +1,8 @@
 # scripts/pepita.py
 #
 # PEPITA feed → Findora JSON oldalak (globál + ML-alapú kategória bontás + akciós blokk)
+#
+# Akciós blokk elérési útja: docs/feeds/pepita/akcio/...
 
 import os
 import sys
@@ -342,11 +344,11 @@ def main():
             },
         )
 
-    # 3) Akciós blokk: docs/feeds/pepita/akcios-block/page-0001.json ...
+    # 3) Akciós blokk: docs/feeds/pepita/akcio/page-0001.json ...
     # Itt azokat tesszük be, amiket az ML "akciok" kategóriára sorolt.
     akcios_items = [row for row in rows if row.get("cat") == "akciok"]
 
-    akcio_base_dir = os.path.join(OUT_DIR, "akcios-block")
+    akcio_base_dir = os.path.join(OUT_DIR, "akcio")
     paginate_and_write(
         akcio_base_dir,
         akcios_items,
@@ -354,7 +356,7 @@ def main():
         meta_extra={
             "partner": "pepita",
             "generated_at": datetime.utcnow().isoformat() + "Z",
-            "scope": "akcios-block",
+            "scope": "akcio",
         },
     )
 
