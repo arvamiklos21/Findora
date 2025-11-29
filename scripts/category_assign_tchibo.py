@@ -27,12 +27,12 @@ from collections import Counter
 from typing import Dict, Any
 
 # ===== Findora 25 fő kategória (slugok) =====
-
+# FONTOS: ezeknek egyezniük kell a globál Findora kategória-listával.
 FINDORA_CATS = [
     "elektronika",
     "haztartasi_gepek",
     "szamitastechnika",
-    "mobiltelefon",
+    "mobil",
     "gaming",
     "smart_home",
     "otthon",
@@ -155,13 +155,13 @@ def map_health_and_beauty(category_text: str) -> str:
 
 def map_electronics_like(category_text: str, root: str) -> str:
     """
-    Electronics / Cameras & Optics finomhang (pl. mobiltelefon).
+    Electronics / Cameras & Optics finomhang (pl. mobil).
     """
     cat = (category_text or "").strip()
 
     # Mobil & kiegészítők
     if "Mobile Phone" in cat:
-        return "mobiltelefon"
+        return "mobil"
 
     # később: webcam -> szamitastechnika stb.
     return "elektronika"
