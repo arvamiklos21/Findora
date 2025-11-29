@@ -1,94 +1,115 @@
-name: Ingest CJ feeds
+name: ingest-cj-feeds
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *"   # 6 óránként fut
+    - cron: "20 9,19 * * *"   # 10:20 és 20:20 HU idő (kb.)
+
+permissions:
+  contents: write
 
 jobs:
   ingest:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout (full)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # kell a rebase-hez
+          fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          # ha kell extra lib, itt lehet:
-          # pip install -r requirements.txt
+          pip install requests
 
-
-      # ============================
-      # === EOPTIKA FEED DOWNLOAD ===
-      # ============================
+      # ---------- CJ eOptika ----------
       - name: Download CJ eOptika feed
         env:
-          CJ_HTTP_USER: ${{ secrets.CJ_HTTP_USER }}
-          CJ_HTTP_PASS: ${{ secrets.CJ_HTTP_PASS }}
-          FEED_URL: ${{ secrets.CJ_FEED_EOPTIKA_URL }}
+          FEED_CJ_EOPTIKA_URL: ${{ secrets.FEED_CJ_EOPTIKA_URL }}
         run: |
+          set -e
           mkdir -p cj-eoptika-feed
-          curl -u "$CJ_HTTP_USER:$CJ_HTTP_PASS" -L "$FEED_URL" -o eoptika.zip
-          unzip -o eoptika.zip -d cj-eoptika-feed
-          ls -R cj-eoptika-feed
+          if [ -z "$FEED_CJ_EOPTIKA_URL" ]; then
+            echo "⚠️ FEED_CJ_EOPTIKA_URL nincs beállítva – üres feedet generálunk."
+          else
+            # ha a curl hibázik, ne álljon le a job, csak logoljon
+            curl -L "$FEED_CJ_EOPTIKA_URL" -o cj-eoptika-feed/feed.txt || echo "⚠️ CJ eOptika curl hiba – üres feed marad."
+          fi
+          ls -l cj-eoptika-feed || true
+
+      - name: Build CJ eOptika pages
+        run: |
           python scripts/build_cj_eoptika.py
+          ls -R docs/feeds/cj-eoptika || true
 
-
-      # ============================
-      # === KARCHER FEED DOWNLOAD ===
-      # (ÚJ: saját builder)
-      # ============================
+      # ---------- CJ Kärcher ----------
       - name: Download CJ Karcher feed
         env:
-          CJ_HTTP_USER: ${{ secrets.CJ_HTTP_USER }}
-          CJ_HTTP_PASS: ${{ secrets.CJ_HTTP_PASS }}
-          FEED_URL: ${{ secrets.CJ_FEED_KARCHER_URL }}
+          FEED_CJ_KARCHER_URL: ${{ secrets.FEED_CJ_KARCHER_URL }}
         run: |
+          set -e
           mkdir -p cj-karcher-feed
-          curl -u "$CJ_HTTP_USER:$CJ_HTTP_PASS" -L "$FEED_URL" -o karcher.zip
-          unzip -o karcher.zip -d cj-karcher-feed
-          ls -R cj-karcher-feed
+          if [ -z "$FEED_CJ_KARCHER_URL" ]; then
+            echo "⚠️ FEED_CJ_KARCHER_URL nincs beállítva – üres feedet generálunk."
+          else
+            curl -L "$FEED_CJ_KARCHER_URL" -o cj-karcher-feed/feed.txt || echo "⚠️ CJ Karcher curl hiba – üres feed marad."
+          fi
+          ls -l cj-karcher-feed || true
+
+      - name: Build CJ Karcher pages
+        run: |
           python scripts/build_cj_karcher.py
+          ls -R docs/feeds/cj-karcher || true
 
-
-      # ============================
-      # === JATEKNET FEED DOWNLOAD ===
-      # ============================
+      # ---------- CJ JátékNet ----------
       - name: Download CJ Jateknet feed
         env:
-          CJ_HTTP_USER: ${{ secrets.CJ_HTTP_USER }}
-          CJ_HTTP_PASS: ${{ secrets.CJ_HTTP_PASS }}
-          FEED_URL: ${{ secrets.CJ_FEED_JATEKNET_URL }}
+          FEED_CJ_JATEKNET_URL: ${{ secrets.FEED_CJ_JATEKNET_URL }}
         run: |
+          set -e
           mkdir -p cj-jateknet-feed
-          curl -u "$CJ_HTTP_USER:$CJ_HTTP_PASS" -L "$FEED_URL" -o jateknet.zip
-          unzip -o jateknet.zip -d cj-jateknet-feed
-          ls -R cj-jateknet-feed
+          if [ -z "$FEED_CJ_JATEKNET_URL" ]; then
+            echo "⚠️ FEED_CJ_JATEKNET_URL nincs beállítva – üres feedet generálunk."
+          else
+            curl -L "$FEED_CJ_JATEKNET_URL" -o cj-jateknet-feed/feed.txt || echo "⚠️ CJ Jateknet curl hiba – üres feed marad."
+          fi
+          ls -l cj-jateknet-feed || true
+
+      - name: Build CJ Jateknet pages
+        run: |
           python scripts/build_cj_jateknet.py
+          ls -R docs/feeds/cj-jateknet || true
 
-
-      # ============================
-      # === GIT COMMIT + REBASE PUSH ===
-      # ============================
+      # ---------- Commit közös bot branchre ----------
       - name: Commit changes
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          set -e
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add docs/feeds/
+          BR="bot/update-cj-feeds"
+          git checkout -B "$BR"
 
-          git commit -m "Update CJ feeds" || echo "No changes to commit"
+          git add docs/feeds/cj-eoptika docs/feeds/cj-karcher docs/feeds/cj-jateknet || true
+          git commit -m "CJ feeds: update eOptika/Karcher/Jateknet pages" || echo "No changes"
+          git push --force-with-lease origin "$BR"
 
-          git fetch origin
-          git pull --rebase origin main || true
-
-          git push origin HEAD:main || echo "No changes pushed"
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: bot/update-cj-feeds
+          delete-branch: true
+          title: "CJ feeds: update eOptika, Karcher, Jateknet"
+          commit-message: "CJ feeds: update eOptika, Karcher, Jateknet"
+          body: |
+            Automated update of CJ feeds:
+            - eOptika (latas)
+            - Karcher (kert)
+            - Jateknet (jatekok)
+          base: main
