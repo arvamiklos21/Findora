@@ -193,11 +193,21 @@ def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
     """
     base_dir/meta.json
     base_dir/page-0001.json, page-0002.json, ...
-    Üres lista esetén is ír meta.json-t (page_count=0), hogy a frontend ne kapjon 404-et.
+
+    FONTOS:
+    - Üres lista esetén is:
+        - meta.json (page_count = 1)
+        - page-0001.json ({"items": []})
+      így a frontend SOHA nem kap 404-et a page-0001.json-re.
     """
     os.makedirs(base_dir, exist_ok=True)
     total = len(items)
-    page_count = int(math.ceil(total / page_size)) if total else 0
+
+    # Üres lista esetén is legyen legalább 1 oldal
+    if total == 0:
+        page_count = 1
+    else:
+        page_count = int(math.ceil(total / page_size))
 
     meta = {
         "total_items": total,
@@ -212,16 +222,23 @@ def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
         json.dump(meta, f, ensure_ascii=False, indent=2)
     print(f"[INFO] meta.json kiírva: {meta_path} (items={total}, pages={page_count})")
 
-    for i in range(page_count):
-        start = i * page_size
-        end = start + page_size
-        page_items = items[start:end]
-        page_no = i + 1
-        page_name = f"page-{page_no:04d}.json"
-        out_path = os.path.join(base_dir, page_name)
+    if total == 0:
+        # Üres kategória/globál/akció: 1 oldal, üres items
+        out_path = os.path.join(base_dir, "page-0001.json")
         with open(out_path, "w", encoding="utf-8") as f:
-            json.dump({"items": page_items}, f, ensure_ascii=False)
-        print(f"[INFO] {out_path} ({len(page_items)} db)")
+            json.dump({"items": []}, f, ensure_ascii=False)
+        print(f"[INFO] {out_path} (0 db, üres lista)")
+    else:
+        for i in range(page_count):
+            start = i * page_size
+            end = start + page_size
+            page_items = items[start:end]
+            page_no = i + 1
+            page_name = f"page-{page_no:04d}.json"
+            out_path = os.path.join(base_dir, page_name)
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump({"items": page_items}, f, ensure_ascii=False)
+            print(f"[INFO] {out_path} ({len(page_items)} db)")
 
 
 def main():
@@ -308,7 +325,7 @@ def main():
     print(f"[INFO] Normalizált sorok (Pepita): {len(rows)}")
 
     if not rows:
-        print("[WARN] Nincs egyetlen normalizált PEPITA sor sem – csak üres meta.json-ok fognak készülni.")
+        print("[WARN] Nincs egyetlen normalizált PEPITA sor sem – üres page-0001.json + meta.json készül mindenhol.")
 
     # 1) Globális Pepita feed: docs/feeds/pepita/page-0001.json ...
     paginate_and_write(
@@ -331,7 +348,7 @@ def main():
         buckets[slug].append(row)
 
     for slug, items in buckets.items():
-        # FONTOS: üres listánál is írunk meta.json-t, hogy a frontend ne kapjon 404-et
+        # Üres listánál is meta + page-0001.json
         base_dir = os.path.join(OUT_DIR, slug)
         paginate_and_write(
             base_dir,
