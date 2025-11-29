@@ -8,7 +8,7 @@
 #
 # Kimenet:
 #   docs/feeds/cj-karcher/meta.json, page-0001.json...              (globál)
-#   docs/feeds/cj-karcher/<findora_cat>/meta.json, page-....json    (kategória – mind a 25 mappa létrejön)
+#   docs/feeds/cj-karcher/<findora_cat>/meta.json, page-....json    (kategória)
 #   docs/feeds/cj-karcher/akcio/meta.json, page-....json            (akciós blokk, discount >= 10%)
 
 import csv
@@ -16,8 +16,13 @@ import json
 import math
 from pathlib import Path
 
-from category_assignbase import FINDORA_CATS  # 25 fő kategória slug
+from category_assignbase import FINDORA_CATS as BASE_CATS
 
+# Findora fő kategória SLUG-ok – a 25 menühöz igazítva + "akciok"
+FINDORA_CATS = [
+    "akciok",
+    *BASE_CATS,  # elektronika, haztartasi_gepek, ... , multi
+]
 
 IN_DIR = Path("cj-karcher-feed")
 OUT_DIR = Path("docs/feeds/cj-karcher")
@@ -68,7 +73,6 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
 
-    # Üres lista esetén is legyen legalább 1 oldal
     if total == 0:
         page_count = 1
     else:
@@ -87,7 +91,6 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
     if total == 0:
-        # Üres kategória/globál/akció: 1 oldal, üres items
         out_path = base_dir / "page-0001.json"
         with out_path.open("w", encoding="utf-8") as f:
             json.dump({"items": []}, f, ensure_ascii=False)
@@ -117,10 +120,7 @@ raw_items = []
 
 txt_files = list(IN_DIR.glob("*.txt"))
 if not txt_files:
-    # NINCS TXT → hibás URL / még nem jött le a CJ pack
-    # Ilyenkor üres feedet generálunk (globál + 25 kategória + akció),
-    # hogy a frontend ne kapjon 404-et.
-    print("⚠️ CJ Kärcher: nincs .txt fájl a feed mappában → üres feed (csak meta + page-0001.json).")
+    print("⚠️ CJ Kärcher: nincs .txt fájl a cj-karcher-feed mappában – üres feedet generálunk.")
 else:
     feed_file = sorted(txt_files)[0]
 
@@ -234,7 +234,6 @@ print(f"[INFO] CJ Kärcher: normalizált sorok: {total}")
 # ====================== HA NINCS EGYETLEN TERMÉK SEM ======================
 
 if total == 0:
-    # Globál üres meta + üres page-0001
     paginate_and_write(
         OUT_DIR,
         [],
@@ -245,7 +244,6 @@ if total == 0:
         },
     )
 
-    # Minden kategóriára üres meta + üres page-0001
     for slug in FINDORA_CATS:
         base_dir = OUT_DIR / slug
         paginate_and_write(
@@ -258,7 +256,6 @@ if total == 0:
             },
         )
 
-    # Akciós blokk üres meta + üres page-0001
     akcio_dir = OUT_DIR / "akcio"
     paginate_and_write(
         akcio_dir,
