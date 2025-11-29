@@ -7,7 +7,7 @@
 # - Kategorizálás: ML modell (model_alza.pkl)
 # - Kimenet:
 #   docs/feeds/alza/<findora_cat>/meta.json, page-0001.json, ...
-#   docs/feeds/alza/akcios-block/meta.json, page-0001.json, ...
+#   docs/feeds/alza/akcio/meta.json, page-0001.json, ...
 #
 # NINCS globális JSON (docs/feeds/alza/meta.json + page-0001.json).
 
@@ -582,14 +582,14 @@ def main():
                 },
             )
 
-        akcio_dir = OUT_DIR / "akcios-block"
+        akcio_dir = OUT_DIR / "akcio"
         paginate_and_write(
             akcio_dir,
             [],
             PAGE_SIZE_AKCIO,
             meta_extra={
                 "partner": "alza",
-                "scope": "akcios-block",
+                "scope": "akcio",
             },
         )
         return
@@ -628,14 +628,14 @@ def main():
         row for row in rows if row.get("discount") is not None and row["discount"] >= 10
     ]
 
-    akcio_dir = OUT_DIR / "akcios-block"
+    akcio_dir = OUT_DIR / "akcio"
     paginate_and_write(
         akcio_dir,
         akcios_items,
         PAGE_SIZE_AKCIO,
         meta_extra={
             "partner": "alza",
-            "scope": "akcios-block",
+            "scope": "akcio",
             "generated_at": datetime.utcnow().isoformat() + "Z",
         },
     )
