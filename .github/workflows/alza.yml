@@ -3,7 +3,7 @@ name: ingest-alza
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 8,18 * * *"   # reggel 9:00 és este 19:00 magyar idő
+    - cron: "0 8,18 * * *"   # reggel 9:00 és este 19:00 magyar idő (UTC+1)
 
 permissions:
   contents: write
@@ -30,12 +30,17 @@ jobs:
 
       - name: Build Alza feed pages (ML)
         env:
-          FEED_ALZA_URL: ${{ secrets.FEED_ALZA_URL }}
+          # Több feed URL összefűzve EGY env-ben.
+          # Bármelyik üres lehet, a split_feed_urls úgyis kidobja az üreseket.
+          FEED_ALZA_URL: |
+            ${{ secrets.FEED_ALZA_1 }}
+            ${{ secrets.FEED_ALZA_2 }}
+            ${{ secrets.FEED_ALZA_3 }}
         run: |
           set -e
 
           if [ -z "$FEED_ALZA_URL" ]; then
-            echo "::error title=Missing secret::FEED_ALZA_URL nincs beállítva (Settings → Secrets → Actions)."
+            echo "::error title=Missing secret::FEED_ALZA_URL nincs beállítva (pl. FEED_ALZA_1 / FEED_ALZA_2 / FEED_ALZA_3 secret)."
             exit 1
           fi
 
