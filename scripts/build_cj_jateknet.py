@@ -86,7 +86,6 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
     if total == 0:
-        # Üres kategória/globál/akció: 1 oldal, üres items
         out_path = base_dir / "page-0001.json"
         with out_path.open("w", encoding="utf-8") as f:
             json.dump({"items": []}, f, ensure_ascii=False)
@@ -114,14 +113,11 @@ for old_json in OUT_DIR.rglob("*.json"):
 
 raw_items = []
 
-txt_files = sorted(IN_DIR.glob("*.txt"))
+txt_files = list(IN_DIR.glob("*.txt"))
 if not txt_files:
-    # NINCS TXT → hibás URL / még nem jött le a CJ pack
-    # Ilyenkor üres feedet generálunk (globál + 25 kategória + akció),
-    # hogy a frontend ne kapjon 404-et.
-    print("⚠️ CJ JátékNet: nincs .txt fájl a feed mappában → üres feed (csak meta + page-0001.json).")
+    print("⚠️ CJ JátékNet: nincs .txt fájl a cj-jateknet-feed mappában – üres feedet generálunk.")
 else:
-    feed_file = txt_files[0]
+    feed_file = sorted(txt_files)[0]
 
     with feed_file.open("r", encoding="utf-8", newline="") as f:
         sample = f.read(2048)
@@ -233,7 +229,6 @@ print(f"[INFO] CJ JátékNet: normalizált sorok: {total}")
 # ====================== HA NINCS EGYETLEN TERMÉK SEM ======================
 
 if total == 0:
-    # Globál üres meta + üres page-0001
     paginate_and_write(
         OUT_DIR,
         [],
@@ -244,7 +239,6 @@ if total == 0:
         },
     )
 
-    # Minden kategóriára üres meta + üres page-0001
     for slug in FINDORA_CATS:
         base_dir = OUT_DIR / slug
         paginate_and_write(
@@ -257,7 +251,6 @@ if total == 0:
             },
         )
 
-    # Akciós blokk üres meta + üres page-0001
     akcio_dir = OUT_DIR / "akcio"
     paginate_and_write(
         akcio_dir,
