@@ -2,9 +2,9 @@
 #
 # Karácsonydekor feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
-# Kategorizálás: category_assignbase.assign_category
-#   - partner: "karacsonydekor"
-#   - partner_default: "lakberendezes" (ha nem talál semmit, visszarakja "lakberendezes"-be, NEM multi-ba)
+# Kategorizálás:
+#   - NEM használjuk a category_assign-et
+#   - MINDEN termék fő kategóriája: "otthon"
 #
 # Kimenet:
 #   docs/feeds/karacsonydekor/meta.json, page-0001.json...              (globál)
@@ -22,7 +22,7 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
-from category_assignbase import assign_category, FINDORA_CATS
+from category_assignbase import FINDORA_CATS  # csak a 25 kategória listája
 
 FEED_URL = os.environ.get("FEED_KARACSONYDEKOR_URL")
 OUT_DIR = Path("docs/feeds/karacsonydekor")
@@ -418,7 +418,7 @@ def main():
     items = filtered
     print(f"ℹ Karácsonydekor: ár szűrés után {len(items)} termék (<= 1 000 000 Ft vagy None)")
 
-    # 3) NORMALIZÁLÁS + KÖZÖS KATEGORIZÁLÁS
+    # 3) NORMALIZÁLÁS + FIX KATEGÓRIA: 'otthon'
     rows = []
     for it in items:
         pid = it["id"]
@@ -431,14 +431,9 @@ def main():
         category_path = it.get("category_path") or ""
         brand = it.get("brand") or ""
 
-        findora_main = assign_category(
-            title=title,
-            desc=desc,
-            category_path=category_path,
-            brand=brand,
-            partner="karacsonydekor",
-            partner_default="lakberendezes",
-        )
+        findora_main = "otthon"
+        if findora_main not in FINDORA_CATS:
+            findora_main = "multi"
 
         row = {
             "id": pid,
