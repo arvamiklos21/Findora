@@ -1,0 +1,137 @@
+{
+  "partner": "decathlon",
+  "total_items": 23545,
+  "generated_at": "2025-11-29T12:22:43.111428Z",
+  "categories": {
+    "elektronika": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "haztartasi_gepek": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "szamitastechnika": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "mobil": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "gaming": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "smart_home": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "otthon": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "lakberendezes": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "konyha_fozes": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "kert": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "jatekok": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "divat": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "szepseg": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "drogeria": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "baba": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "sport": {
+      "total_items": 23545,
+      "page_size": 20,
+      "page_count": 1178
+    },
+    "egeszseg": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "latas": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "allatok": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "konyv": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "utazas": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "iroda_iskola": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "szerszam_barkacs": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "auto_motor": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    },
+    "multi": {
+      "total_items": 0,
+      "page_size": 20,
+      "page_count": 1
+    }
+  },
+  "akcio": {
+    "total_items": 2376,
+    "page_size": 20,
+    "page_count": 119
+  }
+}
