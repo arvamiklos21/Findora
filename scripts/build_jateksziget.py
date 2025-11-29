@@ -2,9 +2,9 @@
 #
 # Játéksziget feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
-# Kategorizálás: category_assignbase.assign_category
-#   - partner: "jateksziget"
-#   - partner_default: "jatekok" (ha nem talál semmit, visszarakja "jatekok"-ba, NEM multi-ba)
+# Kategorizálás:
+#   - NEM használjuk a category_assign-et
+#   - MINDEN Játéksziget termék fő kategóriája: "jatekok"
 #
 # Kimenet:
 #   docs/feeds/jateksziget/meta.json, page-0001.json...              (globál)
@@ -22,7 +22,7 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
-from category_assignbase import assign_category, FINDORA_CATS
+from category_assignbase import FINDORA_CATS  # csak a 25 kategória listája miatt
 
 FEED_URL = os.environ.get("FEED_JATEKSZIGET_URL")
 OUT_DIR = Path("docs/feeds/jateksziget")
@@ -144,7 +144,6 @@ CATEGORY_KEYS = (
     "kategoria",
 )
 
-
 NEW_PRICE_KEYS = (
     "price_vat",
     "price_with_vat",
@@ -187,7 +186,9 @@ def parse_items(xml_text):
             break
     if not candidates:
         candidates = [
-            n for n in root.iter() if strip_ns(n.tag) in ("item", "product", "shopitem", "entry")
+            n
+            for n in root.iter()
+            if strip_ns(n.tag) in ("item", "product", "shopitem", "entry")
         ]
 
     items = []
@@ -404,7 +405,7 @@ def main():
     items = dedup_size_variants(raw_items)
     print(f"ℹ Játéksziget: dedup után {len(items)} termék")
 
-    # ===== NORMALIZÁLÁS + KÖZÖS KATEGORIZÁLÁS =====
+    # ===== NORMALIZÁLÁS + FIX KATEGÓRIA: 'jatekok' =====
     rows = []
     for it in items:
         pid = it["id"]
@@ -417,14 +418,9 @@ def main():
         category_path = it.get("category_path") or ""
         brand = it.get("brand") or ""
 
-        findora_main = assign_category(
-            title=title,
-            desc=desc,
-            category_path=category_path,
-            brand=brand,
-            partner="jateksziget",
-            partner_default="jatekok",
-        )
+        findora_main = "jatekok"
+        if findora_main not in FINDORA_CATS:
+            findora_main = "multi"
 
         row = {
             "id": pid,
