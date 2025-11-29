@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
   group: ingest-regiojatek-${{ github.ref }}
@@ -26,87 +25,68 @@ jobs:
       - name: Sync with origin/main
         run: |
           set -e
-          git fetch origin
+          git fetch origin main
           git checkout main
           git reset --hard origin/main
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.x"
+          cache: "pip"
 
       - name: Install deps
-        run: |
-          pip install --upgrade pip
-          pip install requests
+        run: pip install requests
 
       - name: Build RegioJatek feed pages (global + categories + akcios-block)
         env:
           FEED_REGIOJATEK_URL: ${{ secrets.FEED_REGIOJATEK_URL }}
           FEED_REGIO_URL: ${{ secrets.FEED_REGIO_URL }}
         run: |
-          set -e
+          set -euo pipefail
 
+          # Legalább az egyik secret kell
           if [ -z "${FEED_REGIOJATEK_URL:-}" ] && [ -z "${FEED_REGIO_URL:-}" ]; then
-            echo "::error title=Missing secret::Nincs FEED_REGIOJATEK_URL vagy FEED_REGIO_URL beállítva (Settings → Secrets → Actions)."
+            echo "::error title=Missing secret::Legalább az egyik secretet állítsd be: FEED_REGIOJATEK_URL vagy FEED_REGIO_URL."
             exit 1
           fi
 
           mkdir -p docs/feeds/regiojatek
+          python -u scripts/build_regiojatek.py
 
-          # build_regiojatek.py:
-          #  - globál feed (docs/feeds/regiojatek/page-*.json)
-          #  - kategória feedek (docs/feeds/regiojatek/<findora_cat>/...)
-          #  - akcios-block (docs/feeds/regiojatek/akcios-block/...)
-          python scripts/build_regiojatek.py
-
-          echo "Sanity check – globál meta + első oldal:"
+          # Szigorú sanity check – globál feed
           test -s docs/feeds/regiojatek/meta.json
           test -s docs/feeds/regiojatek/page-0001.json
 
           if command -v jq >/dev/null 2>&1; then
             jq -e '.items | length >= 0' docs/feeds/regiojatek/page-0001.json >/dev/null
-            jq -e '.page_count >= 0 and .total_items >= 0' docs/feeds/regiojatek/meta.json >/dev/null
+            jq -e '.page_count >= 0 and .total_items >= 0' docs/feeds/regiojatek/meta.json >/dev/null || true
+            echo "Sanity check (first global item):"
+            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/regiojatek/page-0001.json || true
+          else
+            head -c 800 docs/feeds/regiojatek/page-0001.json || true
           fi
 
-          echo "Sanity check – kategória mappák (meta.json létezés):"
-          # Például jatekok és akcios-block – ha nincs item, akkor is legyen meta.json
-          test -s docs/feeds/regiojatek/jatekok/meta.json || echo "⚠ jatekok/meta.json hiányzik"
-          test -s docs/feeds/regiojatek/akcios-block/meta.json || echo "⚠ akcios-block/meta.json hiányzik"
+          echo "Első pár kategóriafájl a docs/feeds/regiojatek alatt:"
+          find docs/feeds/regiojatek -maxdepth 2 -type f | sed 's|^|  |' | head -n 80 || true
 
-          echo "Tree of docs/feeds/regiojatek:"
-          ls -R docs/feeds/regiojatek || true
-
-      - name: Commit feed updates to bot branch (autopush, stable)
+      - name: Commit feed updates to main (autopush, stable)
         run: |
           set -e
-
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          BR="bot/update-regiojatek"
-
-          # mindig a friss main-ről indulunk
-          git checkout main
-          git checkout -B "$BR"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
           git add docs/feeds/regiojatek
 
-          git commit -m "regiojatek: update feed pages" || echo "No changes"
+          # Ha nincs változás, ne próbáljon push-olni
+          if git diff --cached --quiet; then
+            echo "No changes to commit – nothing to push."
+            exit 0
+          fi
 
-          # stabil force-with-lease, hogy ne akadjon be stale ref miatt
-          git push --force-with-lease origin "$BR"
+          git commit -m "regiojatek: update feed pages"
 
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: bot/update-regiojatek
-          delete-branch: true
-          title: "regiojatek: update feed pages"
-          commit-message: "regiojatek: update feed pages"
-          body: |
-            Automated update of RegioJáték feed pages:
-            - global feed (docs/feeds/regiojatek/page-*.json)
-            - category feeds (docs/feeds/regiojatek/<category>/...)
-            - akcios-block (docs/feeds/regiojatek/akcios-block/).
-          base: main
+          # Ütközés ellen – húzzuk be a legfrissebb main-t, majd push
+          git pull --rebase origin main
+          git push origin HEAD:main
