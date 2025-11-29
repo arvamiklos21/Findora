@@ -3,11 +3,10 @@ name: ingest-kozmetikaotthon
 on:
   workflow_dispatch:
   schedule:
-    - cron: "10 10,19 * * *"
+    - cron: "10 10,19 * * *"   # kb. 11:10 és 20:10 magyar idő
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   ingest:
@@ -33,39 +32,36 @@ jobs:
 
       - name: Install deps
         run: |
+          set -e
           pip install --upgrade pip
           pip install requests
 
-      - name: Build KozmetikaOtthon feed pages
+      - name: Build KozmetikaOtthon feed pages (25 kategória + akció, üresen is)
         env:
           FEED_KOZMETIKAOTTHON_URL: ${{ secrets.FEED_KOZMETIKAOTTHON_URL }}
         run: |
           set -e
+
           mkdir -p docs/feeds/kozmetikaotthon
+
+          # build_kozmetikaotthon.py már úgy van megírva, hogy:
+          # - ha a feed elérhető → normál feldolgozás
+          # - ha TIMEOUT / bármilyen hiba → akkor is legenerálja
+          #   mind a 25 kategória mappát + akcio-t
+          #   meta.json + page-0001.json fájllal
           python scripts/build_kozmetikaotthon.py
 
           echo "Tree of docs/feeds/kozmetikaotthon:"
           ls -R docs/feeds/kozmetikaotthon || true
 
-      - name: Commit feed updates to bot branch (autopush)
+      - name: Commit feed updates directly to main
         run: |
           set -e
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          BR="bot/update-kozmetikaotthon"
-          git checkout -B "$BR"
-
           git add docs/feeds/kozmetikaotthon || true
-          git commit -m "kozmetikaotthon: update feed pages" || echo "No changes"
-          git push --force-with-lease origin "$BR"
 
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: bot/update-kozmetikaotthon
-          base: main
-          delete-branch: true
-          title: "kozmetikaotthon: update feed pages"
-          commit-message: "kozmetikaotthon: update feed pages"
-          body: "Automated update of KozmetikaOtthon feed pages"
+          # Ha nincs változás, ne dőljön el a build
+          git commit -m "kozmetikaotthon: update feed pages" || echo "No changes"
+          git push origin main || echo "Nothing to push"
