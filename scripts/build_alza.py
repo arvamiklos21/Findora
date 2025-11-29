@@ -4,7 +4,7 @@
 #
 # - Bemenet: FEED_ALZA_URL secret
 #   → tartalmazhat 1 vagy több XML feed URL-t, szóközzel / sorvéggel / vesszővel elválasztva
-# - Kategorizálás: ML modell (model_alza.pkl)
+# - Kategorizálás: ML modell (model_alza.pkl) + category_guard.finalize_category_for_alza
 # - Kimenet:
 #   docs/feeds/alza/<findora_cat>/meta.json, page-0001.json, ...
 #   docs/feeds/alza/akcio/meta.json, page-0001.json, ...
@@ -27,6 +27,14 @@ import joblib
 # ===== ALAP KONFIG =====
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# hogy a scripts/ mappában lévő modulokat (pl. category_guard.py) is lássa,
+# amikor a repo gyökeréből futtatjuk: python scripts/build_alza.py
+if SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, SCRIPT_DIR)
+
+# Guard réteg az ML modell fölé
+from category_guard import finalize_category_for_alza
 
 # Alza ML modell
 MODEL_FILE = os.path.join(SCRIPT_DIR, "model_alza.pkl")
@@ -544,9 +552,10 @@ def main():
 
     # 3) ML modell betöltése
     model = load_model()
-    print("[INFO] Alza ML modell betöltve.")
+    print("[INFO] Alza ML
+ modell betöltve.")
 
-    # 4) Normalizált sorok + kategóriák
+    # 4) Normalizált sorok + kategóriák (ML + guard)
     rows = []
     for it in items_dedup:
         pid = it["id"]
@@ -559,12 +568,21 @@ def main():
         category_path = it.get("category_path") or ""
         brand = it.get("brand") or ""
 
-        findora_main = predict_category(
+        # 4.1 elsődleges ML döntés
+        predicted = predict_category(
             model=model,
             title=title,
             desc=desc,
             category_path=category_path,
             brand=brand,
+        )
+
+        # 4.2 guard réteg – elektronika család finomhangolás (és fallback-ek)
+        findora_main = finalize_category_for_alza(
+            predicted=predicted,
+            title=title,
+            desc=desc,
+            category_path=category_path,
         )
 
         row = {
