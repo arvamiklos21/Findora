@@ -1,8 +1,8 @@
 {
-  "total_items": 430,
+  "total_items": 0,
   "page_size": 20,
-  "page_count": 22,
+  "page_count": 0,
   "partner": "alza",
-  "generated_at": "2025-11-27T22:47:27.482899Z",
-  "scope": "category:smart_home"
+  "scope": "category:smart_home",
+  "generated_at": "2025-11-29T10:30:10.234819Z"
 }

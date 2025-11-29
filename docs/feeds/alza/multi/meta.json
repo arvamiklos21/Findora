@@ -1,8 +1,8 @@
 {
-  "total_items": 307770,
+  "total_items": 171323,
   "page_size": 20,
-  "page_count": 15389,
+  "page_count": 8567,
   "partner": "alza",
-  "generated_at": "2025-11-29T08:14:30.796628Z",
-  "scope": "category:multi"
+  "scope": "category:multi",
+  "generated_at": "2025-11-29T10:30:10.239327Z"
 }
