@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   ingest:
@@ -49,45 +48,30 @@ jobs:
           mkdir -p docs/feeds/tchibo
 
           # build_tchibo.py:
-          #  - globál feed (docs/feeds/tchibo/page-0001.json, ... + meta.json)
           #  - kategória feedek (docs/feeds/tchibo/<category>/...)
-          #  - akcios-block (docs/feeds/tchibo/akcios-block/...)
+          #  - akcio (docs/feeds/tchibo/akcio/...)
+          #  - top-level meta (docs/feeds/tchibo/meta.json)
           python scripts/build_tchibo.py
 
-          echo "Sanity check (global page-0001):"
+          echo "Sanity check (egy kategória, pl. divat/page-0001.json):"
           if command -v jq >/dev/null 2>&1; then
-            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/tchibo/page-0001.json || true
+            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/tchibo/divat/page-0001.json || true
           else
-            head -c 600 docs/feeds/tchibo/page-0001.json || true
+            head -c 600 docs/feeds/tchibo/divat/page-0001.json || true
           fi
 
           echo "Tree of docs/feeds/tchibo:"
           ls -R docs/feeds/tchibo || true
 
-      - name: Commit feed updates to bot branch
+      - name: Commit feed updates to main
         run: |
           set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          BR="bot/update-tchibo"
-          git checkout -B "$BR"
+          git checkout main
 
           git add docs/feeds/tchibo
 
           git commit -m "tchibo: update feed pages" || echo "No changes"
-          git push --force-with-lease origin "$BR"
-
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: bot/update-tchibo
-          delete-branch: true
-          title: "tchibo: update feed pages"
-          commit-message: "tchibo: update feed pages"
-          body: |
-            Automated update of Tchibo feed pages:
-            - global feed (docs/feeds/tchibo)
-            - category feeds (docs/feeds/tchibo/<category>/)
-            - akcios-block (docs/feeds/tchibo/akcios-block/).
-          base: main
+          git push origin main
