@@ -9,7 +9,7 @@
 # Kimenet:
 #   docs/feeds/karacsonydekor/meta.json, page-0001.json...              (globál)
 #   docs/feeds/karacsonydekor/<findora_cat>/meta.json, page-....json    (kategória)
-#   docs/feeds/karacsonydekor/akcios-block/meta.json, page-....json     (akciós blokk, discount >= 10%)
+#   docs/feeds/karacsonydekor/akcio/meta.json, page-....json            (akciós blokk, discount >= 10%)
 
 import os
 import re
@@ -340,11 +340,21 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     Általános lapozó + fájlkiíró:
       base_dir/meta.json
       base_dir/page-0001.json, page-0002.json, ...
-    Üres lista esetén is ír meta.json-t (page_count=0), hogy a frontend ne kapjon 404-et.
+
+    FONTOS:
+    - Üres lista esetén is létrejön:
+        - meta.json
+        - page-0001.json ({"items": []})
+      így a frontend soha nem kap 404-et a page-0001.json-re.
     """
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
-    page_count = int(math.ceil(total / page_size)) if total else 0
+
+    # Üres lista esetén is legyen legalább 1 oldal
+    if total == 0:
+        page_count = 1
+    else:
+        page_count = int(math.ceil(total / page_size))
 
     meta = {
         "total_items": total,
@@ -358,14 +368,19 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     with meta_path.open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
-    for page_no in range(1, page_count + 1):
-        start = (page_no - 1) * page_size
-        end = start + page_size
-        page_items = items[start:end]
-
-        out_path = base_dir / f"page-{page_no:04d}.json"
+    if total == 0:
+        out_path = base_dir / "page-0001.json"
         with out_path.open("w", encoding="utf-8") as f:
-            json.dump({"items": page_items}, f, ensure_ascii=False)
+            json.dump({"items": []}, f, ensure_ascii=False)
+    else:
+        for page_no in range(1, page_count + 1):
+            start = (page_no - 1) * page_size
+            end = start + page_size
+            page_items = items[start:end]
+
+            out_path = base_dir / f"page-{page_no:04d}.json"
+            with out_path.open("w", encoding="utf-8") as f:
+                json.dump({"items": page_items}, f, ensure_ascii=False)
 
 
 # ====================== MAIN ======================
@@ -375,7 +390,7 @@ def main():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # régi JSON-ok törlése (globál + kategória + akcios-block)
+    # régi JSON-ok törlése (globál + kategória + akcio)
     for old in OUT_DIR.rglob("*.json"):
         try:
             old.unlink()
@@ -445,7 +460,7 @@ def main():
 
     # 4) HA NINCS EGYETLEN TERMÉK SEM
     if total == 0:
-        # Globál üres meta
+        # Globál üres meta + üres page-0001
         paginate_and_write(
             OUT_DIR,
             [],
@@ -456,7 +471,7 @@ def main():
             },
         )
 
-        # Minden kategóriára üres meta
+        # Minden kategóriára üres meta + üres page-0001
         for slug in FINDORA_CATS:
             base_dir = OUT_DIR / slug
             paginate_and_write(
@@ -469,19 +484,19 @@ def main():
                 },
             )
 
-        # Akciós blokk üres meta
-        akcio_dir = OUT_DIR / "akcios-block"
+        # Akciós blokk üres meta + üres page-0001
+        akcio_dir = OUT_DIR / "akcio"
         paginate_and_write(
             akcio_dir,
             [],
             PAGE_SIZE_AKCIO_BLOCK,
             meta_extra={
                 "partner": "karacsonydekor",
-                "scope": "akcios-block",
+                "scope": "akcio",
             },
         )
 
-        print("⚠️ Karácsonydekor: nincs termék → csak üres meta-k készültek.")
+        print("⚠️ Karácsonydekor: nincs termék → csak üres meta-k + page-0001.json készült.")
         return
 
     # 5) GLOBÁL FEED
@@ -523,21 +538,21 @@ def main():
         if row.get("discount") is not None and row["discount"] >= 10
     ]
 
-    akcio_dir = OUT_DIR / "akcios-block"
+    akcio_dir = OUT_DIR / "akcio"
     paginate_and_write(
         akcio_dir,
         akcios_items,
         PAGE_SIZE_AKCIO_BLOCK,
         meta_extra={
             "partner": "karacsonydekor",
-            "scope": "akcios-block",
+            "scope": "akcio",
             "generated_at": datetime.utcnow().isoformat() + "Z",
         },
     )
 
     print(
         f"✅ Karácsonydekor kész: {total} termék, "
-        f"{len(buckets)} kategória (mindegyiknek meta), "
+        f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
         f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR}"
     )
 
