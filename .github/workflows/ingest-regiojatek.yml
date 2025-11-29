@@ -3,11 +3,15 @@ name: ingest-regiojatek
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 9,19 * * *"
+    - cron: "0 9,19 * * *"   # reggel 10:00 és este 20:00 magyar idő (9 és 19 UTC)
 
 permissions:
   contents: write
   pull-requests: write
+
+concurrency:
+  group: ingest-regiojatek-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ingest:
@@ -32,29 +36,45 @@ jobs:
           python-version: "3.11"
 
       - name: Install deps
-        run: pip install requests
+        run: |
+          pip install --upgrade pip
+          pip install requests
 
       - name: Build RegioJatek feed pages (global + categories + akcios-block)
         env:
           FEED_REGIOJATEK_URL: ${{ secrets.FEED_REGIOJATEK_URL }}
+          FEED_REGIO_URL: ${{ secrets.FEED_REGIO_URL }}
         run: |
           set -e
 
-          if [ -z "$FEED_REGIOJATEK_URL" ]; then
-            echo "::error title=Missing secret::FEED_REGIOJATEK_URL nincs beállítva."; exit 1
+          if [ -z "${FEED_REGIOJATEK_URL:-}" ] && [ -z "${FEED_REGIO_URL:-}" ]; then
+            echo "::error title=Missing secret::Nincs FEED_REGIOJATEK_URL vagy FEED_REGIO_URL beállítva (Settings → Secrets → Actions)."
+            exit 1
           fi
 
           mkdir -p docs/feeds/regiojatek
 
+          # build_regiojatek.py:
+          #  - globál feed (docs/feeds/regiojatek/page-*.json)
+          #  - kategória feedek (docs/feeds/regiojatek/<findora_cat>/...)
+          #  - akcios-block (docs/feeds/regiojatek/akcios-block/...)
           python scripts/build_regiojatek.py
 
-          echo "Sanity check:"
+          echo "Sanity check – globál meta + első oldal:"
+          test -s docs/feeds/regiojatek/meta.json
+          test -s docs/feeds/regiojatek/page-0001.json
+
           if command -v jq >/dev/null 2>&1; then
-            jq -r '.items[0]' docs/feeds/regiojatek/page-0001.json || true
-          else
-            head -c 800 docs/feeds/regiojatek/page-0001.json || true
+            jq -e '.items | length >= 0' docs/feeds/regiojatek/page-0001.json >/dev/null
+            jq -e '.page_count >= 0 and .total_items >= 0' docs/feeds/regiojatek/meta.json >/dev/null
           fi
 
+          echo "Sanity check – kategória mappák (meta.json létezés):"
+          # Például jatekok és akcios-block – ha nincs item, akkor is legyen meta.json
+          test -s docs/feeds/regiojatek/jatekok/meta.json || echo "⚠ jatekok/meta.json hiányzik"
+          test -s docs/feeds/regiojatek/akcios-block/meta.json || echo "⚠ akcios-block/meta.json hiányzik"
+
+          echo "Tree of docs/feeds/regiojatek:"
           ls -R docs/feeds/regiojatek || true
 
       - name: Commit feed updates to bot branch (autopush, stable)
@@ -66,13 +86,15 @@ jobs:
 
           BR="bot/update-regiojatek"
 
-          # új ág létrehozása mindig tiszta állapotról
+          # mindig a friss main-ről indulunk
+          git checkout main
           git checkout -B "$BR"
 
           git add docs/feeds/regiojatek
+
           git commit -m "regiojatek: update feed pages" || echo "No changes"
 
-          # nincs rebase, nincs pull – stabil force push
+          # stabil force-with-lease, hogy ne akadjon be stale ref miatt
           git push --force-with-lease origin "$BR"
 
       - name: Create pull request
@@ -83,5 +105,8 @@ jobs:
           title: "regiojatek: update feed pages"
           commit-message: "regiojatek: update feed pages"
           body: |
-            Automated update of RegioJáték feed pages (global + categories + akcios-block).
+            Automated update of RegioJáték feed pages:
+            - global feed (docs/feeds/regiojatek/page-*.json)
+            - category feeds (docs/feeds/regiojatek/<category>/...)
+            - akcios-block (docs/feeds/regiojatek/akcios-block/).
           base: main
