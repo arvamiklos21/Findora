@@ -1,1 +1,8 @@
-{"partner": "ekszereshop", "pageSize": 300, "total": 33671, "pages": 113, "lastUpdated": "2025-11-29T10:32:24.401084Z", "source": "feed"}
+{
+  "total_items": 33671,
+  "page_size": 300,
+  "page_count": 113,
+  "partner": "ekszereshop",
+  "scope": "global",
+  "generated_at": "2025-11-29T12:49:34.080440Z"
+}
