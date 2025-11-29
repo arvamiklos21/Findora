@@ -434,13 +434,16 @@ def main():
         category_path = it.get("category_path") or ""
         brand = it.get("brand") or ""
 
-        # Partner-specifikus assigner
-        findora_main = assign_otthonmarket_category(
-            title=title,
-            desc=desc,
-            category_path=category_path,
-            brand=brand,
-        )
+        # Partner-specifikus assigner egyetlen dict-et vár
+        fields = {
+            "title": title,
+            "desc": desc,
+            "category_path": category_path,
+            "brand": brand,
+            "partner": "otthonmarket",
+        }
+
+        findora_main = assign_otthonmarket_category(fields)
 
         # fallback: ha bármi hülyeséget ad vissza, menjen "otthon"-ba (nem multi)
         if not findora_main or findora_main not in FINDORA_CATS:
