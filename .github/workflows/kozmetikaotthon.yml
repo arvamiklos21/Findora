@@ -3,7 +3,7 @@ name: ingest-kozmetikaotthon
 on:
   workflow_dispatch:
   schedule:
-    - cron: "10 10,19 * * *"   # 11:10 és 20:10 (Europe/Budapest), azaz 10:10 és 19:10 UTC
+    - cron: "10 10,19 * * *"
 
 permissions:
   contents: write
@@ -19,11 +19,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Sync with origin/main
-        run: |
-          git fetch origin main
-          git reset --hard origin/main
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -37,50 +32,28 @@ jobs:
           FEED_KOZMETIKAOTTHON_URL: ${{ secrets.FEED_KOZMETIKAOTTHON_URL }}
         run: |
           set -e
-          if [ -z "$FEED_KOZMETIKAOTTHON_URL" ]; then
-            echo "::error title=Missing secret::FEED_KOZMETIKAOTTHON_URL nincs beállítva (Settings → Secrets → Actions)."
-            exit 1
-          fi
-
           mkdir -p docs/feeds/kozmetikaotthon
           python scripts/build_kozmetikaotthon.py
-
-          echo "Sanity check:"
-          if command -v jq >/dev/null 2>&1; then
-            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/kozmetikaotthon/page-0001.json || true
-          else
-            head -c 600 docs/feeds/kozmetikaotthon/page-0001.json || true
-          fi
-
-          ls -la docs/feeds/kozmetikaotthon
 
       - name: Commit feed updates to bot branch (autopush)
         run: |
           set -e
-
-          git config user.name  "github-actions[bot]"
+          git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          BR="bot/update-kozmetikaotthon"
+          git switch -C bot/update-kozmetikaotthon
 
-          # Töröljük a régi local branch-et, ha létezett
-          git branch -D "$BR" 2>/dev/null || true
+          git add docs/feeds/kozmetikaotthon || true
+          git commit -m "kozmetikaotthon: update feed pages" || true
 
-          # Létrehozzuk
-          git checkout -B "$BR"
-
-          git add docs/feeds/kozmetikaotthon
-          git commit -m "kozmetikaotthon: update feed pages" || echo "No changes"
-
-          # AUTOPUSH — mindig felülírja a bot branch-et
-          git push --force-with-lease origin "$BR"
+          git push -f origin bot/update-kozmetikaotthon
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v6
         with:
           branch: bot/update-kozmetikaotthon
+          base: main
           delete-branch: true
           title: "kozmetikaotthon: update feed pages"
           commit-message: "kozmetikaotthon: update feed pages"
-          body: |
-            Automated update of KozmetikaOtthon feed pages (JSON pagination).
+          body: "Automated update of KozmetikaOtthon feed pages"
