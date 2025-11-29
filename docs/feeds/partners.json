@@ -4,7 +4,10 @@
     "name": "Tchibo.hu",
     "group": "otthon",
     "meta": "feeds/tchibo/meta.json",
-    "pagePattern": "feeds/tchibo/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/tchibo/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/tchibo/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "tchibo",
     "placements": {
       "home": { "enabled": true, "pageSize": 3 },
@@ -23,36 +26,46 @@
     "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
-  "id": "cj-jatekshop",
-  "name": "Jatekshop.eu",
-  "group": "jatekok",
-  "meta": "feeds/cj-jatekshop/meta.json",
-  "pagePattern": "feeds/cj-jatekshop/page-{NNNN}.json",
-  "deeplinkPartner": "cj-jatekshop",
-  "placements": {
-    "home": { "enabled": true, "pageSize": 0 },
-    "jatekok": {
-      "enabled": true,
-      "pageSize": 3,
-      "full": { "enabled": true, "pageSize": 20 }
-    }
+    "id": "cj-jatekshop",
+    "name": "Jatekshop.eu",
+    "group": "jatekok",
+    "meta": "feeds/cj-jatekshop/meta.json",
+    "pagePattern": "feeds/cj-jatekshop/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/cj-jatekshop/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/cj-jatekshop/{CAT}/page-{NNNN}.json",
+
+    "deeplinkPartner": "cj-jatekshop",
+    "placements": {
+      "home": { "enabled": true, "pageSize": 0 },
+      "jatekok": {
+        "enabled": true,
+        "pageSize": 3,
+        "full": { "enabled": true, "pageSize": 20 }
+      }
+    },
+    "bf": {
+      "enabled": false,
+      "scanPages": 2,
+      "minDiscount": 10
+    },
+    "itemCount": 0,
+    "hasAkcio": true,
+    "categoryIndex": {}
   },
-  "bf": {
-    "enabled": false,
-    "scanPages": 2,
-    "minDiscount": 10
-  },
-  "itemCount": 0,
-  "hasAkcio": true,
-  "categoryIndex": {}
-},
+
   {
     "id": "cj-karcher",
     "name": "Kärcher",
     "group": "otthon",
     "meta": "feeds/cj-karcher/meta.json",
     "pagePattern": "feeds/cj-karcher/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/cj-karcher/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/cj-karcher/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "cj-karcher",
     "placements": {
       "home": { "enabled": false, "pageSize": 3 },
@@ -68,15 +81,20 @@
       "minDiscount": 10
     },
     "itemCount": 0,
-    "hasAkcio": false,
+    "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "cj-eoptika",
     "name": "eOptika",
     "group": "vision",
     "meta": "feeds/cj-eoptika/meta.json",
     "pagePattern": "feeds/cj-eoptika/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/cj-eoptika/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/cj-eoptika/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "cj-eoptika",
     "placements": {
       "home": { "enabled": false, "pageSize": 3 },
@@ -92,15 +110,20 @@
       "minDiscount": 10
     },
     "itemCount": 0,
-    "hasAkcio": false,
+    "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "cj-jateknet",
     "name": "JátékNet",
     "group": "games",
     "meta": "feeds/cj-jateknet/meta.json",
     "pagePattern": "feeds/cj-jateknet/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/cj-jateknet/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/cj-jateknet/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "cj-jateknet",
     "placements": {
       "home": { "enabled": false, "pageSize": 3 },
@@ -116,15 +139,20 @@
       "minDiscount": 10
     },
     "itemCount": 0,
-    "hasAkcio": false,
+    "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "jateksziget",
     "name": "Játéksziget",
     "group": "games",
     "meta": "feeds/jateksziget/meta.json",
     "pagePattern": "feeds/jateksziget/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/jateksziget/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/jateksziget/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "jateksziget",
     "placements": {
       "home": { "enabled": true, "pageSize": 3 },
@@ -143,12 +171,17 @@
     "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "regiojatek",
     "name": "REGIO Játék",
     "group": "games",
     "meta": "feeds/regiojatek/meta.json",
     "pagePattern": "feeds/regiojatek/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/regiojatek/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/regiojatek/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "regiojatek",
     "placements": {
       "home": { "enabled": true, "pageSize": 3 },
@@ -167,12 +200,17 @@
     "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "decathlon",
     "name": "Decathlon",
     "group": "sport",
     "meta": "feeds/decathlon/meta.json",
     "pagePattern": "feeds/decathlon/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/decathlon/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/decathlon/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "decathlon",
     "placements": {
       "home": { "enabled": true, "pageSize": 3 },
@@ -191,14 +229,18 @@
     "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "alza",
     "name": "Alza",
     "group": "tech",
-    "meta": "feeds/alza/meta.json",
-    "pagePattern": "feeds/alza/page-{NNNN}.json",
+
+    "meta": null,
+    "pagePattern": null,
+
     "categoryMetaPattern": "feeds/alza/{CAT}/meta.json",
     "categoryPagePattern": "feeds/alza/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "alza",
     "placements": {
       "home": { "enabled": true, "pageSize": 6 },
@@ -225,12 +267,17 @@
     "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "kozmetikaotthon",
     "name": "KozmetikaOtthon",
     "group": "vision",
     "meta": "feeds/kozmetikaotthon/meta.json",
     "pagePattern": "feeds/kozmetikaotthon/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/kozmetikaotthon/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/kozmetikaotthon/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "kozmetikaotthon",
     "placements": {
       "home": { "enabled": false, "pageSize": 3 },
@@ -246,15 +293,20 @@
       "minDiscount": 10
     },
     "itemCount": 0,
-    "hasAkcio": false,
+    "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "pepita",
     "name": "Pepita.hu",
     "group": "travel",
     "meta": "feeds/pepita/meta.json",
     "pagePattern": "feeds/pepita/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/pepita/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/pepita/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "pepita",
     "placements": {
       "home": { "enabled": true, "pageSize": 3 },
@@ -273,12 +325,17 @@
     "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "ekszereshop",
     "name": "Ékszer-Eshop.hu",
     "group": "vision",
     "meta": "feeds/ekszereshop/meta.json",
     "pagePattern": "feeds/ekszereshop/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/ekszereshop/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/ekszereshop/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "ekszereshop",
     "placements": {
       "home": { "enabled": true, "pageSize": 3 },
@@ -297,12 +354,17 @@
     "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "karacsonydekor",
     "name": "Karácsonyi Dekor",
     "group": "otthon",
     "meta": "feeds/karacsonydekor/meta.json",
     "pagePattern": "feeds/karacsonydekor/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/karacsonydekor/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/karacsonydekor/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "karacsonydekor",
     "placements": {
       "home": { "enabled": true, "pageSize": 3 },
@@ -321,12 +383,17 @@
     "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "otthonmarket",
     "name": "OtthonMarket",
     "group": "otthon",
     "meta": "feeds/otthonmarket/meta.json",
     "pagePattern": "feeds/otthonmarket/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/otthonmarket/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/otthonmarket/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "otthonmarket",
     "placements": {
       "home": { "enabled": true, "pageSize": 3 },
@@ -345,12 +412,17 @@
     "hasAkcio": true,
     "categoryIndex": {}
   },
+
   {
     "id": "onlinemarkabolt",
     "name": "OnlineMárkabolt",
     "group": "otthon",
     "meta": "feeds/onlinemarkabolt/meta.json",
     "pagePattern": "feeds/onlinemarkabolt/page-{NNNN}.json",
+
+    "categoryMetaPattern": "feeds/onlinemarkabolt/{CAT}/meta.json",
+    "categoryPagePattern": "feeds/onlinemarkabolt/{CAT}/page-{NNNN}.json",
+
     "deeplinkPartner": "onlinemarkabolt",
     "placements": {
       "home": { "enabled": true, "pageSize": 3 },
