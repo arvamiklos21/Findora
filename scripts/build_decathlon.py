@@ -350,11 +350,21 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     Általános lapozó + fájlkiíró:
       base_dir/meta.json
       base_dir/page-0001.json, page-0002.json, ...
-    Üres lista esetén is ír meta.json-t (page_count=0), hogy a frontend ne kapjon 404-et.
+
+    FONTOS:
+    - Üres lista esetén is létrejön:
+        - meta.json
+        - page-0001.json ({"items": []})
+      így a frontend soha nem kap 404-et a page-0001.json-re.
     """
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
-    page_count = int(math.ceil(total / page_size)) if total else 0
+
+    # Üres lista esetén is legyen legalább 1 oldal
+    if total == 0:
+        page_count = 1
+    else:
+        page_count = int(math.ceil(total / page_size))
 
     meta = {
         "total_items": total,
@@ -368,14 +378,19 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     with meta_path.open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
-    for page_no in range(1, page_count + 1):
-        start = (page_no - 1) * page_size
-        end = start + page_size
-        page_items = items[start:end]
-
-        out_path = base_dir / f"page-{page_no:04d}.json"
+    if total == 0:
+        out_path = base_dir / "page-0001.json"
         with out_path.open("w", encoding="utf-8") as f:
-            json.dump({"items": page_items}, f, ensure_ascii=False)
+            json.dump({"items": []}, f, ensure_ascii=False)
+    else:
+        for page_no in range(1, page_count + 1):
+            start = (page_no - 1) * page_size
+            end = start + page_size
+            page_items = items[start:end]
+
+            out_path = base_dir / f"page-{page_no:04d}.json"
+            with out_path.open("w", encoding="utf-8") as f:
+                json.dump({"items": page_items}, f, ensure_ascii=False)
 
 
 def main():
@@ -443,7 +458,7 @@ def main():
 
     # ===== HA NINCS EGYETLEN TERMÉK SEM =====
     if total == 0:
-        # Minden kategóriára üres meta
+        # Minden kategóriára üres meta + üres page-0001
         for slug in FINDORA_CATS:
             base_dir = OUT_DIR / slug
             paginate_and_write(
@@ -456,7 +471,7 @@ def main():
                 },
             )
 
-        # Akciós blokk üres meta
+        # Akciós blokk üres meta + üres page-0001
         akcio_dir = OUT_DIR / "akcios-block"
         paginate_and_write(
             akcio_dir,
@@ -477,20 +492,20 @@ def main():
                 slug: {
                     "total_items": 0,
                     "page_size": PAGE_SIZE_CAT,
-                    "page_count": 0,
+                    "page_count": 1,  # üresen is létrejön page-0001.json
                 }
                 for slug in FINDORA_CATS
             },
             "akcios_block": {
                 "total_items": 0,
                 "page_size": PAGE_SIZE_AKCIO_BLOCK,
-                "page_count": 0,
+                "page_count": 1,  # üresen is létrejön page-0001.json
             },
         }
         with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
             json.dump(top_meta, f, ensure_ascii=False, indent=2)
 
-        print("⚠️ Decathlon: nincs termék → csak üres meta-k készültek.")
+        print("⚠️ Decathlon: nincs termék → csak üres meta-k + page-0001.json készült.")
         return
 
     # ===== KATEGÓRIA FEED-EK =====
@@ -516,7 +531,8 @@ def main():
             },
         )
         total_cat = len(items_cat)
-        page_count_cat = int(math.ceil(total_cat / PAGE_SIZE_CAT)) if total_cat else 0
+        # meta-ban is tükrözzük, hogy üresen is van 1 oldal
+        page_count_cat = 1 if total_cat == 0 else int(math.ceil(total_cat / PAGE_SIZE_CAT))
         categories_meta[slug] = {
             "total_items": total_cat,
             "page_size": PAGE_SIZE_CAT,
@@ -541,7 +557,9 @@ def main():
         },
     )
     total_akcio = len(akcios_items)
-    page_count_akcio = int(math.ceil(total_akcio / PAGE_SIZE_AKCIO_BLOCK)) if total_akcio else 0
+    page_count_akcio = (
+        1 if total_akcio == 0 else int(math.ceil(total_akcio / PAGE_SIZE_AKCIO_BLOCK))
+    )
 
     # ===== TOP-LEVEL META (összefoglaló, NINCS globál page-*.json) =====
     top_meta = {
@@ -560,7 +578,7 @@ def main():
 
     print(
         f"✅ Decathlon kész: {total} termék, "
-        f"{len(buckets)} kategória (mindegyiknek meta), "
+        f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
         f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR}"
     )
 
