@@ -8,8 +8,8 @@
 # Kimenet:
 #   - docs/feeds/onlinemarkabolt/<findora_cat>/meta.json
 #   - docs/feeds/onlinemarkabolt/<findora_cat>/page-0001.json, ...
-#   - docs/feeds/onlinemarkabolt/akciok/meta.json
-#   - docs/feeds/onlinemarkabolt/akciok/page-0001.json, ...
+#   - docs/feeds/onlinemarkabolt/akcio/meta.json
+#   - docs/feeds/onlinemarkabolt/akcio/page-0001.json, ...
 #
 # Struktúra (page-*.json):
 #   {
@@ -67,8 +67,8 @@ ONLINEMARKABOLT_PRIMARY_CATS = [
 # Minden elérhető Findora fő kategória – ÜRESRE IS csinálunk meta.json-t
 ALL_FINDORA_CATS = list(FINDORA_CATS)
 
-# Akciós bucket slug
-AKCIO_SLUG = "akciok"
+# Akciós bucket slug – frontend: /feeds/onlinemarkabolt/akcio/...
+AKCIO_SLUG = "akcio"
 
 # Akciós szabály: csak azok menjenek az akciós bucketbe,
 # ahol a discount (százalék) legalább 10%
@@ -225,7 +225,7 @@ def normalize_item(prod):
 
 def write_category_pages(cat_slug: str, items_for_cat, page_size: int):
     """
-    Egy konkrét Findora kategóriához kiírja
+    Egy konkrét Findora kategóriához (vagy akció buckethez) kiírja
     a page-*.json oldalakat és a meta.json-t.
 
     FONTOS:
