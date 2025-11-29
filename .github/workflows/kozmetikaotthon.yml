@@ -22,10 +22,12 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.11"
 
       - name: Install deps
-        run: pip install requests
+        run: |
+          pip install --upgrade pip
+          pip install requests
 
       - name: Build KozmetikaOtthon feed pages
         env:
@@ -34,6 +36,9 @@ jobs:
           set -e
           mkdir -p docs/feeds/kozmetikaotthon
           python scripts/build_kozmetikaotthon.py
+
+          echo "Sanity check (kozmetikaotthon tree):"
+          ls -R docs/feeds/kozmetikaotthon || true
 
       - name: Commit feed updates to bot branch (autopush)
         run: |
