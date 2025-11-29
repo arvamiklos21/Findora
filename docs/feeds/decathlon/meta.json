@@ -1,7 +1,7 @@
 {
   "partner": "decathlon",
-  "total_items": 23594,
-  "generated_at": "2025-11-28T18:30:02.891532Z",
+  "total_items": 23577,
+  "generated_at": "2025-11-29T09:29:53.461687Z",
   "categories": {
     "elektronika": {
       "total_items": 83,
@@ -14,7 +14,7 @@
       "page_count": 1
     },
     "szamitastechnika": {
-      "total_items": 383,
+      "total_items": 384,
       "page_size": 20,
       "page_count": 20
     },
@@ -34,7 +34,7 @@
       "page_count": 0
     },
     "otthon": {
-      "total_items": 373,
+      "total_items": 372,
       "page_size": 20,
       "page_count": 19
     },
@@ -44,7 +44,7 @@
       "page_count": 7
     },
     "konyha_fozes": {
-      "total_items": 471,
+      "total_items": 468,
       "page_size": 20,
       "page_count": 24
     },
@@ -54,14 +54,14 @@
       "page_count": 5
     },
     "jatekok": {
-      "total_items": 1726,
+      "total_items": 1717,
       "page_size": 20,
-      "page_count": 87
+      "page_count": 86
     },
     "divat": {
-      "total_items": 6964,
+      "total_items": 6954,
       "page_size": 20,
-      "page_count": 349
+      "page_count": 348
     },
     "szepseg": {
       "total_items": 0,
@@ -79,7 +79,7 @@
       "page_count": 1
     },
     "sport": {
-      "total_items": 12745,
+      "total_items": 12752,
       "page_size": 20,
       "page_count": 638
     },
@@ -104,7 +104,7 @@
       "page_count": 0
     },
     "utazas": {
-      "total_items": 354,
+      "total_items": 352,
       "page_size": 20,
       "page_count": 18
     },
@@ -130,7 +130,7 @@
     }
   },
   "akcios_block": {
-    "total_items": 2355,
+    "total_items": 2350,
     "page_size": 20,
     "page_count": 118
   }
