@@ -1,1 +1,8 @@
-{"partner": "regiojatek", "pageSize": 300, "total": 11586, "pages": 39, "lastUpdated": "2025-11-25T09:42:32.893850Z", "source": "regiojatek"}
+{
+  "total_items": 10907,
+  "page_size": 300,
+  "page_count": 37,
+  "partner": "regiojatek",
+  "scope": "global",
+  "generated_at": "2025-11-29T00:42:57.862460Z"
+}
