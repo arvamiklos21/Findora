@@ -112,73 +112,76 @@ for old_json in OUT_DIR.rglob("*.json"):
 
 # ====================== FEED BETÖLTÉS ======================
 
-txt_files = list(IN_DIR.glob("*.txt"))
-if not txt_files:
-    raise SystemExit("Nincs .txt fájl a CJ JátékNet feedben :(")
-
-feed_file = sorted(txt_files)[0]
-
 raw_items = []
 
-with feed_file.open("r", encoding="utf-8", newline="") as f:
-    sample = f.read(2048)
-    f.seek(0)
-    try:
-        dialect = csv.Sniffer().sniff(sample, delimiters="\t,;|")
-        print("DEBUG CJ JATEKNET DIALECT delimiter:", repr(dialect.delimiter))
-    except Exception:
-        dialect = csv.excel_tab
-        print("DEBUG CJ JATEKNET DIALECT fallback: TAB")
+txt_files = sorted(IN_DIR.glob("*.txt"))
+if not txt_files:
+    # NINCS TXT → hibás URL / még nem jött le a CJ pack
+    # Ilyenkor üres feedet generálunk (globál + 25 kategória + akció),
+    # hogy a frontend ne kapjon 404-et.
+    print("⚠️ CJ JátékNet: nincs .txt fájl a feed mappában → üres feed (csak meta + page-0001.json).")
+else:
+    feed_file = txt_files[0]
 
-    reader = csv.DictReader(f, dialect=dialect)
+    with feed_file.open("r", encoding="utf-8", newline="") as f:
+        sample = f.read(2048)
+        f.seek(0)
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters="\t,;|")
+            print("DEBUG CJ JATEKNET DIALECT delimiter:", repr(dialect.delimiter))
+        except Exception:
+            dialect = csv.excel_tab
+            print("DEBUG CJ JATEKNET DIALECT fallback: TAB")
 
-    for idx, row in enumerate(reader):
-        if idx == 0:
-            print("DEBUG CJ JATEKNET HEADERS:", list(row.keys()))
+        reader = csv.DictReader(f, dialect=dialect)
 
-        title = first(row, "TITLE", "title")
-        if not title:
-            continue
+        for idx, row in enumerate(reader):
+            if idx == 0:
+                print("DEBUG CJ JATEKNET HEADERS:", list(row.keys()))
 
-        pid = first(row, "ID", "id", "ITEM_ID")
-        url = first(row, "LINK", "ADS_REDIRECT", "link")
-        img = first(row, "IMAGE_LINK", "image_link")
-        desc = first(row, "DESCRIPTION", "description") or ""
+            title = first(row, "TITLE", "title")
+            if not title:
+                continue
 
-        sale = parse_price(first(row, "SALE_PRICE", "sale_price"))
-        price = parse_price(first(row, "PRICE", "price"))
+            pid = first(row, "ID", "id", "ITEM_ID")
+            url = first(row, "LINK", "ADS_REDIRECT", "link")
+            img = first(row, "IMAGE_LINK", "image_link")
+            desc = first(row, "DESCRIPTION", "description") or ""
 
-        final = sale or price
-        orig = price if sale and price and sale < price else None
+            sale = parse_price(first(row, "SALE_PRICE", "sale_price"))
+            price = parse_price(first(row, "PRICE", "price"))
 
-        discount = None
-        if orig and final and final < orig:
-            discount = round((orig - final) / orig * 100)
+            final = sale or price
+            orig = price if sale and price and sale < price else None
 
-        brand = first(row, "BRAND", "brand")
-        category = first(
-            row,
-            "GOOGLE_PRODUCT_CATEGORY_NAME",
-            "GOOGLE_PRODUCT_CATEGORY",
-            "PRODUCT_TYPE",
-            "product_type",
-        )
+            discount = None
+            if orig and final and final < orig:
+                discount = round((orig - final) / orig * 100)
 
-        raw_items.append(
-            {
-                "id": pid,
-                "title": title,
-                "desc": desc,
-                "url": url,
-                "image": img,
-                "price": final,
-                "original_price": orig,
-                "currency": "HUF",
-                "brand": brand,
-                "category_path": category or "",
-                "discount": discount,
-            }
-        )
+            brand = first(row, "BRAND", "brand")
+            category = first(
+                row,
+                "GOOGLE_PRODUCT_CATEGORY_NAME",
+                "GOOGLE_PRODUCT_CATEGORY",
+                "PRODUCT_TYPE",
+                "product_type",
+            )
+
+            raw_items.append(
+                {
+                    "id": pid,
+                    "title": title,
+                    "desc": desc,
+                    "url": url,
+                    "image": img,
+                    "price": final,
+                    "original_price": orig,
+                    "currency": "HUF",
+                    "brand": brand,
+                    "category_path": category or "",
+                    "discount": discount,
+                }
+            )
 
 total_raw = len(raw_items)
 print(f"[INFO] CJ JátékNet: nyers termékek: {total_raw}")
