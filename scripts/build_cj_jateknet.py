@@ -9,7 +9,7 @@
 # Kimenet:
 #   docs/feeds/cj-jateknet/meta.json, page-0001.json...              (globál)
 #   docs/feeds/cj-jateknet/<findora_cat>/meta.json, page-....json    (kategória)
-#   docs/feeds/cj-jateknet/akcios-block/meta.json, page-....json     (akciós blokk, discount >= 10%)
+#   docs/feeds/cj-jateknet/akcio/meta.json, page-....json            (akciós blokk, discount >= 10%)
 
 import csv
 import json
@@ -290,14 +290,14 @@ if total == 0:
         )
 
     # Akciós blokk üres meta + üres page-0001
-    akcio_dir = OUT_DIR / "akcios-block"
+    akcio_dir = OUT_DIR / "akcio"
     paginate_and_write(
         akcio_dir,
         [],
         PAGE_SIZE_AKCIO_BLOCK,
         meta_extra={
             "partner": "cj-jateknet",
-            "scope": "akcios-block",
+            "scope": "akcio",
         },
     )
 
@@ -348,19 +348,19 @@ akcios_items = [
     if row.get("discount") is not None and row["discount"] >= 10
 ]
 
-akcio_dir = OUT_DIR / "akcios-block"
+akcio_dir = OUT_DIR / "akcio"
 paginate_and_write(
     akcio_dir,
     akcios_items,
     PAGE_SIZE_AKCIO_BLOCK,
     meta_extra={
         "partner": "cj-jateknet",
-        "scope": "akcios-block",
+        "scope": "akcio",
     },
 )
 
 print(
     f"✅ CJ JátékNet kész: {total} termék, "
     f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
-    f"akciós blokk tételek: {len(akcios_items)}"
+    f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR / 'akcio'}"
 )
