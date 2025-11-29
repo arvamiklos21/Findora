@@ -1,357 +1,282 @@
 # scripts/build_alza.py
 #
-# ALZA feed → Findora JSON oldalak (kategória bontás, ML modellel + akciós blokk)
+# ALZA → csak KATEGÓRIA + AKCIÓS BLOKK JSON
+#
+# Nem készül globális meta/page!
+#
 
 import os
-import sys
 import re
 import json
 import math
+import time
 import xml.etree.ElementTree as ET
-import requests
-
+from pathlib import Path
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
-import joblib  # <-- ML modell betöltéséhez
-from collections import Counter
+import requests
+import joblib
 
-# --- hogy a scripts/ alatti dolgokat (ha kellenek) lássa ---
+from category_assignbase import assign_category, FINDORA_CATS
+
+# ===== Config =====
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
+FEED_URL = os.environ.get("FEED_ALZA_URL")
 
-# ===== KONFIG =====
-OUT_DIR = "docs/feeds/alza"
+OUT_DIR = Path("docs/feeds/alza")
 
-# Kategória nézet (pl. 20/lap a menüknél)
 PAGE_SIZE_CAT = 20
+PAGE_SIZE_AKCIO = 20
 
-# Akciós blokk mérete (pl. főoldali blokk)
-PAGE_SIZE_AKCIO_BLOCK = 20
-
-# ML modell fájl – a scripts mappában
 MODEL_FILE = os.path.join(SCRIPT_DIR, "model_alza.pkl")
 
 
-# Findora fő kategória SLUG-ok – a 25 menühöz igazítva + "akciok"
-FINDORA_CATS = [
-    "akciok",
-    "elektronika",
-    "haztartasi_gepek",
-    "szamitastechnika",
-    "mobil",
-    "gaming",
-    "smart_home",
-    "otthon",
-    "lakberendezes",
-    "konyha_fozes",
-    "kert",
-    "jatekok",
-    "divat",
-    "szepseg",
-    "drogeria",
-    "baba",
-    "sport",
-    "egeszseg",
-    "latas",
-    "allatok",
-    "konyv",
-    "utazas",
-    "iroda_iskola",
-    "szerszam_barkacs",
-    "auto_motor",
-    "multi",
-]
+# ===== Helpers =====
 
-
-# ===== Segédfüggvények =====
 def norm_price(v):
-    if v is None:
+    if not v:
         return None
-    s = re.sub(r"[^\d.,-]", "", str(v)).replace(" ", "")
-    if not s or s in ("-", ""):
+    s = re.sub(r"[^\d.,-]", "", str(v))
+    if not s:
         return None
     try:
-        return int(round(float(s.replace(",", "."))))
-    except Exception:
+        return int(float(s.replace(",", ".")))
+    except:
         digits = re.sub(r"[^\d]", "", str(v))
         return int(digits) if digits else None
 
 
-def short_desc(t, maxlen=220):
+def short(t, maxlen=220):
     if not t:
-        return None
-    t = re.sub(r"<[^>]+>", " ", t)
+        return ""
+    t = re.sub(r"<[^>]+>", " ", str(t))
     t = re.sub(r"\s+", " ", t).strip()
-    if len(t) <= maxlen:
-        return t
-    return t[: maxlen - 1].rstrip() + "…"
+    return (t[: maxlen - 1] + "…") if len(t) > maxlen else t
 
 
-def build_text_for_model(cat_root, cat_path, title, desc):
-    """
-    Modell bemeneti szöveg: root + teljes kategóriaút + cím + leírás
-    (ezt használtuk a D:/scan-es tréningnél is logikailag)
-    """
-    parts = []
-    if cat_root:
-        parts.append(str(cat_root))
-    if cat_path:
-        parts.append(str(cat_path))
-    if title:
-        parts.append(str(title))
-    if desc:
-        parts.append(str(desc))
-    return " | ".join(parts)
+def strip_ns(tag):
+    return tag.split("}")[-1].split(":")[-1].lower()
 
 
-def classify_with_model(model, cat_root, cat_path, title, desc):
-    """
-    ML modell meghívása.
-    A modell közvetlenül Findora slugokat ad vissza (pl. "gaming", "konyv", "akciok").
-    Ha bármi gáz van, 'multi' a fallback.
-    """
-    text = build_text_for_model(cat_root, cat_path, title, desc)
-    if not text.strip():
-        return "multi"
+def collect(n):
+    m = {}
+    if n.text and n.text.strip():
+        m[strip_ns(n.tag)] = n.text.strip()
 
-    try:
-        label = model.predict([text])[0]
-    except Exception as e:
-        print(f"[WARN] model.predict hiba: {e}")
-        return "multi"
+    for a, v in (n.attrib or {}).items():
+        m[strip_ns(a)] = v
 
-    slug = str(label)
-    if slug not in FINDORA_CATS:
-        slug = "multi"
-    return slug
+    for c in n:
+        k = strip_ns(c.tag)
+        if c.text and c.text.strip():
+            m[k] = c.text.strip()
+        else:
+            sub = collect(c)
+            for sk, sv in sub.items():
+                m.setdefault(sk, sv)
+
+    return m
 
 
-def load_feed_urls():
-    """
-    Több URL támogatása:
-      - FEED_ALZA_URL  : lehet 1 URL, vagy több sorba tördelve, vagy vesszővel elválasztva
-      - FEED_ALZA_URLS : ugyanaz, fallbackként
-
-    A kettő közül bármelyik használható.
-    """
-    raw = os.environ.get("FEED_ALZA_URL", "").strip()
-    if not raw:
-        raw = os.environ.get("FEED_ALZA_URLS", "").strip()
-
-    if not raw:
-        raise RuntimeError("Hiányzik a FEED_ALZA_URL vagy FEED_ALZA_URLS beállítás!")
-
-    urls = []
-    for line in raw.replace(",", "\n").splitlines():
-        u = line.strip()
-        if u:
-            urls.append(u)
-
-    if not urls:
-        raise RuntimeError("Nem találtam egyetlen ALZA feed URL-t sem!")
-
-    return urls
+def first(d, keys):
+    for k in keys:
+        v = d.get(k.lower())
+        if isinstance(v, list) and v:
+            return v[0]
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+        if v not in (None, "", []):
+            return v
+    return None
 
 
-def fetch_xml(url: str) -> str:
-    print(f"[INFO] Letöltés: {url}")
-    resp = requests.get(url, timeout=120)
-    resp.raise_for_status()
-    return resp.text
+TITLE_KEYS = ("title", "productname", "g:title")
+LINK_KEYS = ("url", "link", "g:link")
+IMG_KEYS = ("imgurl", "image_link", "image")
+DESC_KEYS = ("description", "g:description", "long_description")
+CATEGORY_KEYS = ("category", "product_type", "g:product_type")
+BRAND_KEYS = ("brand",)
+
+NEW_PRICE_KEYS = ("price_vat", "price_with_vat", "price", "g:price", "g:sale_price")
+OLD_PRICE_KEYS = ("old_price", "price_old", "was_price", "regular_price")
 
 
-def parse_alza_xml(xml_text: str):
-    items = []
+def fetch_xml(url):
+    for t in range(3):
+        try:
+            print(f"[INFO] Alza XML letöltés {t+1}/3")
+            r = requests.get(url, headers={"User-Agent": "Mozilla"}, timeout=90)
+            r.raise_for_status()
+            return r.text
+        except Exception as e:
+            print("[WARN]", e)
+            time.sleep(4)
+    raise RuntimeError("Alza XML nem tölthető le.")
+
+
+def parse_items(xml_text):
     root = ET.fromstring(xml_text)
 
-    for item in root.findall(".//item"):
-        m = {}
+    nodes = root.findall(".//item")
+    if not nodes:
+        nodes = root.findall(".//product")
+    if not nodes:
+        nodes = [n for n in root.iter() if strip_ns(n.tag) in ("item", "product")]
 
-        def gettext(tag_names):
-            for tn in tag_names:
-                # prefixelt tag (g:id stb.)
-                el = item.find(tn)
-                if el is not None and el.text:
-                    return el.text.strip()
-                # namespace-független fallback (id, price stb.)
-                bare = tn.split(":")[-1]
-                el = item.find(f".//{{*}}{bare}")
-                if el is not None and el.text:
-                    return el.text.strip()
-            return ""
+    items = []
+    for n in nodes:
+        m = collect(n)
+        m = {k.lower(): v for k, v in m.items()}
 
-        m["id"] = gettext(["g:id", "id"])
-        m["title"] = gettext(["g:title", "title"])
-        m["description"] = gettext(["g:description", "description"])
-        m["link"] = gettext(["g:link", "link"])
-        m["image_link"] = gettext(["g:image_link", "image_link", "g:image", "image"])
-        m["price"] = gettext(["g:price", "price"])
-        m["sale_price"] = gettext(["g:sale_price", "sale_price"])
-        m["product_type"] = gettext(["g:product_type", "product_type", "category_path"])
-        m["brand"] = gettext(["g:brand", "brand", "g:manufacturer", "manufacturer"])
+        pid = first(m, ("g:id", "id", "item_id"))
+        title = first(m, TITLE_KEYS)
+        url = first(m, LINK_KEYS)
+        img = first(m, IMG_KEYS)
+        desc = short(first(m, DESC_KEYS))
+        cat_path = first(m, CATEGORY_KEYS) or ""
+        brand = first(m, BRAND_KEYS) or ""
 
-        items.append(m)
+        price_new = None
+        for k in NEW_PRICE_KEYS:
+            price_new = norm_price(m.get(k))
+            if price_new:
+                break
 
-    print(f"[INFO] XML-ből termékek száma: {len(items)}")
+        price_old = None
+        for k in OLD_PRICE_KEYS:
+            price_old = norm_price(m.get(k))
+            if price_old:
+                break
+
+        discount = (
+            round((1 - price_new / price_old) * 100)
+            if price_old and price_new and price_old > price_new
+            else None
+        )
+
+        items.append(
+            {
+                "id": pid or url or title,
+                "title": title or "Ismeretlen termék",
+                "img": img or "",
+                "desc": desc,
+                "price": price_new,
+                "discount": discount,
+                "url": url or "",
+                "category_path": cat_path,
+                "brand": brand,
+            }
+        )
+    print(f"[INFO] Alza parse: {len(items)} termék")
     return items
 
 
-def normalize_alza_url(raw_url: str) -> str:
-    if not raw_url:
-        return ""
+# ========== Kategorizálás (ML + fallback) ==========
+
+def load_model():
+    if not os.path.exists(MODEL_FILE):
+        print("[INFO] ML modell nincs – szabályalapú fallback.")
+        return None
     try:
-        u = urlparse(raw_url)
-        qs = dict(parse_qsl(u.query, keep_blank_values=True))
-        new_qs = urlencode(qs, doseq=True)
-        return urlunparse((u.scheme, u.netloc, u.path, u.params, new_qs, u.fragment))
-    except Exception:
-        return raw_url
+        model = joblib.load(MODEL_FILE)
+        return model
+    except:
+        print("[WARN] ML modell hibás – fallback.")
+        return None
 
 
-def paginate_and_write(base_dir: str, items, page_size: int, meta_extra=None):
-    """
-    Általános lapozó + fájlkiíró:
-      base_dir/meta.json
-      base_dir/page-0001.json, page-0002.json, ...
-    """
-    os.makedirs(base_dir, exist_ok=True)
+def classify(model, title, desc, cat_path, brand):
+    txt = " ".join([title or "", desc or "", cat_path or "", brand or ""]).strip()
+
+    if model:
+        try:
+            c = model.predict([txt])[0]
+            if c in FINDORA_CATS:
+                return c
+        except Exception as e:
+            print("[WARN] ML:", e)
+
+    return assign_category(
+        title=title, desc=desc, category_path=cat_path, brand=brand,
+        partner="alza", partner_default="multi"
+    )
+
+
+# ========== Írás ==========
+
+def write_pages(base: Path, items, page_size, meta_extra=None):
+    base.mkdir(parents=True, exist_ok=True)
     total = len(items)
-    page_count = int(math.ceil(total / page_size)) if total else 0
+    pages = math.ceil(total / page_size) if total else 0
 
     meta = {
         "total_items": total,
         "page_size": page_size,
-        "page_count": page_count,
+        "page_count": pages,
     }
     if meta_extra:
         meta.update(meta_extra)
 
-    meta_path = os.path.join(base_dir, "meta.json")
-    with open(meta_path, "w", encoding="utf-8") as f:
+    with open(base/"meta.json", "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
-    print(f"[INFO] meta.json kiírva: {meta_path} (items={total}, pages={page_count})")
 
-    for i in range(page_count):
-        start = i * page_size
-        end = start + page_size
-        page_items = items[start:end]
-        page_no = i + 1
-        page_name = f"page-{page_no:04d}.json"
-        out_path = os.path.join(base_dir, page_name)
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump({"items": page_items}, f, ensure_ascii=False)
-        print(f"[INFO] {out_path} ({len(page_items)} db)")
+    for p in range(1, pages + 1):
+        s = (p - 1) * page_size
+        e = s + page_size
+        with open(base/f"page-{p:04d}.json", "w", encoding="utf-8") as f:
+            json.dump({"items": items[s:e]}, f, ensure_ascii=False)
 
+
+# ========== MAIN ==========
 
 def main():
-    # 0) Modell betöltése
-    print(f"[INFO] Modell betöltése: {MODEL_FILE}")
-    model = joblib.load(MODEL_FILE)
+    if not FEED_URL:
+        raise SystemExit("FEED_ALZA_URL nincs beállítva.")
 
-    # 1) XML feedek letöltése (több URL is lehet)
-    urls = load_feed_urls()
+    # régi JSON törlése
+    if OUT_DIR.exists():
+        for f in OUT_DIR.rglob("*.json"):
+            f.unlink()
 
-    all_items = []
-    for url in urls:
-        xml_text = fetch_xml(url)
-        items = parse_alza_xml(xml_text)
-        all_items.extend(items)
+    # XML letöltés
+    xml = fetch_xml(FEED_URL)
+    raw = parse_items(xml)
 
-    print(f"[INFO] Összesített ALZA termék szám: {len(all_items)}")
-
-    os.makedirs(OUT_DIR, exist_ok=True)
+    model = load_model()
 
     rows = []
-    for m in all_items:
-        pid = m.get("id") or ""
-        title = m.get("title") or ""
-        raw_desc = m.get("description") or ""
-        url = normalize_alza_url(m.get("link") or "")
-        img = m.get("image_link") or ""
+    for it in raw:
+        cat = classify(model, it["title"], it["desc"], it["category_path"], it["brand"])
+        it["cat"] = cat
+        it["findora_main"] = cat
+        it["partner"] = "alza"
+        rows.append(it)
 
-        price_raw = m.get("sale_price") or m.get("price")
-        price = norm_price(price_raw)
-        discount = None  # ide rakhatsz később %-os kedvezményt
+    print(f"[INFO] Alza total normalized: {len(rows)}")
 
-        cat_path = m.get("product_type") or ""
-        cat_root = cat_path.split("|", 1)[0].strip() if cat_path else ""
-
-        # ===== ML alapú kategorizálás =====
-        findora_main = classify_with_model(
-            model,
-            cat_root,
-            cat_path,
-            title,
-            raw_desc or "",
-        )
-
-        row = {
-            "id": pid,
-            "title": title,
-            "img": img,
-            "desc": short_desc(raw_desc),
-            "price": price,
-            "discount": discount,
-            "url": url,
-            "partner": "alza",
-            "category_path": cat_path,
-            "category_root": cat_root,
-            "findora_main": findora_main,
-            "cat": findora_main,
-        }
-        rows.append(row)
-
-    print(f"[INFO] Normalizált sorok (ML kategorizálással): {len(rows)}")
-
-    # DEBUG: kategória eloszlás
-    dist = Counter(row["findora_main"] for row in rows)
-    print("[INFO] Kategória eloszlás (findora_main):")
-    for k, v in sorted(dist.items(), key=lambda kv: (-kv[1], kv[0])):
-        print(f"  {k:20s} {v:7d}")
-
-    # 2) Kategória szerinti feedek:
-    #    docs/feeds/alza/<findora_main>/page-0001.json (20/lap)
-    buckets = {slug: [] for slug in FINDORA_CATS}
-    for row in rows:
-        slug = row.get("findora_main") or "multi"
-        if slug not in buckets:
-            slug = "multi"
-        buckets[slug].append(row)
-
-    for slug, items in buckets.items():
-        if not items:
-            continue
-        base_dir = os.path.join(OUT_DIR, slug)
-        paginate_and_write(
-            base_dir,
-            items,
+    # ====== KATEGÓRIA FEED ======
+    for slug in FINDORA_CATS:
+        subset = [r for r in rows if r["cat"] == slug]
+        write_pages(
+            OUT_DIR / slug,
+            subset,
             PAGE_SIZE_CAT,
-            meta_extra={
-                "partner": "alza",
-                "generated_at": datetime.utcnow().isoformat() + "Z",
-                "scope": f"category:{slug}",
-            },
+            meta_extra={"partner": "alza", "scope": f"category:{slug}"}
         )
 
-    # 3) Akciós blokk: docs/feeds/alza/akcios-block/page-0001.json ...
-    # Itt azokat tesszük be, amiket az ML "akciok" kategóriára sorolt.
-    akcios_items = [row for row in rows if row.get("cat") == "akciok"]
+    # ====== AKCIÓS BLOKK ======
+    akcios = [r for r in rows if r.get("discount") and r["discount"] >= 10]
 
-    akcio_base_dir = os.path.join(OUT_DIR, "akcios-block")
-    paginate_and_write(
-        akcio_base_dir,
-        akcios_items,
-        PAGE_SIZE_AKCIO_BLOCK,
-        meta_extra={
-            "partner": "alza",
-            "generated_at": datetime.utcnow().isoformat() + "Z",
-            "scope": "akcios-block",
-        },
+    write_pages(
+        OUT_DIR / "akcios-block",
+        akcios,
+        PAGE_SIZE_AKCIO,
+        meta_extra={"partner": "alza", "scope": "akcios-block"}
     )
 
-    print("[INFO] Kész: ALZA feed JSON oldalak legenerálva (kategória-bontás + akciós blokk).")
+    print("✔ ALZA kész: csak kategóriák + akciós blokk generálva.")
 
 
 if __name__ == "__main__":
