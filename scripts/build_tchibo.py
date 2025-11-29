@@ -20,12 +20,12 @@ FEED_URL = os.environ.get("FEED_TCHIBO_URL")
 OUT_DIR = "docs/feeds/tchibo"
 PAGE_SIZE = 300  # kategória-oldal méret
 
-# Findora 25 fő kategória (slugok) – mindig lesz mappa + meta.json
+# Findora 25 fő kategória (slugok) – mindig lesz mappa + meta.json + page-0001.json
 FINDORA_CATS = [
     "elektronika",
     "haztartasi_gepek",
     "szamitastechnika",
-    "mobiltelefon",
+    "mobil",
     "gaming",
     "smart_home",
     "otthon",
@@ -402,7 +402,12 @@ def write_paged_json(base_dir: str, items: list, page_size: int, meta_extra: dic
     Általános író függvény:
       - base_dir alatt page-0001.json, page-0002.json, ...
       - ugyanoda meta.json a megadott meta_extra mezőkkel kiegészítve.
-    Üres listánál is készül egy page-0001.json üres items tömbbel.
+
+    FONTOS:
+    - Üres listánál is:
+        - pages = 1
+        - page-0001.json → {"items": []}
+      így a frontend SOHA nem kap 404-et a page-0001.json-re.
     """
     os.makedirs(base_dir, exist_ok=True)
 
@@ -441,7 +446,17 @@ def write_paged_json(base_dir: str, items: list, page_size: int, meta_extra: dic
 
 def main():
     assert FEED_URL, "FEED_TCHIBO_URL hiányzik (repo Secrets)."
+
     os.makedirs(OUT_DIR, exist_ok=True)
+
+    # Régi JSON-ok törlése (kategóriák + akcio + top meta) – hogy ne maradjanak régi page-0002 stb.
+    for root, dirs, files in os.walk(OUT_DIR):
+        for name in files:
+            if name.endswith(".json"):
+                try:
+                    os.remove(os.path.join(root, name))
+                except OSError:
+                    pass
 
     r = requests.get(
         FEED_URL,
@@ -462,7 +477,7 @@ def main():
             cat = "multi"
         cat_buckets[cat].append(it)
 
-    # Kategória mappák + meta-k
+    # Kategória mappák + meta-k (üresen is lesz meta + page-0001)
     categories_meta = {}
     for cat in FINDORA_CATS:
         items_cat = cat_buckets.get(cat, [])
@@ -502,7 +517,7 @@ def main():
         f"{akcio_stats['total']} termék, {akcio_stats['pages']} oldal ({akcio_dir})"
     )
 
-    # TOP-LEVEL meta összesítve (NINCS többé közös page-*.json)
+    # TOP-LEVEL meta összesítve (NINCS globál page-*.json, csak kategóriák + akcio)
     grand_total = len(items)
     top_meta = {
         "partner": "tchibo",
