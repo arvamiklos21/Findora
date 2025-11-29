@@ -2,9 +2,9 @@
 #
 # REGIO Játék feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
-# Kategorizálás: category_assignbase.assign_category
-#   - partner: "regiojatek"
-#   - partner_default: "jatekok" (ha nem talál semmit, visszarakja "jatekok"-ba, NEM multi-ba)
+# Kategorizálás:
+#   - NEM használjuk a category_assign-et
+#   - MINDEN termék fő kategóriája: "jatekok"
 #
 # Kimenet:
 #   docs/feeds/regiojatek/meta.json, page-0001.json...              (globál)
@@ -22,7 +22,7 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
-from category_assignbase import assign_category, FINDORA_CATS
+from category_assignbase import FINDORA_CATS  # csak a 25 fő kategórialistát használjuk
 
 # ====== KONFIG ======
 # Fogadjuk mindkét secret nevet – első a FEED_REGIOJATEK_URL (workflow szerinti), fallback a FEED_REGIO_URL
@@ -407,7 +407,7 @@ def main():
     items = dedup_size_variants(raw_items)
     print(f"ℹ REGIO Játék: dedup után {len(items)} termék")
 
-    # ===== NORMALIZÁLÁS + KÖZÖS KATEGORIZÁLÁS =====
+    # ===== NORMALIZÁLÁS + FIX KATEGÓRIA: 'jatekok' =====
     rows = []
     for it in items:
         pid = it["id"]
@@ -420,14 +420,9 @@ def main():
         category_path = it.get("category_path") or ""
         brand = it.get("brand") or ""
 
-        findora_main = assign_category(
-            title=title,
-            desc=desc,
-            category_path=category_path,
-            brand=brand,
-            partner="regiojatek",
-            partner_default="jatekok",
-        )
+        findora_main = "jatekok"
+        if findora_main not in FINDORA_CATS:
+            findora_main = "multi"
 
         row = {
             "id": pid,
@@ -466,6 +461,8 @@ def main():
             paginate_and_write(
                 base_dir,
                 [],
+
+
                 PAGE_SIZE_CAT,
                 meta_extra={
                     "partner": "regiojatek",
@@ -500,7 +497,7 @@ def main():
         },
     )
 
-    # ===== KATEGÓRIA FEED-EK =====
+    # ===== KATEGÓRIA FEED-EK (25 mappa + akcio mappa, mindben meta + page-0001.json) =====
     buckets = {slug: [] for slug in FINDORA_CATS}
     for row in rows:
         slug = row.get("findora_main") or "multi"
