@@ -135,84 +135,87 @@ for old_json in OUT_DIR.rglob("*.json"):
 
 # ====================== FEED BETÖLTÉS ======================
 
-txt_files = sorted(IN_DIR.glob("*.txt"))
-if not txt_files:
-    raise SystemExit("Nincs .txt fájl a CJ eOptika feedben :(")
-
-feed_file = txt_files[0]
 raw_items = []
 
-with feed_file.open("r", encoding="utf-8", newline="") as f:
-    sample = f.read(4096)
-    f.seek(0)
+txt_files = sorted(IN_DIR.glob("*.txt"))
+if not txt_files:
+    # NINCS TXT → hibás URL / nem töltött le semmit a workflow
+    # Ilyenkor üres feedet generálunk (globál + 25 kategória + akció),
+    # hogy a frontend ne kapjon 404-et.
+    print("⚠️ CJ eOptika: nincs .txt fájl a feed mappában → üres feed (csak meta + page-0001.json).")
+else:
+    feed_file = txt_files[0]
+    with feed_file.open("r", encoding="utf-8", newline="") as f:
+        sample = f.read(4096)
+        f.seek(0)
 
-    try:
-        dialect = csv.Sniffer().sniff(sample, delimiters="\t,;|")
-        print("DEBUG CJ EOPTIKA DIALECT delimiter:", repr(dialect.delimiter))
-    except csv.Error:
-        dialect = csv.excel_tab
-        print("DEBUG CJ EOPTIKA DIALECT fallback: TAB")
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters="\t,;|")
+            print("DEBUG CJ EOPTIKA DIALECT delimiter:", repr(dialect.delimiter))
+        except csv.Error:
+            dialect = csv.excel_tab
+            print("DEBUG CJ EOPTIKA DIALECT fallback: TAB")
 
-    reader = csv.DictReader(f, dialect=dialect)
+        reader = csv.DictReader(f, dialect=dialect)
 
-    for idx, row in enumerate(reader):
-        if idx == 0:
-            print("DEBUG CJ EOPTIKA HEADERS:", list(row.keys()))
+        for idx, row in enumerate(reader):
+            if idx == 0:
+                print("DEBUG CJ EOPTIKA HEADERS:", list(row.keys()))
 
-        pid = first_nonempty(row, "ID", "id", "ITEM_ID")
-        title = first_nonempty(row, "TITLE", "title")
-        description = first_nonempty(row, "DESCRIPTION", "description") or ""
-        url = first_nonempty(row, "LINK", "link", "ADS_REDIRECT")
-        image = first_nonempty(row, "IMAGE_LINK", "image_link")
+            pid = first_nonempty(row, "ID", "id", "ITEM_ID")
+            title = first_nonempty(row, "TITLE", "title")
+            description = first_nonempty(row, "DESCRIPTION", "description") or ""
+            url = first_nonempty(row, "LINK", "link", "ADS_REDIRECT")
+            image = first_nonempty(row, "IMAGE_LINK", "image_link")
 
-        # Ha nincs cím vagy URL, akkor nem fogjuk tudni listázni → skip
-        if not (title and url):
-            continue
+            # Ha nincs cím vagy URL, akkor nem fogjuk tudni listázni → skip
+            if not (title and url):
+                continue
 
-        row_currency = first_nonempty(row, "CURRENCY", "currency")
+            row_currency = first_nonempty(row, "CURRENCY", "currency")
 
-        raw_sale = first_nonempty(row, "SALE_PRICE", "sale_price")
-        raw_price = first_nonempty(row, "PRICE", "price")
+            raw_sale = first_nonempty(row, "SALE_PRICE", "sale_price")
+            raw_price = first_nonempty(row, "PRICE", "price")
 
-        sale_val, currency = parse_price(raw_sale, row_currency)
-        price_val, currency2 = parse_price(raw_price, row_currency or currency)
+            sale_val, currency = parse_price(raw_sale, row_currency)
+            price_val, currency2 = parse_price(raw_price, row_currency or currency)
 
-        if not currency and currency2:
-            currency = currency2
+            if not currency and currency2:
+                currency = currency2
 
-        final_price = sale_val or price_val
-        original_price = (
-            price_val if sale_val and price_val and sale_val < price_val else None
-        )
+            final_price = sale_val or price_val
+            original_price = (
+                price_val if sale_val and price_val and sale_val < price_val else None
+            )
 
-        discount = None
-        if original_price and final_price and final_price < original_price:
-            discount = round((original_price - final_price) / original_price * 100)
+            discount = None
+            if original_price and final_price and final_price < original_price:
+                discount = round((original_price - final_price) / original_price * 100)
 
-        brand = first_nonempty(row, "BRAND", "brand")
-        category = first_nonempty(
-            row,
-            "GOOGLE_PRODUCT_CATEGORY_NAME",
-            "GOOGLE_PRODUCT_CATEGORY",
-            "PRODUCT_TYPE",
-            "product_type",
-        )
+            brand = first_nonempty(row, "BRAND", "brand")
+            category = first_nonempty(
+                row,
+                "GOOGLE_PRODUCT_CATEGORY_NAME",
+                "GOOGLE_PRODUCT_CATEGORY",
+                "PRODUCT_TYPE",
+                "product_type",
+            )
 
-        raw_items.append(
-            {
-                "id": pid,
-                "title": title,
-                "desc": description,
-                "url": url,
-                "image": image,
-                "price": final_price,
-                "original_price": original_price,
-                "currency": currency or "HUF",
-                "brand": brand,
-                "category_path": category or "",
-                "discount": discount,
-            }
-        )
+            raw_items.append(
+                {
+                    "id": pid,
+                    "title": title,
+                    "desc": description,
+                    "url": url,
+                    "image": image,
+                    "price": final_price,
+                    "original_price": original_price,
+                    "currency": currency or "HUF",
+                    "brand": brand,
+                    "category_path": category or "",
+                    "discount": discount,
+                }
+            )
 
 total_raw = len(raw_items)
 print(f"DEBUG CJ EOPTIKA: nyers termékek: {total_raw}")
