@@ -486,19 +486,19 @@ def main():
         it for it in items
         if isinstance(it.get("discount"), int) and it["discount"] >= AKCIO_MIN_PERCENT
     ]
-    akcio_dir = os.path.join(OUT_DIR, "akciok")
+    akcio_dir = os.path.join(OUT_DIR, "akcio")
     akcio_stats = write_paged_json(
         base_dir=akcio_dir,
         items=list(akcio_items),
         page_size=PAGE_SIZE,
         meta_extra={
-            "category": "akciok",
+            "category": "akcio",
             "akcioMinPercent": AKCIO_MIN_PERCENT,
         },
     )
-    categories_meta["akciok"] = akcio_stats
+    categories_meta["akcio"] = akcio_stats
     print(
-        f"ℹ Tchibo: akciok (>= {AKCIO_MIN_PERCENT}%) → "
+        f"ℹ Tchibo: akcio (>= {AKCIO_MIN_PERCENT}%) → "
         f"{akcio_stats['total']} termék, {akcio_stats['pages']} oldal ({akcio_dir})"
     )
 
