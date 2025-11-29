@@ -2,29 +2,38 @@
 #
 # CJ Kärcher feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
+# BEMENET:
+#   - CJ ZIP HTTP-ről:
+#       CJ_FEED_URL    – DataTransfer ZIP URL (amiben benne van a Kärcher XML is)
+#       CJ_HTTP_USER   – HTTP felhasználó
+#       CJ_HTTP_PASS   – HTTP jelszó
+#       CJ_API_TOKEN   – (opcionális, most nem használjuk)
+#
+#   - A ZIP-ben lévő Kärcher XML fájl neve:
+#       K_RCHER_HU-Karcher_hu_google_all-shopping.xml
+#
 # Kategorizálás:
 #   - NEM használjuk a category_assign-et
 #   - MINDEN Kärcher termék fő kategóriája: "kert"
 #
 # Kimenet:
 #   docs/feeds/cj-karcher/meta.json, page-0001.json...              (globál)
-#   docs/feeds/cj-karcher/<findora_cat>/meta.json, page-....json    (kategória)
+#   docs/feeds/cj-karcher/<findora_cat>/meta.json, page-....json    (kategória – mind a 25 mappa létrejön)
 #   docs/feeds/cj-karcher/akcio/meta.json, page-....json            (akciós blokk, discount >= 10%)
 
-import csv
+import os
 import json
 import math
+import io
+import zipfile
 from pathlib import Path
 
-from category_assignbase import FINDORA_CATS as BASE_CATS
+import requests
+import xml.etree.ElementTree as ET
 
-# Findora fő kategória SLUG-ok – a 25 menühöz igazítva + "akciok"
-FINDORA_CATS = [
-    "akciok",
-    *BASE_CATS,  # elektronika, haztartasi_gepek, ... , multi
-]
+from category_assignbase import FINDORA_CATS  # a 25 fő kategória listája
 
-IN_DIR = Path("cj-karcher-feed")
+# KIMENET: GitHub Pages alá, innen megy ki: https://www.findora.hu/feeds/cj-karcher/...
 OUT_DIR = Path("docs/feeds/cj-karcher")
 
 # Globál feed: 200/lap
@@ -38,24 +47,41 @@ PAGE_SIZE_AKCIO_BLOCK = 20
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# CJ HTTP / ZIP beállítások
+CJ_FEED_URL = os.environ.get("CJ_FEED_URL")
+CJ_HTTP_USER = os.environ.get("CJ_HTTP_USER")
+CJ_HTTP_PASS = os.environ.get("CJ_HTTP_PASS")
+CJ_API_TOKEN = os.environ.get("CJ_API_TOKEN")  # jelenleg nem használjuk, csak elérhető
+
 
 # ====================== SEGÉDFÜGGVÉNYEK ======================
 
-def first(row, *keys):
-    for k in keys:
-        if k in row and row[k]:
-            return str(row[k]).strip()
-    return None
-
-
-def parse_price(v):
+def parse_price(v, row_currency=None):
+    """
+    Ár parse:
+      - '1234.56 HUF'
+      - '1234,56 HUF'
+      - '1234.56'
+    """
     if not v:
-        return None
-    v = str(v).strip().replace(",", ".").split()[0]
+        return None, row_currency or "HUF"
+
+    raw = str(v).strip()
+    parts = raw.split()
+
+    if len(parts) >= 2:
+        amount = parts[0].replace(",", ".")
+        currency = parts[1]
+    else:
+        amount = raw.replace(",", ".")
+        currency = row_currency or "HUF"
+
     try:
-        return float(v)
+        value = float(amount)
     except Exception:
-        return None
+        return None, currency
+
+    return value, currency
 
 
 def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
@@ -73,6 +99,7 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
 
+    # Üres lista esetén is legyen legalább 1 oldal
     if total == 0:
         page_count = 1
     else:
@@ -91,6 +118,7 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
     if total == 0:
+        # Üres kategória/globál/akció: 1 oldal, üres items
         out_path = base_dir / "page-0001.json"
         with out_path.open("w", encoding="utf-8") as f:
             json.dump({"items": []}, f, ensure_ascii=False)
@@ -105,8 +133,115 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
                 json.dump({"items": page_items}, f, ensure_ascii=False)
 
 
+def fetch_cj_zip(url: str, user: str = None, password: str = None) -> bytes:
+    if not url:
+        raise RuntimeError("CJ_FEED_URL nincs beállítva")
+
+    auth = (user, password) if (user and password) else None
+    print(f"[INFO] CJ ZIP letöltése: {url}")
+    resp = requests.get(url, auth=auth, timeout=120)
+    resp.raise_for_status()
+    print("[INFO] CJ ZIP méret:", len(resp.content), "byte")
+    return resp.content
+
+
+def parse_karcher_from_zip(zip_bytes: bytes):
+    """
+    ZIP → Kärcher XML(ek) → nyers item lista.
+
+    Csak azokat a fájlokat nézzük, amelyek nevében benne van:
+      'Karcher_hu_google_all'
+    pl. K_RCHER_HU-Karcher_hu_google_all-shopping.xml
+    """
+    items = []
+
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+        names = zf.namelist()
+        print("[INFO] ZIP fájlok a csomagban:")
+        for n in names:
+            print("   -", n)
+
+        target_files = [
+            n for n in names
+            if "Karcher_hu_google_all" in n
+            and n.lower().endswith(".xml")
+        ]
+
+        if not target_files:
+            print("⚠️ Nincs Kärcher XML a ZIP-ben (nem találtam 'Karcher_hu_google_all' nevű fájlt).")
+            return items
+
+        for name in target_files:
+            print("[INFO] Kärcher XML feldolgozása:", name)
+            with zf.open(name) as f:
+                tree = ET.parse(f)
+                root = tree.getroot()
+
+                # A CJ feed szerkezete: <feed><entry>...</entry></feed>
+                for entry in root.findall(".//entry"):
+                    def get_text(tag_name: str) -> str:
+                        el = entry.find(tag_name)
+                        return (el.text or "").strip() if el is not None and el.text else ""
+
+                    pid = get_text("id")
+                    title = get_text("title")
+                    description = get_text("description")
+                    url = get_text("link")
+                    image = get_text("image_link")
+
+                    # Ha nincs cím vagy URL, akkor nem fogjuk tudni listázni → skip
+                    if not (title and url):
+                        continue
+
+                    row_currency = get_text("currency")
+
+                    raw_sale = get_text("sale_price")
+                    raw_price = get_text("price")
+
+                    sale_val, currency = parse_price(raw_sale, row_currency)
+                    price_val, currency2 = parse_price(raw_price, row_currency or currency)
+
+                    if not currency and currency2:
+                        currency = currency2
+
+                    final_price = sale_val or price_val
+                    original_price = (
+                        price_val if sale_val and price_val and sale_val < price_val else None
+                    )
+
+                    discount = None
+                    if original_price and final_price and final_price < original_price:
+                        discount = round((original_price - final_price) / original_price * 100)
+
+                    brand = get_text("brand")
+                    category = (
+                        get_text("google_product_category_name")
+                        or get_text("google_product_category")
+                        or get_text("product_type")
+                    )
+
+                    items.append(
+                        {
+                            "id": pid,
+                            "title": title,
+                            "desc": description,
+                            "url": url,
+                            "image": image,
+                            "price": final_price,
+                            "original_price": original_price,
+                            "currency": currency or "HUF",
+                            "brand": brand,
+                            "category_path": category or "",
+                            "discount": discount,
+                        }
+                    )
+
+    return items
+
+
 # ====================== RÉGI FÁJLOK TAKARÍTÁSA ======================
 
+# Minden régi JSON törlése (globál + kategória + akcio)
 for old_json in OUT_DIR.rglob("*.json"):
     try:
         old_json.unlink()
@@ -114,75 +249,19 @@ for old_json in OUT_DIR.rglob("*.json"):
         pass
 
 
-# ====================== FEED BETÖLTÉS ======================
+# ====================== FEED BETÖLTÉS (CJ ZIP + XML) ======================
 
 raw_items = []
 
-txt_files = list(IN_DIR.glob("*.txt"))
-if not txt_files:
-    print("⚠️ CJ Kärcher: nincs .txt fájl a cj-karcher-feed mappában – üres feedet generálunk.")
+if not CJ_FEED_URL:
+    print("⚠️ CJ_FEED_URL nincs beállítva – üres feedet generálunk.")
 else:
-    feed_file = sorted(txt_files)[0]
-
-    with feed_file.open("r", encoding="utf-8", newline="") as f:
-        sample = f.read(2048)
-        f.seek(0)
-        try:
-            dialect = csv.Sniffer().sniff(sample, delimiters="\t,;|")
-            print("DEBUG CJ KARCHER DIALECT delimiter:", repr(dialect.delimiter))
-        except Exception:
-            dialect = csv.excel_tab
-            print("DEBUG CJ KARCHER DIALECT fallback: TAB")
-
-        reader = csv.DictReader(f, dialect=dialect)
-
-        for idx, row in enumerate(reader):
-            if idx == 0:
-                print("DEBUG CJ KARCHER HEADERS:", list(row.keys()))
-
-            title = first(row, "TITLE", "title")
-            if not title:
-                continue
-
-            pid = first(row, "ID", "id", "ITEM_ID")
-            url = first(row, "LINK", "ADS_REDIRECT", "link")
-            img = first(row, "IMAGE_LINK", "image_link")
-            desc = first(row, "DESCRIPTION", "description") or ""
-
-            sale = parse_price(first(row, "SALE_PRICE", "sale_price"))
-            price = parse_price(first(row, "PRICE", "price"))
-
-            final = sale or price
-            orig = price if sale and price and sale < price else None
-
-            discount = None
-            if orig and final and final < orig:
-                discount = round((orig - final) / orig * 100)
-
-            brand = first(row, "BRAND", "brand")
-            category = first(
-                row,
-                "GOOGLE_PRODUCT_CATEGORY_NAME",
-                "GOOGLE_PRODUCT_CATEGORY",
-                "PRODUCT_TYPE",
-                "product_type",
-            )
-
-            raw_items.append(
-                {
-                    "id": pid,
-                    "title": title,
-                    "desc": desc,
-                    "url": url,
-                    "image": img,
-                    "price": final,
-                    "original_price": orig,
-                    "currency": "HUF",
-                    "brand": brand,
-                    "category_path": category or "",
-                    "discount": discount,
-                }
-            )
+    try:
+        zip_bytes = fetch_cj_zip(CJ_FEED_URL, CJ_HTTP_USER, CJ_HTTP_PASS)
+        raw_items = parse_karcher_from_zip(zip_bytes)
+    except Exception as e:
+        print(f"⚠️ Hiba a CJ ZIP feldolgozásakor (Kärcher): {e}")
+        raw_items = []
 
 total_raw = len(raw_items)
 print(f"[INFO] CJ Kärcher: nyers termékek: {total_raw}")
@@ -234,6 +313,7 @@ print(f"[INFO] CJ Kärcher: normalizált sorok: {total}")
 # ====================== HA NINCS EGYETLEN TERMÉK SEM ======================
 
 if total == 0:
+    # Globál üres meta + üres page-0001
     paginate_and_write(
         OUT_DIR,
         [],
@@ -244,6 +324,7 @@ if total == 0:
         },
     )
 
+    # Minden kategóriára üres meta + üres page-0001
     for slug in FINDORA_CATS:
         base_dir = OUT_DIR / slug
         paginate_and_write(
@@ -256,6 +337,7 @@ if total == 0:
             },
         )
 
+    # Akciós blokk üres meta + üres page-0001
     akcio_dir = OUT_DIR / "akcio"
     paginate_and_write(
         akcio_dir,
@@ -328,5 +410,5 @@ paginate_and_write(
 print(
     f"✅ CJ Kärcher kész: {total} termék, "
     f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
-    f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR / 'akcio'}"
+    f"akciós blokk tételek: {len(akcios_items)} → {akcio_dir}"
 )
