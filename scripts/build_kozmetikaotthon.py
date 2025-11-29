@@ -2,14 +2,13 @@
 #
 # KozmetikaOtthon feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
-# Kategorizálás: category_assignbase.assign_category
-#   - partner: "kozmetikaotthon"
-#   - partner_default: "szepseg" (ha nem talál semmit, visszarakja "szepseg"-be, NEM multi-ba)
+# Kategorizálás:
+#   - minden termék Findora fő kategóriája: "szepseg"
 #
 # Kimenet:
 #   docs/feeds/kozmetikaotthon/meta.json, page-0001.json...              (globál)
 #   docs/feeds/kozmetikaotthon/<findora_cat>/meta.json, page-....json    (kategória)
-#   docs/feeds/kozmetikaotthon/akcios-block/meta.json, page-....json     (akciós blokk, discount >= 10%)
+#   docs/feeds/kozmetikaotthon/akcio/meta.json, page-....json            (akciós blokk, discount >= 10%)
 
 import os
 import re
@@ -22,7 +21,7 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
-from category_assignbase import assign_category, FINDORA_CATS
+from category_assignbase import FINDORA_CATS  # csak a 25 kategória listája kell
 
 FEED_URL = os.environ.get("FEED_KOZMETIKAOTTHON_URL")
 OUT_DIR = Path("docs/feeds/kozmetikaotthon")
@@ -377,11 +376,21 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     Általános lapozó + fájlkiíró:
       base_dir/meta.json
       base_dir/page-0001.json, page-0002.json, ...
-    Üres lista esetén is ír meta.json-t (page_count=0), hogy a frontend ne kapjon 404-et.
+
+    FONTOS:
+    - Üres lista esetén is létrejön:
+        - meta.json
+        - page-0001.json ({"items": []})
+      így a frontend soha nem kap 404-et a page-0001.json-re.
     """
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
-    page_count = int(math.ceil(total / page_size)) if total else 0
+
+    # Üres lista esetén is legyen legalább 1 oldal
+    if total == 0:
+        page_count = 1
+    else:
+        page_count = int(math.ceil(total / page_size))
 
     meta = {
         "total_items": total,
@@ -395,14 +404,19 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     with meta_path.open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
-    for page_no in range(1, page_count + 1):
-        start = (page_no - 1) * page_size
-        end = start + page_size
-        page_items = items[start:end]
-
-        out_path = base_dir / f"page-{page_no:04d}.json"
+    if total == 0:
+        out_path = base_dir / "page-0001.json"
         with out_path.open("w", encoding="utf-8") as f:
-            json.dump({"items": page_items}, f, ensure_ascii=False)
+            json.dump({"items": []}, f, ensure_ascii=False)
+    else:
+        for page_no in range(1, page_count + 1):
+            start = (page_no - 1) * page_size
+            end = start + page_size
+            page_items = items[start:end]
+
+            out_path = base_dir / f"page-{page_no:04d}.json"
+            with out_path.open("w", encoding="utf-8") as f:
+                json.dump({"items": page_items}, f, ensure_ascii=False)
 
 
 def main():
@@ -410,7 +424,7 @@ def main():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # régi JSON-ok törlése (globál + kategória + akcios-block)
+    # régi JSON-ok törlése (globál + kategória + akcio)
     for old in OUT_DIR.rglob("*.json"):
         try:
             old.unlink()
@@ -425,7 +439,7 @@ def main():
     items = dedup_size_variants(raw_items)
     print(f"ℹ KozmetikaOtthon: dedup után {len(items)} termék")
 
-    # 2) NORMALIZÁLÁS + KÖZÖS KATEGORIZÁLÁS
+    # 2) NORMALIZÁLÁS – MINDEN termék fixen "szepseg" kategóriába
     rows = []
     for it in items:
         pid = it["id"]
@@ -438,14 +452,8 @@ def main():
         category_path = it.get("category_path") or ""
         brand = it.get("brand") or ""
 
-        findora_main = assign_category(
-            title=title,
-            desc=desc,
-            category_path=category_path,
-            brand=brand,
-            partner="kozmetikaotthon",
-            partner_default="szepseg",
-        )
+        # Minden termék csak és kizárólag "szepseg" menübe megy
+        findora_main = "szepseg"
 
         row = {
             "id": pid,
@@ -467,7 +475,7 @@ def main():
 
     # 3) HA NINCS EGYETLEN TERMÉK SEM
     if total == 0:
-        # Globál üres meta
+        # Globál üres meta + üres page-0001
         paginate_and_write(
             OUT_DIR,
             [],
@@ -478,7 +486,7 @@ def main():
             },
         )
 
-        # Minden kategóriára üres meta
+        # Minden kategóriára üres meta + üres page-0001
         for slug in FINDORA_CATS:
             base_dir = OUT_DIR / slug
             paginate_and_write(
@@ -491,19 +499,19 @@ def main():
                 },
             )
 
-        # Akciós blokk üres meta
-        akcio_dir = OUT_DIR / "akcios-block"
+        # Akciós blokk üres meta + üres page-0001
+        akcio_dir = OUT_DIR / "akcio"
         paginate_and_write(
             akcio_dir,
             [],
             PAGE_SIZE_AKCIO_BLOCK,
             meta_extra={
                 "partner": "kozmetikaotthon",
-                "scope": "akcios-block",
+                "scope": "akcio",
             },
         )
 
-        print("⚠️ KozmetikaOtthon: nincs termék → csak üres meta-k készültek.")
+        print("⚠️ KozmetikaOtthon: nincs termék → csak üres meta-k + page-0001.json készült.")
         return
 
     # 4) GLOBÁL FEED
@@ -518,15 +526,19 @@ def main():
         },
     )
 
-    # 5) KATEGÓRIA FEED-EK
+    # 5) KATEGÓRIA FEED-EK – csak a "szepseg" kap valós adatot, a többi üres, de mindnek lesz page-0001.json
     buckets = {slug: [] for slug in FINDORA_CATS}
     for row in rows:
-        slug = row.get("findora_main") or "multi"
+        # biztos, ami biztos: ha valamiért nem szepseg, akkor is tereljük oda
+        slug = row.get("findora_main") or "szepseg"
         if slug not in buckets:
-            slug = "multi"
+            slug = "szepseg"
+            row["findora_main"] = "szepseg"
+            row["cat"] = "szepseg"
         buckets[slug].append(row)
 
-    for slug, items_cat in buckets.items():
+    for slug in FINDORA_CATS:
+        items_cat = buckets.get(slug, [])
         base_dir = OUT_DIR / slug
         paginate_and_write(
             base_dir,
@@ -539,27 +551,27 @@ def main():
             },
         )
 
-    # 6) AKCIÓS BLOKK (discount >= 10%)
+    # 6) AKCIÓS BLOKK (discount >= 10%), slug: "akcio"
     akcios_items = [
         row for row in rows
         if row.get("discount") is not None and row["discount"] >= 10
     ]
 
-    akcio_dir = OUT_DIR / "akcios-block"
+    akcio_dir = OUT_DIR / "akcio"
     paginate_and_write(
         akcio_dir,
         akcios_items,
         PAGE_SIZE_AKCIO_BLOCK,
         meta_extra={
             "partner": "kozmetikaotthon",
-            "scope": "akcios-block",
+            "scope": "akcio",
             "generated_at": datetime.utcnow().isoformat() + "Z",
         },
     )
 
     print(
         f"✅ KozmetikaOtthon kész: {total} termék, "
-        f"{len(buckets)} kategória (mindegyiknek meta), "
+        f"{len(FINDORA_CATS)} kategória (mindegyiknek meta + legalább page-0001.json), "
         f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR}"
     )
 
