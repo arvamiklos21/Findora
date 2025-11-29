@@ -1,25 +1,25 @@
-# scripts/build_cj_karcher.py
+# scripts/build_cj_jatekshop.py
 #
-# CJ Kärcher feed → Findora JSON oldalak (globál + kategória + akciós blokk)
+# CJ Jatekshop.eu feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
 # BEMENET:
 #   - CJ ZIP HTTP-ről:
-#       CJ_FEED_URL    – DataTransfer ZIP URL (amiben benne van a Kärcher XML is)
+#       CJ_FEED_URL    – DataTransfer ZIP URL (amiben benne van a Jatekshop.eu XML is)
 #       CJ_HTTP_USER   – HTTP felhasználó
 #       CJ_HTTP_PASS   – HTTP jelszó
 #       CJ_API_TOKEN   – (opcionális, most nem használjuk)
 #
-#   - A ZIP-ben lévő Kärcher XML fájl neve:
-#       K_RCHER_HU-Karcher_hu_google_all-shopping.xml
+#   - A ZIP-ben lévő Jatekshop.eu XML fájl neve:
+#       Jatekshop_eu-Jatekshop_eu_google_all-shopping.xml
 #
 # Kategorizálás:
 #   - NEM használjuk a category_assign-et
-#   - MINDEN Kärcher termék fő kategóriája: "kert"
+#   - MINDEN Jatekshop termék fő kategóriája: "jatekok"
 #
 # Kimenet:
-#   docs/feeds/cj-karcher/meta.json, page-0001.json...              (globál)
-#   docs/feeds/cj-karcher/<findora_cat>/meta.json, page-....json    (kategória – mind a 25 mappa létrejön)
-#   docs/feeds/cj-karcher/akcio/meta.json, page-....json            (akciós blokk, discount >= 10%)
+#   docs/feeds/cj-jatekshop/meta.json, page-0001.json...              (globál)
+#   docs/feeds/cj-jatekshop/<findora_cat>/meta.json, page-....json    (kategória – mind a 25 mappa létrejön)
+#   docs/feeds/cj-jatekshop/akcio/meta.json, page-....json            (akciós blokk, discount >= 10%)
 
 import os
 import json
@@ -33,8 +33,8 @@ import xml.etree.ElementTree as ET
 
 from category_assignbase import FINDORA_CATS  # a 25 fő kategória listája
 
-# KIMENET: GitHub Pages alá, innen megy ki: https://www.findora.hu/feeds/cj-karcher/...
-OUT_DIR = Path("docs/feeds/cj-karcher")
+# KIMENET: GitHub Pages alá, innen megy ki: https://www.findora.hu/feeds/cj-jatekshop/...
+OUT_DIR = Path("docs/feeds/cj-jatekshop")
 
 # Globál feed: 200/lap
 PAGE_SIZE_GLOBAL = 200
@@ -145,13 +145,13 @@ def fetch_cj_zip(url: str, user: str = None, password: str = None) -> bytes:
     return resp.content
 
 
-def parse_karcher_from_zip(zip_bytes: bytes):
+def parse_jatekshop_from_zip(zip_bytes: bytes):
     """
-    ZIP → Kärcher XML(ek) → nyers item lista.
+    ZIP → Jatekshop.eu XML(ek) → nyers item lista.
 
     Csak azokat a fájlokat nézzük, amelyek nevében benne van:
-      'Karcher_hu_google_all'
-    pl. K_RCHER_HU-Karcher_hu_google_all-shopping.xml
+      'Jatekshop_eu_google_all'
+    pl. Jatekshop_eu-Jatekshop_eu_google_all-shopping.xml
     """
     items = []
 
@@ -163,16 +163,16 @@ def parse_karcher_from_zip(zip_bytes: bytes):
 
         target_files = [
             n for n in names
-            if "Karcher_hu_google_all" in n
+            if "Jatekshop_eu_google_all" in n
             and n.lower().endswith(".xml")
         ]
 
         if not target_files:
-            print("⚠️ Nincs Kärcher XML a ZIP-ben (nem találtam 'Karcher_hu_google_all' nevű fájlt).")
+            print("⚠️ Nincs Jatekshop.eu XML a ZIP-ben (nem találtam 'Jatekshop_eu_google_all' nevű fájlt).")
             return items
 
         for name in target_files:
-            print("[INFO] Kärcher XML feldolgozása:", name)
+            print("[INFO] Jatekshop.eu XML feldolgozása:", name)
             with zf.open(name) as f:
                 tree = ET.parse(f)
                 root = tree.getroot()
@@ -258,16 +258,16 @@ if not CJ_FEED_URL:
 else:
     try:
         zip_bytes = fetch_cj_zip(CJ_FEED_URL, CJ_HTTP_USER, CJ_HTTP_PASS)
-        raw_items = parse_karcher_from_zip(zip_bytes)
+        raw_items = parse_jatekshop_from_zip(zip_bytes)
     except Exception as e:
-        print(f"⚠️ Hiba a CJ ZIP feldolgozásakor (Kärcher): {e}")
+        print(f"⚠️ Hiba a CJ ZIP feldolgozásakor (Jatekshop.eu): {e}")
         raw_items = []
 
 total_raw = len(raw_items)
-print(f"[INFO] CJ Kärcher: nyers termékek: {total_raw}")
+print(f"[INFO] CJ Jatekshop.eu: nyers termékek: {total_raw}")
 
 
-# ====================== NORMALIZÁLÁS + KATEGÓRIA (fixen 'kert') ======================
+# ====================== NORMALIZÁLÁS + KATEGÓRIA (fixen 'jatekok') ======================
 
 rows = []
 
@@ -284,8 +284,8 @@ for m in raw_items:
     category_path = m["category_path"] or ""
     discount = m["discount"]
 
-    # MINDEN Kärcher termék fő kategóriája: 'kert'
-    findora_main = "kert"
+    # MINDEN Jatekshop termék fő kategóriája: 'jatekok'
+    findora_main = "jatekok"
     if findora_main not in FINDORA_CATS:
         findora_main = "multi"
 
@@ -299,7 +299,7 @@ for m in raw_items:
         "currency": currency,
         "discount": discount,
         "url": url,
-        "partner": "cj-karcher",
+        "partner": "cj-jatekshop",
         "category_path": category_path,
         "findora_main": findora_main,
         "cat": findora_main,
@@ -307,7 +307,7 @@ for m in raw_items:
     rows.append(row)
 
 total = len(rows)
-print(f"[INFO] CJ Kärcher: normalizált sorok: {total}")
+print(f"[INFO] CJ Jatekshop.eu: normalizált sorok: {total}")
 
 
 # ====================== HA NINCS EGYETLEN TERMÉK SEM ======================
@@ -319,7 +319,7 @@ if total == 0:
         [],
         PAGE_SIZE_GLOBAL,
         meta_extra={
-            "partner": "cj-karcher",
+            "partner": "cj-jatekshop",
             "scope": "global",
         },
     )
@@ -332,7 +332,7 @@ if total == 0:
             [],
             PAGE_SIZE_CAT,
             meta_extra={
-                "partner": "cj-karcher",
+                "partner": "cj-jatekshop",
                 "scope": f"category:{slug}",
             },
         )
@@ -344,12 +344,12 @@ if total == 0:
         [],
         PAGE_SIZE_AKCIO_BLOCK,
         meta_extra={
-            "partner": "cj-karcher",
+            "partner": "cj-jatekshop",
             "scope": "akcio",
         },
     )
 
-    print("⚠️ CJ Kärcher: nincs termék → csak üres meta-k + page-0001.json készült.")
+    print("⚠️ CJ Jatekshop.eu: nincs termék → csak üres meta-k + page-0001.json készült.")
     raise SystemExit(0)
 
 
@@ -360,7 +360,7 @@ paginate_and_write(
     rows,
     PAGE_SIZE_GLOBAL,
     meta_extra={
-        "partner": "cj-karcher",
+        "partner": "cj-jatekshop",
         "scope": "global",
     },
 )
@@ -383,7 +383,7 @@ for slug, items in buckets.items():
         items,
         PAGE_SIZE_CAT,
         meta_extra={
-            "partner": "cj-karcher",
+            "partner": "cj-jatekshop",
             "scope": f"category:{slug}",
         },
     )
@@ -402,13 +402,13 @@ paginate_and_write(
     akcios_items,
     PAGE_SIZE_AKCIO_BLOCK,
     meta_extra={
-        "partner": "cj-karcher",
+        "partner": "cj-jatekshop",
         "scope": "akcio",
     },
 )
 
 print(
-    f"✅ CJ Kärcher kész: {total} termék, "
+    f"✅ CJ Jatekshop.eu kész: {total} termék, "
     f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
     f"akciós blokk tételek: {len(akcios_items)} → {akcio_dir}"
 )
