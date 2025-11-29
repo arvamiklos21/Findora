@@ -49,12 +49,12 @@ if not FEED_URL_RAW:
         "Állítsd be a GitHub Actions Secrets között."
     )
 
-# ===== FINDORA FŐ KATEGÓRIÁK (SLUG-ok) =====
+# ===== FINDORA FŐ KATEGÓRIÁK (SLUG-ok) – 25 fix kategória =====
 FINDORA_CATS = [
     "elektronika",
     "haztartasi_gepek",
     "szamitastechnika",
-    "mobiltelefon",
+    "mobil",
     "gaming",
     "smart_home",
     "otthon",
@@ -78,8 +78,8 @@ FINDORA_CATS = [
     "multi",
 ]
 
-# ===== SEGÉDFÜGGVÉNYEK =====
 
+# ===== SEGÉDFÜGGVÉNYEK =====
 
 def split_feed_urls(raw: str):
     """
@@ -419,11 +419,21 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     """
     base_dir/meta.json
     base_dir/page-0001.json, page-0002.json, ...
-    Üres lista esetén is ír meta.json-t (page_count=0), hogy a frontend ne kapjon 404-et.
+
+    FONTOS:
+    - Üres lista esetén is létrejön:
+        - meta.json
+        - page-0001.json ({"items": []})
+      így a frontend soha nem kap 404-et a page-0001.json-re.
     """
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
-    page_count = int(math.ceil(total / page_size)) if total else 0
+
+    # Üres lista esetén is legyen legalább 1 oldal
+    if total == 0:
+        page_count = 1
+    else:
+        page_count = int(math.ceil(total / page_size))
 
     meta = {
         "total_items": total,
@@ -437,18 +447,22 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     with meta_path.open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
-    for page_no in range(1, page_count + 1):
-        start = (page_no - 1) * page_size
-        end = start + page_size
-        page_items = items[start:end]
-
-        out_path = base_dir / f"page-{page_no:04d}.json"
+    if total == 0:
+        out_path = base_dir / "page-0001.json"
         with out_path.open("w", encoding="utf-8") as f:
-            json.dump({"items": page_items}, f, ensure_ascii=False)
+            json.dump({"items": []}, f, ensure_ascii=False)
+    else:
+        for page_no in range(1, page_count + 1):
+            start = (page_no - 1) * page_size
+            end = start + page_size
+            page_items = items[start:end]
+
+            out_path = base_dir / f"page-{page_no:04d}.json"
+            with out_path.open("w", encoding="utf-8") as f:
+                json.dump({"items": page_items}, f, ensure_ascii=False)
 
 
 # ===== ML MODELL =====
-
 
 def load_model():
     if not os.path.exists(MODEL_FILE):
@@ -473,6 +487,11 @@ def predict_category(model, title, desc, category_path, brand):
     try:
         pred = model.predict([text])[0]
         slug = str(pred).strip()
+
+        # régi label kompat: ha a modell "mobiltelefon"-t ad vissza, mappelés "mobil"-ra
+        if slug == "mobiltelefon":
+            slug = "mobil"
+
         if not slug:
             return "multi"
         if slug not in FINDORA_CATS:
@@ -484,7 +503,6 @@ def predict_category(model, title, desc, category_path, brand):
 
 
 # ===== MAIN =====
-
 
 def main():
     # 1) Több feed URL feldarabolása
@@ -567,9 +585,17 @@ def main():
     total = len(rows)
     print(f"[INFO] Alza: normalizált sorok: {total}")
 
+    # régi JSON-ok törlése TELJES alza mappában (akkor is, ha total == 0)
+    if OUT_DIR.exists():
+        for old in OUT_DIR.rglob("*.json"):
+            try:
+                old.unlink()
+            except OSError:
+                pass
+
     if total == 0:
-        print("⚠️ Alza: nincs termék – csak üres meta-k készülnek.")
-        # csak üres kategória meta-k + üres akciós meta
+        print("⚠️ Alza: nincs termék – üres kategória meta-k + üres akciós meta készül.")
+        # Minden kategóriára üres meta + üres page-0001
         for slug in FINDORA_CATS:
             base_dir = OUT_DIR / slug
             paginate_and_write(
@@ -582,6 +608,7 @@ def main():
                 },
             )
 
+        # Akciós bucket üresen
         akcio_dir = OUT_DIR / "akcio"
         paginate_and_write(
             akcio_dir,
@@ -601,14 +628,6 @@ def main():
         if slug not in buckets:
             slug = "multi"
         buckets[slug].append(row)
-
-    # régi JSON-ok törlése teljes alza mappában
-    if OUT_DIR.exists():
-        for old in OUT_DIR.rglob("*.json"):
-            try:
-                old.unlink()
-            except OSError:
-                pass
 
     for slug, items_cat in buckets.items():
         base_dir = OUT_DIR / slug
@@ -642,7 +661,7 @@ def main():
 
     print(
         f"✅ Alza kész: {total} termék, "
-        f"{len(buckets)} kategória (mindnek meta), "
+        f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
         f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR}"
     )
 
