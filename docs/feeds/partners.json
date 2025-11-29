@@ -24,6 +24,30 @@
     "categoryIndex": {}
   },
   {
+  "id": "cj-jatekshop",
+  "name": "Jatekshop.eu",
+  "group": "jatekok",
+  "meta": "feeds/cj-jatekshop/meta.json",
+  "pagePattern": "feeds/cj-jatekshop/page-{NNNN}.json",
+  "deeplinkPartner": "cj-jatekshop",
+  "placements": {
+    "home": { "enabled": true, "pageSize": 0 },
+    "jatekok": {
+      "enabled": true,
+      "pageSize": 3,
+      "full": { "enabled": true, "pageSize": 20 }
+    }
+  },
+  "bf": {
+    "enabled": false,
+    "scanPages": 2,
+    "minDiscount": 10
+  },
+  "itemCount": 0,
+  "hasAkcio": true,
+  "categoryIndex": {}
+},
+  {
     "id": "cj-karcher",
     "name": "Kärcher",
     "group": "otthon",
