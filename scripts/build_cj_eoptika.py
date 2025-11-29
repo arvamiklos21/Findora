@@ -9,7 +9,7 @@
 # Kimenet:
 #   docs/feeds/cj-eoptika/meta.json, page-0001.json...           (globál)
 #   docs/feeds/cj-eoptika/<findora_cat>/meta.json, page-....json (kategória)
-#   docs/feeds/cj-eoptika/akcios-block/meta.json, page-....json  (akciós blokk, discount >= 10%)
+#   docs/feeds/cj-eoptika/akcio/meta.json, page-....json         (akciós blokk, discount >= 10%)
 
 import csv
 import json
@@ -155,7 +155,7 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
 
 # ====================== RÉGI FÁJLOK TAKARÍTÁSA ======================
 
-# Minden régi JSON törlése (globál + kategória + akcios-block)
+# Minden régi JSON törlése (globál + kategória + akcio)
 for old_json in OUT_DIR.rglob("*.json"):
     try:
         old_json.unlink()
@@ -323,14 +323,14 @@ if total == 0:
         )
 
     # Akciós blokk üres meta + üres page-0001
-    akcio_dir = OUT_DIR / "akcios-block"
+    akcio_dir = OUT_DIR / "akcio"
     paginate_and_write(
         akcio_dir,
         [],
         PAGE_SIZE_AKCIO_BLOCK,
         meta_extra={
             "partner": "cj-eoptika",
-            "scope": "akcios-block",
+            "scope": "akcio",
         },
     )
 
@@ -381,19 +381,19 @@ akcios_items = [
     if row.get("discount") is not None and row["discount"] >= 10
 ]
 
-akcio_dir = OUT_DIR / "akcios-block"
+akcio_dir = OUT_DIR / "akcio"
 paginate_and_write(
     akcio_dir,
     akcios_items,
     PAGE_SIZE_AKCIO_BLOCK,
     meta_extra={
         "partner": "cj-eoptika",
-        "scope": "akcios-block",
+        "scope": "akcio",
     },
 )
 
 print(
     f"✅ CJ eOptika kész: {total} termék, "
     f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
-    f"akciós blokk tételek: {len(akcios_items)}"
+    f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR / 'akcio'}"
 )
