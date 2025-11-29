@@ -2,8 +2,9 @@
 #
 # KozmetikaOtthon feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
-# Kategorizálás:
-#   - minden termék Findora fő kategóriája: "szepseg"
+# Kategorizálás: category_assignbase.assign_category
+#   - partner: "kozmetikaotthon"
+#   - partner_default: "szepseg" (ha nem talál semmit, visszarakja "szepseg"-be, NEM multi-ba)
 #
 # Kimenet:
 #   docs/feeds/kozmetikaotthon/meta.json, page-0001.json...              (globál)
@@ -21,7 +22,7 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
-from category_assignbase import FINDORA_CATS  # csak a 25 kategória listája kell
+from category_assignbase import assign_category, FINDORA_CATS
 
 FEED_URL = os.environ.get("FEED_KOZMETIKAOTTHON_URL")
 OUT_DIR = Path("docs/feeds/kozmetikaotthon")
@@ -431,15 +432,22 @@ def main():
         except OSError:
             pass
 
-    # tisztított XML
-    xml_clean = fetch_xml(FEED_URL)
+    # 1) XML letöltés – ha timeout / hiba, üres feedet generálunk
+    try:
+        xml_clean = fetch_xml(FEED_URL)
+        raw_items = parse_items(xml_clean)
+    except Exception as e:
+        print(
+            f"⚠️ KozmetikaOtthon: feed nem elérhető vagy hibás ({e}) – "
+            f"üres JSON struktúrát generálunk."
+        )
+        raw_items = []
 
-    # 1) XML → nyers lista + dedup
-    raw_items = parse_items(xml_clean)
+    # 2) dedup
     items = dedup_size_variants(raw_items)
     print(f"ℹ KozmetikaOtthon: dedup után {len(items)} termék")
 
-    # 2) NORMALIZÁLÁS – MINDEN termék fixen "szepseg" kategóriába
+    # 3) NORMALIZÁLÁS + KÖZÖS KATEGORIZÁLÁS (de minden item végül szepseg-be megy)
     rows = []
     for it in items:
         pid = it["id"]
@@ -452,7 +460,17 @@ def main():
         category_path = it.get("category_path") or ""
         brand = it.get("brand") or ""
 
-        # Minden termék csak és kizárólag "szepseg" menübe megy
+        # Ha később mégis szeretnél statisztikához "valódi" assign-t, meghívhatjuk:
+        _tmp = assign_category(
+            title=title,
+            desc=desc,
+            category_path=category_path,
+            brand=brand,
+            partner="kozmetikaotthon",
+            partner_default="szepseg",
+        )
+
+        # Projekt-szabály: KozmetikaOtthon MINDIG a "szepseg" fő kategóriába megy.
         findora_main = "szepseg"
 
         row = {
@@ -473,7 +491,7 @@ def main():
     total = len(rows)
     print(f"[INFO] KozmetikaOtthon: normalizált sorok: {total}")
 
-    # 3) HA NINCS EGYETLEN TERMÉK SEM
+    # 4) HA NINCS EGYETLEN TERMÉK SEM → üres struktúra, de page-0001.json MINDENHOL
     if total == 0:
         # Globál üres meta + üres page-0001
         paginate_and_write(
@@ -511,10 +529,10 @@ def main():
             },
         )
 
-        print("⚠️ KozmetikaOtthon: nincs termék → csak üres meta-k + page-0001.json készült.")
+        print("⚠️ KozmetikaOtthon: nincs termék / feed-hiba → üres meta-k + page-0001.json készült.")
         return
 
-    # 4) GLOBÁL FEED
+    # 5) GLOBÁL FEED
     paginate_and_write(
         OUT_DIR,
         rows,
@@ -526,10 +544,10 @@ def main():
         },
     )
 
-    # 5) KATEGÓRIA FEED-EK – csak a "szepseg" kap valós adatot, a többi üres, de mindnek lesz page-0001.json
+    # 6) KATEGÓRIA FEED-EK
     buckets = {slug: [] for slug in FINDORA_CATS}
     for row in rows:
-        # biztos, ami biztos: ha valamiért nem szepseg, akkor is tereljük oda
+        # itt elvileg mindig "szepseg", de legyen fallback
         slug = row.get("findora_main") or "szepseg"
         if slug not in buckets:
             slug = "szepseg"
@@ -537,8 +555,7 @@ def main():
             row["cat"] = "szepseg"
         buckets[slug].append(row)
 
-    for slug in FINDORA_CATS:
-        items_cat = buckets.get(slug, [])
+    for slug, items_cat in buckets.items():
         base_dir = OUT_DIR / slug
         paginate_and_write(
             base_dir,
@@ -551,7 +568,7 @@ def main():
             },
         )
 
-    # 6) AKCIÓS BLOKK (discount >= 10%), slug: "akcio"
+    # 7) AKCIÓS BLOKK (discount >= 10%) – slug: "akcio"
     akcios_items = [
         row for row in rows
         if row.get("discount") is not None and row["discount"] >= 10
@@ -571,7 +588,7 @@ def main():
 
     print(
         f"✅ KozmetikaOtthon kész: {total} termék, "
-        f"{len(FINDORA_CATS)} kategória (mindegyiknek meta + legalább page-0001.json), "
+        f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
         f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR}"
     )
 
