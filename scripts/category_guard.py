@@ -14,7 +14,7 @@ FINDORA_CATS = [
     "elektronika",
     "haztartasi_gepek",
     "szamitastechnika",
-    "mobiltelefon",
+    "mobil",
     "gaming",
     "smart_home",
     "otthon",
