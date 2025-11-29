@@ -2,9 +2,9 @@
 #
 # CJ Kärcher feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
-# Kategorizálás: category_assignbase.assign_category
-#   - partner: "cj-karcher"
-#   - partner_default: "haztartasi_gepek"
+# Kategorizálás:
+#   - NEM használjuk a category_assign-et
+#   - MINDEN Kärcher termék fő kategóriája: "kert"
 #
 # Kimenet:
 #   docs/feeds/cj-karcher/meta.json, page-0001.json...              (globál)
@@ -16,7 +16,7 @@ import json
 import math
 from pathlib import Path
 
-from category_assignbase import assign_category, FINDORA_CATS as BASE_CATS
+from category_assignbase import FINDORA_CATS as BASE_CATS
 
 # Findora fő kategória SLUG-ok – a 25 menühöz igazítva + "akciok"
 FINDORA_CATS = [
@@ -190,7 +190,7 @@ total_raw = len(raw_items)
 print(f"[INFO] CJ Kärcher: nyers termékek: {total_raw}")
 
 
-# ====================== NORMALIZÁLÁS + KATEGORIZÁLÁS ======================
+# ====================== NORMALIZÁLÁS + KATEGÓRIA (fixen 'kert') ======================
 
 rows = []
 
@@ -207,15 +207,10 @@ for m in raw_items:
     category_path = m["category_path"] or ""
     discount = m["discount"]
 
-    # Kategória besorolás – közös base
-    findora_main = assign_category(
-        title=title,
-        desc=desc,
-        category_path=category_path,
-        brand=brand,
-        partner="cj-karcher",
-        partner_default="haztartasi_gepek",  # alapértelmezett: háztartási gépek / tisztítógépek
-    )
+    # MINDEN Kärcher termék fő kategóriája: 'kert'
+    findora_main = "kert"
+    if findora_main not in FINDORA_CATS:
+        findora_main = "multi"
 
     row = {
         "id": pid,
