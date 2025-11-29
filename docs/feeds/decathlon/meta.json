@@ -1,7 +1,7 @@
 {
   "partner": "decathlon",
-  "total_items": 23577,
-  "generated_at": "2025-11-29T09:29:53.461687Z",
+  "total_items": 23545,
+  "generated_at": "2025-11-29T10:55:12.829753Z",
   "categories": {
     "elektronika": {
       "total_items": 83,
@@ -14,27 +14,27 @@
       "page_count": 1
     },
     "szamitastechnika": {
-      "total_items": 384,
+      "total_items": 376,
       "page_size": 20,
-      "page_count": 20
+      "page_count": 19
     },
     "mobil": {
-      "total_items": 23,
+      "total_items": 24,
       "page_size": 20,
       "page_count": 2
     },
     "gaming": {
       "total_items": 0,
       "page_size": 20,
-      "page_count": 0
+      "page_count": 1
     },
     "smart_home": {
       "total_items": 0,
       "page_size": 20,
-      "page_count": 0
+      "page_count": 1
     },
     "otthon": {
-      "total_items": 372,
+      "total_items": 371,
       "page_size": 20,
       "page_count": 19
     },
@@ -44,29 +44,29 @@
       "page_count": 7
     },
     "konyha_fozes": {
-      "total_items": 468,
+      "total_items": 469,
       "page_size": 20,
       "page_count": 24
     },
     "kert": {
-      "total_items": 96,
+      "total_items": 95,
       "page_size": 20,
       "page_count": 5
     },
     "jatekok": {
-      "total_items": 1717,
+      "total_items": 1715,
       "page_size": 20,
       "page_count": 86
     },
     "divat": {
-      "total_items": 6954,
+      "total_items": 6959,
       "page_size": 20,
       "page_count": 348
     },
     "szepseg": {
       "total_items": 0,
       "page_size": 20,
-      "page_count": 0
+      "page_count": 1
     },
     "drogeria": {
       "total_items": 5,
@@ -79,19 +79,19 @@
       "page_count": 1
     },
     "sport": {
-      "total_items": 12752,
+      "total_items": 12748,
       "page_size": 20,
       "page_count": 638
     },
     "egeszseg": {
-      "total_items": 59,
+      "total_items": 47,
       "page_size": 20,
       "page_count": 3
     },
     "latas": {
-      "total_items": 85,
+      "total_items": 69,
       "page_size": 20,
-      "page_count": 5
+      "page_count": 4
     },
     "allatok": {
       "total_items": 7,
@@ -101,10 +101,10 @@
     "konyv": {
       "total_items": 0,
       "page_size": 20,
-      "page_count": 0
+      "page_count": 1
     },
     "utazas": {
-      "total_items": 352,
+      "total_items": 357,
       "page_size": 20,
       "page_count": 18
     },
@@ -126,12 +126,12 @@
     "multi": {
       "total_items": 0,
       "page_size": 20,
-      "page_count": 0
+      "page_count": 1
     }
   },
   "akcios_block": {
-    "total_items": 2350,
+    "total_items": 2376,
     "page_size": 20,
-    "page_count": 118
+    "page_count": 119
   }
 }
