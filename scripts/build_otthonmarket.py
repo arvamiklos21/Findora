@@ -4,7 +4,7 @@
 #
 # Kategorizálás: category_assign_otthonmarket.assign_category
 #   - partner: "otthonmarket"
-#   - alap fallback: "otthon" (ha nem talál semmit, visszarakja "otthon"-ba, NEM multi-ba)
+#   - partner_default: "otthon" (ha nem talál semmit, visszarakja "otthon"-ba, NEM multi-ba)
 #
 # Kimenet:
 #   docs/feeds/otthonmarket/meta.json, page-0001.json...              (globál)
@@ -39,7 +39,7 @@ PAGE_SIZE_CAT = 20
 PAGE_SIZE_AKCIO_BLOCK = 20
 
 
-# ---------- segédfüggvények ----------
+# ---------- segédfüggvények (ugyanaz a logika, mint a laifenshop/karacsonydekor skriptekben) ----------
 
 def norm_price(v):
     if v is None:
@@ -197,7 +197,7 @@ def parse_items(xml_text):
             if any(x in t for x in ("item", "product", "offer", "shop")):
                 candidates.append(n)
 
-    # 3) ha így sincs semmi → üres lista
+    # 3) ha így sincs semmi → üres listával vissza
     if not candidates:
         print("⚠ OtthonMarket: parse_items – nem találtam termék node-ot.")
         return []
@@ -222,6 +222,7 @@ def parse_items(xml_text):
         full_desc = first(m, DESC_KEYS)
         desc = short_desc(full_desc)
 
+        # OtthonMarket kategória szöveg
         category_raw = first(m, CATEGORY_KEYS) or ""
         brand = first(m, BRAND_KEYS) or ""
 
@@ -253,7 +254,7 @@ def parse_items(xml_text):
                 "price": price_new,
                 "discount": discount,
                 "url": link or "",
-                "category_path": category_raw,
+                "category_path": category_raw,  # közös név
                 "brand": brand,
             }
         )
@@ -362,6 +363,7 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
 
+    # Üres lista esetén is legyen legalább 1 oldal
     if total == 0:
         page_count = 1
     else:
@@ -392,6 +394,44 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
             out_path = base_dir / f"page-{page_no:04d}.json"
             with out_path.open("w", encoding="utf-8") as f:
                 json.dump({"items": page_items}, f, ensure_ascii=False)
+
+
+# ===== régi 'kat-*' slug → Findora slug =====
+
+def map_otm_slug_to_findora(slug: str) -> str:
+    """
+    category_assign_otthonmarket.assign_category régi 'kat-*' ID-ket ad vissza.
+    Itt lefordítjuk a Findora 25-ös slugokra.
+    Ismeretlen / üres esetben: 'otthon'
+    """
+    if not slug:
+        return "otthon"
+
+    s = slug.strip().lower()
+
+    mapping = {
+        "kat-elektronika": "elektronika",
+        "kat-gepek": "haztartasi_gepek",
+        "kat-otthon": "otthon",
+        "kat-jatekok": "jatekok",
+        "kat-divat": "divat",
+        "kat-szepseg": "szepseg",
+        "kat-sport": "sport",
+        "kat-konyv": "konyv",
+        "kat-allatok": "allatok",
+        "kat-latas": "latas",
+        "kat-multi": "multi",
+        "kat-kert": "kert",
+        "kat-utazas": "utazas",
+    }
+
+    mapped = mapping.get(s, s)  # ha már eleve új slugot adna vissza, hagyjuk úgy
+
+    if mapped not in FINDORA_CATS:
+        # biztos fallback, NEM multi
+        return "otthon"
+
+    return mapped
 
 
 # ---------- main ----------
@@ -429,35 +469,17 @@ def main():
         img = it.get("img") or ""
         price = it.get("price")
         discount = it.get("discount")
+        category_path = it.get("category_path") or ""
+        brand = it.get("brand") or ""  # itt most csak továbbvisszük, nem használjuk
 
-        category_path_raw = it.get("category_path")
-        # mindenáron stringgé alakítjuk (ha dict/list is lenne)
-        category_path = "" if category_path_raw is None else str(category_path_raw)
+        # Partner-specifikus assigner – RÉGI 'kat-*' ID-ket ad vissza
+        raw_cat = assign_otthonmarket_category(
+            category=category_path,
+            name=title,
+            description=desc,
+        )
 
-        brand_raw = it.get("brand")
-        brand = "" if brand_raw is None else str(brand_raw)
-
-        # Partner-specifikus assigner – DICT-et vár
-        fields_raw = {
-            "title": title,
-            "name": title,
-            "description": desc,
-            "category": category_path,
-            "category_text": category_path,
-            "brand": brand,
-            "manufacturer": brand,
-        }
-        # minden értéket sima stringgé normalizálunk
-        fields = {
-            str(k).lower(): ("" if v is None else str(v))
-            for k, v in fields_raw.items()
-        }
-
-        findora_main = assign_otthonmarket_category(fields)
-
-        # fallback: ha bármi hülyeséget ad vissza, menjen "otthon"-ba (nem multi)
-        if not findora_main or findora_main not in FINDORA_CATS:
-            findora_main = "otthon"
+        findora_main = map_otm_slug_to_findora(raw_cat)
 
         row = {
             "id": pid,
@@ -479,6 +501,7 @@ def main():
 
     # ===== HA NINCS EGYETLEN TERMÉK SEM =====
     if total == 0:
+        # Globál üres meta + üres page-0001
         paginate_and_write(
             OUT_DIR,
             [],
@@ -489,6 +512,7 @@ def main():
             },
         )
 
+        # Minden kategóriára üres meta + üres page-0001
         for slug in FINDORA_CATS:
             base_dir = OUT_DIR / slug
             paginate_and_write(
@@ -501,6 +525,7 @@ def main():
                 },
             )
 
+        # Akciós blokk üres meta + üres page-0001
         akcio_dir = OUT_DIR / "akcio"
         paginate_and_write(
             akcio_dir,
