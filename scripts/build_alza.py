@@ -552,8 +552,7 @@ def main():
 
     # 3) ML modell betöltése
     model = load_model()
-    print("[INFO] Alza ML
- modell betöltve.")
+    print("[INFO] Alza ML modell betöltve.")
 
     # 4) Normalizált sorok + kategóriák (ML + guard)
     rows = []
