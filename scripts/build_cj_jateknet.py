@@ -87,11 +87,21 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     Általános lapozó + fájlkiíró:
       base_dir/meta.json
       base_dir/page-0001.json, page-0002.json, ...
-    Üres lista esetén is ír meta.json-t (page_count=0), hogy a frontend ne kapjon 404-et.
+
+    FONTOS:
+    - Üres lista esetén is létrejön:
+        - meta.json
+        - page-0001.json ({"items": []})
+      így a frontend soha nem kap 404-et a page-0001.json-re.
     """
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
-    page_count = int(math.ceil(total / page_size)) if total else 0
+
+    # Üres lista esetén is legyen legalább 1 oldal
+    if total == 0:
+        page_count = 1
+    else:
+        page_count = int(math.ceil(total / page_size))
 
     meta = {
         "total_items": total,
@@ -105,14 +115,20 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     with meta_path.open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
-    for page_no in range(1, page_count + 1):
-        start = (page_no - 1) * page_size
-        end = start + page_size
-        page_items = items[start:end]
-
-        out_path = base_dir / f"page-{page_no:04d}.json"
+    if total == 0:
+        # Üres kategória/globál/akció: 1 oldal, üres items
+        out_path = base_dir / "page-0001.json"
         with out_path.open("w", encoding="utf-8") as f:
-            json.dump({"items": page_items}, f, ensure_ascii=False)
+            json.dump({"items": []}, f, ensure_ascii=False)
+    else:
+        for page_no in range(1, page_count + 1):
+            start = (page_no - 1) * page_size
+            end = start + page_size
+            page_items = items[start:end]
+
+            out_path = base_dir / f"page-{page_no:04d}.json"
+            with out_path.open("w", encoding="utf-8") as f:
+                json.dump({"items": page_items}, f, ensure_ascii=False)
 
 
 # ====================== RÉGI FÁJLOK TAKARÍTÁSA ======================
@@ -249,7 +265,7 @@ print(f"[INFO] CJ JátékNet: normalizált sorok: {total}")
 # ====================== HA NINCS EGYETLEN TERMÉK SEM ======================
 
 if total == 0:
-    # Globál üres meta
+    # Globál üres meta + üres page-0001
     paginate_and_write(
         OUT_DIR,
         [],
@@ -260,7 +276,7 @@ if total == 0:
         },
     )
 
-    # Minden kategóriára üres meta
+    # Minden kategóriára üres meta + üres page-0001
     for slug in FINDORA_CATS:
         base_dir = OUT_DIR / slug
         paginate_and_write(
@@ -273,7 +289,7 @@ if total == 0:
             },
         )
 
-    # Akciós blokk üres meta
+    # Akciós blokk üres meta + üres page-0001
     akcio_dir = OUT_DIR / "akcios-block"
     paginate_and_write(
         akcio_dir,
@@ -285,7 +301,7 @@ if total == 0:
         },
     )
 
-    print("⚠️ CJ JátékNet: nincs termék → csak üres meta-k készültek.")
+    print("⚠️ CJ JátékNet: nincs termék → csak üres meta-k + page-0001.json készült.")
     raise SystemExit(0)
 
 
@@ -345,6 +361,6 @@ paginate_and_write(
 
 print(
     f"✅ CJ JátékNet kész: {total} termék, "
-    f"{len(buckets)} kategória (mindegyiknek meta), "
+    f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
     f"akciós blokk tételek: {len(akcios_items)}"
 )
