@@ -139,12 +139,10 @@ raw_items = []
 
 txt_files = sorted(IN_DIR.glob("*.txt"))
 if not txt_files:
-    # NINCS TXT → hibás URL / nem töltött le semmit a workflow
-    # Ilyenkor üres feedet generálunk (globál + 25 kategória + akció),
-    # hogy a frontend ne kapjon 404-et.
-    print("⚠️ CJ eOptika: nincs .txt fájl a feed mappában → üres feed (csak meta + page-0001.json).")
+    print("⚠️ CJ eOptika: nincs .txt fájl a cj-eoptika-feed mappában – üres feedet generálunk.")
 else:
     feed_file = txt_files[0]
+
     with feed_file.open("r", encoding="utf-8", newline="") as f:
         sample = f.read(4096)
         f.seek(0)
