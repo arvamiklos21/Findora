@@ -9,7 +9,7 @@
 # Kimenet:
 #   docs/feeds/decathlon/meta.json                               (összefoglaló)
 #   docs/feeds/decathlon/<findora_cat>/meta.json, page-....json  (kategória)
-#   docs/feeds/decathlon/akcios-block/meta.json, page-....json   (akciós blokk, discount >= 10%)
+#   docs/feeds/decathlon/akcio/meta.json, page-....json          (akciós blokk, discount >= 10%)
 
 import os
 import re
@@ -23,10 +23,6 @@ from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
 from category_assignbase import assign_category, FINDORA_CATS  # FINDORA_CATS: 25 fő kategória
-
-# Ha szeretnél külön Decathlon-specifikus listát, itt felülírhatnád, de
-# most a közös 25-ös listát használjuk.
-
 
 FEED_URL = os.environ.get("FEED_DECATHLON_URL")
 OUT_DIR = Path("docs/feeds/decathlon")
@@ -398,7 +394,7 @@ def main():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # régi JSON-ok törlése (kategória + akcios-block + top meta)
+    # régi JSON-ok törlése (kategória + akcio + top meta)
     for old in OUT_DIR.rglob("*.json"):
         try:
             old.unlink()
@@ -472,14 +468,14 @@ def main():
             )
 
         # Akciós blokk üres meta + üres page-0001
-        akcio_dir = OUT_DIR / "akcios-block"
+        akcio_dir = OUT_DIR / "akcio"
         paginate_and_write(
             akcio_dir,
             [],
             PAGE_SIZE_AKCIO_BLOCK,
             meta_extra={
                 "partner": "decathlon",
-                "scope": "akcios-block",
+                "scope": "akcio",
             },
         )
 
@@ -496,7 +492,7 @@ def main():
                 }
                 for slug in FINDORA_CATS
             },
-            "akcios_block": {
+            "akcio": {
                 "total_items": 0,
                 "page_size": PAGE_SIZE_AKCIO_BLOCK,
                 "page_count": 1,  # üresen is létrejön page-0001.json
@@ -545,14 +541,14 @@ def main():
         if row.get("discount") is not None and row["discount"] >= 10
     ]
 
-    akcio_dir = OUT_DIR / "akcios-block"
+    akcio_dir = OUT_DIR / "akcio"
     paginate_and_write(
         akcio_dir,
         akcios_items,
         PAGE_SIZE_AKCIO_BLOCK,
         meta_extra={
             "partner": "decathlon",
-            "scope": "akcios-block",
+            "scope": "akcio",
             "generated_at": datetime.utcnow().isoformat() + "Z",
         },
     )
@@ -567,7 +563,7 @@ def main():
         "total_items": total,
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "categories": categories_meta,
-        "akcios_block": {
+        "akcio": {
             "total_items": total_akcio,
             "page_size": PAGE_SIZE_AKCIO_BLOCK,
             "page_count": page_count_akcio,
@@ -579,7 +575,7 @@ def main():
     print(
         f"✅ Decathlon kész: {total} termék, "
         f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
-        f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR}"
+        f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR / 'akcio'}"
     )
 
 
