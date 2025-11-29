@@ -2,13 +2,13 @@
 #
 # CJ eOptika feed → Findora JSON oldalak (globál + kategória + akciós blokk)
 #
-# Kategorizálás: category_assignbase.assign_category
-#   - partner: "cj-eoptika"
-#   - partner_default: "latas" (ha nem talál semmit, visszarakja "latas"-ba, NEM multi-ba)
+# Kategorizálás:
+#   - NEM használjuk a category_assign-et
+#   - MINDEN eOptika termék fixen a "latas" fő kategóriába kerül
 #
 # Kimenet:
 #   docs/feeds/cj-eoptika/meta.json, page-0001.json...           (globál)
-#   docs/feeds/cj-eoptika/<findora_cat>/meta.json, page-....json (kategória)
+#   docs/feeds/cj-eoptika/<findora_cat>/meta.json, page-....json (kategória – mind a 25 mappa létrejön)
 #   docs/feeds/cj-eoptika/akcio/meta.json, page-....json         (akciós blokk, discount >= 10%)
 
 import csv
@@ -16,37 +16,7 @@ import json
 import math
 from pathlib import Path
 
-from category_assignbase import assign_category, FINDORA_CATS
-
-# Findora fő kategória SLUG-ok – a 25 menühöz igazítva + "akciok"
-FINDORA_CATS = [
-    "akciok",
-    "elektronika",
-    "haztartasi_gepek",
-    "szamitastechnika",
-    "mobil",
-    "gaming",
-    "smart_home",
-    "otthon",
-    "lakberendezes",
-    "konyha_fozes",
-    "kert",
-    "jatekok",
-    "divat",
-    "szepseg",
-    "drogeria",
-    "baba",
-    "sport",
-    "egeszseg",
-    "latas",
-    "allatok",
-    "konyv",
-    "utazas",
-    "iroda_iskola",
-    "szerszam_barkacs",
-    "auto_motor",
-    "multi",
-]
+from category_assignbase import FINDORA_CATS  # csak a 25 fő kategória listája kell
 
 # BEMENET: CJ txt feed kicsomagolva ide
 IN_DIR = Path("cj-eoptika-feed")
@@ -248,7 +218,7 @@ total_raw = len(raw_items)
 print(f"DEBUG CJ EOPTIKA: nyers termékek: {total_raw}")
 
 
-# ====================== NORMALIZÁLÁS + KATEGORIZÁLÁS ======================
+# ====================== NORMALIZÁLÁS + KATEGÓRIA (fixen 'latas') ======================
 
 rows = []
 
@@ -265,15 +235,10 @@ for m in raw_items:
     category_path = m["category_path"] or ""
     discount = m["discount"]
 
-    # Kategória besorolás – közös base
-    findora_main = assign_category(
-        title=title,
-        desc=desc,
-        category_path=category_path,
-        brand=brand,
-        partner="cj-eoptika",
-        partner_default="latas",  # eOptika: alapértelmezett "látás"
-    )
+    # MINDEN eOptika termék fő kategóriája: 'latas'
+    findora_main = "latas"
+    if findora_main not in FINDORA_CATS:
+        findora_main = "multi"
 
     row = {
         "id": pid,
