@@ -27,7 +27,6 @@ async function loadCategoryMap() {
 
     const text = await r.text();
     if (!text.trim()) {
-      // üres fájl – nem baj, csak nincs finomhangolt szabály
       return;
     }
 
@@ -221,14 +220,12 @@ function getAkcioPrices(it) {
 
   let current = null;
 
-  // jelenlegi / akciós ár
   if (typeof it.price === "number" && isFinite(it.price)) {
     current = it.price;
   } else if (typeof it.sale_price === "number" && isFinite(it.sale_price)) {
     current = it.sale_price;
   }
 
-  // eredeti ár lehetséges mezőkben
   let original = null;
   const candidates = [
     it.old_price,
@@ -245,7 +242,6 @@ function getAkcioPrices(it) {
     }
   }
 
-  // ha nincs explicit eredeti ár, számoljuk vissza a discount-ból
   const disc = getDiscountNumber(it);
   if (!original && current && disc !== null) {
     const base = current / (1 - disc / 100);
@@ -257,7 +253,7 @@ function getAkcioPrices(it) {
   return { current, original };
 }
 
-// ===== partners.json, meta, page betöltés =====
+// ===== partners.json betöltés =====
 async function loadPartners() {
   const r = await fetch(PARTNERS_URL, { cache: "no-cache" });
   if (!r.ok) throw new Error("partners.json nem elérhető: " + r.status);
@@ -267,13 +263,14 @@ async function loadPartners() {
   }
   PARTNERS.clear();
   arr.forEach((p) => {
-    if (!p.id || !p.meta || !p.pagePattern || !p.deeplinkPartner) return;
-    // categoryMetaPattern, categoryPagePattern opcionális
+    // ÚJ: csak id + deeplinkPartner kötelező, meta/pagePattern opcionális (régi logikához)
+    if (!p.id || !p.deeplinkPartner) return;
     PARTNERS.set(p.id, p);
   });
   console.log("PARTNEREK BETÖLTVE:", PARTNERS.size);
 }
 
+// ===== (Legacy) Meta + page helper – NEM használjuk már sehol =====
 async function getMeta(pid) {
   if (META.has(pid)) return META.get(pid);
   const cfg = PARTNERS.get(pid);
@@ -331,21 +328,31 @@ function metaPageCount(meta, pageSizeFallback) {
   );
 }
 
-// ===== Kategória meta + kategória page (pl. ALZA /feeds/alza/{CAT}/...) =====
+// ===== Kategória meta + kategória page (általánosított, ÚJ logika) =====
 async function getCategoryMeta(pid, catId) {
   const cfg = PARTNERS.get(pid);
-  if (!cfg || !cfg.categoryMetaPattern) return null;
-
   const backendSlug = CATID_TO_BACKEND[catId];
   if (!backendSlug) return null;
 
   const key = pid + "||" + backendSlug;
   if (CATEGORY_META.has(key)) return CATEGORY_META.get(key);
 
-  const url =
-    FEEDS_BASE +
-    "/" +
-    cfg.categoryMetaPattern.replace("{CAT}", backendSlug);
+  let url;
+  if (cfg && cfg.categoryMetaPattern) {
+    url =
+      FEEDS_BASE +
+      "/" +
+      cfg.categoryMetaPattern.replace("{CAT}", backendSlug);
+  } else {
+    // generikus: /feeds/{pid}/{backendSlug}/meta.json
+    url =
+      FEEDS_BASE +
+      "/feeds/" +
+      pid +
+      "/" +
+      backendSlug +
+      "/meta.json";
+  }
 
   const r = await fetch(url, { cache: "no-cache" });
   if (!r.ok) {
@@ -359,23 +366,34 @@ async function getCategoryMeta(pid, catId) {
 
 async function getCategoryFeedItems(pid, catId, pageNum) {
   const cfg = PARTNERS.get(pid);
-  if (!cfg || !cfg.categoryPagePattern) return null;
-
   const backendSlug = CATID_TO_BACKEND[catId];
-  if (!backendSlug) return null;
+  if (!backendSlug) return [];
 
   if (!PAGES.has(pid)) PAGES.set(pid, new Map());
   const store = PAGES.get(pid);
-  const key =
-    backendSlug + "-page-" + String(pageNum).padStart(4, "0");
+  const key = backendSlug + "-page-" + String(pageNum).padStart(4, "0");
   if (store.has(key)) return store.get(key);
 
-  const url =
-    FEEDS_BASE +
-    "/" +
-    cfg.categoryPagePattern
-      .replace("{CAT}", backendSlug)
-      .replace("{NNNN}", String(pageNum).padStart(4, "0"));
+  let url;
+  if (cfg && cfg.categoryPagePattern) {
+    url =
+      FEEDS_BASE +
+      "/" +
+      cfg.categoryPagePattern
+        .replace("{CAT}", backendSlug)
+        .replace("{NNNN}", String(pageNum).padStart(4, "0"));
+  } else {
+    // generikus: /feeds/{pid}/{backendSlug}/page-0001.json
+    url =
+      FEEDS_BASE +
+      "/feeds/" +
+      pid +
+      "/" +
+      backendSlug +
+      "/page-" +
+      String(pageNum).padStart(4, "0") +
+      ".json";
+  }
 
   const r = await fetch(url, { cache: "no-cache" });
   if (!r.ok) {
@@ -399,6 +417,7 @@ async function getCategoryFeedItems(pid, catId, pageNum) {
 // ===== Partner default kategória (frontend) =====
 const BASE_CATEGORY_BY_PARTNER = {
   tchibo: "kat-divat",
+  "cj-jatekshop": "kat-jatekok",
   "cj-karcher": "kat-kert",
   "cj-eoptika": "kat-latas",
   "cj-jateknet": "kat-jatekok",
@@ -529,24 +548,23 @@ Object.entries(FINDORA_MAIN_TO_CATID).forEach(([backendKey, catId]) => {
   BACKEND_FROM_CATID[catId] = backendKey;
 });
 
-// CATID → backend slug (Python findora_main) – ALZA /feeds/alza/{CAT}/... miatt
+// CATID → backend slug (Python findora_main)
 const CATID_TO_BACKEND = {};
 Object.entries(BACKEND_SYNONYM_TO_CATID).forEach(([backendKey, catId]) => {
   CATID_TO_BACKEND[catId] = backendKey;
 });
 
-// CATID → findora_main (Algolia filterhez – kanonikus kulcs, de itt főleg meta infó)
+// CATID → findora_main (kanonikus)
 const CATID_TO_FINDORA_MAIN = {};
 Object.keys(FINDORA_MAIN_TO_CATID).forEach((key) => {
   const cid = FINDORA_MAIN_TO_CATID[key];
   CATID_TO_FINDORA_MAIN[cid] = key;
 });
 
-// ===== Kategória meghatározás egy termékre – BACKEND cat + category-map + partner default =====
+// ===== Kategória meghatározás egy termékre =====
 function getCategoriesForItem(pid, it) {
   const cfg = PARTNERS.get(pid) || {};
 
-  // 0) Backend cat / findora_main mező (Python-ból)
   const backendCatRaw =
     it &&
     (it.findora_main ||
@@ -560,31 +578,23 @@ function getCategoriesForItem(pid, it) {
 
   if (backendCatRaw) {
     const backendCat = String(backendCatRaw).toLowerCase();
-
-    // közvetlen "kat-..." kulcs
     let mappedFromBackend = FINDORA_MAIN_TO_CATID[backendCat];
-
-    // ha nem kat-..., akkor próbáljuk a szinonima mapet
     if (!mappedFromBackend && BACKEND_SYNONYM_TO_CATID[backendCat]) {
       mappedFromBackend = BACKEND_SYNONYM_TO_CATID[backendCat];
     }
-
     if (mappedFromBackend && CATEGORY_IDS.includes(mappedFromBackend)) {
       return [mappedFromBackend];
     }
   }
 
-  // 1) Külső category-map.json alapján
   const mapped = mapCategoryByPartner(pid, it);
   if (mapped && CATEGORY_IDS.includes(mapped)) {
     return [mapped];
   }
 
-  // 2) Partner default kategória
   const base = baseCategoryForPartner(pid, cfg);
   if (CATEGORY_IDS.includes(base)) return [base];
 
-  // 3) Fallback
   return ["kat-multi"];
 }
 
@@ -599,7 +609,7 @@ function getCategoryName(catId) {
   return el ? el.textContent.trim() : "";
 }
 
-// ===== Akciós blokk + Black Friday (JSON FEED ALAPÚ) =====
+// ===== Akciós blokk + Black Friday (JSON FEED ALAPÚ, ÚJ LOGIKA) =====
 let AKCIO_PAGES = [2];
 let AKCIO_CURRENT = 1;
 
@@ -608,6 +618,48 @@ let AKCIO_FULL_STATE = {
   page: 1,
   pageSize: 6,
 };
+
+// Akció feed olvasása /feeds/{pid}/akcio/... mappából
+async function getAkcioItemsForPartner(pid, maxPages) {
+  const basePath = "/feeds/" + pid + "/akcio";
+  const metaUrl = FEEDS_BASE + basePath + "/meta.json";
+
+  try {
+    const rMeta = await fetch(metaUrl, { cache: "no-cache" });
+    if (!rMeta.ok) {
+      // nincs akció mappa → nincs akció ennél a partnernél
+      return [];
+    }
+    const meta = await rMeta.json();
+    const pageSize = metaPageSize(meta, 20);
+    const totalPages = metaPageCount(meta, pageSize) || 1;
+    const limit = Math.min(totalPages, maxPages);
+
+    const rows = [];
+    for (let pg = 1; pg <= limit; pg++) {
+      const url =
+        FEEDS_BASE +
+        basePath +
+        "/page-" +
+        String(pg).padStart(4, "0") +
+        ".json";
+      const r = await fetch(url, { cache: "no-cache" });
+      if (!r.ok) break;
+      const d = await r.json();
+      const arr = d && d.items ? d.items : [];
+      (arr || []).forEach((it) => {
+        const disc = getDiscountNumber(it);
+        if (disc !== null) {
+          rows.push({ pid, item: it });
+        }
+      });
+    }
+    return rows;
+  } catch (e) {
+    console.warn("Akció feed betöltési hiba:", pid, e);
+    return [];
+  }
+}
 
 function renderAkcioCards(itemsWithPartner) {
   const list = itemsWithPartner || [];
@@ -634,7 +686,6 @@ function renderAkcioCards(itemsWithPartner) {
       let priceHtml = "";
 
       if (originalText && currentText && prices.original !== prices.current) {
-        // Eredeti + akciós ár + %-os kedvezmény
         priceHtml =
           '<div class="price">' +
           '<span class="old-price" style="text-decoration:line-through;opacity:0.7;margin-right:4px;">' +
@@ -650,7 +701,6 @@ function renderAkcioCards(itemsWithPartner) {
             : "") +
           "</div>";
       } else {
-        // Csak egy ár + opcionális %-os kedvezmény
         priceHtml =
           '<div class="price">' +
           currentText +
@@ -780,7 +830,7 @@ function renderAkcioFullPage(page) {
   };
 }
 
-// AKCIÓS BLOKK – JSON FEED, ahol lehet kategória-feedet használ
+// AKCIÓS BLOKK – CSAK /feeds/{pid}/akcio/… használata
 async function buildAkciosBlokk() {
   const host = document.getElementById("akciok-grid");
   if (!host) return;
@@ -793,56 +843,16 @@ async function buildAkciosBlokk() {
 
     const collected = [];
     const partnerIds = Array.from(PARTNERS.keys());
-    const MAX_PAGES_PER_PARTNER = 5; // maximum 5 oldal / partner / akció
+    const MAX_PAGES_PER_PARTNER = 5;
 
     for (const pid of partnerIds) {
       try {
-        const cfg = PARTNERS.get(pid);
-        if (!cfg) continue;
-
-        const canUseCategoryFeed =
-          cfg.categoryPagePattern && cfg.categoryMetaPattern;
-
-        if (canUseCategoryFeed) {
-          // ÚJ: partner (pl. ALZA), amelynél vannak kategória-feedek
-          for (const catId of CATEGORY_IDS) {
-            const backendSlug = CATID_TO_BACKEND[catId];
-            if (!backendSlug) continue;
-
-            const catMeta = await getCategoryMeta(pid, catId);
-            if (!catMeta) continue;
-
-            const pageSize = metaPageSize(catMeta, 20);
-            const totalPages = metaPageCount(catMeta, pageSize) || 1;
-            const limit = Math.min(totalPages, MAX_PAGES_PER_PARTNER);
-
-            for (let pg = 1; pg <= limit; pg++) {
-              const arr = await getCategoryFeedItems(pid, catId, pg);
-              (arr || []).forEach((it) => {
-                const disc = getDiscountNumber(it);
-                if (disc !== null) {
-                  collected.push({ pid, item: it });
-                }
-              });
-            }
-          }
-        } else {
-          // RÉGI: sima page-000X.json alapú akciószkennelés
-          const meta = await getMeta(pid);
-          const pageSize = metaPageSize(meta, 300);
-          const totalPages = metaPageCount(meta, pageSize) || 1;
-
-          const limit = Math.min(totalPages, MAX_PAGES_PER_PARTNER);
-
-          for (let pg = 1; pg <= limit; pg++) {
-            const arr = await getPageItems(pid, pg);
-            (arr || []).forEach((it) => {
-              const disc = getDiscountNumber(it);
-              if (disc !== null) {
-                collected.push({ pid, item: it });
-              }
-            });
-          }
+        const akcioRows = await getAkcioItemsForPartner(
+          pid,
+          MAX_PAGES_PER_PARTNER
+        );
+        if (akcioRows && akcioRows.length) {
+          collected.push(...akcioRows);
         }
       } catch (e) {
         console.error("Akciók betöltése hiba partnernél:", pid, e);
@@ -871,7 +881,7 @@ async function buildAkciosBlokk() {
         return db - da;
       });
 
-    // Teljes akciós lista (20/lap, nincs mesterséges lap-határ)
+    // Teljes akciós lista
     AKCIO_FULL_STATE.items = merged;
     AKCIO_FULL_STATE.page = 1;
 
@@ -889,7 +899,6 @@ async function buildAkciosBlokk() {
     }
 
     renderAkcioPage(1);
-
 
     // Black Friday blokk – akciós listából szűrve
     const bfGrid = document.getElementById("bf-grid");
@@ -937,7 +946,6 @@ window.catPager = window.catPager || {};
 const PARTNER_CATEGORY_ITEMS = {};
 const PARTNER_CATEGORY_LOAD_PROMISES = {};
 
-// FULL kategória (összes partner, 20/lap) állapot
 const FULL_CATEGORY_STATE = {
   catId: null,
   items: [],
@@ -1082,7 +1090,7 @@ function renderCategory(catId, page) {
   };
 }
 
-// KATEGÓRIA NÉZET (felső menü) – max 6 termék / partner (egy lap, „sample”)
+// KATEGÓRIA NÉZET – PARTNERENKÉNT 6 TERMÉK / BLOKK
 function renderCategoryFull(catId) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
@@ -1138,7 +1146,7 @@ function renderCategoryFull(catId) {
   nav.innerHTML = "";
 }
 
-// FULL kategória állapot felépítése (összes partner, 20/lap)
+// FULL kategória állapot felépítése
 function buildFullCategoryState(catId) {
   const allRows = [];
   Object.keys(PARTNER_CATEGORY_ITEMS).forEach((pid) => {
@@ -1159,7 +1167,6 @@ function buildFullCategoryState(catId) {
   FULL_CATEGORY_STATE.page = 1;
 }
 
-// FULL kategória 20/lap render (összes partner összeöntve)
 function renderFullCategoryPage(catId, page) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
@@ -1354,7 +1361,7 @@ function renderPartnerViewPage(page) {
   updatePartnerSubtitle();
 }
 
-// TELJES partner–kategória lista háttérben – JSON FEED, kategória-feed ha van
+// TELJES partner–kategória lista háttérben – CSAK kategória-feed
 async function hydratePartnerCategoryItems(pid, catId) {
   const key = pid + "||" + catId;
   if (PARTNER_CATEGORY_LOAD_PROMISES[key]) {
@@ -1395,11 +1402,9 @@ async function hydratePartnerCategoryItems(pid, catId) {
         }
       };
 
-      const canUseCategoryFeed =
-        cfg.categoryPagePattern && cfg.categoryMetaPattern && CATID_TO_BACKEND[catId];
-
-      if (canUseCategoryFeed) {
-        // ÚJ: kategória-specifikus feedek (pl. ALZA /feeds/alza/{CAT}/...)
+      // CSAK kategória-feed: /feeds/{pid}/{backendSlug}/...
+      const backendSlug = CATID_TO_BACKEND[catId];
+      if (backendSlug) {
         const catMeta = await getCategoryMeta(pid, catId);
         if (catMeta) {
           const pageSize = metaPageSize(catMeta, 20);
@@ -1421,49 +1426,10 @@ async function hydratePartnerCategoryItems(pid, catId) {
             renderPartnerViewPage(PARTNER_VIEW_STATE.page || 1);
           }
           return;
-        } else {
-          console.warn(
-            "Category meta hiányzik, visszaesés globál scanre:",
-            pid,
-            catId
-          );
         }
       }
 
-      // RÉGI / FALLBACK: globál page-ek végigscannelése kategória szerint
-      const meta = await getMeta(pid);
-      const pageSize = metaPageSize(meta, 300);
-      const totalPages = metaPageCount(meta, pageSize) || 1;
-
-      let pagesToScan = null;
-      if (cfg.categoryIndex && cfg.categoryIndex[catId]) {
-        const idx = cfg.categoryIndex[catId];
-        if (idx && Array.isArray(idx.pages) && idx.pages.length) {
-          pagesToScan = idx.pages
-            .map((n) => parseInt(n, 10))
-            .filter((n) => Number.isFinite(n) && n >= 1 && n <= totalPages);
-        }
-      }
-
-      const scanList =
-        pagesToScan && pagesToScan.length
-          ? pagesToScan
-          : Array.from({ length: totalPages }, (_, i) => i + 1);
-
-      for (const pg of scanList) {
-        const arr = await getPageItems(pid, pg);
-        const rowsForPage = [];
-
-        for (const it of arr) {
-          const cats = getCategoriesForItem(pid, it) || [];
-          if (cats.includes(catId)) {
-            rowsForPage.push({ pid, item: it });
-          }
-        }
-
-        pushAndUpdate(rowsForPage);
-      }
-
+      // Ha nincs backendSlug vagy kategória-feed / meta, akkor nincs adat ehhez a kombinációhoz
       if (
         PARTNER_VIEW_STATE.pid === pid &&
         PARTNER_VIEW_STATE.catId === catId
@@ -1579,7 +1545,7 @@ function showCategoryOnly(catId) {
   smoothScrollTo("#" + catId);
 }
 
-// FULL KATEGÓRIA NÉZET – csak adott kategória, összes partner, 20/lap
+// FULL KATEGÓRIA NÉZET – 20/lap
 function showFullCategoryList(catId) {
   const hero = document.querySelector(".hero");
   const catbarWrap = document.querySelector(".catbar-wrap");
@@ -1608,7 +1574,7 @@ function showFullCategoryList(catId) {
   smoothScrollTo("#" + catId);
 }
 
-// ===== Hero kereső → Algolia search.html (globális kereső, külön oldal JS-sel) =====
+// ===== Hero kereső → Algolia search.html =====
 function attachSearchForm() {
   const form = document.getElementById("searchFormAll");
   const input = document.getElementById("qAll");
@@ -1700,21 +1666,18 @@ function handleNavClick(event) {
 
   const view = btn.getAttribute("data-view");
 
-  // Főoldal
   if (view === "home") {
     event.preventDefault();
     showAllSections();
     return;
   }
 
-  // Akciók – külön nézet (20/lap)
   if (view === "akciok") {
     event.preventDefault();
     showAkcioOnly();
     return;
   }
 
-  // Kategória nézet
   if (view === "category") {
     const catId = btn.getAttribute("data-cat");
     if (!catId) return;
@@ -1723,7 +1686,6 @@ function handleNavClick(event) {
     return;
   }
 
-  // Teljes kategória 20/lap
   if (view === "category-full") {
     const catId = btn.getAttribute("data-cat");
     if (!catId) return;
@@ -1836,12 +1798,11 @@ function showAkcioOnly() {
   smoothScrollTo("#akciok");
 }
 
-// ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) – JSON FEED, kategória-feed ahol lehet =====
+// ===== 3. KATEGÓRIA BLOKKOK FELÉPÍTÉSE (FŐOLDAL) – CSAK kategória-feed =====
 async function buildCategoryBlocks() {
-  const PAGE_SIZE = 3; // 3 kártya / partner / oldal
-  const MAX_PAGES_PER_PARTNER = 1; // max 1 oldal / partner / kategória főoldali mintához
+  const PAGE_SIZE = 3;
+  const MAX_PAGES_PER_PARTNER = 1;
 
-  // Tisztítás
   CATEGORY_IDS.forEach((catId) => {
     CATEGORY_PAGES[catId] = [];
     CATEGORY_CURRENT[catId] = 0;
@@ -1850,9 +1811,7 @@ async function buildCategoryBlocks() {
     delete PARTNER_CATEGORY_ITEMS[k];
   });
 
-  // buffers[catId][pid] = [{ pid, item }, ...]
   const buffers = {};
-
   const partnerIds = Array.from(PARTNERS.keys());
 
   for (const pid of partnerIds) {
@@ -1860,53 +1819,21 @@ async function buildCategoryBlocks() {
       const cfg = PARTNERS.get(pid);
       if (!cfg) continue;
 
-      const canUseCategoryFeed =
-        cfg.categoryPagePattern && cfg.categoryMetaPattern;
+      // Csak kategória-feedek (generikus mintázattal is)
+      for (const catId of CATEGORY_IDS) {
+        const backendSlug = CATID_TO_BACKEND[catId];
+        if (!backendSlug) continue;
 
-      if (canUseCategoryFeed) {
-        // ÚJ: partner (pl. ALZA) – közvetlenül a kategória-feedeket használjuk
-        for (const catId of CATEGORY_IDS) {
-          const backendSlug = CATID_TO_BACKEND[catId];
-          if (!backendSlug) continue;
+        const catMeta = await getCategoryMeta(pid, catId);
+        if (!catMeta) continue;
 
-          const catMeta = await getCategoryMeta(pid, catId);
-          if (!catMeta) continue;
-
-          const pageSize = metaPageSize(catMeta, 20);
-          const totalPages = metaPageCount(catMeta, pageSize) || 1;
-          const limit = Math.min(totalPages, MAX_PAGES_PER_PARTNER);
-
-          for (let pg = 1; pg <= limit; pg++) {
-            const arr = await getCategoryFeedItems(pid, catId, pg);
-            (arr || []).forEach((it) => {
-              // catId itt már ismert (kategória feed szerint)
-              if (!CATEGORY_IDS.includes(catId)) return;
-
-              if (!buffers[catId]) buffers[catId] = {};
-              if (!buffers[catId][pid]) buffers[catId][pid] = [];
-              buffers[catId][pid].push({ pid, item: it });
-
-              if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-              if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
-                PARTNER_CATEGORY_ITEMS[pid][catId] = [];
-              }
-              PARTNER_CATEGORY_ITEMS[pid][catId].push({ pid, item: it });
-            });
-          }
-        }
-      } else {
-        // RÉGI: globál page-000X.json + getCategoriesForItem()
-        const meta = await getMeta(pid);
-        const pageSize = metaPageSize(meta, 300);
-        const totalPages = metaPageCount(meta, pageSize) || 1;
-
+        const pageSize = metaPageSize(catMeta, 20);
+        const totalPages = metaPageCount(catMeta, pageSize) || 1;
         const limit = Math.min(totalPages, MAX_PAGES_PER_PARTNER);
 
         for (let pg = 1; pg <= limit; pg++) {
-          const arr = await getPageItems(pid, pg);
+          const arr = await getCategoryFeedItems(pid, catId, pg);
           (arr || []).forEach((it) => {
-            const cats = getCategoriesForItem(pid, it) || [];
-            const catId = cats[0] || "kat-multi";
             if (!CATEGORY_IDS.includes(catId)) return;
 
             if (!buffers[catId]) buffers[catId] = {};
@@ -1926,13 +1853,11 @@ async function buildCategoryBlocks() {
     }
   }
 
-  // oldalak felépítése kategóriánként
   CATEGORY_IDS.forEach((catId) => {
     const perPartner = buffers[catId] || {};
     const partnerPages = {};
     let maxPagesForCat = 0;
 
-    // partnerenként dedupe + 6-os lapokra vágás, max 5 lap
     Object.keys(perPartner).forEach((pid) => {
       const rawList = perPartner[pid] || [];
       const list = dedupeRowsStrong(rawList);
@@ -1954,7 +1879,6 @@ async function buildCategoryBlocks() {
       }
     });
 
-    // globális kategória-lapok: adott pageIndex-en összefűzzük az összes partner adott 6-os blokkját
     const catPages = [];
     for (let pageIndex = 0; pageIndex < maxPagesForCat; pageIndex++) {
       const combined = [];
@@ -1983,6 +1907,7 @@ async function init() {
 
     await loadPartners();
     await loadCategoryMap();
+
     await buildAkciosBlokk();
     await buildCategoryBlocks();
 
@@ -1997,10 +1922,4 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
-
-
-
-
-
 

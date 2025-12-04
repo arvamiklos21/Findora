@@ -1,12 +1,37 @@
-import os, re, json, math, xml.etree.ElementTree as ET, requests
+# scripts/build_decathlon.py
+#
+# Decathlon feed → Findora JSON oldalak (kategória + akciós blokk, NINCS globál page-*.json)
+#
+# Kategorizálás:
+#   - NEM használjuk az általános category_assign-et
+#   - MINDEN Decathlon termék fixen a "sport" fő kategóriába kerül
+#
+# Kimenet:
+#   docs/feeds/decathlon/meta.json                               (összefoglaló)
+#   docs/feeds/decathlon/<findora_cat>/meta.json, page-....json  (kategória – mind a 25 mappa létrejön)
+#   docs/feeds/decathlon/akcio/meta.json, page-....json          (akciós blokk, discount >= 10%)
+
+import os
+import re
+import json
+import math
+import xml.etree.ElementTree as ET
+import requests
+
 from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+from pathlib import Path
 
-from category_assign_decathlon import assign_category as assign_decathlon_cat
+from category_assignbase import FINDORA_CATS  # csak a 25 kategória listája kell
 
-FEED_URL  = os.environ.get("FEED_DECATHLON_URL")
-OUT_DIR   = "docs/feeds/decathlon"
-PAGE_SIZE = 300  # lapméret
+FEED_URL = os.environ.get("FEED_DECATHLON_URL")
+OUT_DIR = Path("docs/feeds/decathlon")
+
+# Kategória feedek: 20/lap
+PAGE_SIZE_CAT = 20
+
+# Akciós blokk: 20/lap
+PAGE_SIZE_AKCIO_BLOCK = 20
 
 
 def norm_price(v):
@@ -108,6 +133,7 @@ DESC_KEYS = (
     "desc",
     "popis",
 )
+BRAND_KEYS = ("brand", "g:brand", "g:manufacturer", "manufacturer")
 
 NEW_PRICE_KEYS = (
     "price_vat",
@@ -153,18 +179,20 @@ def parse_items(xml_text):
 
     if not candidates:
         candidates = [
-            n for n in root.iter() if strip_ns(n.tag) in ("item", "product", "shopitem", "entry")
+            n
+            for n in root.iter()
+            if strip_ns(n.tag) in ("item", "product", "shopitem", "entry")
         ]
 
     items = []
 
     for n in candidates:
         m = collect_node(n)
-        m = { (k.lower() if isinstance(k, str) else k): v for k, v in m.items() }
+        m = {(k.lower() if isinstance(k, str) else k): v for k, v in m.items()}
 
-        pid   = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid"))
+        pid = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid"))
         title = first(m, TITLE_KEYS) or "Ismeretlen termék"
-        link  = first(m, LINK_KEYS)
+        link = first(m, LINK_KEYS)
 
         img = first(m, IMG_KEYS)
         if not img:
@@ -175,13 +203,18 @@ def parse_items(xml_text):
                 img = alt
 
         raw_desc = first(m, DESC_KEYS)
-        desc     = short_desc(raw_desc)
+        desc = short_desc(raw_desc)
 
-        # Decathlon-specifikus mezők a kategóriázáshoz
+        # kategóriázáshoz (most csak lognak / későbbre, a tényleges Findora-kat mindig "sport")
         product_type = first(m, ("product_type", "g:product_type"))
-        google_cat   = first(m, ("google_product_category", "g:google_product_category"))
+        google_cat = first(m, ("google_product_category", "g:google_product_category"))
+        brand = first(m, BRAND_KEYS)
 
-        # Ár + akció
+        if product_type and google_cat and product_type != google_cat:
+            category_path = f"{product_type} | {google_cat}"
+        else:
+            category_path = product_type or google_cat or ""
+
         price_new = None
         for k in NEW_PRICE_KEYS:
             price_new = norm_price(m.get(k))
@@ -200,24 +233,18 @@ def parse_items(xml_text):
             else None
         )
 
-        # Findora fő kategória (kat-*) – Decathlon partnerre hangolva
-        kat = assign_decathlon_cat(
-            product_type or "",
-            google_cat or "",
-            title or "",
-            raw_desc or "",
-        )
-
         items.append(
             {
                 "id": pid or link or title,
                 "title": title,
                 "img": img or "",
                 "desc": desc,
+                "raw_desc": raw_desc or "",
                 "price": price_new,
                 "discount": discount,
                 "url": link or "",
-                "kat": kat,
+                "category_path": category_path,
+                "brand": brand or "",
             }
         )
 
@@ -303,13 +330,67 @@ def dedup_size_variants(items):
                 cur["price"] = it["price"]
             if (it.get("discount") or 0) > (cur.get("discount") or 0):
                 cur["discount"] = it["discount"]
+            if len(it.get("desc") or "") > len(cur.get("desc") or ""):
+                cur["desc"] = it["desc"]
     return list(buckets.values())
+
+
+def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
+    """
+    Általános lapozó + fájlkiíró:
+      base_dir/meta.json
+      base_dir/page-0001.json, page-0002.json, ...
+
+    Üres lista esetén is:
+      - meta.json
+      - page-0001.json ({"items": []})
+    """
+    base_dir.mkdir(parents=True, exist_ok=True)
+    total = len(items)
+
+    if total == 0:
+        page_count = 1
+    else:
+        page_count = int(math.ceil(total / page_size))
+
+    meta = {
+        "total_items": total,
+        "page_size": page_size,
+        "page_count": page_count,
+    }
+    if meta_extra:
+        meta.update(meta_extra)
+
+    meta_path = base_dir / "meta.json"
+    with meta_path.open("w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+
+    if total == 0:
+        out_path = base_dir / "page-0001.json"
+        with out_path.open("w", encoding="utf-8") as f:
+            json.dump({"items": []}, f, ensure_ascii=False)
+    else:
+        for page_no in range(1, page_count + 1):
+            start = (page_no - 1) * page_size
+            end = start + page_size
+            page_items = items[start:end]
+
+            out_path = base_dir / f"page-{page_no:04d}.json"
+            with out_path.open("w", encoding="utf-8") as f:
+                json.dump({"items": page_items}, f, ensure_ascii=False)
 
 
 def main():
     assert FEED_URL, "FEED_DECATHLON_URL hiányzik (repo Secrets)."
 
-    os.makedirs(OUT_DIR, exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    # régi JSON-ok törlése (kategória + akcio + top meta)
+    for old in OUT_DIR.rglob("*.json"):
+        try:
+            old.unlink()
+        except OSError:
+            pass
 
     r = requests.get(
         FEED_URL,
@@ -322,28 +403,159 @@ def main():
     items = dedup_size_variants(raw_items)
     print(f"ℹ Decathlon: dedup után {len(items)} termék")
 
-    pages = max(1, math.ceil(len(items) / PAGE_SIZE))
-    for i in range(pages):
-        data = {"items": items[i * PAGE_SIZE : (i + 1) * PAGE_SIZE]}
-        with open(
-            os.path.join(OUT_DIR, f"page-{str(i + 1).zfill(4)}.json"),
-            "w",
-            encoding="utf-8",
-        ) as f:
-            json.dump(data, f, ensure_ascii=False)
+    # ===== NORMALIZÁLÁS – MINDEN TERMÉK SPORT =====
+    rows = []
+    for it in items:
+        pid = it["id"]
+        title = it["title"]
+        desc = it.get("desc") or ""
+        url = it.get("url") or ""
+        img = it.get("img") or ""
+        price = it.get("price")
+        discount = it.get("discount")
+        category_path = it.get("category_path") or ""
+        brand = it.get("brand") or ""
 
-    meta = {
+        findora_main = "sport"
+
+        row = {
+            "id": pid,
+            "title": title,
+            "img": img,
+            "desc": desc,
+            "price": price,
+            "discount": discount,
+            "url": url,
+            "partner": "decathlon",
+            "category_path": category_path,
+            "findora_main": findora_main,
+            "cat": findora_main,
+        }
+        rows.append(row)
+
+    total = len(rows)
+    print(f"[INFO] Decathlon: normalizált sorok: {total}")
+
+    # ===== HA NINCS EGYETLEN TERMÉK SEM =====
+    if total == 0:
+        for slug in FINDORA_CATS:
+            base_dir = OUT_DIR / slug
+            paginate_and_write(
+                base_dir,
+                [],
+                PAGE_SIZE_CAT,
+                meta_extra={
+                    "partner": "decathlon",
+                    "scope": f"category:{slug}",
+                },
+            )
+
+        akcio_dir = OUT_DIR / "akcio"
+        paginate_and_write(
+            akcio_dir,
+            [],
+            PAGE_SIZE_AKCIO_BLOCK,
+            meta_extra={
+                "partner": "decathlon",
+                "scope": "akcio",
+            },
+        )
+
+        top_meta = {
+            "partner": "decathlon",
+            "total_items": 0,
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "categories": {
+                slug: {
+                    "total_items": 0,
+                    "page_size": PAGE_SIZE_CAT,
+                    "page_count": 1,
+                }
+                for slug in FINDORA_CATS
+            },
+            "akcio": {
+                "total_items": 0,
+                "page_size": PAGE_SIZE_AKCIO_BLOCK,
+                "page_count": 1,
+            },
+        }
+        with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
+            json.dump(top_meta, f, ensure_ascii=False, indent=2)
+
+        print("⚠️ Decathlon: nincs termék → csak üres meta-k + page-0001.json készült.")
+        return
+
+    # ===== KATEGÓRIA FEED-EK (minden termék sport, de a 25 mappa akkor is létrejön) =====
+    buckets = {slug: [] for slug in FINDORA_CATS}
+    for row in rows:
+        slug = row.get("findora_main") or "multi"
+        if slug not in buckets:
+            slug = "multi"
+        buckets[slug].append(row)
+
+    categories_meta = {}
+
+    for slug, items_cat in buckets.items():
+        base_dir = OUT_DIR / slug
+        paginate_and_write(
+            base_dir,
+            items_cat,
+            PAGE_SIZE_CAT,
+            meta_extra={
+                "partner": "decathlon",
+                "scope": f"category:{slug}",
+                "generated_at": datetime.utcnow().isoformat() + "Z",
+            },
+        )
+        total_cat = len(items_cat)
+        page_count_cat = 1 if total_cat == 0 else int(math.ceil(total_cat / PAGE_SIZE_CAT))
+        categories_meta[slug] = {
+            "total_items": total_cat,
+            "page_size": PAGE_SIZE_CAT,
+            "page_count": page_count_cat,
+        }
+
+    # ===== AKCIÓS BLOKK (discount >= 10%) =====
+    akcios_items = [
+        row for row in rows
+        if row.get("discount") is not None and row["discount"] >= 10
+    ]
+
+    akcio_dir = OUT_DIR / "akcio"
+    paginate_and_write(
+        akcio_dir,
+        akcios_items,
+        PAGE_SIZE_AKCIO_BLOCK,
+        meta_extra={
+            "partner": "decathlon",
+            "scope": "akcio",
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+        },
+    )
+    total_akcio = len(akcios_items)
+    page_count_akcio = (
+        1 if total_akcio == 0 else int(math.ceil(total_akcio / PAGE_SIZE_AKCIO_BLOCK))
+    )
+
+    top_meta = {
         "partner": "decathlon",
-        "pageSize": PAGE_SIZE,
-        "total": len(items),
-        "pages": pages,
-        "lastUpdated": datetime.utcnow().isoformat() + "Z",
-        "source": "feed",
+        "total_items": total,
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "categories": categories_meta,
+        "akcio": {
+            "total_items": total_akcio,
+            "page_size": PAGE_SIZE_AKCIO_BLOCK,
+            "page_count": page_count_akcio,
+        },
     }
-    with open(os.path.join(OUT_DIR, "meta.json"), "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False)
+    with (OUT_DIR / "meta.json").open("w", encoding="utf-8") as f:
+        json.dump(top_meta, f, ensure_ascii=False, indent=2)
 
-    print(f"✅ Decathlon: {len(items)} termék, {pages} oldal → {OUT_DIR}")
+    print(
+        f"✅ Decathlon kész: {total} termék, "
+        f"{len(buckets)} kategória (mindnek meta + legalább page-0001.json), "
+        f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR / 'akcio'}"
+    )
 
 
 if __name__ == "__main__":

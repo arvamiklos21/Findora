@@ -1,1 +1,7 @@
-{"ok": true, "partner": "cj-karcher", "total": 3059, "pages": 16, "page_size": 200}
+{
+  "total_items": 3052,
+  "page_size": 200,
+  "page_count": 16,
+  "partner": "cj-karcher",
+  "scope": "global"
+}

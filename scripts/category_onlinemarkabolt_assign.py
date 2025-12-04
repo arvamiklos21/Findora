@@ -1,374 +1,330 @@
-"""
-Category assignment logic for the OnlineMárkabolt feed.
+# category_assign_bolt.py
+#
+# Onlinemarkaboltok / BOLT – egyszerű, szabályalapú kategorizálás
+# CÉL: csak két Findora fő kategória:
+#   - haztartasi_gepek  (minden, ami gép / elektromos cucc)
+#   - otthon            (minden más)
+#
+# FŐ INTERFÉSZ (build scripthez):
+#
+#   from category_assign_bolt import assign_category
+#   cat = assign_category(fields)
+#
+# ahol fields egy dict pl.:
+#   {
+#     "category_text": "...",
+#     "category": "...",
+#     "product_type": "...",
+#     "title": "...",
+#   }
+#
+# CLI mód:
+#   INPUT_CSV (bolt_clean.csv: title, desc, category_text, category_root)
+#   → OUTPUT_CSV (bolt_with_categories.csv: + findora_main)
 
-This module defines a single function, ``assign_category``, which is
-responsible for mapping a product's free‑form textual data to one of the
-predefined high‑level categories used throughout the project.  The partner's
-original feed contains a variety of product type and category fields (for
-example ``PRODUCTNAME``, ``CATEGORYTEXT`` or ``g:product_type``).  The
-``assign_category`` function ingests a dictionary of these fields, normalises
-the text and applies a series of heuristics based on Hungarian keywords to
-determine the most appropriate category.  If no suitable category can be
-identified, the catch‑all category ``"Multi"`` is returned.
-
-The target categories are:
-
-    * Elektronika
-    * Háztartási gépek
-    * Számítástechnika
-    * Mobil & kiegészítők
-    * Gaming
-    * Smart Home
-    * Otthon
-    * Lakberendezés
-    * Konyha & főzés
-    * Kert
-    * Játékok
-    * Divat
-    * Szépség
-    * Drogéria
-    * Baba
-    * Sport
-    * Egészség
-    * Látás
-    * Állatok
-    * Könyv
-    * Utazás
-    * Iroda & iskola
-    * Szerszám & barkács
-    * Autó/Motor & autóápolás
-    * Multi (catch‑all)
-
-The heuristics are largely keyword based: each category has an associated
-list of indicative substrings.  After normalising all available text (to
-lowercase and with diacritics removed), the function searches for these
-keywords in descending order of specificity.  Should multiple categories
-match, the first (most specific) match wins.  Only when none of the
-keywords are present does the function fall back to the partner's own
-category values via a translation table or finally to ``"Multi"``.
-
-The goal of these heuristics is to achieve high coverage (≥95%) on the
-OnlineMárkabolt product set.  They are intentionally generous in their
-keyword lists to capture a broad range of related products, and can be
-extended in the future as new product types appear.
-"""
-
-from __future__ import annotations
-
-import re
+import os
+import csv
 import unicodedata
-from typing import Dict, Iterable, Optional
+from typing import Dict, Any
+from collections import Counter
+
+# ===== Findora kategória slugok (referencia) =====
+
+FINDORA_CATS = [
+    "elektronika",
+    "haztartasi_gepek",
+    "szamitastechnika",
+    "mobiltelefon",
+    "gaming",
+    "smart_home",
+    "otthon",
+    "lakberendezes",
+    "konyha_fozes",
+    "kert",
+    "jatekok",
+    "divat",
+    "szepseg",
+    "drogeria",
+    "baba",
+    "sport",
+    "egeszseg",
+    "latas",
+    "allatok",
+    "konyv",
+    "utazas",
+    "iroda_iskola",
+    "szerszam_barkacs",
+    "auto_motor",
+    "multi",
+]
+
+# Itt most *valójában* csak kettőt fogunk használni:
+APPLIANCE_CAT = "haztartasi_gepek"
+HOME_CAT = "otthon"
+
+# ===== CSV mód alapértelmezett útvonalak =====
+
+INPUT_CSV = os.environ.get("BOLT_INPUT_CSV", r"D:\bolt\bolt_clean.csv")
+OUTPUT_CSV = os.environ.get("BOLT_OUTPUT_CSV", r"D:\bolt\bolt_with_categories.csv")
 
 
-def _strip_accents(text: str) -> str:
-    """Return the given text with diacritics removed.
-
-    The incoming feed contains Hungarian product names and category
-    descriptions which may include accented characters.  To simplify
-    keyword matching we remove these accents using Unicode normalisation.
-    ``unicodedata.normalize('NFKD', text)`` decomposes characters into
-    their base letter and combining marks; the latter are then dropped.
-    ``unicodedata.combining`` identifies combining marks.
+def normalize_text(s: str) -> str:
     """
-    if not text:
+    Kisbetű, ékezetek lecsupaszítása, extra whitespace eltüntetése.
+    Így könnyebb kulcsszóra keresni (hutoszekreny vs hűtőszekrény).
+    """
+    if not s:
         return ""
-    normalized = unicodedata.normalize("NFKD", text)
-    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    s = str(s)
+    # kisbetű
+    s = s.lower()
+    # ékezetek levétele
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+    # whitespace tisztítás
+    s = " ".join(s.split())
+    return s
 
 
-def _prepare_text(fields: Dict[str, Optional[str]]) -> str:
-    """Concatenate and normalise all textual values from the feed fields.
+# ===== ELEKTROMOS / GÉP JELLEG DETEKTÁLÁS =====
 
-    The `fields` argument is a dictionary passed from the parser in
-    ``scripts/build-onlinemarkabolt.py``.  Values may be ``None`` or
-    arbitrary strings.  This helper lowercases each non‑empty string,
-    strips accents and returns a single search text.
+APPLIANCE_KEYWORDS = [
+    # Nagygépek
+    "beepitheto suto",
+    "gozsuto",
+    "gozparolo",
+    "fozolap",
+    "indukcios fozolap",
+    "gaz fozolap",
+    "keramia fozolap",
+    "hutohutofagyaszto",  # biztonsag kedveert, de altalaban:
+    "hutohutofagyaszto",  # duplán se árt
+    "hutohutofagyaszto >",
+    "hutotaska",  # ez kicsit határeset, de simán mehet gépnek is
+
+    "hutohuto",  # általános: "hutoszekreny"
+    "hutoszekreny",
+    "fagyaszto",
+    "fagyasztolada",
+    "fagyasztoszekreny",
+    "felulfagyasztos hutok",
+    "side-by-side",  # side-by-side hűtők
+    "4 ajtos hutok",
+
+    # Mosógép / mosogatógép / szárító / kombinált
+    "mosogatogep",
+    "beepitheto mosogatogep",
+    "szabadon allo mosogatogep",
+    "szabadonallo mosogatogep",
+    "mosogep",
+    "eloltoltos mosogep",
+    "felultoltos mosogep",
+    "moso- es szaritogep",
+    "szaritogep",
+    "hoszivattyus szaritogep",
+
+    # Tűzhely
+    "tuzhely",
+    "elektromos tuzhely",
+    "gaztuzhely",
+    "kombinalt tuzhely",
+
+    # Mikrohullámú
+    "mikrohullamu suto",
+    "mikrohullamu sutok",
+
+    # Konyhai kisgépek (ezeket is gépnek vesszük)
+    "konyhai kisgepek",
+    "kavefozo",
+    "filters kavefozo",
+    "orlomuves automata kavefozo",
+    "kaveorlo",
+    "kavedaralo",
+    "vizforralo",
+    "kenyerpirito",
+    "kenyersuto",
+    "robotgep",
+    "botmixer",
+    "kezi mixer",
+    "talas kezi mixer",
+    "turmix",
+    "goffrisuto",
+    "szendvicssuto",
+    "grill",
+    "kontaktgrill",
+    "gyumolcs centrifuga",
+    "fagylaltkeszito",
+    "aszalo",
+    "jegkocka keszito",
+    "gozsuto fritozok fozoedenyek",
+    "vacuumcsomagolo",
+    "szeletelogep",
+
+    # Porszívó / takarítógép
+    "porszivo",
+    "porzsakos porszivo",
+    "porzsak nelkuli porszivo",
+    "robotporszivo",
+    "morzsaporszivo",
+    "akkus kezi porszivo",
+    "szaraz-nedves porszivo",
+    "vizszuro porszivo",
+    "takaritogep",
+    "porszivo es takaritogepek",
+
+    # Vasalás
+    "vasalo",
+    "gozallomas",
+    "vasalodeszka",
+
+    # Légtechnika, klíma, fűtés
+    "futestechnika",
+    "hoszivattyu",
+    "mobil klima",
+    "levego parasito",
+    "levego paramenetesito",
+    "legtisztito",
+    "parasito, paramenetesito, legtisztito",
+    "paramenetesito",
+
+    # Szellőztető ventilátor
+    "szellozteto ventilator",
+    "egyhelyseges hovisszanyero szellozteto ventilator",
+
+    # Egyéb kategóriás kulcsszavak, amik biztosan gépek:
+    "haztartasi hutoszekreny",
+    "haztartasi nagygepek",
+    "haztartasi keszulekek",
+]
+
+# plusz olyan kulcsszó-csoportok, amiket egy az egyben gépnek veszünk
+APPLIANCE_ROOT_KEYWORDS = [
+    "haztartasi hutoszekreny es fagyaszto",
+    "haztartasi nagygepek",
+    "haztartasi keszulekek",
+]
+
+
+def is_appliance_category(category_text: str) -> bool:
     """
-    parts: Iterable[str] = (str(v) for v in fields.values() if v)
-    combined = " \n ".join(parts)
-    # lower case first to maintain case‑insensitive matching
-    combined = combined.lower()
-    combined = _strip_accents(combined)
-    return combined
-
-
-# Define keyword lists for each target category.  The order of these
-# definitions matters: categories appearing earlier in the list have higher
-# priority when multiple keywords match.  Keywords themselves are stored
-# without accents to align with the normalised text.
-CATEGORY_KEYWORDS: Dict[str, Iterable[str]] = {
-    # Kitchen & cooking: extractor hoods, hobs, sinks, mixers, food prep
-    "Konyha & főzés": [
-        "paraelszivo", "szagelszivo", "elszivo", "elszivorendszer",
-        "sut", "suto", "mikro", "mikrohullam", "fozolap", "fuzolap",
-        "tuzhely", "tuzhely", "fozolemez", "mosogato", "mosogatotal",
-        "mosogatotalca", "csaptelep", "husdaralo", "kavefozo", "kavesgep",
-        "kenyerpirito", "robotgep", "szeletelo", "vizforralo",
-        "grill", "fritoz", "parako", "suto", "konyha", "edeny",
-        "serpenyo", "talca", "cseppento", "vagodeszka",
-    ],
-    # Household appliances: washing, cooling, cleaning, climate
-    "Háztartási gépek": [
-        "mosogep", "mosoge", "szaritogep", "szaritomasina", "mosogatogep",
-        "porszivo", "porszivorobot", "robotporszivo", "hutogep",
-        "hutolada", "hutokehely", "hutokamra", "hut", "fagyaszto",
-        "borhuto", "hutoszekreny", "klima", "legkondicionalo", "radiator",
-        "futotest", "vasalo", "gozallomas", "legmoso", "legparasitott",
-        "porszivo", "szaritogep", "mososzaritogep", "borhuto",
-        "huto", "hutoszekreny", "takaritogep", "paratlantasito", "paratartalom", "lefelszivo",
-    ],
-    # Electronics: audio/visual equipment, consumer electronics
-    "Elektronika": [
-        "tv", "televizio", "smarttv", "led tv", "monitor",
-        "hangfal", "hangrendszer", "erosito", "hifi", "soundbar",
-        "kamera", "mikrofon", "dvd", "blu-ray", "projektor",
-        "lemezjatszo", "fejhallgato", "fejhallgato", "hangszoro",
-        "mp3", "mp4", "fotokamera", "fenykepezo",
-    ],
-    # Computing: computers, laptops, components
-    "Számítástechnika": [
-        "laptop", "notebook", "tablet", "szamitogep", "pc",
-        "monitor", "billentyuzet", "eger", "nyomtato", "router",
-        "modem", "ssd", "hdd", "ram", "videokartya", "gpu",
-        "cpu", "processzor", "proci", "alaplap", "motherboard",
-        "szamitastechnika", "szkenner", "scanner", "plotter",
-    ],
-    # Mobile & accessories
-    "Mobil & kiegészítők": [
-        "mobiltelefon", "okostelefon", "smartphone", "telefon", "mobil",
-        "okosora", "okos ora", "smartwatch", "karora", "toke", "tok",
-        "tolto", "toltokabel", "powerbank", "fulhallgato", "fejhallgato",
-        "earbuds", "tartozek", "tok", "kabel", "adapter",
-    ],
-    # Gaming
-    "Gaming": [
-        "playstation", "ps5", "ps4", "xbox", "nintendo", "jatekkonzol",
-        "jatek konzol", "videokonzol", "videjatek", "controller",
-        "joystick", "gamepad", "gamer", "vr", "kinect",
-    ],
-    # Smart Home
-    "Smart Home": [
-        "smarthome", "smart home", "okos otthon", "okosotthon", "okos", "smart",
-        "wifi", "wi-fi", "zigbee", "z-wave", "smart plug", "smart bulb",
-        "smart lock", "okoslampa", "okoslampa", "okostermosztat", "smart thermostat",
-        "security camera", "biztonsagi kamera", "kapucsengo", "kapucsengo",
-    ],
-    # Home: textiles and home accessories
-    "Otthon": [
-        "paplan", "parna", "parna", "agynemu", "takaritokeszlet", "takaro", "szonyeg",
-        "fuggony", "fuggony", "asztalterito", "terito", "lampa", "vilagitas", "vilagit", "otthon",
-        "haztartasi kiegeszito", "dekoracio", "asztalterito", "torolkozo",
-    ],
-    # Home decoration / furnishing
-    "Lakberendezés": [
-        "butor", "szekreny", "asztal", "szek", "polc", "komod", "kanape",
-        "fotel", "agykeret", "agy", "gardrob", "tukor", "tukor", "cipotarolo", "ciposzekreny",
-    ],
-    # Garden
-    "Kert": [
-        "kert", "kerti", "funyiro", "furolap", "funyiro", "funyirogép",
-        "szegelynyiro", "permetezes", "locsolo", "locsolo", "trimmer",
-        "furesz", "lancfuresz", "lombfuvo", "lombszivo", "grill", "kerti butor",
-        "medence", "medence", "kerti grill", "kerti szerszam", "kemping",
-    ],
-    # Toys
-    "Játékok": [
-        "jatek", "tarsasjatek", "lego", "pluss", "jatekauto", "jatekfigura",
-        "barbie", "babajatek", "baba jatek", "puzzle", "tarsas", "jatekkartya",
-    ],
-    # Fashion
-    "Divat": [
-        "ruha", "polo", "poló", "ing", "nadrag", "kabát", "szoknya",
-        "cipo", "cipő", "csizma", "csizma", "cipo", "öv", "ov",
-        "sapka", "kalap", "sal", "kesztyu", "divat", "divatos",
-    ],
-    # Beauty
-    "Szépség": [
-        "parfum", "parfüm", "smink", "kozmetikum", "arckrem", "arckrém",
-        "hajszarito", "hajszárító", "hajvasalo", "hajvasaló", "borotva", "epilator",
-        "szempillaspiral", "puder", "púder", "ruzs", "ruzs", "kozmetika", "kozmetikai",
-    ],
-    # Drug store / household consumables
-    "Drogéria": [
-        "higienia", "higiénia", "fogkefe", "fogkrem", "sampon", "dezodor", "spray",
-        "szappan", "tusfurdo", "tusfürdő", "wc papir", "wc papir", "mososzer",
-        "mososzer", "oblito", "oblitő", "tisztitoszer", "tisztitoszer",
-        "fertotlenito", "fertőtlenítő", "mosogatoszer", "mosogato szer",
-    ],
-    # Baby
-    "Baba": [
-        "baba", "babatap", "baba tap", "babakocsi", "babahordozo", "pelenka",
-        "cumisuveg", "cumis uveg", "babaruhazat", "babajatek", "jaroka",
-    ],
-    # Sport
-    "Sport": [
-        "sport", "kerekpar", "kerékpár", "futopad", "futópad", "bicikli", "bicikli",
-        "labda", "kosarlabda", "kosárlabda", "teniszueto", "teniszuto", "foci",
-        "fitnesz", "edzogep", "edzőgép", "protein", "kondi", "rugalmas szalag",
-    ],
-    # Health
-    "Egészség": [
-        "vitamin", "gyogyszer", "gyógyszer", "gyogyaszat", "gyógyászat", "lazmero",
-        "lázmérő", "orvosi", "masszirozo", "masszírozó", "fajdalomcsillapito",
-        "fájdalomcsillapító", "ortopedia", "ortopéd", "fertotlenito", "fertőtlenítő",
-    ],
-    # Vision
-    "Látás": [
-        "szemuveg", "szemüveg", "kontaktlencse", "kontaktlencse", "kontakt", "napszemuveg", "napszemüveg", "optika",
-    ],
-    # Animals
-    "Állatok": [
-        "kutya", "macska", "kutyatap", "macskatáp", "macskatap", "allateledel", "állateledel",
-        "allat", "allatfelszereles", "allat felszereles", "nyakorv", "kutyanyakorv", "akvarium",
-        "terrarium", "kutyahaz", "macskabutor", "kisallat", "kis allat", "madareteto",
-    ],
-    # Books
-    "Könyv": [
-        "konyv", "könyv", "regeny", "regény", "novella", "tankonyv", "tankönyv",
-        "album", "kepregeny", "képregény", "szotar", "szótár", "enciklopedia",
-        "lexikon", "konyvek", "konyvcsomag",
-    ],
-    # Travel
-    "Utazás": [
-        "borond", "bőrönd", "utazo", "utazó", "taska", "táska", "utazotaska",
-        "kemping", "turabota", "turabot", "halozsak", "hálózsák", "sator", "sátor",
-        "hatizsak", "hátizsák", "bortart", "alomhazak", "hordozo bőrönd",
-    ],
-    # Office & school
-    "Iroda & iskola": [
-        "iroda", "iskola", "toll", "ceruza", "papir", "papír", "fuzet", "füzet",
-        "jegyzet", "iroszer", "írószer", "nyomtato", "nyomtató", "fenymasolo",
-        "fénymásoló", "iratrendezo", "iratrendező", "mappa", "szamologep", "számológép",
-        "tuzogep", "tűzőgép", "irodaszer", "asztali lampa",
-    ],
-    # Tools & DIY
-    "Szerszám & barkács": [
-        "furogep", "fúrógép", "furo", "fúró", "csavarhuzo", "csavarhúzó", "kalapacs",
-        "kalapács", "fogo", "fogó", "veso", "véső", "csiszolo", "csiszoló",
-        "reszelo", "reszelő", "furesz", "fűrész", "satu", "flex", "sarokcsiszolo",
-        "hegeszto", "hegesztő", "ragasztopisztoly", "keszlet", "csavar", "racsni",
-    ],
-    # Auto / motor & car care
-    "Autó/Motor & autóápolás": [
-        "auto", "autó", "motor", "motorkerekpar", "motorkerékpár", "motoros",
-        "autoapolas", "autóápolás", "autoapolo", "autóápoló", "akkumulator", "akkumulátor",
-        "motorolaj", "olaj", "kenoanyag", "kenőanyag", "szelvedo", "szélvédő",
-        "ablakmoso", "ablakmosó", "gumi", "abroncs", "kerek", "felni", "ules", "ülés", "lojalis",
-    ],
-}
-
-
-# Mapping from partner's original categories (if provided) to our high‑level ones.
-ORIGINAL_TO_TARGET: Dict[str, str] = {
-    "haztartasi_gepek": "Háztartási gépek",
-    "elektronika": "Elektronika",
-    "szamitastechnika": "Számítástechnika",
-    "mobil": "Mobil & kiegészítők",
-    "gaming": "Gaming",
-    "smarthome": "Smart Home",
-    "otthon": "Otthon",
-    "lakberendezes": "Lakberendezés",
-    "konyha": "Konyha & főzés",
-    "kert": "Kert",
-    "jatek": "Játékok",
-    "divat": "Divat",
-    "szepseg": "Szépség",
-    "drogeria": "Drogéria",
-    "baba": "Baba",
-    "sport": "Sport",
-    "egeszseg": "Egészség",
-    "latas": "Látás",
-    "allat": "Állatok",
-    "konyv": "Könyv",
-    "utazas": "Utazás",
-    "iroda": "Iroda & iskola",
-    "szerszam": "Szerszám & barkács",
-    "barkacs": "Szerszám & barkács",
-    "auto": "Autó/Motor & autóápolás",
-    "motor": "Autó/Motor & autóápolás",
-    "autoapolas": "Autó/Motor & autóápolás",
-    "multi": "Multi",
-}
-
-
-def assign_category(cat_fields: Dict[str, Optional[str]]) -> str:
-    """Assign a high‑level category based on the provided field values.
-
-    Parameters
-    ----------
-    cat_fields:
-        A dictionary of field names to values extracted from the partner's feed.
-        Typical keys include ``PRODUCTNAME``, ``CATEGORYTEXT``, ``g:product_type``
-        and ``category``.  Any non‑string values are ignored.  The values are
-        concatenated, normalised (lowercased, accents stripped) and scanned
-        against a series of keyword lists.  The first matching category is
-        returned.
-
-    Returns
-    -------
-    str
-        One of the predefined categories listed above.  If no keywords match
-        and the partner's own ``category`` field matches a known label, a
-        translation is returned.  Otherwise ``"Multi"``.
+    Eldönti, hogy a BOLT generic category_text háztartási gép-e.
+    Egyszerű substring-keresés a normalizált szövegben.
     """
-    # Prepare a single lowercase, accentless text for matching
-    text = _prepare_text(cat_fields)
+    norm = normalize_text(category_text)
 
-    # Iterate through categories in order of priority
-    for category, keywords in CATEGORY_KEYWORDS.items():
-        for kw in keywords:
-            # Using a simple substring search for performance; keywords are
-            # already normalised without accents.  Word boundaries are not
-            # enforced so that composite terms like "mosogépek" also match
-            # "mosogep".
-            if kw in text:
-                return category
+    # root-szintű kulcsszavak
+    for kw in APPLIANCE_ROOT_KEYWORDS:
+        if kw in norm:
+            return True
 
-    # No keyword matched; attempt to map partner's original category
-    # Some feeds may place the category name in different fields; we try
-    # ``category``, ``categorytext`` and ``g:product_type`` in order.
-    for key in ("category", "CATEGORYTEXT", "g:product_type", "product_type"):
-        raw = cat_fields.get(key) or cat_fields.get(key.upper())
-        if not raw:
-            continue
-        raw_norm = _strip_accents(str(raw)).lower()
-        # Extract the last segment after any separators (\n or > or /)
-        # to improve matching; e.g. "Elektronika > TV" → "tv"
-        # We'll split on common delimiters and iterate from last to first.
-        for seg in re.split(r"[\n>/|»]+", raw_norm)[::-1]:
-            seg = seg.strip()
-            if not seg:
-                continue
-            if seg in ORIGINAL_TO_TARGET:
-                return ORIGINAL_TO_TARGET[seg]
-            # Some partner categories include plural forms or suffixes; try
-            # stripping trailing 'ok', 'ek', 'ak' etc.  This rudimentary
-            # stemming helps map "haztartasigepek" to "haztartasi_gepek".
-            seg_stripped = re.sub(r"(ok|ek|ak)$", "", seg)
-            if seg_stripped in ORIGINAL_TO_TARGET:
-                return ORIGINAL_TO_TARGET[seg_stripped]
+    # részletesebb kulcsszavak
+    for kw in APPLIANCE_KEYWORDS:
+        if kw in norm:
+            return True
 
-    # Default fallback
-    return "Multi"
+    return False
 
 
-if __name__ == "__main__":  # pragma: no cover
-    # Basic self‑test to exercise the classifier.  This block is not
-    # exhaustive but demonstrates how the heuristics behave on a small
-    # selection of synthetic examples.  It prints category assignments to
-    # stdout and can be run manually for sanity checks.
-    tests = [
-        {"PRODUCTNAME": "Falmec Inox 90 páraelszívó", "category": "multi"},
-        {"PRODUCTNAME": "Bosch WAT28420 mosógép", "category": "haztartasi_gepek"},
-        {"PRODUCTNAME": "Sony Bravia 55\" LED TV", "category": "elektronika"},
-        {"PRODUCTNAME": "Dell Inspiron laptop", "category": "szamitastechnika"},
-        {"PRODUCTNAME": "Apple iPhone 14", "category": "mobil"},
-        {"PRODUCTNAME": "PlayStation 5 játék konzol", "category": "gaming"},
-        {"PRODUCTNAME": "Philips Hue okos lámpa", "category": "smarthome"},
-        {"PRODUCTNAME": "Ágynemű garnitúra", "category": "otthon"},
-        {"PRODUCTNAME": "Kerti fűnyíró gép", "category": "kert"},
-        {"PRODUCTNAME": "Cata 600 páraelszívó", "CATEGORYTEXT": "Konyha > Főzés", "category": "multi"},
-    ]
-    for i, t in enumerate(tests, 1):
-        cat = assign_category(t)
-        print(f"Test {i}: {t.get('PRODUCTNAME', '')} → {cat}")
+# ===== PATH KINYERŐ =====
+
+def extract_category_path(fields: Dict[str, Any]) -> str:
+    """
+    BOLT termékmezők közül a legjobb kategória-path kiválasztása.
+    """
+    for key in ("category_text", "categorytext", "product_type", "category"):
+        v = fields.get(key)
+        if v:
+            return str(v)
+    return ""
+
+
+# ===== FŐ MAPPING =====
+
+def map_bolt_to_findora(category_text: str) -> str:
+    """
+    Egyszerű szabály:
+      - ha a kategória "gépes" → haztartasi_gepek
+      - egyébként            → otthon
+    """
+    if not category_text:
+        return HOME_CAT
+
+    if is_appliance_category(category_text):
+        return APPLIANCE_CAT
+
+    return HOME_CAT
+
+
+# ===== KÜLSŐ INTERFÉSZ, amit a build script hív =====
+
+def assign_category(fields: Dict[str, Any]) -> str:
+    """
+    Fő belépési pont: BOLT termékmezők → Findora fő kategória slug.
+    """
+    cat_path = extract_category_path(fields)
+    cat = map_bolt_to_findora(cat_path)
+
+    # Biztonság kedvéért, ha valami félremenne:
+    if cat not in FINDORA_CATS:
+        cat = HOME_CAT
+
+    return cat
+
+
+# ===== CSV mód: bolt_clean.csv → bolt_with_categories.csv =====
+
+def _assign_on_csv(input_csv: str, output_csv: str):
+    """
+    Ha közvetlenül futtatod a scriptet:
+      - beolvassa a bolt_clean.csv-t
+      - hozzárak egy findora_main oszlopot (haztartasi_gepek / otthon)
+    """
+    if not os.path.exists(input_csv):
+        print(f"[HIBA] Nem találom az input CSV-t: {input_csv}")
+        return
+
+    print(f"[INFO] Input:  {input_csv}")
+    print(f"[INFO] Output: {output_csv}")
+
+    with open(input_csv, "r", encoding="utf-8-sig", newline="") as f_in, \
+         open(output_csv, "w", encoding="utf-8-sig", newline="") as f_out:
+
+        reader = csv.DictReader(f_in)
+        fieldnames = list(reader.fieldnames) if reader.fieldnames else []
+        if "findora_main" not in fieldnames:
+            fieldnames.append("findora_main")
+
+        writer = csv.DictWriter(f_out, fieldnames=fieldnames)
+        writer.writeheader()
+
+        counter = Counter()
+        total = 0
+
+        for row in reader:
+            total += 1
+            cat_text = row.get("category_text", "") or row.get("categorytext", "")
+
+            findora_main = map_bolt_to_findora(cat_text)
+            if findora_main not in FINDORA_CATS:
+                findora_main = HOME_CAT
+
+            row["findora_main"] = findora_main
+            writer.writerow(row)
+
+            counter[findora_main] += 1
+
+    print(f"[OK] Kész: {output_csv}")
+    print(f"[INFO] Összes termék: {total}")
+    print("[INFO] Eloszlás findora_main szerint:")
+    for k, v in sorted(counter.items(), key=lambda kv: kv[0]):
+        print(f"  {k:20s} {v}")
+
+
+if __name__ == "__main__":
+    # Lokál teszt:
+    #   python category_assign_bolt.py
+    #
+    # Tetszés szerint:
+    #   set BOLT_INPUT_CSV=D:\bolt\bolt_clean.csv
+    #   set BOLT_OUTPUT_CSV=D:\bolt\bolt_with_categories.csv
+    _assign_on_csv(INPUT_CSV, OUTPUT_CSV)

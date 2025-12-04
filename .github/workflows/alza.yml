@@ -30,32 +30,38 @@ jobs:
 
       - name: Build Alza feed pages (ML)
         env:
+          # EGY darab secret, amiben az összes Alza XML URL benne van
+          # (egy URL / sor vagy szóközzel elválasztva)
           FEED_ALZA_URL: ${{ secrets.FEED_ALZA_URL }}
         run: |
-          set -e
+          set -euo pipefail
 
-          if [ -z "$FEED_ALZA_URL" ]; then
+          if [ -z "${FEED_ALZA_URL:-}" ]; then
             echo "::error title=Missing secret::FEED_ALZA_URL nincs beállítva (Settings → Secrets → Actions)."
             exit 1
           fi
 
+          echo "[INFO] FEED_ALZA_URL nyers hossza: ${#FEED_ALZA_URL} karakter"
+          echo "[INFO] FEED_ALZA_URL sorok száma (bennük 'http'): $(printf '%s\n' "$FEED_ALZA_URL" | grep -c 'http' || true)"
+
           mkdir -p docs/feeds/alza
 
-          # ML alapú ALZA build
+          # ML alapú ALZA build – maga a script darabolja szét a több URL-t
           python scripts/build_alza.py
 
           echo "Sanity check (category-based pages):"
+          ls -la docs/feeds/alza || true
 
-          FIRST_DIR=$(ls -1 docs/feeds/alza | head -n 1)
+          FIRST_DIR=$(ls -1 docs/feeds/alza | head -n 1 || echo "")
           echo "First dir: $FIRST_DIR"
 
-          if command -v jq >/dev/null 2>&1; then
-            jq '.items[0]' "docs/feeds/alza/$FIRST_DIR/page-0001.json" || true
-          else
-            head -c 600 "docs/feeds/alza/$FIRST_DIR/page-0001.json" || true
+          if [ -n "$FIRST_DIR" ] && [ -f "docs/feeds/alza/$FIRST_DIR/page-0001.json" ]; then
+            if command -v jq >/dev/null 2>&1; then
+              jq '.items[0]' "docs/feeds/alza/$FIRST_DIR/page-0001.json" || true
+            else
+              head -c 600 "docs/feeds/alza/$FIRST_DIR/page-0001.json" || true
+            fi
           fi
-
-          ls -la docs/feeds/alza
 
       - name: Commit changes
         run: |

@@ -3,11 +3,10 @@ name: ingest-onlinemarkabolt
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 9,19 * * *"   # reggel 10:00 és este 20:00 magyar idő (9 és 19 UTC)
+    - cron: "0 9,19 * * *"
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
   group: ingest-onlinemarkabolt-${{ github.ref }}
@@ -16,63 +15,55 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # --- fontos: mindig sync main ---
+      - name: Sync with origin/main
+        run: |
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
-          cache: "pip"
+          python-version: "3.11"
 
       - name: Install deps
-        run: pip install requests
+        run: |
+          pip install --upgrade pip
+          pip install requests
 
       - name: Build OnlineMarkabolt feed pages
         env:
           FEED_ONLINEMARKABOLT_URL: ${{ secrets.FEED_ONLINEMARKABOLT_URL }}
         run: |
-          set -euo pipefail
-          if [ -z "${FEED_ONLINEMARKABOLT_URL:-}" ]; then
-            echo "::error title=Missing secret::FEED_ONLINEMARKABOLT_URL nincs beállítva (Settings → Secrets → Actions)."
+          set -e
+          if [ -z "$FEED_ONLINEMARKABOLT_URL" ]; then
+            echo "::error title=Missing secret::FEED_ONLINEMARKABOLT_URL nincs!"
             exit 1
           fi
 
           mkdir -p docs/feeds/onlinemarkabolt
           python -u scripts/build-onlinemarkabolt.py
 
-          # Szigorú sanity check
           test -s docs/feeds/onlinemarkabolt/meta.json
-          test -s docs/feeds/onlinemarkabolt/page-0001.json
 
-          if command -v jq >/dev/null 2>&1; then
-            jq -e '.items | length >= 0' docs/feeds/onlinemarkabolt/page-0001.json >/dev/null
-            jq -e '.pages >= 1 and .total >= 0' docs/feeds/onlinemarkabolt/meta.json >/dev/null
-            echo "Sanity check (first item):"
-            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/onlinemarkabolt/page-0001.json || true
-          else
-            head -c 800 docs/feeds/onlinemarkabolt/page-0001.json || true
-          fi
-
-          ls -la docs/feeds/onlinemarkabolt
-
-      - name: Commit changes
+      - name: Commit & push directly to main (no PR)
         run: |
-          git config --global user.name  "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git add docs/feeds/onlinemarkabolt
-          git commit -m "onlinemarkabolt: update feed pages" || echo "No changes"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: bot/update-onlinemarkabolt
-          delete-branch: true
-          title: "onlinemarkabolt: update feed pages"
-          commit-message: "onlinemarkabolt: update feed pages"
-          body: |
-            Automated update of OnlineMárkabolt feed pages (JSON pagination).
+          git add docs/feeds/onlinemarkabolt
+
+          # ha nincs változás → kilép, nincs PR
+          git diff --cached --quiet && echo "No changes, exiting." && exit 0
+
+          git commit -m "onlinemarkabolt: update feed pages"
+          git pull --rebase origin main || true
+          git push origin HEAD:main

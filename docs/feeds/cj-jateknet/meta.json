@@ -1,1 +1,7 @@
-{"ok": true, "partner": "cj-jateknet", "total": 8531, "pages": 43, "page_size": 200}
+{
+  "total_items": 8010,
+  "page_size": 200,
+  "page_count": 41,
+  "partner": "cj-jateknet",
+  "scope": "global"
+}

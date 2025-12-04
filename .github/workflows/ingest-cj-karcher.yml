@@ -1,49 +1,63 @@
-name: ingest-cj-karcher
+name: Ingest CJ Karcher feed
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 3 * * *"   # minden nap 4:00 körül magyar idő (3:00 UTC)
+    - cron: "21 7,17 * * *"   # 08:21 és 18:21 HU idő körül
+
+permissions:
+  contents: write
 
 jobs:
-  build:
+  ingest-karcher:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    env:
+      CJ_FEED_URL: ${{ secrets.CJ_FEED_URL }}
+      CJ_HTTP_USER: ${{ secrets.CJ_HTTP_USER }}
+      CJ_HTTP_PASS: ${{ secrets.CJ_HTTP_PASS }}
+      CJ_API_TOKEN: ${{ secrets.CJ_API_TOKEN }}
 
-      - name: Set up Python
+    steps:
+      - name: Checkout (full)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Download CJ Karcher feed (ZIP via HTTP)
+      - name: Install dependencies
         run: |
-          curl -L -u "${{ secrets.CJ_HTTP_USER }}:${{ secrets.CJ_HTTP_PASS }}" \
-            "http://datatransfer.cj.com/datatransfer/files/${{ secrets.CJ_HTTP_USER }}/outgoing/productcatalog/310806/K_RCHER_HU-Karcher_hu_google_all-shopping.txt.zip" \
-            -o cj-karcher.zip
-
-      - name: Unzip feed
-        run: |
-          rm -rf cj-karcher-feed
-          mkdir cj-karcher-feed
-          unzip -o cj-karcher.zip -d cj-karcher-feed
-
-      - name: Install Python dependencies
-        run: |
+          set -e
           pip install --upgrade pip
+          pip install requests
 
-      - name: Build CJ Karcher JSON feed
+      - name: Build CJ Karcher feed
         run: |
+          set -e
+          echo "=== CJ Karcher build indul ==="
           python scripts/build_cj_karcher.py
+          echo "=== CJ Karcher build kész, mappa tartalom: ==="
+          ls -R docs/feeds/cj-karcher || echo "Nincs docs/feeds/cj-karcher mappa"
 
-      - name: Commit and push changes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit & push Karcher feed
         run: |
+          set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
+
           git add docs/feeds/cj-karcher || true
-          git commit -m "update CJ Karcher feed" || echo "No changes to commit"
-          git push
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "CJ Karcher feed update"
+            git push origin HEAD:main
+          fi

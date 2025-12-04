@@ -1,1 +1,7 @@
-{"ok": true, "partner": "cj-eoptika", "total": 29512, "pages": 148, "page_size": 200, "pageSize": 200}
+{
+  "total_items": 29549,
+  "page_size": 200,
+  "page_count": 148,
+  "partner": "cj-eoptika",
+  "scope": "global"
+}

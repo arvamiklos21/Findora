@@ -7,11 +7,12 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
+  # pull-requests: write  # NEM kell, mert nem csinálunk PR-t
 
 jobs:
   ingest:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (full)
         uses: actions/checkout@v4
@@ -28,49 +29,44 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.11"
 
       - name: Install deps
-        run: pip install requests
+        run: |
+          pip install --upgrade pip
+          pip install requests
 
-      - name: Build Karacsonydekor feed pages
+      - name: Build Karacsonydekor feed pages (global + categories + akcios-block)
         env:
           FEED_KARACSONYDEKOR_URL: ${{ secrets.FEED_KARACSONYDEKOR_URL }}
         run: |
           set -e
           if [ -z "$FEED_KARACSONYDEKOR_URL" ]; then
-            echo "::error title=Missing secret::FEED_KARACSONYDEKOR_URL nincs beállítva (Settings → Secrets → Actions)."; exit 1
+            echo "::error title=Missing secret::FEED_KARACSONYDEKOR_URL nincs beállítva (Settings → Secrets → Actions)."
+            exit 1
           fi
+
           mkdir -p docs/feeds/karacsonydekor
+
           python scripts/build_karacsonydekor.py
-          echo "Sanity check (first item):"
+
+          echo "Sanity check (global page-0001):"
           if command -v jq >/dev/null 2>&1; then
             jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/karacsonydekor/page-0001.json || true
           else
             head -c 600 docs/feeds/karacsonydekor/page-0001.json || true
           fi
-          ls -la docs/feeds/karacsonydekor
 
-      - name: Commit feed updates to bot branch
+          echo "Tree of docs/feeds/karacsonydekor:"
+          ls -R docs/feeds/karacsonydekor || true
+
+      - name: Commit feed updates directly to main
         run: |
           set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          BR="bot/update-karacsonydekor"
-          git checkout -B "$BR"
-
           git add docs/feeds/karacsonydekor
-          git commit -m "karacsonydekor: update feed pages" || echo "No changes"
-          git push --force-with-lease origin "$BR"
 
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: bot/update-karacsonydekor
-          delete-branch: true
-          title: "karacsonydekor: update feed pages"
-          commit-message: "karacsonydekor: update feed pages"
-          body: |
-            Automated update of Karacsonydekor feed pages (JSON pagination).
-          base: main
+          git commit -m "karacsonydekor: update feed pages" || echo "No changes"
+          git push origin main || echo "No changes to push"

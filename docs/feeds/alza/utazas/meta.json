@@ -1,8 +1,8 @@
 {
-  "total_items": 43,
+  "total_items": 0,
   "page_size": 20,
-  "page_count": 3,
+  "page_count": 1,
   "partner": "alza",
-  "generated_at": "2025-11-27T08:28:21.391606Z",
-  "scope": "category:utazas"
+  "scope": "category:utazas",
+  "generated_at": "2025-11-29T20:11:59.747841Z"
 }

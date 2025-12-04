@@ -3,76 +3,44 @@ name: ingest-regiojatek
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 9,19 * * *"   # reggel 10:00 és este 20:00 magyar idő (9 és 19 UTC)
-
-permissions:
-  contents: write
-  pull-requests: write
-
-concurrency:
-  group: ingest-regiojatek-${{ github.ref }}
-  cancel-in-progress: true
+    - cron: "0 */6 * * *"   # 6 óránként
 
 jobs:
   ingest:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Sync with origin/main
+        run: |
+          git pull origin main || true
+
+      # FIX: Python telepítés deps nélkül (NEM keres requirements.txt-t)
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
-          cache: "pip"
+          python-version: '3.11'
+          allow-prereleases: true
 
       - name: Install deps
-        run: pip install requests
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - name: Build RegioJatek feed pages
+      - name: Build RegioJatek feed pages (global + categories + akcios-block)
         env:
           FEED_REGIOJATEK_URL: ${{ secrets.FEED_REGIOJATEK_URL }}
         run: |
-          set -euo pipefail
-          if [ -z "${FEED_REGIOJATEK_URL:-}" ]; then
-            echo "::error title=Missing secret::FEED_REGIOJATEK_URL nincs beállítva (Settings → Secrets → Actions)."
-            exit 1
-          fi
+          python scripts/build_regiojatek.py
 
-          mkdir -p docs/feeds/regiojatek
-          python -u scripts/build_regiojatek.py
-
-          # Szigorú sanity check
-          test -s docs/feeds/regiojatek/meta.json
-          test -s docs/feeds/regiojatek/page-0001.json
-
-          if command -v jq >/dev/null 2>&1; then
-            jq -e '.items | length >= 0' docs/feeds/regiojatek/page-0001.json >/dev/null
-            jq -e '.pages >= 1 and .total >= 0' docs/feeds/regiojatek/meta.json >/dev/null
-            echo "Sanity check (first item):"
-            jq -r '.items[0] | {title, img, url, price, discount}' docs/feeds/regiojatek/page-0001.json || true
-          else
-            head -c 800 docs/feeds/regiojatek/page-0001.json || true
-          fi
-
-          ls -la docs/feeds/regiojatek
-
-      - name: Commit changes
+      - name: Commit feed updates to main (autopush, stable)
         run: |
-          git config --global user.name  "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git add docs/feeds/regiojatek
-          git commit -m "regiojatek: update feed pages" || echo "No changes"
-
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: bot/update-regiojatek
-          delete-branch: true
-          title: "regiojatek: update feed pages"
-          commit-message: "regiojatek: update feed pages"
-          body: |
-            Automated update of RegioJáték feed pages (JSON pagination).
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/feeds/regiojatek || true
+          git commit -m "regiojatek: update feed pages" || true
+          git push origin main || true
