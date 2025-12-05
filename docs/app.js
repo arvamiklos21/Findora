@@ -1,769 +1,1492 @@
-# scripts/build_alza.py
-#
-# ALZA feed(ek) → Findora JSON oldalak (GLOBAL + MEILISEARCH)
-#
-# - Bemenet:
-#   FEED_ALZA_URL (vagy ALZA_FEED_URL) secret
-#     → tartalmazhat 1 vagy több XML feed URL-t, szóközzel / sorvéggel / vesszővel elválasztva
-#
-# - Kategorizálás:
-#   ML modell (model_alza.pkl) + category_guard.finalize_category_for_alza
-#
-# - Kimenet:
-#   1) JSON oldalak (NINCS kategória mappa, NINCS akcio mappa):
-#      docs/feeds/alza/meta.json
-#      docs/feeds/alza/page-0001.json  (max 1000 termék)
-#      docs/feeds/alza/page-0002.json  ...
-#
-#   2) Meilisearch index feltöltés:
-#      - index: products_all  (vagy MEILI_INDEX_PRODUCTS env)
-#      - minden dokumentum:
-#          id          = "alza-<eredeti_id>"
-#          title       = ...
-#          description = desc
-#          img         = img
-#          url         = url
-#          price       = price
-#          old_price   = old_price
-#          discount    = discount
-#          partner     = "alza"
-#          partner_name= "Alza"
-#          category    = findora_main   (pl. "elektronika", "sport"...)
-#          brand       = brand
-#          category_path = category_path
-#
-# NINCS több:
-#   docs/feeds/alza/<cat>/...
-#   docs/feeds/alza/akcio/...
+// ===== Alap URL-ek =====
+const FEEDS_BASE = "";
+const PARTNERS_URL = "feeds/partners.json";
 
-import os
-import re
-import sys
-import json
-import math
-import xml.etree.ElementTree as ET
-from pathlib import Path
-from datetime import datetime
-from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+// ===== Meilisearch =====
+const MEILI_HOST = "http://meili.findora.hu:7700";
+const MEILI_INDEX_UID = "products_all";
+const MEILI_HEADERS = {
+  "Content-Type": "application/json",
+  // FIGYELEM: élesben ezt kereső kulcsra cseréld!
+  "Authorization": "Bearer FINDORA_MASTER_KEY_123",
+};
 
-import requests
-import joblib
+async function meiliSearch(params) {
+  const body = {
+    q: params.q || "",
+    limit: typeof params.limit === "number" ? params.limit : 20,
+    offset: typeof params.offset === "number" ? params.offset : 0,
+  };
 
-# ===== ALAP KONFIG =====
+  if (params.filter) {
+    body.filter = params.filter;
+  }
+  if (params.sort) {
+    // pl. "price:asc"
+    body.sort = [params.sort];
+  }
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+  const res = await fetch(
+    `${MEILI_HOST}/indexes/${MEILI_INDEX_UID}/search`,
+    {
+      method: "POST",
+      headers: MEILI_HEADERS,
+      body: JSON.stringify(body),
+    }
+  );
 
-# hogy a scripts/ mappában lévő modulokat (pl. category_guard.py) is lássa,
-# amikor a repo gyökeréből futtatjuk: python scripts/build_alza.py
-if SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, SCRIPT_DIR)
+  if (!res.ok) {
+    throw new Error(
+      "Meilisearch hiba: " + res.status + " " + (await res.text())
+    );
+  }
+  return res.json(); // { hits, estimatedTotalHits, ... }
+}
 
-# Guard réteg az ML modell fölé
-from category_guard import finalize_category_for_alza
+// ===== PARTNEREK =====
+const PARTNERS = new Map();
 
-# Alza ML modell
-MODEL_FILE = os.path.join(SCRIPT_DIR, "model_alza.pkl")
+// partners.json – id, name, deeplinkPartner, stb.
+async function loadPartners() {
+  const r = await fetch(PARTNERS_URL, { cache: "no-cache" });
+  if (!r.ok) throw new Error("partners.json nem elérhető: " + r.status);
+  const arr = await r.json();
+  if (!Array.isArray(arr) || !arr.length) {
+    throw new Error("partners.json üres vagy hibás");
+  }
+  PARTNERS.clear();
+  arr.forEach((p) => {
+    if (!p.id || !p.deeplinkPartner) return;
+    PARTNERS.set(p.id, p);
+  });
+  console.log("PARTNEREK BETÖLTVE:", PARTNERS.size);
+}
 
-# Kimeneti mappa – GLOBÁLIS alza feed
-OUT_DIR = Path("docs/feeds/alza")
+function getPartnerName(pid) {
+  const cfg = PARTNERS.get(pid);
+  return (cfg && cfg.name) || pid;
+}
 
-# Globális feed lapméret
-PAGE_SIZE_GLOBAL = 1000
+// ===== Deeplink =====
+function dlUrl(pid, rawUrl) {
+  if (!rawUrl) return "#";
+  return (
+    FEEDS_BASE + "/api/dl?u=" + encodeURIComponent(rawUrl) + "&p=" + pid
+  );
+}
 
-# FEED URL(ek) – több URL is lehet, elválasztva whitespace / vessző / pontosvessző / |
-FEED_URL_RAW = os.environ.get("FEED_ALZA_URL") or os.environ.get("ALZA_FEED_URL")
+// ===== Helper =====
+function priceText(v) {
+  if (typeof v === "number" && isFinite(v))
+    return v.toLocaleString("hu-HU") + " Ft";
+  if (typeof v === "string" && v.trim()) return v;
+  return "—";
+}
 
-if not FEED_URL_RAW:
-    raise RuntimeError(
-        "Hiányzó FEED_ALZA_URL (vagy ALZA_FEED_URL) secret. "
-        "Állítsd be a GitHub Actions Secrets között."
+function itemUrl(it) {
+  return (it && (it.url || it.link || it.deeplink)) || "";
+}
+
+function itemImg(it) {
+  return (
+    (it && (it.image || it.img || it.image_link || it.thumbnail)) || ""
+  );
+}
+
+function basePath(u) {
+  try {
+    const x = new URL(u);
+    return x.origin + x.pathname;
+  } catch (_) {
+    return String(u || "").split("#")[0].split("?")[0];
+  }
+}
+
+function imgPath(u) {
+  return String(u || "").split("#")[0].split("?")[0];
+}
+
+// ===== Variáns normalizálás / dedupe =====
+const SIZE_TOKENS = new RegExp(
+  [
+    "\\b(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL)\\b",
+    "\\b(?:\\d{2,3}[\\/-]\\d{2,3})\\b",
+    "\\bEU\\s?\\d{2,3}\\b",
+    "[\\(\\[]\\s*(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|EU\\s?\\d{2,3}|\\d{2,3}[\\/-]\\d{2,3})\\s*[\\)\\]]",
+    "\\b(?:méret|meret)\\b\\s*[:\\-]?\\s*[A-Za-z0-9\\/-]+",
+  ].join("|"),
+  "gi"
+);
+
+function normalizeTitleNoSize(t) {
+  if (!t) return "";
+  return String(t)
+    .replace(SIZE_TOKENS, " ")
+    .replace(
+      /\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi,
+      " "
     )
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .toLowerCase();
+}
 
-# ===== FINDORA FŐ KATEGÓRIÁK (SLUG-ok) – 25 fix kategória =====
-FINDORA_CATS = [
-    "elektronika",
-    "haztartasi_gepek",
-    "szamitastechnika",
-    "mobil",
-    "gaming",
-    "smart_home",
-    "otthon",
-    "lakberendezes",
-    "konyha_fozes",
-    "kert",
-    "jatekok",
-    "divat",
-    "szepseg",
-    "drogeria",
-    "baba",
-    "sport",
-    "egeszseg",
-    "latas",
-    "allatok",
-    "konyv",
-    "utazas",
-    "iroda_iskola",
-    "szerszam_barkacs",
-    "auto_motor",
-    "multi",
-]
-
-# ===== MEILISEARCH KONFIG =====
-
-MEILI_HOST = os.environ.get("MEILI_HOST", "http://127.0.0.1:7700")
-MEILI_API_KEY = os.environ.get("MEILI_API_KEY") or os.environ.get("MEILI_MASTER_KEY")
-MEILI_INDEX_PRODUCTS = os.environ.get("MEILI_INDEX_PRODUCTS", "products_all")
-
-
-# ===== SEGÉDFÜGGVÉNYEK =====
-
-def split_feed_urls(raw: str):
-    """
-    FEED_ALZA_URL → lista, több URL is lehet
-    Elválasztók: whitespace, vessző, pontosvessző, pipe.
-    """
-    urls = [u.strip() for u in re.split(r"[\s,;|]+", raw) if u.strip()]
-    urls = [u for u in urls if u.lower().startswith("http")]
-    if not urls:
-        raise RuntimeError(
-            "FEED_ALZA_URL nem tartalmaz érvényes URL-t. "
-            "Adj meg 1 vagy több XML feed URL-t (soronként vagy szóközzel elválasztva)."
-        )
-    return urls
-
-
-def norm_price(v):
-    if v is None:
-        return None
-    s = re.sub(r"[^\d.,-]", "", str(v)).replace(" ", "")
-    if not s or s in ("-", ""):
-        return None
-    try:
-        return int(round(float(s.replace(",", "."))))
-    except Exception:
-        digits = re.sub(r"[^\d]", "", str(v))
-        return int(digits) if digits else None
-
-
-def short_desc(t, maxlen=220):
-    if not t:
-        return None
-    t = re.sub(r"<[^>]+>", " ", str(t))
-    t = re.sub(r"\s+", " ", t).strip()
-    return (t[: maxlen - 1] + "…") if len(t) > maxlen else t
-
-
-def strip_ns(tag):
-    return tag.split("}")[-1].split(":")[-1].lower()
-
-
-def collect_node(n):
-    """
-    XML → "lapos" dict.
-    - Több image mezőt listába szed.
-    - Namespace-eket levágjuk.
-    """
-    m = {}
-    txt = (n.text or "").strip()
-    k0 = strip_ns(n.tag)
-    if txt:
-        m.setdefault(k0, txt)
-
-    for ak, av in (n.attrib or {}).items():
-        m.setdefault(strip_ns(ak), av)
-
-    for c in list(n):
-        k = strip_ns(c.tag)
-        v = (c.text or "").strip()
-        if k in (
-            "imgurl_alternative",
-            "additional_image_link",
-            "additional_image_url",
-            "images",
-            "image2",
-            "image3",
-        ):
-            m.setdefault(k, [])
-            if v:
-                m[k].append(v)
-        else:
-            if v:
-                m[k] = v
-            else:
-                sub = collect_node(c)
-                for sk, sv in sub.items():
-                    m.setdefault(sk, sv)
-    return m
-
-
-def first(d, keys):
-    for raw in keys:
-        k = raw.lower()
-        v = d.get(k)
-        if isinstance(v, list) and v:
-            return v[0]
-        if isinstance(v, str) and v.strip():
-            return v.strip()
-        if v not in (None, "", []):
-            return v
-    return None
-
-
-TITLE_KEYS = ("productname", "title", "g:title", "name", "product_name")
-LINK_KEYS = ("url", "link", "g:link", "product_url", "product_link", "deeplink")
-IMG_KEYS = (
-    "imgurl",
-    "image_link",
-    "image",
-    "image_url",
-    "g:image_link",
-    "image1",
-    "main_image_url",
-)
-IMG_ALT_KEYS = (
-    "imgurl_alternative",
-    "additional_image_link",
-    "additional_image_url",
-    "images",
-    "image2",
-    "image3",
-)
-DESC_KEYS = (
-    "description",
-    "g:description",
-    "long_description",
-    "short_description",
-    "desc",
-    "popis",
-)
-BRAND_KEYS = ("brand", "g:brand", "g:manufacturer", "manufacturer")
-CATEGORY_KEYS = (
-    "google_product_category_name",
-    "google_product_category",
-    "g:product_type",
-    "product_type",
-    "category",
-)
-
-NEW_PRICE_KEYS = (
-    "g:sale_price",
-    "sale_price",
-    "price_vat",
-    "price_with_vat",
-    "price_final",
-    "price_huf",
-    "g:price",
-    "price",
-    "price_amount",
-    "current_price",
-    "amount",
-)
-OLD_PRICE_KEYS = (
-    "old_price",
-    "price_before",
-    "was_price",
-    "list_price",
-    "regular_price",
-    "old_price_vat",
-    "g:price",  # fallback, ha csak g:price van + külön akciós mező nincs
-)
-
-
-def parse_items_from_xml(xml_text):
-    root = ET.fromstring(xml_text)
-    candidates = []
-    for path in (
-        ".//channel/item",
-        ".//item",
-        ".//products/product",
-        ".//product",
-        ".//SHOPITEM",
-        ".//shopitem",
-        ".//entry",
-    ):
-        nodes = root.findall(path)
-        if nodes:
-            candidates = nodes
-            break
-    if not candidates:
-        candidates = [
-            n
-            for n in root.iter()
-            if strip_ns(n.tag) in ("item", "product", "shopitem", "entry")
-        ]
-
-    items = []
-    for n in candidates:
-        m = collect_node(n)
-        m = {(k.lower() if isinstance(k, str) else k): v for k, v in m.items()}
-
-        pid = first(m, ("g:id", "id", "item_id", "sku", "product_id", "itemid"))
-        title = first(m, TITLE_KEYS) or "Ismeretlen termék"
-        link = first(m, LINK_KEYS)
-
-        img = first(m, IMG_KEYS)
-        if not img:
-            alt = first(m, IMG_ALT_KEYS)
-            if isinstance(alt, list) and alt:
-                img = alt[0]
-            elif isinstance(alt, str):
-                img = alt
-
-        raw_desc = first(m, DESC_KEYS)
-        desc = short_desc(raw_desc)
-
-        category_path = first(m, CATEGORY_KEYS) or ""
-        brand = first(m, BRAND_KEYS) or ""
-
-        price_new = None
-        for k in NEW_PRICE_KEYS:
-            price_new = norm_price(m.get(k))
-            if price_new:
-                break
-
-        old = None
-        for k in OLD_PRICE_KEYS:
-            old = norm_price(m.get(k))
-            if old:
-                break
-
-        discount = (
-            round((1 - price_new / old) * 100)
-            if old and price_new and old > price_new
-            else None
-        )
-
-        items.append(
-            {
-                "id": pid or link or title,
-                "title": title,
-                "img": img or "",
-                "desc": desc,
-                "raw_desc": raw_desc or "",
-                "price": price_new,
-                "old_price": old,
-                "discount": discount,
-                "url": link or "",
-                "category_path": category_path,
-                "brand": brand,
-            }
-        )
-
-    return items
-
-
-# ===== dedup: méret összevonás, szín marad =====
-
-SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
-COLOR_WORDS = (
-    "fekete",
-    "fehér",
-    "feher",
-    "szürke",
-    "szurke",
-    "kék",
-    "kek",
-    "piros",
-    "zöld",
-    "zold",
-    "lila",
-    "sárga",
-    "sarga",
-    "narancs",
-    "barna",
-    "bézs",
-    "bezs",
-    "rózsaszín",
-    "rozsaszin",
-    "bordó",
-    "bordeaux",
-)
-
-
-def normalize_title_for_size(t):
-    if not t:
-        return ""
-    t0 = re.sub(r"\s+", " ", t.strip(), flags=re.I)
-    t1 = re.sub(rf"\b{SIZE_TOKENS}\b", "", t0, flags=re.I)
-    t1 = re.sub(r"\s{2,}", " ", t1).strip()
-    return t1.lower()
-
-
-def detect_color_token(t):
-    if not t:
-        return ""
-    tl = t.lower()
-    for w in COLOR_WORDS:
-        if re.search(rf"\b{re.escape(w)}\b", tl, flags=re.I):
-            return w
-    return ""
-
-
-def strip_size_from_url(u):
-    if not u:
-        return u
-    try:
-        p = urlparse(u)
-        q = dict(parse_qsl(p.query, keep_blank_values=True))
-        for k in list(q.keys()):
-            if k.lower() in (
-                "size",
-                "meret",
-                "merete",
-                "variant_size",
-                "size_id",
-                "meret_id",
-            ):
-                q.pop(k, None)
-        new_q = urlencode(q, doseq=True)
-        return urlunparse((p.scheme, p.netloc, p.path, p.params, new_q, p.fragment))
-    except Exception:
-        return u
-
-
-def dedup_size_variants(items):
-    buckets = {}
-    for it in items:
-        tnorm = normalize_title_for_size(it.get("title"))
-        color = detect_color_token(it.get("title")) or detect_color_token(
-            it.get("desc") or ""
-        )
-        base_url = strip_size_from_url(it.get("url") or "")
-        key = (tnorm, color or "", base_url or "")
-        cur = buckets.get(key)
-        if not cur:
-            buckets[key] = it
-        else:
-            # jobb kép
-            if not cur.get("img") and it.get("img"):
-                cur["img"] = it["img"]
-            # alacsonyabb ár
-            if (it.get("price") or 0) and (
-                not cur.get("price") or it["price"] < cur["price"]
-            ):
-                cur["price"] = it["price"]
-            # nagyobb kedvezmény
-            if (it.get("discount") or 0) > (cur.get("discount") or 0):
-                cur["discount"] = it["discount"]
-            # hosszabb leírás
-            if len(it.get("desc") or "") > len(cur.get("desc") or ""):
-                cur["desc"] = it["desc"]
-            # hosszabb raw_desc
-            if len(it.get("raw_desc") or "") > len(cur.get("raw_desc") or ""):
-                cur["raw_desc"] = it["raw_desc"]
-            # old_price – nagyobb árat tartjuk meg (hogy a kedvezmény értelmes maradjon)
-            if (it.get("old_price") or 0) > (cur.get("old_price") or 0):
-                cur["old_price"] = it["old_price"]
-    return list(buckets.values())
-
-
-def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
-    """
-    base_dir/meta.json
-    base_dir/page-0001.json, page-0002.json, ...
-
-    FONTOS:
-    - Üres lista esetén is létrejön:
-        - meta.json
-        - page-0001.json ({"items": []})
-      így a frontend soha nem kap 404-et a page-0001.json-re.
-    """
-    base_dir.mkdir(parents=True, exist_ok=True)
-    total = len(items)
-
-    if total == 0:
-        page_count = 1
-    else:
-        page_count = int(math.ceil(total / page_size))
-
-    meta = {
-        "total_items": total,
-        "page_size": page_size,
-        "page_count": page_count,
+function stripVariantParams(u) {
+  try {
+    const x = new URL(u);
+    const drop = [
+      "size",
+      "meret",
+      "merete",
+      "variant_size",
+      "size_id",
+      "meret_id",
+      "option",
+      "variant",
+    ];
+    for (const k of Array.from(x.searchParams.keys())) {
+      if (drop.includes(k.toLowerCase())) x.searchParams.delete(k);
     }
-    if meta_extra:
-        meta.update(meta_extra)
+    return x.toString();
+  } catch (_) {
+    return u;
+  }
+}
 
-    meta_path = base_dir / "meta.json"
-    with meta_path.open("w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
+function dedupeRowsStrong(rows) {
+  const out = [];
+  const seen = new Set();
+  (rows || []).forEach((row) => {
+    if (!row || !row.item) return;
+    const it = row.item;
+    const key =
+      row.pid +
+      "|" +
+      basePath(stripVariantParams(itemUrl(it))) +
+      "|" +
+      imgPath(itemImg(it)) +
+      "|" +
+      normalizeTitleNoSize(it.title || "");
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(row);
+    }
+  });
+  return out;
+}
 
-    if total == 0:
-        out_path = base_dir / "page-0001.json"
-        with out_path.open("w", encoding="utf-8") as f:
-            json.dump({"items": []}, f, ensure_ascii=False)
-    else:
-        for page_no in range(1, page_count + 1):
-            start = (page_no - 1) * page_size
-            end = start + page_size
-            page_items = items[start:end]
+// ===== Discount / akció =====
+function getDiscountNumber(it) {
+  if (it && typeof it.discount === "number" && isFinite(it.discount)) {
+    const d = Math.round(it.discount);
+    if (d >= 10 && d <= 90) return d;
+  }
+  return null;
+}
 
-            out_path = base_dir / f"page-{page_no:04d}.json"
-            with out_path.open("w", encoding="utf-8") as f:
-                json.dump({"items": page_items}, f, ensure_ascii=False)
+function getAkcioPrices(it) {
+  if (!it) return { current: null, original: null };
 
+  let current = null;
 
-# ===== ML MODELL =====
+  if (typeof it.price === "number" && isFinite(it.price)) {
+    current = it.price;
+  } else if (
+    typeof it.sale_price === "number" &&
+    isFinite(it.sale_price)
+  ) {
+    current = it.sale_price;
+  }
 
-def load_model():
-    if not os.path.exists(MODEL_FILE):
-        raise RuntimeError(
-            f"Hiányzik az ML modell fájl: {MODEL_FILE}. "
-            "Töltsd fel a model_alza.pkl-t a scripts mappába."
-        )
-    return joblib.load(MODEL_FILE)
+  let original = null;
+  const candidates = [
+    it.old_price,
+    it.price_old,
+    it.original_price,
+    it.list_price,
+    it.regular_price,
+  ];
 
+  for (const v of candidates) {
+    if (typeof v === "number" && isFinite(v)) {
+      original = v;
+      break;
+    }
+  }
 
-def predict_category(model, title, desc, category_path, brand):
-    text = " ".join(
-        [
-            str(title or ""),
-            str(desc or ""),
-            str(category_path or ""),
-            str(brand or ""),
-        ]
-    ).strip()
-    if not text:
-        return "multi"
-    try:
-        pred = model.predict([text])[0]
-        slug = str(pred).strip()
+  const disc = getDiscountNumber(it);
+  if (!original && current && disc !== null) {
+    const base = current / (1 - disc / 100);
+    if (isFinite(base) && base > 0) {
+      original = Math.round(base);
+    }
+  }
 
-        if slug == "mobiltelefon":
-            slug = "mobil"
+  return { current, original };
+}
 
-        if not slug:
-            return "multi"
-        if slug not in FINDORA_CATS:
-            return "multi"
-        return slug
-    except Exception:
-        return "multi"
+// ===== KATEGÓRIA KONFIG =====
+const CATEGORY_IDS = [
+  "kat-elektronika",
+  "kat-gepek",
+  "kat-szamitastechnika",
+  "kat-mobil",
+  "kat-gaming",
+  "kat-smart-home",
+  "kat-otthon",
+  "kat-lakberendezes",
+  "kat-konyha",
+  "kat-kert",
+  "kat-jatekok",
+  "kat-divat",
+  "kat-szepseg",
+  "kat-drogeria",
+  "kat-baba",
+  "kat-sport",
+  "kat-egeszseg",
+  "kat-latas",
+  "kat-allatok",
+  "kat-konyv",
+  "kat-utazas",
+  "kat-iroda-iskola",
+  "kat-szerszam-barkacs",
+  "kat-auto-motor",
+  "kat-multi",
+];
 
+// backend slug (findora_main) → kat-* ID
+const BACKEND_SYNONYM_TO_CATID = {
+  elektronika: "kat-elektronika",
+  haztartasi_gepek: "kat-gepek",
+  szamitastechnika: "kat-szamitastechnika",
+  mobil: "kat-mobil",
+  gaming: "kat-gaming",
+  smart_home: "kat-smart-home",
+  otthon: "kat-otthon",
+  lakberendezes: "kat-lakberendezes",
+  konyha_fozes: "kat-konyha",
+  kert: "kat-kert",
+  jatekok: "kat-jatekok",
+  divat: "kat-divat",
+  szepseg: "kat-szepseg",
+  drogeria: "kat-drogeria",
+  baba: "kat-baba",
+  sport: "kat-sport",
+  egeszseg: "kat-egeszseg",
+  latas: "kat-latas",
+  allatok: "kat-allatok",
+  konyv: "kat-konyv",
+  utazas: "kat-utazas",
+  iroda_iskola: "kat-iroda-iskola",
+  szerszam_barkacs: "kat-szerszam-barkacs",
+  auto_motor: "kat-auto-motor",
+  multi: "kat-multi",
+};
 
-# ===== MEILISEARCH FELTÖLTÉS =====
+// CATID → backend slug (amit a Meili-ben a "category" mezőben használunk)
+const CATID_TO_BACKEND = {};
+Object.entries(BACKEND_SYNONYM_TO_CATID).forEach(([backendKey, catId]) => {
+  CATID_TO_BACKEND[catId] = backendKey;
+});
 
-def chunked(iterable, size):
-    buf = []
-    for it in iterable:
-        buf.append(it)
-        if len(buf) >= size:
-            yield buf
-            buf = []
-    if buf:
-        yield buf
+// ===== Akciók állapot =====
+let AKCIO_PAGES = [2];
+let AKCIO_CURRENT = 1;
+let AKCIO_FULL_STATE = {
+  items: [],
+  page: 1,
+  pageSize: 20,
+};
 
+// ===== Kategória állapot =====
+const CATEGORY_PAGES = {};
+const CATEGORY_CURRENT = {};
+window.catPager = window.catPager || {};
 
-def push_to_meili(rows):
-    """
-    Alza sorok → Meilisearch (products_all index)
-    """
-    if not MEILI_API_KEY:
-        print("[WARN] MEILISEARCH API KEY hiányzik (MEILI_API_KEY). Meili feltöltés kihagyva.")
-        return
+const PARTNER_CATEGORY_ITEMS = {}; // Meili-ből töltjük fel
+const FULL_CATEGORY_STATE = {
+  catId: null,
+  items: [],
+  page: 1,
+  pageSize: 20,
+};
+window.fullCatPager = window.fullCatPager || {};
 
-    url = f"{MEILI_HOST.rstrip('/')}/indexes/{MEILI_INDEX_PRODUCTS}/documents"
+// ===== PARTNER VIEW STATE =====
+let PARTNER_VIEW_STATE = {
+  pid: null,
+  catId: null,
+  items: [],
+  filtered: [],
+  page: 1,
+  pageSize: 20,
+  sort: "default",
+  query: "",
+  loading: false,
+};
 
-    session = requests.Session()
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {MEILI_API_KEY}",
+// ===== Render helper =====
+function getCategoryName(catId) {
+  const el = document.querySelector("#" + catId + " .section-header h2");
+  return el ? el.textContent.trim() : "";
+}
+
+function renderAkcioCards(itemsWithPartner) {
+  const list = itemsWithPartner || [];
+  if (!list.length) {
+    return '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
+  }
+  return list
+    .map((row) => {
+      const { pid, item } = row;
+      const cfg = PARTNERS.get(pid);
+      const raw = itemUrl(item);
+      const img = itemImg(item);
+
+      const disc = getDiscountNumber(item);
+      const prices = getAkcioPrices(item);
+      const currentText = priceText(
+        prices.current != null ? prices.current : item && item.price
+      );
+      const originalText =
+        prices.original != null ? priceText(prices.original) : null;
+
+      const partnerName = (cfg && cfg.name) || pid;
+
+      let priceHtml = "";
+
+      if (originalText && currentText && prices.original !== prices.current) {
+        priceHtml =
+          '<div class="price">' +
+          '<span class="old-price" style="text-decoration:line-through;opacity:0.7;margin-right:4px;">' +
+          originalText +
+          "</span>" +
+          '<span class="new-price" style="font-weight:bold;margin-right:4px;">' +
+          currentText +
+          "</span>" +
+          (disc
+            ? '<span class="disc" style="color:#c00;font-weight:bold;">-' +
+              disc +
+              "%</span>"
+            : "") +
+          "</div>";
+      } else {
+        priceHtml =
+          '<div class="price">' +
+          currentText +
+          (disc ? " (-" + disc + "%)" : "") +
+          "</div>";
+      }
+
+      let btn = "";
+      if (raw) {
+        btn =
+          '<a class="btn-megnez akcios" href="' +
+          dlUrl(cfg ? cfg.deeplinkPartner : pid, raw) +
+          '" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem🔗</a>';
+      }
+
+      return (
+        '<div class="card">' +
+        '<div class="thumb">' +
+        (img
+          ? '<img src="' +
+            img +
+            '" alt="" loading="lazy" decoding="async" style="max-width:100%;max-height:100%;object-fit:contain">'
+          : "🛍️") +
+        "</div>" +
+        '<div class="title">' +
+        (item && item.title ? item.title : "") +
+        "</div>" +
+        priceHtml +
+        '<div class="partner">• ' +
+        partnerName +
+        "</div>" +
+        btn +
+        "</div>"
+      );
+    })
+    .join("");
+}
+
+function renderAkcioPage(page) {
+  const grid = document.getElementById("akciok-grid");
+  const nav = document.getElementById("akciok-nav");
+  if (!grid || !nav) return;
+
+  if (!AKCIO_PAGES.length) {
+    grid.innerHTML =
+      '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
+    nav.innerHTML = "";
+    return;
+  }
+
+  if (page < 1) page = 1;
+  if (page > AKCIO_PAGES.length) page = AKCIO_PAGES.length;
+  AKCIO_CURRENT = page;
+
+  grid.innerHTML = renderAkcioCards(AKCIO_PAGES[page - 1]);
+
+  nav.innerHTML =
+    '<button class="btn-megnez" ' +
+    (page <= 1 ? "disabled" : "") +
+    ' onclick="window.akciokPager && window.akciokPager.go(' +
+    (page - 1) +
+    ')">Előző</button>' +
+    '<span style="align-self:center;font-size:13px;margin:0 8px;">' +
+    page +
+    "/" +
+    AKCIO_PAGES.length +
+    "</span>" +
+    '<button class="btn-megnez" ' +
+    (page >= AKCIO_PAGES.length ? "disabled" : "") +
+    ' onclick="window.akciokPager && window.akciokPager.go(' +
+    (page + 1) +
+    ')">Következő</button>';
+
+  window.akciokPager = {
+    go: function (p) {
+      renderAkcioPage(p);
+    },
+  };
+}
+
+function renderAkcioFullPage(page) {
+  const grid = document.getElementById("akciok-grid");
+  const nav = document.getElementById("akciok-nav");
+  if (!grid || !nav) return;
+
+  const total = AKCIO_FULL_STATE.items.length;
+  if (!total) {
+    grid.innerHTML =
+      '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
+    nav.innerHTML = "";
+    return;
+  }
+
+  const pageSize = AKCIO_FULL_STATE.pageSize || 20;
+  const maxPage = Math.max(1, Math.ceil(total / pageSize));
+
+  if (page < 1) page = 1;
+  if (page > maxPage) page = maxPage;
+  AKCIO_FULL_STATE.page = page;
+
+  const start = (page - 1) * pageSize;
+  const slice = AKCIO_FULL_STATE.items.slice(start, start + pageSize);
+
+  grid.innerHTML = renderAkcioCards(slice);
+
+  nav.innerHTML =
+    '<button class="btn-megnez" ' +
+    (page <= 1 ? "disabled" : "") +
+    ' onclick="window.akciokFullPager && window.akciokFullPager.go(' +
+    (page - 1) +
+    ')">Előző</button>' +
+    '<span style="align-self:center;font-size:13px;margin:0 8px;">' +
+    page +
+    "/" +
+    maxPage +
+    "</span>" +
+    '<button class="btn-megnez" ' +
+    (page >= maxPage ? "disabled" : "") +
+    ' onclick="window.akciokFullPager && window.akciokFullPager.go(' +
+    (page + 1) +
+    ')">Következő</button>';
+
+  window.akciokFullPager = {
+    go: function (p) {
+      renderAkcioFullPage(p);
+    },
+  };
+}
+
+// ===== AKCIÓS BLOKK – Meiliből =====
+async function buildAkciosBlokk() {
+  const host = document.getElementById("akciok-grid");
+  if (!host) return;
+
+  const nav = document.getElementById("akciok-nav");
+  host.innerHTML =
+    '<div class="card"><div class="thumb">⏳</div><div class="title">Akciók betöltése…</div></div>';
+  if (nav) nav.innerHTML = "";
+
+  try {
+    // Meiliben: discount >= 10, csökkenő sorrendben
+    const res = await meiliSearch({
+      q: "",
+      filter: "discount >= 10",
+      sort: "discount:desc",
+      limit: 300,
+    });
+
+    const hits = res.hits || [];
+    if (!hits.length) {
+      host.innerHTML =
+        '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
+      if (nav) nav.innerHTML = "";
+      const bfGrid = document.getElementById("bf-grid");
+      if (bfGrid) {
+        bfGrid.innerHTML =
+          '<div class="empty">Jelenleg nincs kifejezetten Black Friday / Black Weekend jelölésű ajánlat.</div>';
+      }
+      return;
     }
 
-    count = 0
-    for batch in chunked(rows, 1000):
-        docs = []
-        for row in batch:
-            doc_id = f"alza-{row['id']}"
-            doc = {
-                "id": doc_id,
-                "title": row["title"],
-                "description": row.get("desc") or "",
-                "img": row.get("img") or "",
-                "url": row.get("url") or "",
-                "price": row.get("price"),
-                "old_price": row.get("old_price"),
-                "discount": row.get("discount"),
-                "partner": "alza",
-                "partner_name": "Alza",
-                "category": row.get("findora_main") or "multi",
-                "brand": row.get("brand") or "",
-                "category_path": row.get("category_path") or "",
-                # extra mezők, ha később kellenek:
-                "raw_desc": row.get("raw_desc") or "",
-            }
-            docs.append(doc)
+    const rows = hits.map((item) => ({
+      pid: item.partner || "ismeretlen",
+      item,
+    }));
 
-        try:
-            resp = session.post(url, headers=headers, data=json.dumps(docs))
-            if resp.status_code >= 400:
-                print(
-                    f"[WARN] Meili batch hiba (status={resp.status_code}): {resp.text[:500]}"
-                )
-            else:
-                # opcionálisan taskUid-et logolhatjuk
-                try:
-                    data = resp.json()
-                    task_uid = data.get("taskUid")
-                    print(f"[INFO] Meili batch OK, taskUid={task_uid}, docs={len(docs)}")
-                except Exception:
-                    print(f"[INFO] Meili batch OK, docs={len(docs)}")
-        except Exception as e:
-            print(f"[WARN] Meili batch request hiba: {e}")
+    const dedRows = dedupeRowsStrong(rows);
 
-        count += len(docs)
+    AKCIO_FULL_STATE.items = dedRows;
+    AKCIO_FULL_STATE.page = 1;
 
-    print(f"[INFO] Meilibe küldött Alza dokumentumok: {count}")
+    const PREVIEW_PAGE_SIZE = 12;
+    const MAX_PREVIEW_PAGES = 2;
 
+    AKCIO_PAGES = [];
+    for (
+      let i = 0;
+      i < dedRows.length && AKCIO_PAGES.length < MAX_PREVIEW_PAGES;
+      i += PREVIEW_PAGE_SIZE
+    ) {
+      AKCIO_PAGES.push(dedRows.slice(i, i + PREVIEW_PAGE_SIZE));
+    }
 
-# ===== MAIN =====
+    renderAkcioPage(1);
 
-def main():
-    # 1) Több feed URL feldarabolása
-    feed_urls = split_feed_urls(FEED_URL_RAW)
-    print(f"[INFO] Alza feed URL-ek száma: {len(feed_urls)}")
+    // Black Friday blokk
+    const bfGrid = document.getElementById("bf-grid");
+    if (bfGrid) {
+      const bfItems = dedRows.filter(({ item }) => {
+        const txt =
+          ((item && item.title ? item.title : "") +
+            " " +
+            (item && item.desc ? item.desc : "") +
+            " " +
+            (item && item.description ? item.description : "")).toLowerCase();
+        return (
+          txt.includes("black friday") ||
+          txt.includes("black weekend") ||
+          txt.includes("blackweekend")
+        );
+      });
 
-    all_items = []
-    ok_count = 0
+      if (!bfItems.length) {
+        bfGrid.innerHTML =
+          '<div class="empty">Jelenleg nincs kifejezetten Black Friday / Black Weekend jelölésű ajánlat.</div>';
+      } else {
+        bfGrid.innerHTML = renderAkcioCards(bfItems.slice(0, 12));
+      }
+    }
+  } catch (e) {
+    console.error("Akciós blokk hiba:", e);
+    host.innerHTML =
+      '<div class="empty">Hiba történt az akciók betöltése közben.</div>';
+    if (nav) nav.innerHTML = "";
+    const bfGrid = document.getElementById("bf-grid");
+    if (bfGrid) {
+      bfGrid.innerHTML =
+        '<div class="empty">Hiba történt a Black Friday ajánlatok betöltése közben.</div>';
+    }
+  }
+}
 
-    for idx, url in enumerate(feed_urls, start=1):
-        print(f"[INFO] Alza XML letöltés {idx}/{len(feed_urls)}")
-        try:
-            r = requests.get(
-                url,
-                headers={"User-Agent": "Mozilla/5.0", "Accept": "application/xml"},
-                timeout=180,
-            )
-            r.raise_for_status()
-        except Exception as e:
-            print(f"[WARN] Alza feed letöltési hiba ({idx}): {e}")
-            continue
+// ===== Kategória kártyák =====
+function renderCategoryCards(itemsWithPartner, catId, showPartnerRow) {
+  const list = itemsWithPartner || [];
+  if (!list.length) {
+    return '<div class="empty">Jelenleg nincs termék ebben a kategóriában.</div>';
+  }
+  return list
+    .map((row) => {
+      const { pid, item } = row;
+      const cfg = PARTNERS.get(pid);
+      const raw = itemUrl(item);
+      const img = itemImg(item);
+      const price = priceText(item && item.price);
+      const disc = getDiscountNumber(item);
 
-        try:
-            items = parse_items_from_xml(r.text)
-            print(f"[INFO] Alza feed {idx}: {len(items)} nyers termék")
-            all_items.extend(items)
-            ok_count += 1
-        except Exception as e:
-            print(f"[WARN] Alza feed parse hiba ({idx}): {e}")
+      let partnerRowHtml = "";
+      if (showPartnerRow) {
+        const partnerName = getPartnerName(pid);
+        partnerRowHtml = '<div class="partner">• ' + partnerName + "</div>";
+      }
 
-    if ok_count == 0:
-        raise RuntimeError("Egyik Alza XML feed sem töltődött le/parsolódott sikeresen.")
+      return (
+        '<div class="card">' +
+        '<div class="thumb">' +
+        (img
+          ? '<img src="' +
+            img +
+            '" alt="" loading="lazy" decoding="async" style="max-width:100%;max-height:100%;object-fit:contain">'
+          : "🛍️") +
+        "</div>" +
+        '<div class="title">' +
+        (item && item.title ? item.title : "") +
+        "</div>" +
+        '<div class="price">' +
+        price +
+        (disc ? " (-" + disc + "%)" : "") +
+        "</div>" +
+        partnerRowHtml +
+        (raw
+          ? '<a class="btn-megnez" href="' +
+            dlUrl(cfg ? cfg.deeplinkPartner : pid, raw) +
+            '" target="_blank" rel="nofollow sponsored noopener noreferrer">Megnézem🔗</a>'
+          : "") +
+        "</div>"
+      );
+    })
+    .join("");
+}
 
-    print(f"[INFO] Alza: összesen {len(all_items)} nyers termék a {ok_count} sikeres feedből.")
+// ===== FŐOLDALI kategória blokkok – Meiliből =====
+async function buildCategoryBlocks() {
+  const PAGE_SIZE_PER_PARTNER = 3;
+  const MAX_ITEMS_PER_CATEGORY = 120;
 
-    # 2) dedup méretvariánsokra
-    items_dedup = dedup_size_variants(all_items)
-    print(f"[INFO] Alza: dedup után {len(items_dedup)} termék.")
+  CATEGORY_IDS.forEach((catId) => {
+    CATEGORY_PAGES[catId] = [];
+    CATEGORY_CURRENT[catId] = 0;
+  });
+  Object.keys(PARTNER_CATEGORY_ITEMS).forEach((k) => {
+    delete PARTNER_CATEGORY_ITEMS[k];
+  });
 
-    # 3) ML modell betöltése
-    model = load_model()
-    print("[INFO] Alza ML modell betöltve.")
+  for (const catId of CATEGORY_IDS) {
+    const backendSlug = CATID_TO_BACKEND[catId];
+    if (!backendSlug) continue;
 
-    # 4) Normalizált sorok + kategóriák (ML + guard)
-    rows = []
-    for it in items_dedup:
-        pid = it["id"]
-        title = it["title"]
-        desc = it.get("desc") or ""
-        url = it.get("url") or ""
-        img = it.get("img") or ""
-        price = it.get("price")
-        discount = it.get("discount")
-        category_path = it.get("category_path") or ""
-        brand = it.get("brand") or ""
-        old_price = it.get("old_price")
-        raw_desc = it.get("raw_desc") or ""
+    try {
+      const res = await meiliSearch({
+        q: "",
+        filter: `category = "${backendSlug}"`,
+        limit: MAX_ITEMS_PER_CATEGORY,
+      });
+      const hits = res.hits || [];
+      if (!hits.length) continue;
 
-        predicted = predict_category(
-            model=model,
-            title=title,
-            desc=desc,
-            category_path=category_path,
-            brand=brand,
-        )
+      const rows = hits.map((item) => ({
+        pid: item.partner || "ismeretlen",
+        item,
+      }));
 
-        findora_main = finalize_category_for_alza(
-            predicted=predicted,
-            title=title,
-            desc=desc,
-            category_path=category_path,
-        )
-
-        row = {
-            "id": pid,
-            "title": title,
-            "img": img,
-            "desc": desc,
-            "raw_desc": raw_desc,
-            "price": price,
-            "old_price": old_price,
-            "discount": discount,
-            "url": url,
-            "partner": "alza",
-            "category_path": category_path,
-            "brand": brand,
-            "findora_main": findora_main,
-            "cat": findora_main,
+      // PARTNER_CATEGORY_ITEMS feltöltés a full/partner nézethez
+      rows.forEach((row) => {
+        const pid = row.pid;
+        if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
+        if (!PARTNER_CATEGORY_ITEMS[pid][catId]) {
+          PARTNER_CATEGORY_ITEMS[pid][catId] = [];
         }
-        rows.append(row)
+        PARTNER_CATEGORY_ITEMS[pid][catId].push(row);
+      });
 
-    total = len(rows)
-    print(f"[INFO] Alza: normalizált sorok: {total}")
+      const perPartner = {};
+      rows.forEach((row) => {
+        const pid = row.pid;
+        if (!perPartner[pid]) perPartner[pid] = [];
+        perPartner[pid].push(row);
+      });
 
-    # 5) Régi JSON-ok törlése TELJES alza mappában (akkor is, ha total == 0)
-    if OUT_DIR.exists():
-        for old in OUT_DIR.rglob("*.json"):
-            try:
-                old.unlink()
-            except OSError:
-                pass
+      const partnerPages = {};
+      let maxPagesForCat = 0;
 
-    # 6) GLOBÁLIS JSON feed (NINCS kategória mappa, NINCS akcio mappa)
-    if total == 0:
-        print("⚠️ Alza: nincs termék – üres global meta + üres page-0001 készül.")
-        paginate_and_write(
-            OUT_DIR,
-            [],
-            PAGE_SIZE_GLOBAL,
-            meta_extra={
-                "partner": "alza",
-                "scope": "global",
-            },
-        )
-        # Meili-re nincs mit feltolni
-        return
+      Object.keys(perPartner).forEach((pid) => {
+        const list = dedupeRowsStrong(perPartner[pid]);
+        const pages = [];
 
-    # Rendezés opcionálisan ár/név szerint (nem kötelező, de stabil)
-    rows_sorted = sorted(
-        rows,
-        key=lambda r: (
-            r.get("findora_main") or "multi",
-            (r.get("price") or 10**12),
-            r.get("title") or "",
-        ),
-    )
+        for (let i = 0; i < list.length; i += PAGE_SIZE_PER_PARTNER) {
+          pages.push(list.slice(i, i + PAGE_SIZE_PER_PARTNER));
+        }
 
-    paginate_and_write(
-        OUT_DIR,
-        rows_sorted,
-        PAGE_SIZE_GLOBAL,
-        meta_extra={
-            "partner": "alza",
-            "scope": "global",
-            "generated_at": datetime.utcnow().isoformat() + "Z",
-        },
-    )
+        if (pages.length) {
+          partnerPages[pid] = pages;
+          if (pages.length > maxPagesForCat) {
+            maxPagesForCat = pages.length;
+          }
+        }
+      });
 
-    print(
-        f"✅ Alza global feed kész: {total} termék, "
-        f"page_size={PAGE_SIZE_GLOBAL}, "
-        f"JSON → {OUT_DIR}"
-    )
+      const catPages = [];
+      for (let pageIndex = 0; pageIndex < maxPagesForCat; pageIndex++) {
+        const combined = [];
+        Object.keys(partnerPages).forEach((pid) => {
+          const arr = partnerPages[pid][pageIndex];
+          if (arr && arr.length) combined.push(...arr);
+        });
+        if (combined.length) {
+          catPages.push(combined);
+        }
+      }
 
-    # 7) Meilisearch feltöltés
-    push_to_meili(rows_sorted)
+      CATEGORY_PAGES[catId] = catPages;
+      CATEGORY_CURRENT[catId] = catPages.length ? 1 : 0;
+    } catch (e) {
+      console.error("buildCategoryBlocks hiba kategóriánál:", catId, e);
+    }
+  }
+}
 
+function renderCategory(catId, page) {
+  const grid = document.getElementById(catId + "-grid");
+  const nav = document.getElementById(catId + "-nav");
+  if (!grid || !nav) return;
 
-if __name__ == "__main__":
-    main()
+  const pages = CATEGORY_PAGES[catId] || [];
+  if (!pages.length) {
+    grid.innerHTML =
+      '<div class="empty">Jelenleg nincs termék ebben a kategóriában.</div>';
+    nav.innerHTML = "";
+    return;
+  }
+
+  if (page < 1) page = 1;
+  if (page > pages.length) page = pages.length;
+  CATEGORY_CURRENT[catId] = page;
+
+  const pageItems = pages[page - 1] || [];
+
+  const groups = new Map();
+  pageItems.forEach((row) => {
+    const pid = row.pid;
+    if (!groups.has(pid)) groups.set(pid, []);
+    groups.get(pid).push(row);
+  });
+
+  let html = "";
+
+  groups.forEach((items, pid) => {
+    const partnerName = getPartnerName(pid);
+    const titleText = partnerName;
+
+    html +=
+      '<div class="partner-block" data-partner="' +
+      pid +
+      '" data-cat="' +
+      catId +
+      '">' +
+      '<div class="partner-block-header">' +
+      '<button type="button" class="partner-block-title" data-partner="' +
+      pid +
+      '" data-cat="' +
+      catId +
+      '">' +
+      titleText +
+      "</button>" +
+      "</div>" +
+      '<div class="grid partner-block-grid">' +
+      renderCategoryCards(items, catId, false) +
+      "</div>" +
+      "</div>";
+  });
+
+  grid.innerHTML = html;
+
+  nav.innerHTML =
+    '<button class="btn-megnez" ' +
+    (page <= 1 ? "disabled" : "") +
+    ' onclick="window.catPager[\'' +
+    catId +
+    '\'] && window.catPager[\'' +
+    catId +
+    '\'].go(' +
+    (page - 1) +
+    ')">Előző</button>' +
+    '<span style="align-self:center;font-size:13px;margin:0 8px;">' +
+    page +
+    "/" +
+    pages.length +
+    "</span>" +
+    '<button class="btn-megnez" ' +
+    (page >= pages.length ? "disabled" : "") +
+    ' onclick="window.catPager[\'' +
+    catId +
+    '\'] && window.catPager[\'' +
+    catId +
+    '\'].go(' +
+    (page + 1) +
+    ')">Következő</button>';
+
+  window.catPager[catId] = {
+    go: function (p) {
+      renderCategory(catId, p);
+    },
+  };
+}
+
+// ===== FULL kategória (20/lap) – Meiliből =====
+async function buildFullCategoryState(catId) {
+  const backendSlug = CATID_TO_BACKEND[catId];
+  if (!backendSlug) {
+    FULL_CATEGORY_STATE.catId = catId;
+    FULL_CATEGORY_STATE.items = [];
+    FULL_CATEGORY_STATE.page = 1;
+    return;
+  }
+
+  try {
+    const res = await meiliSearch({
+      q: "",
+      filter: `category = "${backendSlug}"`,
+      limit: 1000,
+    });
+    const hits = res.hits || [];
+    const rows = hits.map((item) => ({
+      pid: item.partner || "ismeretlen",
+      item,
+    }));
+
+    FULL_CATEGORY_STATE.catId = catId;
+    FULL_CATEGORY_STATE.items = dedupeRowsStrong(rows);
+    FULL_CATEGORY_STATE.page = 1;
+  } catch (e) {
+    console.error("buildFullCategoryState hiba:", catId, e);
+    FULL_CATEGORY_STATE.catId = catId;
+    FULL_CATEGORY_STATE.items = [];
+    FULL_CATEGORY_STATE.page = 1;
+  }
+}
+
+function renderFullCategoryPage(catId, page) {
+  const grid = document.getElementById(catId + "-grid");
+  const nav = document.getElementById(catId + "-nav");
+  if (!grid || !nav) return;
+
+  if (FULL_CATEGORY_STATE.catId !== catId) {
+    grid.innerHTML =
+      '<div class="empty">Betöltés folyamatban…</div>';
+    nav.innerHTML = "";
+    return;
+  }
+
+  const total = FULL_CATEGORY_STATE.items.length;
+  if (!total) {
+    grid.innerHTML =
+      '<div class="empty">Jelenleg nincs termék ebben a kategóriában.</div>';
+    nav.innerHTML = "";
+    return;
+  }
+
+  const pageSize = FULL_CATEGORY_STATE.pageSize || 20;
+  const maxPage = Math.max(1, Math.ceil(total / pageSize));
+
+  if (page < 1) page = 1;
+  if (page > maxPage) page = maxPage;
+  FULL_CATEGORY_STATE.page = page;
+
+  const start = (page - 1) * pageSize;
+  const slice = FULL_CATEGORY_STATE.items.slice(start, start + pageSize);
+
+  grid.innerHTML = renderCategoryCards(slice, catId, true);
+
+  nav.innerHTML =
+    '<button class="btn-megnez" ' +
+    (page <= 1 ? "disabled" : "") +
+    ' onclick="window.fullCatPager[\'' +
+    catId +
+    '\'] && window.fullCatPager[\'' +
+    catId +
+    '\'].go(' +
+    (page - 1) +
+    ')">Előző</button>' +
+    '<span style="align-self:center;font-size:13px;margin:0 8px;">' +
+    page +
+    "/" +
+    maxPage +
+    "</span>" +
+    '<button class="btn-megnez" ' +
+    (page >= maxPage ? "disabled" : "") +
+    ' onclick="window.fullCatPager[\'' +
+    catId +
+    '\'] && window.fullCatPager[\'' +
+    catId +
+    '\'].go(' +
+    (page + 1) +
+    ')">Következő</button>';
+
+  window.fullCatPager[catId] = {
+    go: function (p) {
+      renderFullCategoryPage(catId, p);
+    },
+  };
+}
+
+// ===== PARTNER VIEW – keresés, rendezés, lapozás =====
+function updatePartnerSubtitle() {
+  const subEl = document.getElementById("partner-view-subtitle");
+  if (!subEl || !PARTNER_VIEW_STATE.pid || !PARTNER_VIEW_STATE.catId) return;
+
+  const name = getPartnerName(PARTNER_VIEW_STATE.pid);
+  const catName = getCategoryName(PARTNER_VIEW_STATE.catId);
+  const total =
+    (PARTNER_VIEW_STATE.filtered && PARTNER_VIEW_STATE.filtered.length) ||
+    0;
+
+  if (PARTNER_VIEW_STATE.loading) {
+    subEl.textContent =
+      "Ebben a nézetben a(z) " +
+      name +
+      " " +
+      (catName || "") +
+      " ajánlatai látszanak. A teljes lista betöltése folyamatban… (" +
+      total +
+      " találat eddig)";
+  } else {
+    subEl.textContent =
+      "Ebben a nézetben a(z) " +
+      name +
+      " " +
+      (catName || "") +
+      " ajánlatai látszanak. Összesen " +
+      total +
+      " termék.";
+  }
+}
+
+function applyPartnerFilters() {
+  if (!PARTNER_VIEW_STATE.items) {
+    PARTNER_VIEW_STATE.filtered = [];
+    return;
+  }
+  const q = (PARTNER_VIEW_STATE.query || "").toLowerCase();
+  let arr = PARTNER_VIEW_STATE.items.slice();
+
+  if (q) {
+    arr = arr.filter(({ item }) => {
+      const t = ((item && item.title) || "").toLowerCase();
+      const d = ((item && item.desc) || "").toLowerCase();
+      const dd = ((item && item.description) || "").toLowerCase();
+      return t.includes(q) || d.includes(q) || dd.includes(q);
+    });
+  }
+
+  const sort = PARTNER_VIEW_STATE.sort;
+  if (sort === "name-asc" || sort === "name-desc") {
+    arr.sort((a, b) => {
+      const ta = ((a.item && a.item.title) || "").toLowerCase();
+      const tb = ((b.item && b.item.title) || "").toLowerCase();
+      if (ta < tb) return sort === "name-asc" ? -1 : 1;
+      if (ta > tb) return sort === "name-asc" ? 1 : -1;
+      return 0;
+    });
+  } else if (sort === "price-asc" || sort === "price-desc") {
+    arr.sort((a, b) => {
+      const pa =
+        a.item && typeof a.item.price === "number" ? a.item.price : Infinity;
+      const pb =
+        b.item && typeof b.item.price === "number" ? b.item.price : Infinity;
+      if (pa === pb) return 0;
+      if (sort === "price-asc") return pa - pb;
+      return pb - pa;
+    });
+  }
+
+  PARTNER_VIEW_STATE.filtered = arr;
+}
+
+function renderPartnerViewPage(page) {
+  const grid = document.getElementById("partner-view-grid");
+  const nav = document.getElementById("partner-view-nav");
+  if (!grid || !nav) return;
+
+  if (!PARTNER_VIEW_STATE.filtered || !PARTNER_VIEW_STATE.filtered.length) {
+    if (PARTNER_VIEW_STATE.loading) {
+      grid.innerHTML = '<div class="empty">Termékek betöltése…</div>';
+    } else {
+      grid.innerHTML =
+        '<div class="empty">Nincs találat ennél a partnernél.</div>';
+    }
+    nav.innerHTML = "";
+    updatePartnerSubtitle();
+    return;
+  }
+
+  const total = PARTNER_VIEW_STATE.filtered.length;
+  const pageSize = PARTNER_VIEW_STATE.pageSize || 20;
+  const maxPage = Math.max(1, Math.ceil(total / pageSize));
+
+  if (page < 1) page = 1;
+  if (page > maxPage) page = maxPage;
+  PARTNER_VIEW_STATE.page = page;
+
+  const start = (page - 1) * pageSize;
+  const slice = PARTNER_VIEW_STATE.filtered.slice(start, start + pageSize);
+
+  grid.innerHTML = renderCategoryCards(
+    slice,
+    PARTNER_VIEW_STATE.catId,
+    false
+  );
+
+  nav.innerHTML =
+    '<button class="btn-megnez" ' +
+    (page <= 1 ? "disabled" : "") +
+    ' data-partner-page="' +
+    (page - 1) +
+    '">Előző</button>' +
+    '<span style="align-self:center;font-size:13px;margin:0 8px;">' +
+    page +
+    "/" +
+    maxPage +
+    "</span>" +
+    '<button class="btn-megnez" ' +
+    (page >= maxPage ? "disabled" : "") +
+    ' data-partner-page="' +
+    (page + 1) +
+    '">Következő</button>';
+
+  updatePartnerSubtitle();
+}
+
+// Meili-ből tölti a partner + kategória összes termékét (max ~1000)
+async function hydratePartnerCategoryItems(pid, catId) {
+  if (!pid || !catId) return;
+
+  const backendSlug = CATID_TO_BACKEND[catId];
+  if (!backendSlug) {
+    if (
+      PARTNER_VIEW_STATE.pid === pid &&
+      PARTNER_VIEW_STATE.catId === catId
+    ) {
+      PARTNER_VIEW_STATE.loading = false;
+      PARTNER_VIEW_STATE.items = [];
+      applyPartnerFilters();
+      renderPartnerViewPage(1);
+    }
+    return;
+  }
+
+  if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
+  if (
+    PARTNER_CATEGORY_ITEMS[pid][catId] &&
+    PARTNER_CATEGORY_ITEMS[pid][catId].length
+  ) {
+    if (
+      PARTNER_VIEW_STATE.pid === pid &&
+      PARTNER_VIEW_STATE.catId === catId
+    ) {
+      PARTNER_VIEW_STATE.loading = false;
+      PARTNER_VIEW_STATE.items =
+        PARTNER_CATEGORY_ITEMS[pid][catId].slice();
+      applyPartnerFilters();
+      renderPartnerViewPage(PARTNER_VIEW_STATE.page || 1);
+    }
+    return;
+  }
+
+  try {
+    const res = await meiliSearch({
+      q: "",
+      filter: `partner = "${pid}" AND category = "${backendSlug}"`,
+      limit: 1000,
+    });
+    const hits = res.hits || [];
+    const rows = hits.map((item) => ({
+      pid: item.partner || pid,
+      item,
+    }));
+    const ded = dedupeRowsStrong(rows);
+
+    PARTNER_CATEGORY_ITEMS[pid][catId] = ded;
+
+    if (
+      PARTNER_VIEW_STATE.pid === pid &&
+      PARTNER_VIEW_STATE.catId === catId
+    ) {
+      PARTNER_VIEW_STATE.loading = false;
+      PARTNER_VIEW_STATE.items = ded.slice();
+      applyPartnerFilters();
+      renderPartnerViewPage(PARTNER_VIEW_STATE.page || 1);
+    }
+  } catch (e) {
+    console.error("hydratePartnerCategoryItems hiba:", pid, catId, e);
+    if (
+      PARTNER_VIEW_STATE.pid === pid &&
+      PARTNER_VIEW_STATE.catId === catId
+    ) {
+      PARTNER_VIEW_STATE.loading = false;
+      PARTNER_VIEW_STATE.items = [];
+      applyPartnerFilters();
+      renderPartnerViewPage(1);
+    }
+  }
+}
+
+function openPartnerView(pid, catId) {
+  const sec = document.getElementById("partner-view");
+  const titleEl = document.getElementById("partner-view-title");
+  const subEl = document.getElementById("partner-view-subtitle");
+  if (!sec || !titleEl || !subEl) return;
+
+  const name = getPartnerName(pid);
+  const catName = getCategoryName(catId);
+
+  const itemsForCombo =
+    (PARTNER_CATEGORY_ITEMS[pid] &&
+      PARTNER_CATEGORY_ITEMS[pid][catId]) ||
+    [];
+
+  PARTNER_VIEW_STATE = {
+    pid,
+    catId,
+    items: itemsForCombo.slice(),
+    filtered: [],
+    page: 1,
+    pageSize: 20,
+    sort: "default",
+    query: "",
+    loading: true,
+  };
+
+  const searchInput = document.getElementById("partner-search");
+  const sortSelect = document.getElementById("partner-sort");
+  if (searchInput) searchInput.value = "";
+  if (sortSelect) sortSelect.value = "default";
+
+  titleEl.textContent = name + (catName ? " – " + catName : "");
+
+  applyPartnerFilters();
+  updatePartnerSubtitle();
+
+  const hero = document.querySelector(".hero");
+  const catbarWrap = document.querySelector(".catbar-wrap");
+  const bf = document.getElementById("black-friday");
+  const akciok = document.getElementById("akciok");
+  const homeDescs = document.getElementById("home-category-descriptions");
+
+  [hero, catbarWrap, bf, akciok, homeDescs].forEach((el) => {
+    if (el) el.classList.add("hidden");
+  });
+
+  CATEGORY_IDS.forEach((id) => {
+    const s = document.getElementById(id);
+    if (s) s.classList.add("hidden");
+  });
+
+  sec.classList.remove("hidden");
+
+  renderPartnerViewPage(1);
+
+  hydratePartnerCategoryItems(pid, catId);
+}
+
+// ===== KATEGÓRIA nézet (csak ez a kategória) =====
+function showCategoryOnly(catId) {
+  const hero = document.querySelector(".hero");
+  const catbarWrap = document.querySelector(".catbar-wrap");
+  const bf = document.getElementById("black-friday");
+  const akciok = document.getElementById("akciok");
+  const pv = document.getElementById("partner-view");
+  const homeDescs = document.getElementById("home-category-descriptions");
+
+  [hero, catbarWrap, bf, akciok, homeDescs].forEach((el) => {
+    if (el) el.classList.add("hidden");
+  });
+  if (pv) pv.classList.add("hidden");
+
+  CATEGORY_IDS.forEach((id) => {
+    const sec = document.getElementById(id);
+    if (!sec) return;
+
+    if (id === catId) {
+      sec.classList.remove("hidden");
+      if (CATEGORY_PAGES[id] && CATEGORY_PAGES[id].length) {
+        const current = CATEGORY_CURRENT[id] || 1;
+        renderCategory(id, current);
+      }
+    } else {
+      sec.classList.add("hidden");
+    }
+  });
+
+  smoothScrollTo("#" + catId);
+}
+
+// FULL kategória – 20/lap, Meiliből
+async function showFullCategoryList(catId) {
+  const hero = document.querySelector(".hero");
+  const catbarWrap = document.querySelector(".catbar-wrap");
+  const bf = document.getElementById("black-friday");
+  const akciok = document.getElementById("akciok");
+  const pv = document.getElementById("partner-view");
+  const homeDescs = document.getElementById("home-category-descriptions");
+
+  [hero, catbarWrap, bf, akciok, homeDescs].forEach((el) => {
+    if (el) el.classList.add("hidden");
+  });
+  if (pv) pv.classList.add("hidden");
+
+  CATEGORY_IDS.forEach((id) => {
+    const sec = document.getElementById(id);
+    if (!sec) return;
+    if (id === catId) {
+      sec.classList.remove("hidden");
+    } else {
+      sec.classList.add("hidden");
+    }
+  });
+
+  const grid = document.getElementById(catId + "-grid");
+  const nav = document.getElementById(catId + "-nav");
+  if (grid) {
+    grid.innerHTML =
+      '<div class="empty">Betöltés folyamatban…</div>';
+  }
+  if (nav) nav.innerHTML = "";
+
+  await buildFullCategoryState(catId);
+  renderFullCategoryPage(catId, 1);
+  smoothScrollTo("#" + catId);
+}
+
+// ===== Hero kereső → search.html (Meili-re átírható ott) =====
+function attachSearchForm() {
+  const form = document.getElementById("searchFormAll");
+  const input = document.getElementById("qAll");
+  if (!form || !input) return;
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const q = (input.value || "").trim();
+    if (!q) return;
+
+    const current = window.location.href;
+    try {
+      const url = new URL(current);
+      const base = url.origin + "/search.html";
+      const target = base + "?q=" + encodeURIComponent(q);
+      window.location.href = target;
+    } catch (_) {
+      window.location.href = "search.html?q=" + encodeURIComponent(q);
+    }
+  });
+}
+
+// ===== Scroll helper =====
+function smoothScrollTo(selector) {
+  const el = document.querySelector(selector);
+  if (!el) return;
+
+  const rect = el.getBoundingClientRect();
+  const offset = window.scrollY || window.pageYOffset || 0;
+  const top = rect.top + offset - 70;
+
+  window.scrollTo({
+    top,
+    behavior: "smooth",
+  });
+}
+
+function handleScrollClick(event) {
+  const trigger = event.target.closest("[data-scroll]");
+  if (!trigger) return;
+
+  const target = trigger.getAttribute("data-scroll");
+  if (!target) return;
+
+  event.preventDefault();
+  smoothScrollTo(target);
+
+  if (trigger.classList.contains("cat-pill")) {
+    document.querySelectorAll(".cat-pill").forEach((el) => {
+      el.classList.toggle("active", el === trigger);
+    });
+  }
+}
+
+function attachScrollHandlers() {
+  document.addEventListener("click", handleScrollClick);
+}
+
+// ===== Felső nav =====
+function showAllSections() {
+  const hero = document.querySelector(".hero");
+  const catbarWrap = document.querySelector(".catbar-wrap");
+  const bf = document.getElementById("black-friday");
+  const akciok = document.getElementById("akciok");
+  const pv = document.getElementById("partner-view");
+  const homeDescs = document.getElementById("home-category-descriptions");
+
+  [hero, catbarWrap, bf, akciok, homeDescs].forEach((el) => {
+    if (el) el.classList.remove("hidden");
+  });
+  if (pv) pv.classList.add("hidden");
+
+  CATEGORY_IDS.forEach((id) => {
+    const sec = document.getElementById(id);
+    if (sec) sec.classList.remove("hidden");
+
+    if (CATEGORY_PAGES[id] && CATEGORY_PAGES[id].length) {
+      const current = CATEGORY_CURRENT[id] || 1;
+      renderCategory(id, current);
+    }
+  });
+
+  smoothScrollTo("#akciok");
+}
+
+function showAkcioOnly() {
+  const hero = document.querySelector(".hero");
+  const catbarWrap = document.querySelector(".catbar-wrap");
+  const bf = document.getElementById("black-friday");
+  const pv = document.getElementById("partner-view");
+  const homeDescs = document.getElementById("home-category-descriptions");
+
+  [hero, catbarWrap, bf, homeDescs].forEach((el) => {
+    if (el) el.classList.add("hidden");
+  });
+  if (pv) pv.classList.add("hidden");
+
+  CATEGORY_IDS.forEach((id) => {
+    const sec = document.getElementById(id);
+    if (sec) sec.classList.add("hidden");
+  });
+
+  const ak = document.getElementById("akciok");
+  if (ak) ak.classList.remove("hidden");
+
+  renderAkcioFullPage(1);
+  smoothScrollTo("#akciok");
+}
+
+function handleNavClick(event) {
+  const btn = event.target.closest(".nav-btn[data-view]");
+  if (!btn) return;
+
+  const view = btn.getAttribute("data-view");
+
+  if (view === "home") {
+    event.preventDefault();
+    showAllSections();
+    return;
+  }
+
+  if (view === "akciok") {
+    event.preventDefault();
+    showAkcioOnly();
+    return;
+  }
+
+  if (view === "category") {
+    const catId = btn.getAttribute("data-cat");
+    if (!catId) return;
+    event.preventDefault();
+    showCategoryOnly(catId);
+    return;
+  }
+
+  if (view === "category-full") {
+    const catId = btn.getAttribute("data-cat");
+    if (!catId) return;
+    event.preventDefault();
+    showFullCategoryList(catId);
+    return;
+  }
+}
+
+function attachNavHandlers() {
+  document.addEventListener("click", handleNavClick);
+}
+
+// ===== Partner view UI eventek =====
+function handlePartnerUiClick(event) {
+  const headerBtn = event.target.closest(".partner-block-title");
+  if (headerBtn) {
+    event.preventDefault();
+    const pid = headerBtn.getAttribute("data-partner");
+    const catId = headerBtn.getAttribute("data-cat") || null;
+    if (pid && catId) {
+      openPartnerView(pid, catId);
+    }
+    return;
+  }
+
+  const backBtn = event.target.closest(".btn-back-partner");
+  if (backBtn) {
+    event.preventDefault();
+    if (PARTNER_VIEW_STATE && PARTNER_VIEW_STATE.catId) {
+      showCategoryOnly(PARTNER_VIEW_STATE.catId);
+    } else {
+      showAllSections();
+    }
+    return;
+  }
+
+  const homeBtn = event.target.closest(".btn-home-partner");
+  if (homeBtn) {
+    event.preventDefault();
+    showAllSections();
+    return;
+  }
+
+  const pagerBtn = event.target.closest("[data-partner-page]");
+  if (pagerBtn) {
+    event.preventDefault();
+    const p = parseInt(pagerBtn.getAttribute("data-partner-page"), 10);
+    if (Number.isFinite(p)) {
+      renderPartnerViewPage(p);
+    }
+    return;
+  }
+}
+
+function attachPartnerViewHandlers() {
+  const searchInput = document.getElementById("partner-search");
+  const sortSelect = document.getElementById("partner-sort");
+
+  if (searchInput) {
+    searchInput.addEventListener("input", function () {
+      PARTNER_VIEW_STATE.query = this.value || "";
+      applyPartnerFilters();
+      renderPartnerViewPage(1);
+    });
+  }
+
+  if (sortSelect) {
+    sortSelect.addEventListener("change", function () {
+      PARTNER_VIEW_STATE.sort = this.value || "default";
+      applyPartnerFilters();
+      renderPartnerViewPage(1);
+    });
+  }
+
+  document.addEventListener("click", handlePartnerUiClick);
+}
+
+// ===== Akció cím kattintás: teljes 20/lap nézet =====
+function attachAkcioTitleHandler() {
+  const title = document.querySelector("#akciok .section-header h2");
+  if (!title) return;
+  title.style.cursor = "pointer";
+  title.addEventListener("click", function () {
+    showAkcioOnly();
+  });
+}
+
+// ===== INIT =====
+async function init() {
+  try {
+    attachScrollHandlers();
+    attachNavHandlers();
+    attachSearchForm();
+    attachPartnerViewHandlers();
+    attachAkcioTitleHandler();
+
+    await loadPartners();
+    // category-map.json itt már nem kell, minden kategóriát a Meili "category" mező ad
+    await buildAkciosBlokk();
+    await buildCategoryBlocks();
+
+    showAllSections();
+  } catch (e) {
+    console.error("Init hiba:", e);
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
