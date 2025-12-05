@@ -1,0 +1,33 @@
+name: Meili Upload
+
+on:
+  workflow_dispatch: {}
+  # Ha szeretnéd, automatikus éjszakai futás:
+  # schedule:
+  #   - cron: "0 2 * * *"
+
+jobs:
+  upload-to-meili:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt || true
+
+      - name: Upload products to Meilisearch
+        env:
+          MEILI_HOST: http://meili.findora.hu:7700
+          MEILI_API_KEY: ${{ secrets.MEILI_MASTER_KEY }}
+          MEILI_INDEX_PRODUCTS: products_all
+          MEILI_CLEAR_INDEX_FIRST: 1
+        run: |
+          python scripts/meili.py
