@@ -24,7 +24,7 @@ jobs:
       - name: Upload products to Meilisearch
         env:
           MEILI_HOST: http://meili.findora.hu:7700
-          MEILI_API_KEY: ${{ secrets.MEILI_MASTER_KEY }}
+          MEILI_API_KEY: ${{ secrets.MEILI_API_KEY }}
           MEILI_INDEX_PRODUCTS: products_all
           MEILI_CLEAR_INDEX_FIRST: 1
         run: |
