@@ -1,15 +1,40 @@
 # scripts/build_alza.py
 #
-# ALZA feed(ek) → Findora JSON oldalak (csak KATEGÓRIA + AKCIÓS BLOKK)
+# ALZA feed(ek) → Findora JSON oldalak (GLOBAL + MEILISEARCH)
 #
-# - Bemenet: FEED_ALZA_URL secret
-#   → tartalmazhat 1 vagy több XML feed URL-t, szóközzel / sorvéggel / vesszővel elválasztva
-# - Kategorizálás: ML modell (model_alza.pkl) + category_guard.finalize_category_for_alza
+# - Bemenet:
+#   FEED_ALZA_URL (vagy ALZA_FEED_URL) secret
+#     → tartalmazhat 1 vagy több XML feed URL-t, szóközzel / sorvéggel / vesszővel elválasztva
+#
+# - Kategorizálás:
+#   ML modell (model_alza.pkl) + category_guard.finalize_category_for_alza
+#
 # - Kimenet:
-#   docs/feeds/alza/<findora_cat>/meta.json, page-0001.json, ...
-#   docs/feeds/alza/akcio/meta.json, page-0001.json, ...
+#   1) JSON oldalak (NINCS kategória mappa, NINCS akcio mappa):
+#      docs/feeds/alza/meta.json
+#      docs/feeds/alza/page-0001.json  (max 1000 termék)
+#      docs/feeds/alza/page-0002.json  ...
 #
-# NINCS globális JSON (docs/feeds/alza/meta.json + page-0001.json).
+#   2) Meilisearch index feltöltés:
+#      - index: products_all  (vagy MEILI_INDEX_PRODUCTS env)
+#      - minden dokumentum:
+#          id          = "alza-<eredeti_id>"
+#          title       = ...
+#          description = desc
+#          img         = img
+#          url         = url
+#          price       = price
+#          old_price   = old_price
+#          discount    = discount
+#          partner     = "alza"
+#          partner_name= "Alza"
+#          category    = findora_main   (pl. "elektronika", "sport"...)
+#          brand       = brand
+#          category_path = category_path
+#
+# NINCS több:
+#   docs/feeds/alza/<cat>/...
+#   docs/feeds/alza/akcio/...
 
 import os
 import re
@@ -39,14 +64,11 @@ from category_guard import finalize_category_for_alza
 # Alza ML modell
 MODEL_FILE = os.path.join(SCRIPT_DIR, "model_alza.pkl")
 
-# Kimeneti mappa
+# Kimeneti mappa – GLOBÁLIS alza feed
 OUT_DIR = Path("docs/feeds/alza")
 
-# Kategória feed: lapméret
-PAGE_SIZE_CAT = 20
-
-# Akciós blokk: lapméret
-PAGE_SIZE_AKCIO = 20
+# Globális feed lapméret
+PAGE_SIZE_GLOBAL = 1000
 
 # FEED URL(ek) – több URL is lehet, elválasztva whitespace / vessző / pontosvessző / |
 FEED_URL_RAW = os.environ.get("FEED_ALZA_URL") or os.environ.get("ALZA_FEED_URL")
@@ -86,6 +108,12 @@ FINDORA_CATS = [
     "multi",
 ]
 
+# ===== MEILISEARCH KONFIG =====
+
+MEILI_HOST = os.environ.get("MEILI_HOST", "http://127.0.0.1:7700")
+MEILI_API_KEY = os.environ.get("MEILI_API_KEY") or os.environ.get("MEILI_MASTER_KEY")
+MEILI_INDEX_PRODUCTS = os.environ.get("MEILI_INDEX_PRODUCTS", "products_all")
+
 
 # ===== SEGÉDFÜGGVÉNYEK =====
 
@@ -95,7 +123,6 @@ def split_feed_urls(raw: str):
     Elválasztók: whitespace, vessző, pontosvessző, pipe.
     """
     urls = [u.strip() for u in re.split(r"[\s,;|]+", raw) if u.strip()]
-    # alapszintű validálás
     urls = [u for u in urls if u.lower().startswith("http")]
     if not urls:
         raise RuntimeError(
@@ -314,6 +341,7 @@ def parse_items_from_xml(xml_text):
                 "desc": desc,
                 "raw_desc": raw_desc or "",
                 "price": price_new,
+                "old_price": old,
                 "discount": discount,
                 "url": link or "",
                 "category_path": category_path,
@@ -409,7 +437,7 @@ def dedup_size_variants(items):
             # jobb kép
             if not cur.get("img") and it.get("img"):
                 cur["img"] = it["img"]
-            # alacsonyabb ár (jobb usernek)
+            # alacsonyabb ár
             if (it.get("price") or 0) and (
                 not cur.get("price") or it["price"] < cur["price"]
             ):
@@ -420,6 +448,12 @@ def dedup_size_variants(items):
             # hosszabb leírás
             if len(it.get("desc") or "") > len(cur.get("desc") or ""):
                 cur["desc"] = it["desc"]
+            # hosszabb raw_desc
+            if len(it.get("raw_desc") or "") > len(cur.get("raw_desc") or ""):
+                cur["raw_desc"] = it["raw_desc"]
+            # old_price – nagyobb árat tartjuk meg (hogy a kedvezmény értelmes maradjon)
+            if (it.get("old_price") or 0) > (cur.get("old_price") or 0):
+                cur["old_price"] = it["old_price"]
     return list(buckets.values())
 
 
@@ -437,7 +471,6 @@ def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
 
-    # Üres lista esetén is legyen legalább 1 oldal
     if total == 0:
         page_count = 1
     else:
@@ -496,18 +529,91 @@ def predict_category(model, title, desc, category_path, brand):
         pred = model.predict([text])[0]
         slug = str(pred).strip()
 
-        # régi label kompat: ha a modell "mobiltelefon"-t ad vissza, mappelés "mobil"-ra
         if slug == "mobiltelefon":
             slug = "mobil"
 
         if not slug:
             return "multi"
         if slug not in FINDORA_CATS:
-            # ha ismeretlen label – biztonsági fallback
             return "multi"
         return slug
     except Exception:
         return "multi"
+
+
+# ===== MEILISEARCH FELTÖLTÉS =====
+
+def chunked(iterable, size):
+    buf = []
+    for it in iterable:
+        buf.append(it)
+        if len(buf) >= size:
+            yield buf
+            buf = []
+    if buf:
+        yield buf
+
+
+def push_to_meili(rows):
+    """
+    Alza sorok → Meilisearch (products_all index)
+    """
+    if not MEILI_API_KEY:
+        print("[WARN] MEILISEARCH API KEY hiányzik (MEILI_API_KEY). Meili feltöltés kihagyva.")
+        return
+
+    url = f"{MEILI_HOST.rstrip('/')}/indexes/{MEILI_INDEX_PRODUCTS}/documents"
+
+    session = requests.Session()
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {MEILI_API_KEY}",
+    }
+
+    count = 0
+    for batch in chunked(rows, 1000):
+        docs = []
+        for row in batch:
+            doc_id = f"alza-{row['id']}"
+            doc = {
+                "id": doc_id,
+                "title": row["title"],
+                "description": row.get("desc") or "",
+                "img": row.get("img") or "",
+                "url": row.get("url") or "",
+                "price": row.get("price"),
+                "old_price": row.get("old_price"),
+                "discount": row.get("discount"),
+                "partner": "alza",
+                "partner_name": "Alza",
+                "category": row.get("findora_main") or "multi",
+                "brand": row.get("brand") or "",
+                "category_path": row.get("category_path") or "",
+                # extra mezők, ha később kellenek:
+                "raw_desc": row.get("raw_desc") or "",
+            }
+            docs.append(doc)
+
+        try:
+            resp = session.post(url, headers=headers, data=json.dumps(docs))
+            if resp.status_code >= 400:
+                print(
+                    f"[WARN] Meili batch hiba (status={resp.status_code}): {resp.text[:500]}"
+                )
+            else:
+                # opcionálisan taskUid-et logolhatjuk
+                try:
+                    data = resp.json()
+                    task_uid = data.get("taskUid")
+                    print(f"[INFO] Meili batch OK, taskUid={task_uid}, docs={len(docs)}")
+                except Exception:
+                    print(f"[INFO] Meili batch OK, docs={len(docs)}")
+        except Exception as e:
+            print(f"[WARN] Meili batch request hiba: {e}")
+
+        count += len(docs)
+
+    print(f"[INFO] Meilibe küldött Alza dokumentumok: {count}")
 
 
 # ===== MAIN =====
@@ -566,8 +672,9 @@ def main():
         discount = it.get("discount")
         category_path = it.get("category_path") or ""
         brand = it.get("brand") or ""
+        old_price = it.get("old_price")
+        raw_desc = it.get("raw_desc") or ""
 
-        # 4.1 elsődleges ML döntés
         predicted = predict_category(
             model=model,
             title=title,
@@ -576,7 +683,6 @@ def main():
             brand=brand,
         )
 
-        # 4.2 guard réteg – elektronika család finomhangolás (és fallback-ek)
         findora_main = finalize_category_for_alza(
             predicted=predicted,
             title=title,
@@ -589,11 +695,14 @@ def main():
             "title": title,
             "img": img,
             "desc": desc,
+            "raw_desc": raw_desc,
             "price": price,
+            "old_price": old_price,
             "discount": discount,
             "url": url,
             "partner": "alza",
             "category_path": category_path,
+            "brand": brand,
             "findora_main": findora_main,
             "cat": findora_main,
         }
@@ -602,7 +711,7 @@ def main():
     total = len(rows)
     print(f"[INFO] Alza: normalizált sorok: {total}")
 
-    # régi JSON-ok törlése TELJES alza mappában (akkor is, ha total == 0)
+    # 5) Régi JSON-ok törlése TELJES alza mappában (akkor is, ha total == 0)
     if OUT_DIR.exists():
         for old in OUT_DIR.rglob("*.json"):
             try:
@@ -610,77 +719,50 @@ def main():
             except OSError:
                 pass
 
+    # 6) GLOBÁLIS JSON feed (NINCS kategória mappa, NINCS akcio mappa)
     if total == 0:
-        print("⚠️ Alza: nincs termék – üres kategória meta-k + üres akciós meta készül.")
-        # Minden kategóriára üres meta + üres page-0001
-        for slug in FINDORA_CATS:
-            base_dir = OUT_DIR / slug
-            paginate_and_write(
-                base_dir,
-                [],
-                PAGE_SIZE_CAT,
-                meta_extra={
-                    "partner": "alza",
-                    "scope": f"category:{slug}",
-                },
-            )
-
-        # Akciós bucket üresen
-        akcio_dir = OUT_DIR / "akcio"
+        print("⚠️ Alza: nincs termék – üres global meta + üres page-0001 készül.")
         paginate_and_write(
-            akcio_dir,
+            OUT_DIR,
             [],
-            PAGE_SIZE_AKCIO,
+            PAGE_SIZE_GLOBAL,
             meta_extra={
                 "partner": "alza",
-                "scope": "akcio",
+                "scope": "global",
             },
         )
+        # Meili-re nincs mit feltolni
         return
 
-    # 5) KATEGÓRIA FEED-EK (CSAK kategóriák, NINCS globál)
-    buckets = {slug: [] for slug in FINDORA_CATS}
-    for row in rows:
-        slug = row.get("findora_main") or "multi"
-        if slug not in buckets:
-            slug = "multi"
-        buckets[slug].append(row)
+    # Rendezés opcionálisan ár/név szerint (nem kötelező, de stabil)
+    rows_sorted = sorted(
+        rows,
+        key=lambda r: (
+            r.get("findora_main") or "multi",
+            (r.get("price") or 10**12),
+            r.get("title") or "",
+        ),
+    )
 
-    for slug, items_cat in buckets.items():
-        base_dir = OUT_DIR / slug
-        paginate_and_write(
-            base_dir,
-            items_cat,
-            PAGE_SIZE_CAT,
-            meta_extra={
-                "partner": "alza",
-                "scope": f"category:{slug}",
-                "generated_at": datetime.utcnow().isoformat() + "Z",
-            },
-        )
-
-    # 6) AKCIÓS BLOKK (discount >= 10%)
-    akcios_items = [
-        row for row in rows if row.get("discount") is not None and row["discount"] >= 10
-    ]
-
-    akcio_dir = OUT_DIR / "akcio"
     paginate_and_write(
-        akcio_dir,
-        akcios_items,
-        PAGE_SIZE_AKCIO,
+        OUT_DIR,
+        rows_sorted,
+        PAGE_SIZE_GLOBAL,
         meta_extra={
             "partner": "alza",
-            "scope": "akcio",
+            "scope": "global",
             "generated_at": datetime.utcnow().isoformat() + "Z",
         },
     )
 
     print(
-        f"✅ Alza kész: {total} termék, "
-        f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
-        f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR}"
+        f"✅ Alza global feed kész: {total} termék, "
+        f"page_size={PAGE_SIZE_GLOBAL}, "
+        f"JSON → {OUT_DIR}"
     )
+
+    # 7) Meilisearch feltöltés
+    push_to_meili(rows_sorted)
 
 
 if __name__ == "__main__":
