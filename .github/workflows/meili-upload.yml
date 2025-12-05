@@ -2,9 +2,6 @@ name: Meili Upload
 
 on:
   workflow_dispatch: {}
-  # Ha szeretnéd, automatikus éjszakai futás:
-  # schedule:
-  #   - cron: "0 2 * * *"
 
 jobs:
   upload-to-meili:
@@ -22,6 +19,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt || true
+          pip install requests
 
       - name: Upload products to Meilisearch
         env:
