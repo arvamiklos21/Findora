@@ -1,12 +1,12 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 24760,
-  "lastUpdated": "2025-12-06T08:34:28.852120Z",
+  "total": 23286,
+  "lastUpdated": "2025-12-06T18:36:52.263752Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
-      "total": 40,
+      "total": 35,
       "pages": 1
     },
     "haztartasi_gepek": {
@@ -30,7 +30,7 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1133,
+      "total": 1056,
       "pages": 4
     },
     "lakberendezes": {
@@ -38,47 +38,47 @@
       "pages": 1
     },
     "konyha_fozes": {
-      "total": 222,
+      "total": 188,
       "pages": 1
     },
     "kert": {
-      "total": 60,
+      "total": 59,
       "pages": 1
     },
     "jatekok": {
-      "total": 32,
+      "total": 28,
       "pages": 1
     },
     "divat": {
-      "total": 22558,
-      "pages": 76
+      "total": 21255,
+      "pages": 71
     },
     "szepseg": {
-      "total": 20,
+      "total": 13,
       "pages": 1
     },
     "drogeria": {
-      "total": 134,
+      "total": 129,
       "pages": 1
     },
     "baba": {
-      "total": 64,
+      "total": 59,
       "pages": 1
     },
     "sport": {
-      "total": 158,
+      "total": 145,
       "pages": 1
     },
     "egeszseg": {
-      "total": 63,
+      "total": 55,
       "pages": 1
     },
     "latas": {
-      "total": 5,
+      "total": 3,
       "pages": 1
     },
     "allatok": {
-      "total": 55,
+      "total": 50,
       "pages": 1
     },
     "konyv": {
@@ -90,24 +90,24 @@
       "pages": 1
     },
     "iroda_iskola": {
-      "total": 6,
+      "total": 5,
       "pages": 1
     },
     "szerszam_barkacs": {
-      "total": 19,
+      "total": 18,
       "pages": 1
     },
     "auto_motor": {
-      "total": 7,
+      "total": 6,
       "pages": 1
     },
     "multi": {
-      "total": 181,
+      "total": 179,
       "pages": 1
     },
     "akcio": {
-      "total": 6124,
-      "pages": 21
+      "total": 5526,
+      "pages": 19
     }
   },
   "akcioMinPercent": 10
