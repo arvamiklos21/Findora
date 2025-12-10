@@ -3,7 +3,7 @@ const FEEDS_BASE = "";
 const PARTNERS_URL = "feeds/partners.json";
 
 // ===== Meilisearch =====
-const MEILI_HOST = "http://meili.findora.hu:7700";
+const MEILI_HOST = "https://meili.findora.hu"; // NINCS :7700!
 const MEILI_INDEX_UID = "products_all";
 const MEILI_HEADERS = {
   "Content-Type": "application/json",
@@ -1490,3 +1490,4 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
