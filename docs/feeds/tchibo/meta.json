@@ -1,16 +1,16 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 23461,
-  "lastUpdated": "2025-12-09T18:39:13.753563Z",
+  "total": 25640,
+  "lastUpdated": "2025-12-10T08:39:53.330227Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
-      "total": 36,
+      "total": 39,
       "pages": 1
     },
     "haztartasi_gepek": {
-      "total": 2,
+      "total": 5,
       "pages": 1
     },
     "szamitastechnika": {
@@ -30,55 +30,55 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1085,
-      "pages": 4
+      "total": 1211,
+      "pages": 5
     },
     "lakberendezes": {
       "total": 0,
       "pages": 1
     },
     "konyha_fozes": {
-      "total": 191,
+      "total": 222,
       "pages": 1
     },
     "kert": {
-      "total": 56,
+      "total": 58,
       "pages": 1
     },
     "jatekok": {
-      "total": 26,
+      "total": 30,
       "pages": 1
     },
     "divat": {
-      "total": 21371,
-      "pages": 72
+      "total": 23306,
+      "pages": 78
     },
     "szepseg": {
-      "total": 23,
+      "total": 26,
       "pages": 1
     },
     "drogeria": {
-      "total": 125,
+      "total": 138,
       "pages": 1
     },
     "baba": {
-      "total": 63,
+      "total": 75,
       "pages": 1
     },
     "sport": {
-      "total": 136,
+      "total": 155,
       "pages": 1
     },
     "egeszseg": {
-      "total": 82,
+      "total": 97,
       "pages": 1
     },
     "latas": {
-      "total": 2,
+      "total": 3,
       "pages": 1
     },
     "allatok": {
-      "total": 50,
+      "total": 60,
       "pages": 1
     },
     "konyv": {
@@ -90,11 +90,11 @@
       "pages": 1
     },
     "iroda_iskola": {
-      "total": 4,
+      "total": 5,
       "pages": 1
     },
     "szerszam_barkacs": {
-      "total": 18,
+      "total": 19,
       "pages": 1
     },
     "auto_motor": {
@@ -106,8 +106,8 @@
       "pages": 1
     },
     "akcio": {
-      "total": 6590,
-      "pages": 22
+      "total": 7647,
+      "pages": 26
     }
   },
   "akcioMinPercent": 10
