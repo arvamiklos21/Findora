@@ -6,11 +6,16 @@
 #   - Végigmegy a docs/feeds/* mappákon
 #   - Minden olyan partner, ahol:
 #       docs/feeds/<partner>/meta.json létezik
-#       és docs/feeds/<partner>/page-0001.json létezik
-#     → GLOBÁLIS feedként kezeljük (page-0001.json, page-0002.json, ...).
+#     → partnerként kezeljük.
 #
-#   - Beolvassa az összes page-*.json-t
-#   - Minden terméket egységes Meili-dokummá alakít:
+#   - Ha docs/feeds/<partner>/page-0001.json létezik:
+#       → GLOBÁLIS feedként kezeljük (page-0001.json, page-0002.json, ...).
+#   - KÜLÖNBEN:
+#       → kategória-mappák alatti page-*.json-okat olvassuk:
+#          docs/feeds/<partner>/<kat_slug>/page-0001.json, ...
+#         (akcio / akciós mappákat kihagyjuk)
+#
+#   - Minden terméket egységes Meili-dokká alakít:
 #       id            = "<partner>-<item_id>"
 #       title         = item["title"]
 #       description   = item["desc"] vagy "description" vagy ""
@@ -20,7 +25,7 @@
 #       old_price     = item["old_price"] ha van
 #       discount      = item["discount"] ha van
 #       partner       = partner azonosító (pl. "alza")
-#       partner_name  = szépen formázott név (Alza, Tchibo.hu, stb.) – minimális map
+#       partner_name  = szépen formázott név (Alza, Tchibo.hu, stb.)
 #       category      = item["findora_main"] / "cat" / "category" / "multi"
 #       brand         = item["brand"] ha van
 #       category_path = item["category_path"] ha van
@@ -38,8 +43,6 @@
 #
 # Feltételezi, hogy a JSON oldalak ilyenek:
 #   { "items": [ { ...termék... }, ... ] }
-#
-# Pl. az új Alza builder (build_alza.py) már pont ilyen struktúrát ír.
 
 import os
 import sys
@@ -80,12 +83,12 @@ PARTNER_NAME_MAP = {
 
 # ===== SEGÉDFÜGGVÉNYEK =====
 
-def iter_global_partner_dirs(base: Path):
+def iter_partner_dirs(base: Path):
     """
     Végigmegy a docs/feeds/* mappákon, és visszaadja azokat,
-    amik GLOBÁLIS feedként értelmezhetők:
-      - van meta.json
-      - van page-0001.json
+    ahol legalább egy globális meta.json létezik:
+      - docs/feeds/<partner>/meta.json
+    Azt, hogy globál vagy kategória-mappás a partner, később döntjük el.
     """
     if not base.exists():
         print(f"[WARN] Feeds mappa nem létezik: {base}")
@@ -95,8 +98,7 @@ def iter_global_partner_dirs(base: Path):
         if not p.is_dir():
             continue
         meta = p / "meta.json"
-        page1 = p / "page-0001.json"
-        if meta.exists() and page1.exists():
+        if meta.exists():
             yield p.name, p
 
 
@@ -109,11 +111,11 @@ def load_meta(meta_path: Path):
         return {}
 
 
-def load_items_from_partner_dir(partner_id: str, partner_dir: Path):
+def load_items_from_global_pages(partner_id: str, partner_dir: Path, meta: dict):
     """
-    docs/feeds/<partner>/meta.json + page-*.json → összes terméklista
+    GLOBÁLIS mód:
+      docs/feeds/<partner>/meta.json + page-0001.json, page-0002.json, ...
     """
-    meta = load_meta(partner_dir / "meta.json")
     page_count = meta.get("page_count") or meta.get("pages") or 0
     if not page_count:
         # ha meta nem mondja meg, akkor próbáljuk végig page-0001, page-0002 ... létezésig
@@ -126,16 +128,16 @@ def load_items_from_partner_dir(partner_id: str, partner_dir: Path):
                 break
 
     if page_count <= 0:
-        print(f"[INFO] {partner_id}: meta.json alapján nincs oldal (page_count=0)")
+        print(f"[INFO] {partner_id}: meta.json alapján nincs globális oldal (page_count=0)")
         return []
 
-    print(f"[INFO] {partner_id}: page_count = {page_count}")
+    print(f"[INFO] {partner_id}: GLOBÁLIS feed, page_count = {page_count}")
 
     all_items = []
     for page_no in range(1, page_count + 1):
         path = partner_dir / f"page-{page_no:04d}.json"
         if not path.exists():
-            print(f"[WARN] {partner_id}: hiányzó oldal: {path}")
+            print(f"[WARN] {partner_id}: hiányzó globális oldal: {path}")
             continue
         try:
             with path.open("r", encoding="utf-8") as f:
@@ -145,13 +147,81 @@ def load_items_from_partner_dir(partner_id: str, partner_dir: Path):
             continue
 
         items = data.get("items") or []
-        print(f"[INFO] {partner_id}: page-{page_no:04d} → {len(items)} termék")
+        print(f"[INFO] {partner_id}: GLOBÁLIS page-{page_no:04d} → {len(items)} termék")
         for it in items:
             if isinstance(it, dict):
                 all_items.append(it)
 
-    print(f"[INFO] {partner_id}: összes termék (JSON-ből): {len(all_items)}")
+    print(f"[INFO] {partner_id}: összes termék (globális JSON-ből): {len(all_items)}")
     return all_items
+
+
+def load_items_from_category_dirs(partner_id: str, partner_dir: Path):
+    """
+    KATEGÓRIA mód:
+      docs/feeds/<partner>/<kat_slug>/page-0001.json, ...
+    Akciós mappákat (akcio, akció, akcios, bf, black-friday) kihagyjuk.
+    """
+    all_items = []
+    total_pages = 0
+    total_items = 0
+
+    skip_names = {"akcio", "akció", "akcios", "akciós", "bf", "black-friday"}
+
+    for sub in sorted(partner_dir.iterdir(), key=lambda p: p.name):
+        if not sub.is_dir():
+            continue
+        name = sub.name.lower()
+        if name in skip_names:
+            print(f"[INFO] {partner_id}: kategória-mappa kihagyva (akciós bucket): {name}")
+            continue
+
+        # minden page-*.json-t beolvasunk
+        page_paths = sorted(sub.glob("page-*.json"))
+        if not page_paths:
+            continue
+
+        print(f"[INFO] {partner_id}: kategória-mappa: {sub.name}, oldalak száma: {len(page_paths)}")
+        for page_path in page_paths:
+            try:
+                with page_path.open("r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception as e:
+                print(f"[WARN] {partner_id}: {page_path} parse hiba: {e}")
+                continue
+
+            items = data.get("items") or []
+            total_pages += 1
+            total_items += len(items)
+            print(f"[INFO] {partner_id}: {sub.name}/{page_path.name} → {len(items)} termék")
+
+            for it in items:
+                if isinstance(it, dict):
+                    all_items.append(it)
+
+    print(
+        f"[INFO] {partner_id}: kategória-mappákból összesen {total_items} termék, "
+        f"{total_pages} page-*.json"
+    )
+    return all_items
+
+
+def load_items_from_partner_dir(partner_id: str, partner_dir: Path):
+    """
+    Partner → összes item:
+      - ha van globális page-0001.json → globális olvasás
+      - különben kategória-mappákból olvas
+    """
+    meta_path = partner_dir / "meta.json"
+    meta = load_meta(meta_path)
+    global_page1 = partner_dir / "page-0001.json"
+
+    if global_page1.exists():
+        # ÚJ 1000-es globális feed (pl. Alza új verzió)
+        return load_items_from_global_pages(partner_id, partner_dir, meta)
+    else:
+        # Régi típus: csak kategória + akciós mappák (onlinemarkabolt, tchibo, stb.)
+        return load_items_from_category_dirs(partner_id, partner_dir)
 
 
 def normalize_price(v):
@@ -165,7 +235,6 @@ def normalize_price(v):
     if isinstance(v, (int, float)):
         return int(v)
     s = str(v)
-    # kivesszük a nem szám karaktereket, max egy pont / vessző
     s_norm = re.sub(r"[^\d.,-]", "", s).replace(" ", "")
     if not s_norm:
         return None
@@ -351,12 +420,12 @@ def main():
     if not MEILI_API_KEY:
         print("[WARN] MEILI_API_KEY hiányzik – a Meili hívások valószínűleg el fognak hasalni auth hibával.")
 
-    partners = list(iter_global_partner_dirs(BASE_FEEDS_DIR))
+    partners = list(iter_partner_dirs(BASE_FEEDS_DIR))
     if not partners:
-        print(f"[WARN] Nincs egyetlen globális feed sem a {BASE_FEEDS_DIR} alatt (meta.json + page-0001.json).")
+        print(f"[WARN] Nincs egyetlen partner sem a {BASE_FEEDS_DIR} alatt (meta.json).")
         sys.exit(0)
 
-    print("[INFO] Globális feedet használó partnerek:")
+    print("[INFO] Meili-be töltendő partnerek:")
     for pid, pdir in partners:
         print(f"  - {pid}: {pdir}")
 
