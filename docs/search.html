@@ -9,9 +9,6 @@
   <link rel="icon" href="assets/img/findora_mark.png" />
   <link rel="stylesheet" href="assets/css/style.css" />
 
-  <!-- Algolia kliens -->
-  <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4.23.3/dist/algoliasearch-lite.umd.js" crossorigin="anonymous"></script>
-
   <style>
     .search-wrap {
       max-width: 1200px;
@@ -203,13 +200,29 @@
   </main>
 
   <script>
-    // ===== Algolia beállítások =====
-    const ALGOLIA_APP_ID = "W95VUS9HJ8";
-    const ALGOLIA_SEARCH_KEY = "8b8bb69fcf22aa3c5d4637c7bbf7157c";
-    const ALGOLIA_INDEX_NAME = "findora_products";
+    // ===== Meilisearch kliens (ugyanaz a host/index, mint app.js-ben) =====
+    const MEILI_HOST = "https://meili.findora.hu";
+    const MEILI_INDEX_UID = "products_all";
+    const MEILI_HEADERS = {
+      "Content-Type": "application/json",
+      // FIGYELEM: élesben kereső kulcsra cseréld!
+      "Authorization": "Bearer FINDORA_MASTER_KEY_123",
+    };
 
-    const algoliaClient = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
-    const algoliaIndex = algoliaClient.initIndex(ALGOLIA_INDEX_NAME);
+    async function meiliSearch(body) {
+      const url = MEILI_HOST.replace(/\/+$/, "") + "/indexes/" + MEILI_INDEX_UID + "/search";
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: MEILI_HEADERS,
+        body: JSON.stringify(body || {}),
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        console.error("Meili search hiba:", resp.status, text);
+        throw new Error("Meili search error: " + resp.status);
+      }
+      return resp.json();
+    }
 
     // ===== Közös helper – Ft formázás =====
     function formatPrice(v) {
@@ -224,7 +237,7 @@
     function buildDlUrl(hit) {
       const rawUrl = hit && (hit.url || hit.link || hit.deeplink);
       if (!rawUrl) return "#";
-      const partnerId = (hit.partnerId || hit.partner || "").toString().toLowerCase();
+      const partnerId = (hit.partner || "").toString().toLowerCase();
       const base = "/api/dl?u=" + encodeURIComponent(rawUrl);
       if (partnerId) {
         return base + "&p=" + encodeURIComponent(partnerId);
@@ -253,7 +266,6 @@
     }
 
     function updateUrlQuery(q) {
-      // Csak az URL-t frissítjük, oldal újratöltés nélkül
       try {
         const url = new URL(window.location.href);
         if (q) {
@@ -297,14 +309,14 @@
       const slice = SEARCH_STATE.allHits.slice(start, start + pageSize);
 
       grid.innerHTML = slice.map((hit) => {
-        const img = hit.image || hit.img || hit.image_link || hit.thumbnail || "";
-        const title = hit.title || hit.name || "";
-        const desc = hit.desc || hit.description || "";
+        const img = hit.img || hit.image || hit.image_link || hit.thumbnail || "";
+        const title = hit.title || "";
+        const desc = hit.description || "";
         const price = formatPrice(hit.price);
-        const partnerName = hit.partnerName || hit.partner || hit.partnerId || "";
+        const partnerName = hit.partner_name || hit.partner || "";
         const dl = buildDlUrl(hit);
-        const disc = (typeof hit.discountPercent === "number" && isFinite(hit.discountPercent))
-          ? Math.round(hit.discountPercent)
+        const disc = (typeof hit.discount === "number" && isFinite(hit.discount))
+          ? Math.round(hit.discount)
           : null;
 
         return (
@@ -353,18 +365,16 @@
 
       if (SEARCH_STATE.onlyAkcios) {
         hits = hits.filter((h) => {
-          const d = h && typeof h.discountPercent === "number" ? h.discountPercent : null;
-          if (d !== null && isFinite(d) && d >= 10 && d <= 90) return true;
-          if (h && typeof h.isAkcios === "boolean") return h.isAkcios;
-          return false;
+          const d = h && typeof h.discount === "number" ? h.discount : null;
+          return d !== null && isFinite(d) && d >= 10 && d <= 90;
         });
       }
 
       const sort = SEARCH_STATE.sort;
       if (sort === "name-asc" || sort === "name-desc") {
         hits.sort((a, b) => {
-          const ta = ((a && a.title) || (a && a.name) || "").toLowerCase();
-          const tb = ((b && b.title) || (b && b.name) || "").toLowerCase();
+          const ta = ((a && a.title) || "").toLowerCase();
+          const tb = ((b && b.title) || "").toLowerCase();
           if (ta < tb) return sort === "name-asc" ? -1 : 1;
           if (ta > tb) return sort === "name-asc" ? 1 : -1;
           return 0;
@@ -378,13 +388,13 @@
           return pb - pa;
         });
       } else {
-        // "relevance" → Algolia sorrend, nem változtatunk
+        // "relevance" → Meili sorrend, nem piszkáljuk
       }
 
       return hits;
     }
 
-    // ===== Algolia keresés futtatása =====
+    // ===== Meili keresés futtatása =====
     async function runSearch() {
       const grid = document.getElementById("search-results-grid");
       const nav  = document.getElementById("search-results-nav");
@@ -404,15 +414,22 @@
       }
 
       try {
-        const res = await algoliaIndex.search(q, {
-          hitsPerPage: 1000, // egyben kérjük le, a lapozást mi intézzük
-        });
+        const body = {
+          q,
+          limit: 1000, // egyben kérjük le, lapozást mi intézzük
+        };
+        // ha már a lekérés pillanatában is csak akciós kell:
+        if (SEARCH_STATE.onlyAkcios) {
+          body.filter = ["discount >= 10"];
+        }
+
+        const res = await meiliSearch(body);
         const rawHits = res && Array.isArray(res.hits) ? res.hits : [];
         SEARCH_STATE.allHits = applySortAndFilters(rawHits);
         SEARCH_STATE.page = 1;
         renderHitsPage();
       } catch (e) {
-        console.error("Algolia keresési hiba:", e);
+        console.error("Meili keresési hiba:", e);
         if (grid) {
           grid.innerHTML = '<div class="search-empty">Hiba történt a keresés során. Próbáld meg később újra.</div>';
         }
@@ -440,7 +457,6 @@
       if (sortSelect) {
         sortSelect.addEventListener("change", function () {
           SEARCH_STATE.sort = this.value || "relevance";
-          // rendezés + lapozás újraszámítása a már lekért találatokon
           SEARCH_STATE.allHits = applySortAndFilters(SEARCH_STATE.allHits);
           SEARCH_STATE.page = 1;
           renderHitsPage();
