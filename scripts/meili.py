@@ -29,7 +29,7 @@
 #       discount      = int (%) ha értelmezhető
 #       partner       = item["partner"] vagy partner azonosító
 #       partner_name  = emberi név (térkép alapján)
-#       category      = item["findora_main"] / ["cat"] / ["category"] / partner-default / "multi"
+#       category      = VÉGLEGES Findora fő kategória slug (25-ös lista)
 #       brand         = item["brand"] / ["manufacturer"]
 #       category_path = item["category_path"] / ["product_type"]
 #
@@ -84,12 +84,11 @@ PARTNER_NAME_MAP = {
     "cj-eoptika": "eOptika",
     "cj-karcher": "Kärcher",
     "cj-jateknet": "JátékNet",
-    "cj-jatekshop": "Játékshop",
+    "cj-jatekshop": "Jatekshop.eu",
     # bővíthető
 }
 
-# partner → default Findora fő kategória slug (amit a frontend a "category" mezőben vár)
-# (ez pont ugyanaz a név, amit az app.js BACKEND_SYNONYM_TO_CATID kulcsként használ)
+# partner → default Findora fő kategória slug
 PARTNER_DEFAULT_CATEGORY = {
     "tchibo": "otthon",
     "karacsonydekor": "otthon",
@@ -114,6 +113,35 @@ PARTNER_DEFAULT_CATEGORY = {
     "pepita": "multi",
     "cj-karcher": "kert",
     # ide nyugodtan vehetsz fel újakat, ha kell
+}
+
+# A frontend által használt hivatalos kategória slugok (findora_main)
+VALID_CATEGORY_SLUGS = {
+    "elektronika",
+    "haztartasi_gepek",
+    "szamitastechnika",
+    "mobil",
+    "gaming",
+    "smart_home",
+    "otthon",
+    "lakberendezes",
+    "konyha_fozes",
+    "kert",
+    "jatekok",
+    "divat",
+    "szepseg",
+    "drogeria",
+    "baba",
+    "sport",
+    "egeszseg",
+    "latas",
+    "allatok",
+    "konyv",
+    "utazas",
+    "iroda_iskola",
+    "szerszam_barkacs",
+    "auto_motor",
+    "multi",
 }
 
 
@@ -324,9 +352,7 @@ def normalize_item(partner_id: str, raw: dict):
         except Exception:
             discount = None
 
-    # --- partner mező: biztosan string legyen ---
-    partner_field_raw = raw.get("partner") or partner_id
-    partner_field = str(partner_field_raw).strip() or partner_id
+    partner_field = (raw.get("partner") or partner_id).strip() or partner_id
 
     partner_name = (
         raw.get("partner_name")
@@ -337,7 +363,7 @@ def normalize_item(partner_id: str, raw: dict):
     )
 
     # --- KATEGÓRIA BLOKK ---
-    # 1) próbáljuk kivenni a feedből (findora_main / cat / category)
+    # 1) megpróbáljuk kivenni a feedből (findora_main / cat / category)
     raw_category = (
         raw.get("findora_main")
         or raw.get("cat")
@@ -346,18 +372,15 @@ def normalize_item(partner_id: str, raw: dict):
     )
     category = str(raw_category).strip().lower()
 
-    # 2) ha nincs értelmes, vagy "multi", próbáljuk partner-defaultból
-    if not category or category == "multi":
+    # 2) ha nincs értelmes vagy NEM hivatalos slug, partner-default → különben multi
+    if not category or category not in VALID_CATEGORY_SLUGS:
         default_cat = PARTNER_DEFAULT_CATEGORY.get(partner_id)
         if default_cat:
             category = default_cat
-
-    # 3) ha még mindig üres, legyen "multi"
-    if not category:
-        category = "multi"
+        else:
+            category = "multi"
 
     brand = raw.get("brand") or raw.get("manufacturer") or ""
-
     category_path = raw.get("category_path") or raw.get("product_type") or ""
 
     doc = {
