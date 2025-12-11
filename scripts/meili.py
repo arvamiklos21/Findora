@@ -29,7 +29,7 @@
 #       discount      = int (%) ha értelmezhető
 #       partner       = item["partner"] vagy partner azonosító
 #       partner_name  = emberi név (térkép alapján)
-#       category      = item["findora_main"] / ["cat"] / ["category"] / "multi"
+#       category      = item["findora_main"] / ["cat"] / ["category"] / partner-default / "multi"
 #       brand         = item["brand"] / ["manufacturer"]
 #       category_path = item["category_path"] / ["product_type"]
 #
@@ -78,14 +78,42 @@ PARTNER_NAME_MAP = {
     "onlinemarkabolt": "Onlinemárkaboltok",
     "otthonmarket": "OtthonMarket",
     "kozmetikaotthon": "KozmetikaOtthon",
-    "ekszereshop": "Ekszereshop",
-    "karacsonydekor": "KarácsonyDekor",
+    "ekszereshop": "Ékszer-Eshop.hu",
+    "karacsonydekor": "Karácsonyi Dekor",
     "eoptika": "eOptika",
     "cj-eoptika": "eOptika",
     "cj-karcher": "Kärcher",
     "cj-jateknet": "JátékNet",
     "cj-jatekshop": "Játékshop",
     # bővíthető
+}
+
+# partner → default Findora fő kategória slug (amit a frontend a "category" mezőben vár)
+# (ez pont ugyanaz a név, amit az app.js BACKEND_SYNONYM_TO_CATID kulcsként használ)
+PARTNER_DEFAULT_CATEGORY = {
+    "tchibo": "otthon",
+    "karacsonydekor": "otthon",
+    "otthonmarket": "otthon",
+    "onlinemarkabolt": "otthon",
+
+    "alza": "elektronika",
+
+    "decathlon": "sport",
+
+    "regiojatek": "jatekok",
+    "jateksziget": "jatekok",
+    "cj-jatekshop": "jatekok",
+    "cj-jateknet": "jatekok",
+
+    "cj-eoptika": "latas",
+    "eoptika": "latas",
+
+    "ekszereshop": "divat",
+    "kozmetikaotthon": "szepseg",
+
+    "pepita": "multi",
+    "cj-karcher": "kert",
+    # ide nyugodtan vehetsz fel újakat, ha kell
 }
 
 
@@ -296,19 +324,37 @@ def normalize_item(partner_id: str, raw: dict):
         except Exception:
             discount = None
 
-    partner_field = (raw.get("partner") or partner_id).strip() or partner_id
+    # --- partner mező: biztosan string legyen ---
+    partner_field_raw = raw.get("partner") or partner_id
+    partner_field = str(partner_field_raw).strip() or partner_id
 
     partner_name = (
         raw.get("partner_name")
-        or PARTNER_NAME_MAP.get(partner_field, PARTNER_NAME_MAP.get(partner_id, partner_field))
+        or PARTNER_NAME_MAP.get(
+            partner_field,
+            PARTNER_NAME_MAP.get(partner_id, partner_field),
+        )
     )
 
-    category = (
+    # --- KATEGÓRIA BLOKK ---
+    # 1) próbáljuk kivenni a feedből (findora_main / cat / category)
+    raw_category = (
         raw.get("findora_main")
         or raw.get("cat")
         or raw.get("category")
-        or "multi"
+        or ""
     )
+    category = str(raw_category).strip().lower()
+
+    # 2) ha nincs értelmes, vagy "multi", próbáljuk partner-defaultból
+    if not category or category == "multi":
+        default_cat = PARTNER_DEFAULT_CATEGORY.get(partner_id)
+        if default_cat:
+            category = default_cat
+
+    # 3) ha még mindig üres, legyen "multi"
+    if not category:
+        category = "multi"
 
     brand = raw.get("brand") or raw.get("manufacturer") or ""
 
