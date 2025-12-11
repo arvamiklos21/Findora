@@ -5,18 +5,16 @@
 # Logika:
 #   - Végigmegy a docs/feeds/* mappákon
 #   - Partnerenként kétféle layoutot kezel:
-#       (A) GLOBÁL:
+#       (A) KATEGÓRIA-ALAPÚ (ELŐNYBEN!):
+#           docs/feeds/<partner>/<cat>/meta.json
+#           docs/feeds/<partner>/<cat>/page-0001.json, ...
+#
+#       (B) GLOBÁL:
 #           docs/feeds/<partner>/meta.json
 #           docs/feeds/<partner>/page-0001.json, page-0002.json, ...
 #
-#       (B) KATEGÓRIA-ALAPÚ:
-#           docs/feeds/<partner>/<cat>/meta.json
-#           docs/feeds/<partner>/<cat>/page-0001.json, ...
-#         (pl. onlinemarkabolt, ahol a gyökérben NINCS page-0001.json)
-#
-#   - Csak EGYFORRÁSBÓL tölt (vagy (A) vagy (B)), hogy ne duplázzon:
-#       - Ha van globál page-0001.json a gyökérben → (A)
-#       - Különben, ha vannak kategória mappák page-0001.json-nel → (B)
+#   - Ha vannak kategória mappák → azokat használjuk (A).
+#     Csak ha NINCS kategória mappa, akkor használjuk a globált (B).
 #
 #   - Beolvasott item → Meili dokumentum:
 #       id            = "<partner>-<item_id>"
@@ -46,8 +44,10 @@
 #         MEILI_CLEAR_INDEX_FIRST: 1
 #
 #   - Vagy helyben:
-#       MEILI_HOST=http://127.0.0.1:7700 \
+#       MEILI_HOST=https://meili.findora.hu \
 #       MEILI_API_KEY=xxxxx \
+#       MEILI_INDEX_PRODUCTS=products_all \
+#       MEILI_CLEAR_INDEX_FIRST=1 \
 #       python scripts/meili.py
 
 import os
@@ -112,7 +112,7 @@ PARTNER_DEFAULT_CATEGORY = {
 
     "pepita": "multi",
     "cj-karcher": "kert",
-    # ide nyugodtan vehetsz fel újakat, ha kell
+    # ide vehetsz fel újakat, ha kell
 }
 
 # A frontend által használt hivatalos kategória slugok (findora_main)
@@ -206,15 +206,15 @@ def load_items_from_page_dir(dir_path: Path, label: str):
 def iter_partner_sources(base: Path):
     """
     Végigmegy a docs/feeds/* mappákon, és partnerenként eldönti:
-      - van-e GLOBÁL feed (base/page-0001.json),
-      - ha nincs, vannak-e KATEGÓRIA mappák (base/<cat>/page-0001.json).
+      - HA VANNAK KATEGÓRIA MAPPÁK (base/<cat>/page-0001.json) → EZEKET HASZNÁLJA
+      - KÜLÖNBEN, ha van GLOBÁL feed (base/page-0001.json) → azt használja.
 
     Yield:
       (partner_id, mode, source_dirs)
 
       mode:
-        "global"     → source_dirs: [ partner_dir ]
         "categories" → source_dirs: [ cat_dir1, cat_dir2, ... ]
+        "global"     → source_dirs: [ partner_dir ]
     """
     if not base.exists():
         print(f"[WARN] Feeds mappa nem létezik: {base}")
@@ -226,15 +226,7 @@ def iter_partner_sources(base: Path):
 
         partner_id = partner_dir.name
 
-        root_meta = partner_dir / "meta.json"
-        root_page1 = partner_dir / "page-0001.json"
-
-        if root_meta.exists() and root_page1.exists():
-            # GLOBÁL feed van, ez az elsődleges
-            yield (partner_id, "global", [partner_dir])
-            continue
-
-        # különben keresünk kategória mappákat
+        # 1) kategória mappák keresése (ELŐSZÖR!)
         cat_dirs = []
         for sub in partner_dir.iterdir():
             if not sub.is_dir():
@@ -245,11 +237,19 @@ def iter_partner_sources(base: Path):
                 cat_dirs.append(sub)
 
         if cat_dirs:
+            # Ha van legalább 1 kategória mappa, azt használjuk
             yield (partner_id, "categories", cat_dirs)
+            continue
+
+        # 2) ha NINCS kategória mappa, akkor próbáljuk a globál feedet
+        root_meta = partner_dir / "meta.json"
+        root_page1 = partner_dir / "page-0001.json"
+
+        if root_meta.exists() and root_page1.exists():
+            yield (partner_id, "global", [partner_dir])
         else:
-            # se globál, se kategória – logoljuk, de nem fatal
             print(
-                f"[WARN] {partner_id}: sem globál page-0001.json, sem kategória mappák page-0001.json-nel – kihagyom."
+                f"[WARN] {partner_id}: se kategória mappák, se globál page-0001.json – kihagyom."
             )
 
 
@@ -363,7 +363,6 @@ def normalize_item(partner_id: str, raw: dict):
     )
 
     # --- KATEGÓRIA BLOKK ---
-    # 1) megpróbáljuk kivenni a feedből (findora_main / cat / category)
     raw_category = (
         raw.get("findora_main")
         or raw.get("cat")
@@ -372,7 +371,6 @@ def normalize_item(partner_id: str, raw: dict):
     )
     category = str(raw_category).strip().lower()
 
-    # 2) ha nincs értelmes vagy NEM hivatalos slug, partner-default → különben multi
     if not category or category not in VALID_CATEGORY_SLUGS:
         default_cat = PARTNER_DEFAULT_CATEGORY.get(partner_id)
         if default_cat:
