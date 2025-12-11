@@ -367,11 +367,11 @@
 
     "deeplinkPartner": "karacsonydekor",
     "placements": {
-      "home": { "enabled": true, "pageSize": 3 },
+      "home": { "enabled": false, "pageSize": 3 },
       "otthon": {
-        "enabled": true,
+        "enabled": false,
         "pageSize": 3,
-        "full": { "enabled": true, "pageSize": 20 }
+        "full": { "enabled": false, "pageSize": 20 }
       }
     },
     "bf": {
@@ -380,7 +380,7 @@
       "minDiscount": 10
     },
     "itemCount": 0,
-    "hasAkcio": true,
+    "hasAkcio": false,
     "categoryIndex": {}
   },
 
