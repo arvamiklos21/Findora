@@ -17,53 +17,61 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout (full)
+      - name: Checkout repository (main)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      # --- fontos: mindig sync main ---
-      - name: Sync with origin/main
-        run: |
-          git fetch origin
-          git checkout main
-          git reset --hard origin/main
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install deps
+      - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install requests
 
-      - name: Build OnlineMarkabolt feed pages
+      - name: Build OnlineMarkabolt feed (global 1000/json)
         env:
           FEED_ONLINEMARKABOLT_URL: ${{ secrets.FEED_ONLINEMARKABOLT_URL }}
         run: |
           set -e
+
           if [ -z "$FEED_ONLINEMARKABOLT_URL" ]; then
-            echo "::error title=Missing secret::FEED_ONLINEMARKABOLT_URL nincs!"
+            echo "::error title=Missing secret::FEED_ONLINEMARKABOLT_URL nincs beállítva!"
             exit 1
           fi
 
-          mkdir -p docs/feeds/onlinemarkabolt
           python -u scripts/build-onlinemarkabolt.py
 
+          # kötelező output ellenőrzések
           test -s docs/feeds/onlinemarkabolt/meta.json
 
-      - name: Commit & push directly to main (no PR)
+          # ne commiteljünk üres feedet
+          python - <<'EOF'
+          import json
+          with open("docs/feeds/onlinemarkabolt/meta.json", "r", encoding="utf-8") as f:
+              meta = json.load(f)
+          if meta.get("item_count", 0) <= 0:
+              raise SystemExit("HIBA: 0 termék generálódott, nem commitelünk.")
+          EOF
+
+      - name: Commit & push to main (if changed)
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
           git add docs/feeds/onlinemarkabolt
 
-          # ha nincs változás → kilép, nincs PR
-          git diff --cached --quiet && echo "No changes, exiting." && exit 0
+          # ha nincs változás → clean exit
+          if git diff --cached --quiet; then
+            echo "No changes detected, exiting."
+            exit 0
+          fi
 
-          git commit -m "onlinemarkabolt: update feed pages"
-          git pull --rebase origin main || true
+          git commit -m "onlinemarkabolt: regenerate global feed (1000/page)"
+
+          # ha időközben jött commit a main-re, rebázolunk
+          git pull --rebase origin main
           git push origin HEAD:main
