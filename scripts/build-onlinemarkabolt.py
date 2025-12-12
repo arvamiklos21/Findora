@@ -1,34 +1,30 @@
 # scripts/build-onlinemarkabolt.py
 #
-# OnlineMárkaboltok → Findora paginált JSON feed, kategóriákra bontva
+# OnlineMárkaboltok → Findora globál paginált JSON feed (NINCS kategória mappa, NINCS akció bucket)
 #
 # Bemenet:
 #   - XML feed (FEED_ONLINEMARKABOLT_URL környezeti változó)
 #
 # Kimenet:
-#   - docs/feeds/onlinemarkabolt/<findora_cat>/meta.json
-#   - docs/feeds/onlinemarkabolt/<findora_cat>/page-0001.json, ...
-#   - docs/feeds/onlinemarkabolt/akcio/meta.json
-#   - docs/feeds/onlinemarkabolt/akcio/page-0001.json, ...
+#   - docs/feeds/onlinemarkabolt/meta.json
+#   - docs/feeds/onlinemarkabolt/page-0001.json, page-0002.json, ...
 #
 # Struktúra (page-*.json):
 #   {
-#     "items": [
-#       {
-#         "id": "553",
-#         "title": "...",
-#         "img": "https://...",
-#         "desc": "rövid leírás",
-#         "price": 151840,
-#         "discount": 23,
-#         "url": "https://www.onlinemarkaboltok.hu/...",
-#         "partner": "onlinemarkabolt",
-#         "category_path": "BLANCO > ...",
-#         "category_root": "BLANCO",
-#         "findora_main": "haztartasi_gepek" | "otthon" | ...,
-#         "cat": "haztartasi_gepek" | "otthon" | ...
-#       }
-#     ]
+#     "items": [ { ... } ],
+#     "page": 1,
+#     "page_size": 1000,
+#     "item_count": 1000
+#   }
+#
+# META:
+#   {
+#     "partner": "onlinemarkabolt",
+#     "source_url": "...",
+#     "generated_at": "...",
+#     "item_count": 12345,
+#     "page_size": 1000,
+#     "page_count": 13
 #   }
 
 import os
@@ -36,6 +32,7 @@ import sys
 import re
 import json
 import math
+import shutil
 import xml.etree.ElementTree as ET
 import requests
 
@@ -52,25 +49,27 @@ from category_assignbase import FINDORA_CATS  # közös 25 Findora fő kategóri
 
 
 # ====== KONFIG ======
+PARTNER_ID = "onlinemarkabolt"
 FEED_URL = os.environ.get("FEED_ONLINEMARKABOLT_URL")
-OUT_DIR = Path("docs/feeds/onlinemarkabolt")
 
-# JSON oldal méret (kategória + akciós bucket)
-PAGE_SIZE_CAT = 300
-PAGE_SIZE_AKCIO_BLOCK = 300
+OUT_DIR = Path("docs/feeds") / PARTNER_ID
 
-# Minden elérhető Findora fő kategória – ÜRESRE IS csinálunk meta.json-t + page-0001.json-t
-ALL_FINDORA_CATS = list(FINDORA_CATS)
+PAGE_SIZE = 1000
 
-# Akciós bucket slug – frontend: /feeds/onlinemarkabolt/akcio/...
-AKCIO_SLUG = "akcio"
-
-# Akciós szabály: csak azok menjenek az akciós bucketbe,
-# ahol a discount (százalék) legalább 10%
-AKCIO_MIN_DISCOUNT = 10
+ALL_FINDORA_CATS = list(FINDORA_CATS)  # valid slugok listája (biztonsági ellenőrzéshez)
 
 
 # ====== SEGÉDFÜGGVÉNYEK ======
+def ensure_clean_out_dir(out_dir: Path):
+    """
+    Teljes takarítás: mindent töröl a partner mappájában (régi kategória almappák is),
+    majd újra létrehozza a kimeneti mappát.
+    """
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+
 def norm_price(v):
     """Árat egész forintra normalizál (int vagy None)."""
     if v is None:
@@ -141,7 +140,7 @@ def compute_discount(price, old_price):
 
 def normalize_item(prod):
     """
-    Egy <product> → Findora item + kat (Findora fő kategória).
+    Egy <product> → Findora item (globál listába).
     """
     identifier = get_text(prod, "identifier") or get_text(prod, "code")
     name = get_text(prod, "name")
@@ -186,8 +185,8 @@ def normalize_item(prod):
 
     kat = assign_category(fields) or "multi"
     if kat not in ALL_FINDORA_CATS:
-        # ha az assigner valami ismeretlen slugot dob, otthon-ba tereljük
-        kat = "otthon"
+        # ha az assigner valami ismeretlen slugot dob, multi-ba tereljük
+        kat = "multi"
 
     category_root = extract_category_root(category, manufacturer)
 
@@ -197,193 +196,107 @@ def normalize_item(prod):
         "img": img,
         "desc": short_desc(desc_html),
         "price": price,
+        "old_price": old_price,
         "discount": discount,
         "url": url,
-        "partner": "onlinemarkabolt",
+        "partner": PARTNER_ID,
+        "partner_name": "Onlinemárkaboltok",
         "category_path": category or "",
         "category_root": category_root or "",
         "findora_main": kat,
         "cat": kat,
     }
-    return item, kat
+    return item
 
 
-def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
+def write_pages(out_dir: Path, items: list[dict], page_size: int):
     """
-    base_dir/meta.json
-    base_dir/page-0001.json, page-0002.json, ...
+    out_dir/meta.json
+    out_dir/page-0001.json, page-0002.json, ...
 
-    FONTOS:
-    - Üres lista esetén is létrejön:
-        - meta.json
-        - page-0001.json ({"items": []})
-      így a frontend soha nem kap 404-et a page-0001.json-re.
+    Üres lista esetén is létrejön meta.json + page-0001.json (items: []).
     """
-    base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
+    page_count = 1 if total == 0 else int(math.ceil(total / float(page_size)))
 
-    # Üres kategória / akció esetén is legyen legalább 1 oldal
-    if total == 0:
-        page_count = 1
-    else:
-        page_count = int(math.ceil(total / float(page_size)))
-
-    # stabil sorrend
+    # Stabil sorrend (id alapján)
     items_sorted = sorted(items, key=lambda x: str(x.get("id", "")))
 
-    if total == 0:
-        # Egy üres oldal items: []-szel
-        page_obj = {"items": []}
-        fn = base_dir / "page-0001.json"
+    # pages
+    for i in range(page_count):
+        start = i * page_size
+        end = start + page_size
+        chunk = items_sorted[start:end] if total else []
+
+        page_no = i + 1
+        page_obj = {
+            "items": chunk,
+            "page": page_no,
+            "page_size": page_size,
+            "item_count": len(chunk),
+        }
+
+        fn = out_dir / f"page-{page_no:04d}.json"
         with fn.open("w", encoding="utf-8") as f:
             json.dump(page_obj, f, ensure_ascii=False)
-        print(f"[INFO] OnlineMárkaboltok – {base_dir} page-0001.json (0 db, üres lista)")
-    else:
-        for i in range(page_count):
-            start = i * page_size
-            end = start + page_size
-            page_items = items_sorted[start:end]
 
-            page_obj = {"items": page_items}
-            page_no = i + 1
-            fn = base_dir / f"page-{page_no:04d}.json"
-            with fn.open("w", encoding="utf-8") as f:
-                json.dump(page_obj, f, ensure_ascii=False)
-            print(
-                f"[INFO] OnlineMárkaboltok – {base_dir.name} page-{page_no:04d}.json "
-                f"({len(page_items)} db)"
-            )
+        print(f"[INFO] {PARTNER_ID} page-{page_no:04d}.json → {len(chunk)} db")
 
+    # meta
     meta = {
-        "total_items": total,
+        "partner": PARTNER_ID,
+        "source_url": FEED_URL,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "item_count": total,
         "page_size": page_size,
         "page_count": page_count,
     }
-    if meta_extra:
-        meta.update(meta_extra)
-
-    meta_fn = base_dir / "meta.json"
+    meta_fn = out_dir / "meta.json"
     with meta_fn.open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
-    print(f"[INFO] OnlineMárkaboltok – {base_dir.name} meta.json kész: {meta_fn}")
+
+    print(f"[INFO] {PARTNER_ID} meta.json kész: {meta_fn}")
 
 
 def main():
     if not FEED_URL:
         raise RuntimeError("Hiányzik a FEED_ONLINEMARKABOLT_URL környezeti változó!")
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    # TELJES takarítás (régi kategória mappák is mennek)
+    ensure_clean_out_dir(OUT_DIR)
 
-    # Régi JSON-ok törlése (kategóriák + akcio + top meta),
-    # hogy ne maradjanak régi page-0002 stb.
-    for old_json in OUT_DIR.rglob("*.json"):
-        try:
-            old_json.unlink()
-        except OSError:
-            pass
-
-    print(f"[INFO] OnlineMárkaboltok feed letöltése: {FEED_URL}")
-    resp = requests.get(FEED_URL, timeout=90)
+    print(f"[INFO] {PARTNER_ID} feed letöltése: {FEED_URL}")
+    resp = requests.get(FEED_URL, timeout=120)
     if resp.status_code != 200:
-        raise RuntimeError(
-            f"Nem sikerült letölteni az OnlineMárkaboltok feedet "
-            f"(HTTP {resp.status_code})"
-        )
+        raise RuntimeError(f"Nem sikerült letölteni a feedet (HTTP {resp.status_code})")
 
     products = parse_xml_products(resp.content)
-    print(f"[INFO] OnlineMárkaboltok – XML termékek száma: {len(products)}")
+    print(f"[INFO] {PARTNER_ID} – XML termékek száma: {len(products)}")
 
-    # kat → item lista MINDEN Findora-kategóriára
-    items_by_cat = {slug: [] for slug in ALL_FINDORA_CATS}
     seen_ids = set()
-    cat_counts = {slug: 0 for slug in ALL_FINDORA_CATS}
-
     all_items = []
 
     for prod in products:
         try:
-            norm = normalize_item(prod)
+            item = normalize_item(prod)
         except Exception as e:
             print(f"[WARN] Hibás termék, kihagyva: {e!r}")
             continue
 
-        if not norm:
+        if not item:
             continue
 
-        item, kat = norm
-
-        if item["id"] in seen_ids:
+        # dedup id alapján
+        pid = item.get("id")
+        if pid in seen_ids:
             continue
-        seen_ids.add(item["id"])
+        seen_ids.add(pid)
 
-        if kat not in items_by_cat:
-            kat = "otthon"
-            item["findora_main"] = "otthon"
-            item["cat"] = "otthon"
-
-        items_by_cat[kat].append(item)
-        cat_counts[kat] = cat_counts.get(kat, 0) + 1
         all_items.append(item)
 
-    total_items = sum(cat_counts.values())
-    print(f"[INFO] OnlineMárkaboltok – normalizált sorok összesen: {total_items}")
-    print("[INFO] OnlineMárkaboltok – kategória statisztika:")
-    for k in sorted(cat_counts.keys()):
-        print(f"  - {k}: {cat_counts[k]} db")
+    print(f"[INFO] {PARTNER_ID} – normalizált sorok összesen: {len(all_items)}")
 
-    # ===== MINDEN Findora-kategóriára page-*.json + meta.json (üresre is) =====
-    for cat_slug in ALL_FINDORA_CATS:
-        cat_items = items_by_cat.get(cat_slug, [])
-        base_dir = OUT_DIR / cat_slug
-        paginate_and_write(
-            base_dir,
-            cat_items,
-            PAGE_SIZE_CAT,
-            meta_extra={
-                "partner": "onlinemarkabolt",
-                "scope": f"category:{cat_slug}",
-            },
-        )
-
-    # ===== Akciós bucket: minden, ahol discount >= 10% =====
-    akcio_items = [
-        it
-        for it in all_items
-        if (it.get("discount") is not None and it.get("discount") >= AKCIO_MIN_DISCOUNT)
-    ]
-    print(
-        f"[INFO] OnlineMárkaboltok – akciós termékek (discount>={AKCIO_MIN_DISCOUNT}%): "
-        f"{len(akcio_items)} db"
-    )
-
-    akcio_dir = OUT_DIR / AKCIO_SLUG
-    paginate_and_write(
-        akcio_dir,
-        akcio_items,
-        PAGE_SIZE_AKCIO_BLOCK,
-        meta_extra={
-            "partner": "onlinemarkabolt",
-            "scope": "akcio",
-            "akcio_min_discount": AKCIO_MIN_DISCOUNT,
-        },
-    )
-
-    # Globális meta – összesített infó
-    global_meta = {
-        "partner": "onlinemarkabolt",
-        "source_url": FEED_URL,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "total_items": total_items,
-        "page_size": PAGE_SIZE_CAT,
-        "categories": cat_counts,
-        "categories_list": ALL_FINDORA_CATS,
-        "akcio_items": len(akcio_items),
-        "akcio_min_discount": AKCIO_MIN_DISCOUNT,
-    }
-    meta_fn = OUT_DIR / "meta.json"
-    with meta_fn.open("w", encoding="utf-8") as f:
-        json.dump(global_meta, f, ensure_ascii=False, indent=2)
-    print(f"[INFO] OnlineMárkaboltok – globális meta.json kész: {meta_fn}")
+    write_pages(OUT_DIR, all_items, PAGE_SIZE)
 
 
 if __name__ == "__main__":
