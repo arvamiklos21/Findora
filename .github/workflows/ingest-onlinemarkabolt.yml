@@ -17,45 +17,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository (main)
+      - name: Checkout (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # --- fontos: mindig sync main ---
+      - name: Sync with origin/main
+        run: |
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install deps
         run: |
           pip install --upgrade pip
           pip install requests
 
-      - name: Build OnlineMarkabolt feed (global 1000/json)
+      - name: Build OnlineMarkabolt feed pages
         env:
           FEED_ONLINEMARKABOLT_URL: ${{ secrets.FEED_ONLINEMARKABOLT_URL }}
         run: |
           set -e
-
           if [ -z "$FEED_ONLINEMARKABOLT_URL" ]; then
-            echo "::error title=Missing secret::FEED_ONLINEMARKABOLT_URL nincs beállítva!"
+            echo "::error title=Missing secret::FEED_ONLINEMARKABOLT_URL nincs!"
             exit 1
           fi
 
+          mkdir -p docs/feeds/onlinemarkabolt
           python -u scripts/build-onlinemarkabolt.py
 
-          # kötelező output ellenőrzések
           test -s docs/feeds/onlinemarkabolt/meta.json
-
-          # ne commiteljünk üres feedet
-          python - <<'EOF'
-          import json
-          with open("docs/feeds/onlinemarkabolt/meta.json", "r", encoding="utf-8") as f:
-              meta = json.load(f)
-          if meta.get("item_count", 0) <= 0:
-              raise SystemExit("HIBA: 0 termék generálódott, nem commitelünk.")
-          EOF
 
       - name: Commit & push to main (if changed)
         run: |
@@ -64,14 +61,13 @@ jobs:
 
           git add docs/feeds/onlinemarkabolt
 
-          # ha nincs változás → clean exit
+          # ha nincs változás → kilép
           if git diff --cached --quiet; then
             echo "No changes detected, exiting."
             exit 0
           fi
 
-          git commit -m "onlinemarkabolt: regenerate global feed (1000/page)"
+          git commit -m "onlinemarkabolt: update feed pages"
 
-          # ha időközben jött commit a main-re, rebázolunk
-          git pull --rebase origin main
+          # DIRECT push (nincs pull/rebase, ez okozta a hibát)
           git push origin HEAD:main
