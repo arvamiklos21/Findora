@@ -8,21 +8,27 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ingest-cj-eoptika-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ingest-eoptika:
     runs-on: ubuntu-latest
-
-    env:
-      CJ_FEED_URL: ${{ secrets.CJ_FEED_URL }}
-      CJ_HTTP_USER: ${{ secrets.CJ_HTTP_USER }}
-      CJ_HTTP_PASS: ${{ secrets.CJ_HTTP_PASS }}
-      CJ_API_TOKEN: ${{ secrets.CJ_API_TOKEN }}
 
     steps:
       - name: Checkout (full)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # mindig a távoli main-hez igazítjuk magunkat
+      - name: Sync with origin/main
+        run: |
+          set -e
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -36,28 +42,33 @@ jobs:
           pip install requests
 
       - name: Build CJ eOptika feed
+        env:
+          CJ_FEED_URL: ${{ secrets.CJ_FEED_URL }}
+          CJ_HTTP_USER: ${{ secrets.CJ_HTTP_USER }}
+          CJ_HTTP_PASS: ${{ secrets.CJ_HTTP_PASS }}
+          CJ_API_TOKEN: ${{ secrets.CJ_API_TOKEN }}
         run: |
           set -e
           echo "=== CJ eOptika build indul ==="
-          python scripts/build_cj_eoptika.py
+          python -u scripts/build_cj_eoptika.py
           echo "=== CJ eOptika build kész, mappa tartalom: ==="
-          ls -R docs/feeds/cj-eoptika || echo "Nincs docs/feeds/cj-eoptika mappa"
+          ls -R docs/feeds/cj-eoptika || true
+          test -s docs/feeds/cj-eoptika/meta.json
 
-      - name: Commit & push eOptika feed
+      - name: Commit & push CJ eOptika feed
         run: |
           set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git fetch origin
-          git checkout main
-          git reset --hard origin/main
+          git add docs/feeds/cj-eoptika
 
-          git add docs/feeds/cj-eoptika || true
+          # ha nincs változás → kilép
+          git diff --cached --quiet && echo "No changes to commit." && exit 0
 
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "CJ eOptika feed update"
-            git push origin HEAD:main
-          fi
+          git commit -m "cj-eoptika: update feed pages"
+
+          # biztonsági: ha közben változott a main, újrabázis → újrapróbál
+          git pull --rebase origin main || true
+
+          git push origin HEAD:main
