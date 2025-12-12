@@ -1,143 +1,165 @@
 # scripts/build_cj_eoptika.py
 #
-# CJ eOptika feed → Findora JSON oldalak (globál + kategória + akciós blokk)
+# CJ eOptika feed → Findora paginált JSON (CSAK GLOBÁL, 1000/db oldal)
 #
 # BEMENET:
 #   - CJ ZIP HTTP-ről:
 #       CJ_FEED_URL    – DataTransfer ZIP URL (amiben benne van az eOptika XML is)
 #       CJ_HTTP_USER   – HTTP felhasználó
 #       CJ_HTTP_PASS   – HTTP jelszó
-#       CJ_API_TOKEN   – (opcionális, most nem használjuk)
-#
-#   - A ZIP-ben lévő eOptika XML fájl neve:
-#       pl. eOptika_HU-eOptikaHU_google_all-shopping.xml
 #
 # Kategorizálás:
-#   - NEM használjuk a category_assign-et
-#   - MINDEN eOptika termék fixen a "latas" fő kategóriába kerül
+#   - NEM használunk category_assign-t
+#   - MINDEN eOptika termék fixen: "latas"
 #
-# Kimenet:
-#   docs/feeds/cj-eoptika/meta.json, page-0001.json...           (globál)
-#   docs/feeds/cj-eoptika/<findora_cat>/meta.json, page-....json (kategória – mind a 25 mappa létrejön)
-#   docs/feeds/cj-eoptika/akcio/meta.json, page-....json         (akciós blokk, discount >= 10%)
+# KIMENET:
+#   docs/feeds/cj-eoptika/meta.json
+#   docs/feeds/cj-eoptika/page-0001.json, page-0002.json, ...
+#
+# Futás (GitHub Actions):
+#   CJ_FEED_URL, CJ_HTTP_USER, CJ_HTTP_PASS secretsből/envből
 
 import os
+import re
+import io
 import json
 import math
-import io
 import zipfile
 from pathlib import Path
-import requests
+from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 
-from category_assignbase import FINDORA_CATS  # csak a 25 fő kategória listája kell
+import requests
 
-# KIMENET: GitHub Pages alá, innen megy ki: https://www.findora.hu/feeds/cj-eoptika/...
+# ===== KONFIG =====
 OUT_DIR = Path("docs/feeds/cj-eoptika")
+PAGE_SIZE = 1000
 
-# Globál feed: nagyobb lapméret
-PAGE_SIZE_GLOBAL = 200
-
-# Kategória feedek: 20/lap
-PAGE_SIZE_CAT = 20
-
-# Akciós blokk: 20/lap
-PAGE_SIZE_AKCIO_BLOCK = 20
-
-OUT_DIR.mkdir(parents=True, exist_ok=True)
-
-# CJ HTTP / ZIP beállítások
 CJ_FEED_URL = os.environ.get("CJ_FEED_URL")
 CJ_HTTP_USER = os.environ.get("CJ_HTTP_USER")
 CJ_HTTP_PASS = os.environ.get("CJ_HTTP_PASS")
-CJ_API_TOKEN = os.environ.get("CJ_API_TOKEN")  # jelenleg nem használjuk, csak elérhető
+
+PARTNER_ID = "cj-eoptika"
+FIXED_CATEGORY = "latas"
 
 
 # ====================== SEGÉDFÜGGVÉNYEK ======================
 
-def first_nonempty(row, *keys):
-    """Adj vissza az első nem üres mezőt a kulcsok közül."""
-    for key in keys:
-        if key in row and row[key]:
-            return str(row[key]).strip()
-    return None
+def rm_tree_contents(path: Path):
+    """Törli a célmappában lévő összes fájlt és almappát (a mappát meghagyja)."""
+    if not path.exists():
+        return
+    for p in sorted(path.rglob("*"), reverse=True):
+        try:
+            if p.is_file() or p.is_symlink():
+                p.unlink()
+            elif p.is_dir():
+                p.rmdir()
+        except OSError:
+            # GitHub runneren néha előfordulhat lock/perm anomália; hagyjuk, de próbáljuk folytatni
+            pass
+
+
+def short_desc(text: str, maxlen: int = 280) -> str:
+    """HTML/whitespace takarítás + rövidítés."""
+    if not text:
+        return ""
+    t = re.sub(r"<[^>]+>", " ", str(text))
+    t = re.sub(r"\s+", " ", t).strip()
+    if len(t) <= maxlen:
+        return t
+    cut = t[: maxlen + 10]
+    m = re.search(r"\s+\S*$", cut)
+    if m:
+        cut = cut[: m.start()].rstrip()
+    return cut + "…"
 
 
 def parse_price(raw_value, row_currency=None):
     """
-    Kezeli a:
-      - '1234.56 HUF'
-      - '1234,56 HUF'
-      - '1234.56' + külön currency mezőt.
+    Kezeli:
+      - "1234.56 HUF"
+      - "1234,56 HUF"
+      - "1234.56" + külön currency mező
+    Vissza: (float_or_none, currency_str)
     """
     if not raw_value:
-        return None, row_currency or "HUF"
+        return None, (row_currency or "HUF")
 
     raw_value = str(raw_value).strip()
     parts = raw_value.split()
 
     if len(parts) >= 2:
         amount = parts[0].replace(",", ".")
-        currency = parts[1]
+        currency = parts[1].strip()
     else:
         amount = raw_value.replace(",", ".")
-        currency = row_currency or "HUF"
+        currency = (row_currency or "HUF")
 
     try:
-        value = float(amount)
-    except ValueError:
+        return float(amount), currency
+    except Exception:
         return None, currency
 
-    return value, currency
 
-
-def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
+def price_to_huf_int(value_float, currency: str):
     """
-    Általános lapozó + fájlkiíró:
-      base_dir/meta.json
-      base_dir/page-0001.json, page-0002.json, ...
-
-    FONTOS:
-    - Üres lista esetén is létrejön:
-        - meta.json
-        - page-0001.json ({"items": []})
-      így a frontend soha nem kap 404-et a page-0001.json-re.
+    Findora jelenlegi logikája HUF-ra optimalizált.
+    Ha nem HUF, akkor is megpróbáljuk int-re tenni (de a legjobb, ha a feed HUF).
     """
-    base_dir.mkdir(parents=True, exist_ok=True)
+    if value_float is None:
+        return None
+    try:
+        return int(round(float(value_float)))
+    except Exception:
+        return None
+
+
+def compute_discount(price_huf: int | None, old_price_huf: int | None):
+    if old_price_huf and price_huf and old_price_huf > price_huf:
+        try:
+            return int(round((1 - price_huf / float(old_price_huf)) * 100))
+        except Exception:
+            return None
+    return None
+
+
+def paginate_and_write(out_dir: Path, items: list, page_size: int):
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     total = len(items)
+    page_count = 1 if total == 0 else int(math.ceil(total / float(page_size)))
 
-    # Üres lista esetén is legyen legalább 1 oldal
+    # stabil sorrend: title + id (hogy ne ugráljon diffben)
+    items_sorted = sorted(items, key=lambda x: (str(x.get("title", "")), str(x.get("id", ""))))
+
+    # oldalak
     if total == 0:
-        page_count = 1
+        with (out_dir / "page-0001.json").open("w", encoding="utf-8") as f:
+            json.dump({"items": []}, f, ensure_ascii=False)
+        print(f"[INFO] {PARTNER_ID}: page-0001.json (0 db, üres)")
     else:
-        page_count = int(math.ceil(total / page_size))
+        for i in range(page_count):
+            start = i * page_size
+            end = start + page_size
+            chunk = items_sorted[start:end]
+            fn = out_dir / f"page-{i+1:04d}.json"
+            with fn.open("w", encoding="utf-8") as f:
+                json.dump({"items": chunk}, f, ensure_ascii=False)
+            print(f"[INFO] {PARTNER_ID}: {fn.name} → {len(chunk)} db")
 
+    # meta
     meta = {
+        "partner": PARTNER_ID,
+        "source": "cj-zip",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "total_items": total,
         "page_size": page_size,
         "page_count": page_count,
     }
-    if meta_extra:
-        meta.update(meta_extra)
-
-    meta_path = base_dir / "meta.json"
-    with meta_path.open("w", encoding="utf-8") as f:
+    with (out_dir / "meta.json").open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
-
-    if total == 0:
-        # Üres kategória/globál/akció: 1 oldal, üres items
-        out_path = base_dir / "page-0001.json"
-        with out_path.open("w", encoding="utf-8") as f:
-            json.dump({"items": []}, f, ensure_ascii=False)
-    else:
-        for page_no in range(1, page_count + 1):
-            start = (page_no - 1) * page_size
-            end = start + page_size
-            page_items = items[start:end]
-
-            out_path = base_dir / f"page-{page_no:04d}.json"
-            with out_path.open("w", encoding="utf-8") as f:
-                json.dump({"items": page_items}, f, ensure_ascii=False)
+    print(f"[INFO] {PARTNER_ID}: meta.json kész")
 
 
 def fetch_cj_zip(url: str, user: str = None, password: str = None) -> bytes:
@@ -146,7 +168,7 @@ def fetch_cj_zip(url: str, user: str = None, password: str = None) -> bytes:
 
     auth = (user, password) if (user and password) else None
     print(f"[INFO] CJ ZIP letöltése: {url}")
-    resp = requests.get(url, auth=auth, timeout=120)
+    resp = requests.get(url, auth=auth, timeout=180)
     resp.raise_for_status()
     print("[INFO] CJ ZIP méret:", len(resp.content), "byte")
     return resp.content
@@ -154,28 +176,20 @@ def fetch_cj_zip(url: str, user: str = None, password: str = None) -> bytes:
 
 def parse_eoptika_from_zip(zip_bytes: bytes):
     """
-    ZIP → eOptika XML(ek) → nyers item lista.
-
-    Csak azokat a fájlokat nézzük, amelyek nevében benne van:
-      'eOptikaHU_google_all'
-    pl. eOptika_HU-eOptikaHU_google_all-shopping.xml
+    ZIP → eOptika XML(ek) → nyers lista.
+    Csak fájlok: név tartalmazza "eOptikaHU_google_all" és .xml.
     """
     items = []
 
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
         names = zf.namelist()
-        print("[INFO] ZIP fájlok a csomagban:")
-        for n in names:
-            print("   -", n)
-
         target_files = [
             n for n in names
-            if "eOptikaHU_google_all" in n
-            and n.lower().endswith(".xml")
+            if "eOptikaHU_google_all" in n and n.lower().endswith(".xml")
         ]
 
         if not target_files:
-            print("⚠️ Nincs eOptika XML a ZIP-ben (nem találtam 'eOptikaHU_google_all' nevű fájlt).")
+            print("[WARN] Nincs eOptika XML a ZIP-ben (nem találtam 'eOptikaHU_google_all' nevű fájlt).")
             return items
 
         for name in target_files:
@@ -190,231 +204,97 @@ def parse_eoptika_from_zip(zip_bytes: bytes):
                         el = entry.find(tag_name)
                         return (el.text or "").strip() if el is not None and el.text else ""
 
-                    pid = get_text("id")
-                    title = get_text("title")
-                    description = get_text("description")
-                    url = get_text("link")
-                    image = get_text("image_link")
+                    pid = get_text("id") or ""
+                    title = get_text("title") or ""
+                    description = get_text("description") or ""
+                    url = get_text("link") or ""
+                    image = get_text("image_link") or ""
 
-                    # Ha nincs cím vagy URL, akkor nem fogjuk tudni listázni → skip
-                    if not (title and url):
+                    if not title or not url:
                         continue
 
-                    row_currency = get_text("currency")  # ha nincs, majd HUF lesz
-
+                    row_currency = get_text("currency") or "HUF"
                     raw_sale = get_text("sale_price")
                     raw_price = get_text("price")
 
-                    sale_val, currency = parse_price(raw_sale, row_currency)
-                    price_val, currency2 = parse_price(raw_price, row_currency or currency)
+                    sale_val, c1 = parse_price(raw_sale, row_currency)
+                    price_val, c2 = parse_price(raw_price, row_currency)
 
-                    if not currency and currency2:
-                        currency = currency2
+                    currency = c1 or c2 or row_currency or "HUF"
+                    final_val = sale_val if sale_val is not None else price_val
+                    orig_val = price_val if (sale_val is not None and price_val is not None and sale_val < price_val) else None
 
-                    final_price = sale_val or price_val
-                    original_price = (
-                        price_val if sale_val and price_val and sale_val < price_val else None
-                    )
+                    price_huf = price_to_huf_int(final_val, currency)
+                    old_price_huf = price_to_huf_int(orig_val, currency)
 
-                    discount = None
-                    if original_price and final_price and final_price < original_price:
-                        discount = round((original_price - final_price) / original_price * 100)
+                    discount = compute_discount(price_huf, old_price_huf)
 
-                    brand = get_text("brand")
-                    category = (
+                    brand = get_text("brand") or ""
+                    category_path = (
                         get_text("google_product_category_name")
                         or get_text("google_product_category")
                         or get_text("product_type")
+                        or ""
                     )
 
                     items.append(
                         {
-                            "id": pid,
-                            "title": title,
-                            "desc": description,
-                            "url": url,
-                            "image": image,
-                            "price": final_price,
-                            "original_price": original_price,
-                            "currency": currency or "HUF",
-                            "brand": brand,
-                            "category_path": category or "",
+                            "id": pid.strip() or url,  # fallback, de legyen stabil
+                            "title": title.strip(),
+                            "img": image.strip(),
+                            "desc": short_desc(description),
+                            "price": price_huf,
+                            "old_price": old_price_huf,
                             "discount": discount,
+                            "url": url.strip(),
+                            "partner": PARTNER_ID,
+                            "brand": brand.strip(),
+                            "category_path": category_path.strip(),
+                            "findora_main": FIXED_CATEGORY,
+                            "cat": FIXED_CATEGORY,
                         }
                     )
 
     return items
 
 
-# ====================== RÉGI FÁJLOK TAKARÍTÁSA ======================
+# ====================== MAIN ======================
 
-# Minden régi JSON törlése (globál + kategória + akcio)
-for old_json in OUT_DIR.rglob("*.json"):
-    try:
-        old_json.unlink()
-    except OSError:
-        pass
+def main():
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    # 1) Takarítás: mindent töröl a partner mappájában (régi kategória/akció struktúrákat is)
+    rm_tree_contents(OUT_DIR)
 
-# ====================== FEED BETÖLTÉS (CJ ZIP + XML) ======================
+    # 2) Feed beolvasás
+    if not CJ_FEED_URL:
+        print("[WARN] CJ_FEED_URL nincs beállítva – üres feedet generálok.")
+        paginate_and_write(OUT_DIR, [], PAGE_SIZE)
+        return
 
-raw_items = []
-
-if not CJ_FEED_URL:
-    print("⚠️ CJ_FEED_URL nincs beállítva – üres feedet generálunk.")
-else:
     try:
         zip_bytes = fetch_cj_zip(CJ_FEED_URL, CJ_HTTP_USER, CJ_HTTP_PASS)
-        raw_items = parse_eoptika_from_zip(zip_bytes)
+        rows = parse_eoptika_from_zip(zip_bytes)
     except Exception as e:
-        print(f"⚠️ Hiba a CJ ZIP feldolgozásakor: {e}")
-        raw_items = []
+        print(f"[WARN] Hiba a CJ ZIP feldolgozásakor: {e}")
+        rows = []
 
-total_raw = len(raw_items)
-print(f"DEBUG CJ EOPTIKA: nyers termékek: {total_raw}")
+    # 3) Dedupe (id + url)
+    seen = set()
+    ded = []
+    for it in rows:
+        key = (str(it.get("id", "")).strip(), str(it.get("url", "")).strip())
+        if key in seen:
+            continue
+        seen.add(key)
+        ded.append(it)
 
+    print(f"[INFO] {PARTNER_ID}: nyers={len(rows)} dedup={len(ded)}")
 
-# ====================== NORMALIZÁLÁS + KATEGÓRIA (fixen 'latas') ======================
-
-rows = []
-
-for m in raw_items:
-    pid = m["id"]
-    title = m["title"]
-    desc = m["desc"] or ""
-    url = m["url"]
-    img = m["image"]
-    price = m["price"]
-    original_price = m["original_price"]
-    currency = m["currency"]
-    brand = m["brand"] or ""
-    category_path = m["category_path"] or ""
-    discount = m["discount"]
-
-    # MINDEN eOptika termék fő kategóriája: 'latas'
-    findora_main = "latas"
-    if findora_main not in FINDORA_CATS:
-        findora_main = "multi"
-
-    row = {
-        "id": pid,
-        "title": title,
-        "img": img,
-        "desc": desc,
-        "price": price,
-        "original_price": original_price,
-        "currency": currency,
-        "discount": discount,
-        "url": url,
-        "partner": "cj-eoptika",
-        "category_path": category_path,
-        "findora_main": findora_main,
-        "cat": findora_main,
-    }
-    rows.append(row)
-
-total = len(rows)
-print(f"[INFO] CJ eOptika: normalizált sorok: {total}")
-
-# ====================== HA NINCS EGYETLEN TERMÉK SEM ======================
-
-if total == 0:
-    # Globál üres meta + üres page-0001
-    paginate_and_write(
-        OUT_DIR,
-        [],
-        PAGE_SIZE_GLOBAL,
-        meta_extra={
-            "partner": "cj-eoptika",
-            "scope": "global",
-        },
-    )
-
-    # Minden kategóriára üres meta + üres page-0001
-    for slug in FINDORA_CATS:
-        base_dir = OUT_DIR / slug
-        paginate_and_write(
-            base_dir,
-            [],
-            PAGE_SIZE_CAT,
-            meta_extra={
-                "partner": "cj-eoptika",
-                "scope": f"category:{slug}",
-            },
-        )
-
-    # Akciós blokk üres meta + üres page-0001
-    akcio_dir = OUT_DIR / "akcio"
-    paginate_and_write(
-        akcio_dir,
-        [],
-        PAGE_SIZE_AKCIO_BLOCK,
-        meta_extra={
-            "partner": "cj-eoptika",
-            "scope": "akcio",
-        },
-    )
-
-    print("⚠️ CJ eOptika: nincs termék → csak üres meta-k + page-0001.json készült.")
-    raise SystemExit(0)
+    # 4) Kiírás globál 1000/page
+    paginate_and_write(OUT_DIR, ded, PAGE_SIZE)
+    print(f"✅ KÉSZ: {PARTNER_ID} → {OUT_DIR} ({len(ded)} termék)")
 
 
-# ====================== GLOBÁL FEED ======================
-
-paginate_and_write(
-    OUT_DIR,
-    rows,
-    PAGE_SIZE_GLOBAL,
-    meta_extra={
-        "partner": "cj-eoptika",
-        "scope": "global",
-    },
-)
-
-
-# ====================== KATEGÓRIA FEED-EK ======================
-
-buckets = {slug: [] for slug in FINDORA_CATS}
-
-for row in rows:
-    slug = row.get("findora_main") or "multi"
-    if slug not in buckets:
-        slug = "multi"
-    buckets[slug].append(row)
-
-for slug, items in buckets.items():
-    base_dir = OUT_DIR / slug
-    paginate_and_write(
-        base_dir,
-        items,
-        PAGE_SIZE_CAT,
-        meta_extra={
-            "partner": "cj-eoptika",
-            "scope": f"category:{slug}",
-        },
-    )
-
-
-# ====================== AKCIÓS BLOKK (discount >= 10%) ======================
-
-akcios_items = [
-    row for row in rows
-    if row.get("discount") is not None and row["discount"] >= 10
-]
-
-akcio_dir = OUT_DIR / "akcio"
-paginate_and_write(
-    akcio_dir,
-    akcios_items,
-    PAGE_SIZE_AKCIO_BLOCK,
-    meta_extra={
-        "partner": "cj-eoptika",
-        "scope": "akcio",
-    },
-)
-
-print(
-    f"✅ CJ eOptika kész: {total} termék, "
-    f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
-    f"akciós blokk tételek: {len(akcios_items)} → {akcio_dir}"
-)
+if __name__ == "__main__":
+    main()
