@@ -41,7 +41,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: Build Ekszereshop feed pages (global + categories + akcio)
+      - name: Build Ekszereshop feed pages (GLOBAL-ONLY, 1000/page)
         env:
           FEED_EKSZERESHOP_URL: ${{ secrets.FEED_EKSZERESHOP_URL }}
         run: |
@@ -55,17 +55,20 @@ jobs:
           mkdir -p docs/feeds/ekszereshop
           python -u scripts/build_ekszereshop.py
 
-          # Sanity checks (mindig legyen meta + page-0001)
+          echo "Sanity checks (GLOBAL-ONLY):"
           test -s docs/feeds/ekszereshop/meta.json
           test -s docs/feeds/ekszereshop/page-0001.json
 
-          # Akció mappa is létrejön (üresnél is meta + page-0001)
-          test -s docs/feeds/ekszereshop/akcio/meta.json
-          test -s docs/feeds/ekszereshop/akcio/page-0001.json
+          echo "Tree of docs/feeds/ekszereshop:"
+          ls -la docs/feeds/ekszereshop || true
 
-          # Fix kategória: divat (üresnél is meta + page-0001)
-          test -s docs/feeds/ekszereshop/divat/meta.json
-          test -s docs/feeds/ekszereshop/divat/page-0001.json
+          echo "First item sanity:"
+          if command -v jq >/dev/null 2>&1; then
+            jq -r '.items[0] | {title, img, url, price, old_price, discount, partner, findora_main}' \
+              docs/feeds/ekszereshop/page-0001.json || true
+          else
+            head -c 800 docs/feeds/ekszereshop/page-0001.json || true
+          fi
 
       - name: Commit & push directly to main (no PR)
         run: |
@@ -79,6 +82,6 @@ jobs:
           # ha nincs változás → kilép
           git diff --cached --quiet && echo "No changes, exiting." && exit 0
 
-          git commit -m "ekszereshop: update feed pages"
+          git commit -m "ekszereshop: update feed pages (global-only)"
           git pull --rebase origin main || true
           git push origin HEAD:main
