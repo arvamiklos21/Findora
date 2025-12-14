@@ -3,11 +3,14 @@ name: ingest-alza
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 8,18 * * *"   # reggel 9:00 és este 19:00 magyar idő
+    - cron: "0 8,18 * * *"   # 09:00 és 19:00 magyar idő körül (UTC+1 → 08:00 / 18:00 UTC)
 
 permissions:
   contents: write
-  pull-requests: write
+
+concurrency:
+  group: ingest-alza-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ingest:
@@ -17,21 +20,28 @@ jobs:
       - name: Checkout (full)
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           lfs: true
+
+      # --- fontos: mindig sync main ---
+      - name: Sync with origin/main
+        run: |
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.11"
 
       - name: Install deps
         run: |
-          pip install requests lxml joblib scikit-learn
+          python -m pip install --upgrade pip
+          pip install requests joblib scikit-learn
 
       - name: Build Alza feed pages (ML)
         env:
-          # EGY darab secret, amiben az összes Alza XML URL benne van
-          # (egy URL / sor vagy szóközzel elválasztva)
           FEED_ALZA_URL: ${{ secrets.FEED_ALZA_URL }}
         run: |
           set -euo pipefail
@@ -42,40 +52,42 @@ jobs:
           fi
 
           echo "[INFO] FEED_ALZA_URL nyers hossza: ${#FEED_ALZA_URL} karakter"
-          echo "[INFO] FEED_ALZA_URL sorok száma (bennük 'http'): $(printf '%s\n' "$FEED_ALZA_URL" | grep -c 'http' || true)"
+          echo "[INFO] FEED_ALZA_URL 'http' előfordulások: $(printf '%s\n' "$FEED_ALZA_URL" | grep -c 'http' || true)"
 
           mkdir -p docs/feeds/alza
 
-          # ML alapú ALZA build – maga a script darabolja szét a több URL-t
-          python scripts/build_alza.py
+          echo "▶️ Alza build indul..."
+          python -u scripts/build_alza.py
+          echo "✅ Alza build lefutott."
 
-          echo "Sanity check (category-based pages):"
-          ls -la docs/feeds/alza || true
+          # Sanity check – globál meta + globál page-0001
+          test -s docs/feeds/alza/meta.json
+          test -s docs/feeds/alza/page-0001.json
 
-          FIRST_DIR=$(ls -1 docs/feeds/alza | head -n 1 || echo "")
-          echo "First dir: $FIRST_DIR"
+          echo "---- META (rövidített) ----"
+          head -c 900 docs/feeds/alza/meta.json || true
+          echo
+          echo "---------------------------"
 
-          if [ -n "$FIRST_DIR" ] && [ -f "docs/feeds/alza/$FIRST_DIR/page-0001.json" ]; then
-            if command -v jq >/dev/null 2>&1; then
-              jq '.items[0]' "docs/feeds/alza/$FIRST_DIR/page-0001.json" || true
-            else
-              head -c 600 "docs/feeds/alza/$FIRST_DIR/page-0001.json" || true
-            fi
+          if command -v jq >/dev/null 2>&1; then
+            jq -e '.total_items >= 0 and (.page_count >= 1) and (.page_size == 1000)' docs/feeds/alza/meta.json >/dev/null
+            jq -e '.items != null' docs/feeds/alza/page-0001.json >/dev/null
+            echo "---- FIRST ITEM ----"
+            jq '.items[0]' docs/feeds/alza/page-0001.json || true
+          else
+            head -c 900 docs/feeds/alza/page-0001.json || true
           fi
 
-      - name: Commit changes
+      - name: Commit & push directly to main (no PR)
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/feeds/alza
-          git commit -m "alza: update feed pages (ML)" || echo "No changes"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: bot/update-alza
-          delete-branch: true
-          title: "alza: update feed pages (ML)"
-          commit-message: "alza: update feed pages (ML)"
-          body: |
-            Automated update of Alza feed pages using ML model.
+          git add docs/feeds/alza
+
+          # ha nincs változás → kilép
+          git diff --cached --quiet && echo "No changes, exiting." && exit 0
+
+          git commit -m "alza: update feed pages (ML)"
+          git pull --rebase origin main || true
+          git push origin HEAD:main
