@@ -1,8 +1,8 @@
 {
-  "total_items": 59550,
-  "page_size": 300,
-  "page_count": 199,
+  "total_items": 59530,
+  "page_size": 1000,
+  "page_count": 60,
   "partner": "otthonmarket",
   "scope": "global",
-  "generated_at": "2025-12-13T19:24:27.594955Z"
+  "generated_at": "2025-12-14T07:54:09.202816Z"
 }
