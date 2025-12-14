@@ -1,15 +1,17 @@
 # scripts/build_jateksziget.py
 #
-# Játéksziget feed → Findora JSON oldalak (globál + kategória + akciós blokk)
+# Játéksziget feed → Findora JSON oldalak (CSAK GLOBÁL, NINCS kategória, NINCS akció)
 #
 # Kategorizálás:
 #   - NEM használjuk a category_assign-et
-#   - MINDEN Játéksziget termék fő kategóriája: "jatekok"
+#   - MINDEN Játéksziget termék fő kategóriája: "jatekok" (mezőben benne marad: findora_main/cat)
 #
 # Kimenet:
-#   docs/feeds/jateksziget/meta.json, page-0001.json...              (globál)
-#   docs/feeds/jateksziget/<findora_cat>/meta.json, page-....json    (kategória)
-#   docs/feeds/jateksziget/akcio/meta.json, page-....json            (akciós blokk, discount >= 10%)
+#   docs/feeds/jateksziget/meta.json
+#   docs/feeds/jateksziget/page-0001.json, page-0002.json... (1000 termék / oldal)
+#
+# FONTOS:
+#   - Futás elején töröl mindent a docs/feeds/jateksziget mappából (régi page-*.json, meta.json)
 
 import os
 import re
@@ -22,19 +24,13 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
-from category_assignbase import FINDORA_CATS  # csak a 25 kategória listája miatt
+from category_assignbase import FINDORA_CATS  # csak validálásra
 
 FEED_URL = os.environ.get("FEED_JATEKSZIGET_URL")
 OUT_DIR = Path("docs/feeds/jateksziget")
 
-# Globál feed: 300/lap (forrás-oldal méret)
-PAGE_SIZE_GLOBAL = 300
-
-# Kategória feedek: 20/lap
-PAGE_SIZE_CAT = 20
-
-# Akciós blokk: 20/lap
-PAGE_SIZE_AKCIO_BLOCK = 20
+# CSAK globál: 1000 / JSON
+PAGE_SIZE = 1000
 
 
 def norm_price(v):
@@ -68,8 +64,10 @@ def collect_node(n):
     k0 = strip_ns(n.tag)
     if txt:
         m.setdefault(k0, txt)
+
     for ak, av in (n.attrib or {}).items():
         m.setdefault(strip_ns(ak), av)
+
     for c in list(n):
         k = strip_ns(c.tag)
         v = (c.text or "").strip()
@@ -170,6 +168,7 @@ OLD_PRICE_KEYS = (
 
 def parse_items(xml_text):
     root = ET.fromstring(xml_text)
+
     candidates = []
     for path in (
         ".//channel/item",
@@ -184,10 +183,10 @@ def parse_items(xml_text):
         if nodes:
             candidates = nodes
             break
+
     if not candidates:
         candidates = [
-            n
-            for n in root.iter()
+            n for n in root.iter()
             if strip_ns(n.tag) in ("item", "product", "shopitem", "entry")
         ]
 
@@ -211,20 +210,19 @@ def parse_items(xml_text):
         raw_desc = first(m, DESC_KEYS)
         desc = short_desc(raw_desc)
 
-        # kategória + brand
         category_path = first(m, CATEGORY_KEYS) or ""
         brand = first(m, BRAND_KEYS) or ""
 
         price_new = None
         for k in NEW_PRICE_KEYS:
             price_new = norm_price(m.get(k))
-            if price_new:
+            if price_new is not None:
                 break
 
         old = None
         for k in OLD_PRICE_KEYS:
             old = norm_price(m.get(k))
-            if old:
+            if old is not None:
                 break
 
         discount = (
@@ -241,12 +239,14 @@ def parse_items(xml_text):
                 "desc": desc,
                 "raw_desc": raw_desc or "",
                 "price": price_new,
+                "old_price": old,
                 "discount": discount,
                 "url": link or "",
                 "category_path": category_path,
                 "brand": brand,
             }
         )
+
     print(f"ℹ Játéksziget: parse_items → {len(items)} nyers termék")
     return items
 
@@ -254,27 +254,9 @@ def parse_items(xml_text):
 # ===== dedup: méret összevonás, szín marad =====
 SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
 COLOR_WORDS = (
-    "fekete",
-    "fehér",
-    "feher",
-    "szürke",
-    "szurke",
-    "kék",
-    "kek",
-    "piros",
-    "zöld",
-    "zold",
-    "lila",
-    "sárga",
-    "sarga",
-    "narancs",
-    "barna",
-    "bézs",
-    "bezs",
-    "rózsaszín",
-    "rozsaszin",
-    "bordó",
-    "bordeaux",
+    "fekete", "fehér", "feher", "szürke", "szurke", "kék", "kek", "piros",
+    "zöld", "zold", "lila", "sárga", "sarga", "narancs", "barna", "bézs",
+    "bezs", "rózsaszín", "rozsaszin", "bordó", "bordeaux",
 )
 
 
@@ -331,55 +313,37 @@ def dedup_size_variants(items):
                 cur["discount"] = it["discount"]
             if len(it.get("desc") or "") > len(cur.get("desc") or ""):
                 cur["desc"] = it["desc"]
+            if (it.get("old_price") or 0) > (cur.get("old_price") or 0):
+                cur["old_price"] = it["old_price"]
     return list(buckets.values())
 
 
 def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
-    """
-    Általános lapozó + fájlkiíró:
-      base_dir/meta.json
-      base_dir/page-0001.json, page-0002.json, ...
-
-    FONTOS:
-    - Üres lista esetén is létrejön:
-        - meta.json
-        - page-0001.json ({"items": []})
-      így a frontend soha nem kap 404-et a page-0001.json-re.
-    """
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
+    page_count = 1 if total == 0 else int(math.ceil(total / page_size))
 
-    # Üres lista esetén is legyen legalább 1 oldal
-    if total == 0:
-        page_count = 1
-    else:
-        page_count = int(math.ceil(total / page_size))
-
-    meta = {
-        "total_items": total,
-        "page_size": page_size,
-        "page_count": page_count,
-    }
+    meta = {"total_items": total, "page_size": page_size, "page_count": page_count}
     if meta_extra:
         meta.update(meta_extra)
 
-    meta_path = base_dir / "meta.json"
-    with meta_path.open("w", encoding="utf-8") as f:
+    with (base_dir / "meta.json").open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
     if total == 0:
-        out_path = base_dir / "page-0001.json"
-        with out_path.open("w", encoding="utf-8") as f:
+        with (base_dir / "page-0001.json").open("w", encoding="utf-8") as f:
             json.dump({"items": []}, f, ensure_ascii=False)
-    else:
-        for page_no in range(1, page_count + 1):
-            start = (page_no - 1) * page_size
-            end = start + page_size
-            page_items = items[start:end]
+        return
 
-            out_path = base_dir / f"page-{page_no:04d}.json"
-            with out_path.open("w", encoding="utf-8") as f:
-                json.dump({"items": page_items}, f, ensure_ascii=False)
+    # stabil sorrend
+    items_sorted = sorted(items, key=lambda x: (str(x.get("id", "")), str(x.get("title", ""))))
+
+    for page_no in range(1, page_count + 1):
+        start = (page_no - 1) * page_size
+        end = start + page_size
+        page_items = items_sorted[start:end]
+        with (base_dir / f"page-{page_no:04d}.json").open("w", encoding="utf-8") as f:
+            json.dump({"items": page_items}, f, ensure_ascii=False)
 
 
 def main():
@@ -387,17 +351,18 @@ def main():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # régi JSON-ok törlése (globál + kategória + akcio)
-    for old in OUT_DIR.rglob("*.json"):
+    # teljes takarítás – hogy ne maradjon régi page-0007 stb.
+    for old in OUT_DIR.rglob("*"):
         try:
-            old.unlink()
+            if old.is_file():
+                old.unlink()
         except OSError:
             pass
 
     r = requests.get(
         FEED_URL,
         headers={"User-Agent": "Mozilla/5.0", "Accept": "application/xml"},
-        timeout=120,
+        timeout=180,
     )
     r.raise_for_status()
 
@@ -405,87 +370,35 @@ def main():
     items = dedup_size_variants(raw_items)
     print(f"ℹ Játéksziget: dedup után {len(items)} termék")
 
-    # ===== NORMALIZÁLÁS + FIX KATEGÓRIA: 'jatekok' =====
     rows = []
     for it in items:
-        pid = it["id"]
-        title = it["title"]
-        desc = it.get("desc") or ""
-        url = it.get("url") or ""
-        img = it.get("img") or ""
-        price = it.get("price")
-        discount = it.get("discount")
-        category_path = it.get("category_path") or ""
-        brand = it.get("brand") or ""
-
-        findora_main = "jatekok"
-        if findora_main not in FINDORA_CATS:
-            findora_main = "multi"
-
+        findora_main = "jatekok" if "jatekok" in FINDORA_CATS else "multi"
         row = {
-            "id": pid,
-            "title": title,
-            "img": img,
-            "desc": desc,
-            "price": price,
-            "discount": discount,
-            "url": url,
+            "id": it.get("id"),
+            "title": it.get("title"),
+            "img": it.get("img") or "",
+            "desc": it.get("desc") or "",
+            "price": it.get("price"),
+            "old_price": it.get("old_price"),
+            "discount": it.get("discount"),
+            "url": it.get("url") or "",
             "partner": "jateksziget",
-            "category_path": category_path,
+            "category_path": it.get("category_path") or "",
+            "brand": it.get("brand") or "",
             "findora_main": findora_main,
             "cat": findora_main,
         }
-        rows.append(row)
+        # minimum: title+url legyen
+        if row["title"] and row["url"]:
+            rows.append(row)
 
     total = len(rows)
     print(f"[INFO] Játéksziget: normalizált sorok: {total}")
 
-    # ===== HA NINCS EGYETLEN TERMÉK SEM =====
-    if total == 0:
-        # Globál üres meta + üres page-0001
-        paginate_and_write(
-            OUT_DIR,
-            [],
-            PAGE_SIZE_GLOBAL,
-            meta_extra={
-                "partner": "jateksziget",
-                "scope": "global",
-            },
-        )
-
-        # Minden kategóriára üres meta + üres page-0001
-        for slug in FINDORA_CATS:
-            base_dir = OUT_DIR / slug
-            paginate_and_write(
-                base_dir,
-                [],
-                PAGE_SIZE_CAT,
-                meta_extra={
-                    "partner": "jateksziget",
-                    "scope": f"category:{slug}",
-                },
-            )
-
-        # Akciós blokk üres meta + üres page-0001
-        akcio_dir = OUT_DIR / "akcio"
-        paginate_and_write(
-            akcio_dir,
-            [],
-            PAGE_SIZE_AKCIO_BLOCK,
-            meta_extra={
-                "partner": "jateksziget",
-                "scope": "akcio",
-            },
-        )
-
-        print("⚠️ Játéksziget: nincs termék → csak üres meta-k + page-0001.json készült.")
-        return
-
-    # ===== GLOBÁL FEED =====
     paginate_and_write(
         OUT_DIR,
         rows,
-        PAGE_SIZE_GLOBAL,
+        PAGE_SIZE,
         meta_extra={
             "partner": "jateksziget",
             "scope": "global",
@@ -493,49 +406,8 @@ def main():
         },
     )
 
-    # ===== KATEGÓRIA FEED-EK =====
-    buckets = {slug: [] for slug in FINDORA_CATS}
-    for row in rows:
-        slug = row.get("findora_main") or "multi"
-        if slug not in buckets:
-            slug = "multi"
-        buckets[slug].append(row)
-
-    for slug, items_cat in buckets.items():
-        base_dir = OUT_DIR / slug
-        paginate_and_write(
-            base_dir,
-            items_cat,
-            PAGE_SIZE_CAT,
-            meta_extra={
-                "partner": "jateksziget",
-                "scope": f"category:{slug}",
-                "generated_at": datetime.utcnow().isoformat() + "Z",
-            },
-        )
-
-    # ===== AKCIÓS BLOKK (discount >= 10%) =====
-    akcios_items = [
-        row for row in rows
-        if row.get("discount") is not None and row["discount"] >= 10
-    ]
-
-    akcio_dir = OUT_DIR / "akcio"
-    paginate_and_write(
-        akcio_dir,
-        akcios_items,
-        PAGE_SIZE_AKCIO_BLOCK,
-        meta_extra={
-            "partner": "jateksziget",
-            "scope": "akcio",
-            "generated_at": datetime.utcnow().isoformat() + "Z",
-        },
-    )
-
     print(
-        f"✅ Játéksziget kész: {total} termék, "
-        f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
-        f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR / 'akcio'}"
+        f"✅ Játéksziget global feed kész: {total} termék, page_size={PAGE_SIZE} → {OUT_DIR}"
     )
 
 
