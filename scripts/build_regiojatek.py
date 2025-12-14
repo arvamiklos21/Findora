@@ -1,15 +1,19 @@
 # scripts/build_regiojatek.py
 #
-# REGIO Játék feed → Findora JSON oldalak (globál + kategória + akciós blokk)
+# REGIO Játék feed → Findora JSON oldalak (CSAK GLOBÁL, NINCS kategória mappa, NINCS akció)
 #
 # Kategorizálás:
-#   - NEM használjuk a category_assign-et
 #   - MINDEN termék fő kategóriája: "jatekok"
 #
 # Kimenet:
-#   docs/feeds/regiojatek/meta.json, page-0001.json...              (globál)
-#   docs/feeds/regiojatek/<findora_cat>/meta.json, page-....json    (kategória)
-#   docs/feeds/regiojatek/akcio/meta.json, page-....json            (akciós blokk, discount >= 10%)
+#   docs/feeds/regiojatek/meta.json
+#   docs/feeds/regiojatek/page-0001.json  (max 1000 termék)
+#   docs/feeds/regiojatek/page-0002.json  ...
+#
+# Fontos:
+#   - Futtatás elején törli a docs/feeds/regiojatek alatti összes régi *.json-t
+#   - Üres feed esetén is létrehozza:
+#       meta.json + page-0001.json ({"items": []})
 
 import os
 import re
@@ -18,26 +22,18 @@ import math
 import xml.etree.ElementTree as ET
 import requests
 
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
 from category_assignbase import FINDORA_CATS  # csak a 25 fő kategórialistát használjuk
 
 # ====== KONFIG ======
-# Fogadjuk mindkét secret nevet – első a FEED_REGIOJATEK_URL (workflow szerinti), fallback a FEED_REGIO_URL
-FEED_URL = (
-    os.environ.get("FEED_REGIOJATEK_URL")
-    or os.environ.get("FEED_REGIO_URL")
-)
+FEED_URL = os.environ.get("FEED_REGIOJATEK_URL") or os.environ.get("FEED_REGIO_URL")
 OUT_DIR = Path("docs/feeds/regiojatek")
 
-# Globál feed: 300/lap
-PAGE_SIZE_GLOBAL = 300  # forrásoldal méret
-# Kategória feedek: 20/lap
-PAGE_SIZE_CAT = 20
-# Akciós blokk: 20/lap
-PAGE_SIZE_AKCIO_BLOCK = 20
+# CSAK globál: 1000/lap
+PAGE_SIZE_GLOBAL = 1000
 
 
 def norm_price(v):
@@ -146,7 +142,6 @@ CATEGORY_KEYS = (
     "category",
 )
 
-
 NEW_PRICE_KEYS = (
     "price_vat",
     "price_with_vat",
@@ -249,6 +244,7 @@ def parse_items(xml_text):
                 "brand": brand,
             }
         )
+
     print(f"ℹ REGIO Játék: parse_items → {len(items)} nyers termék")
     return items
 
@@ -256,27 +252,9 @@ def parse_items(xml_text):
 # ===== dedup: méret összevonás, szín marad =====
 SIZE_TOKENS = r"(?:XXS|XS|S|M|L|XL|XXL|3XL|4XL|5XL|\b\d{2}\b|\b\d{2}-\d{2}\b)"
 COLOR_WORDS = (
-    "fekete",
-    "fehér",
-    "feher",
-    "szürke",
-    "szurke",
-    "kék",
-    "kek",
-    "piros",
-    "zöld",
-    "zold",
-    "lila",
-    "sárga",
-    "sarga",
-    "narancs",
-    "barna",
-    "bézs",
-    "bezs",
-    "rózsaszín",
-    "rozsaszin",
-    "bordó",
-    "bordeaux",
+    "fekete", "fehér", "feher", "szürke", "szurke", "kék", "kek", "piros",
+    "zöld", "zold", "lila", "sárga", "sarga", "narancs", "barna", "bézs",
+    "bezs", "rózsaszín", "rozsaszin", "bordó", "bordeaux",
 )
 
 
@@ -318,9 +296,7 @@ def dedup_size_variants(items):
     buckets = {}
     for it in items:
         tnorm = normalize_title_for_size(it.get("title"))
-        color = detect_color_token(it.get("title")) or detect_color_token(
-            it.get("desc") or ""
-        )
+        color = detect_color_token(it.get("title")) or detect_color_token(it.get("desc") or "")
         base_url = strip_size_from_url(it.get("url") or "")
         key = (tnorm, color or "", base_url or "")
         cur = buckets.get(key)
@@ -335,61 +311,49 @@ def dedup_size_variants(items):
                 cur["discount"] = it["discount"]
             if len(it.get("desc") or "") > len(cur.get("desc") or ""):
                 cur["desc"] = it["desc"]
+            if len(it.get("raw_desc") or "") > len(cur.get("raw_desc") or ""):
+                cur["raw_desc"] = it.get("raw_desc") or ""
     return list(buckets.values())
 
 
 def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
-    """
-    base_dir/meta.json
-    base_dir/page-0001.json, page-0002.json, ...
-    FONTOS:
-    - Üres lista esetén is létrejön:
-        - meta.json
-        - page-0001.json ({"items": []})
-      így a frontend soha nem kap 404-et a page-0001.json-re.
-    """
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
+    page_count = 1 if total == 0 else int(math.ceil(total / float(page_size)))
 
-    # Üres lista esetén is legyen legalább 1 oldal
-    if total == 0:
-        page_count = 1
-    else:
-        page_count = int(math.ceil(total / page_size))
-
-    meta = {
-        "total_items": total,
-        "page_size": page_size,
-        "page_count": page_count,
-    }
+    meta = {"total_items": total, "page_size": page_size, "page_count": page_count}
     if meta_extra:
         meta.update(meta_extra)
 
-    meta_path = base_dir / "meta.json"
-    with meta_path.open("w", encoding="utf-8") as f:
+    with (base_dir / "meta.json").open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
     if total == 0:
-        out_path = base_dir / "page-0001.json"
-        with out_path.open("w", encoding="utf-8") as f:
+        with (base_dir / "page-0001.json").open("w", encoding="utf-8") as f:
             json.dump({"items": []}, f, ensure_ascii=False)
-    else:
-        for page_no in range(1, page_count + 1):
-            start = (page_no - 1) * page_size
-            end = start + page_size
-            page_items = items[start:end]
+        return
 
-            out_path = base_dir / f"page-{page_no:04d}.json"
-            with out_path.open("w", encoding="utf-8") as f:
-                json.dump({"items": page_items}, f, ensure_ascii=False)
+    # stabil sorrend
+    items_sorted = sorted(items, key=lambda x: str(x.get("id", "")))
+
+    for i in range(page_count):
+        start = i * page_size
+        end = start + page_size
+        page_items = items_sorted[start:end]
+        fn = base_dir / f"page-{i+1:04d}.json"
+        with fn.open("w", encoding="utf-8") as f:
+            json.dump({"items": page_items}, f, ensure_ascii=False)
 
 
 def main():
-    assert FEED_URL, "Hiányzó URL. Állítsd be a FEED_REGIOJATEK_URL (vagy FEED_REGIO_URL) secretet."
+    if not FEED_URL:
+        raise RuntimeError(
+            "Hiányzó URL. Állítsd be a FEED_REGIOJATEK_URL (vagy FEED_REGIO_URL) secretet."
+        )
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # régi JSON-ok törlése (globál + kategória + akcio)
+    # régi JSON-ok törlése (TELJES regiojatek mappában)
     for old in OUT_DIR.rglob("*.json"):
         try:
             old.unlink()
@@ -410,82 +374,29 @@ def main():
     # ===== NORMALIZÁLÁS + FIX KATEGÓRIA: 'jatekok' =====
     rows = []
     for it in items:
-        pid = it["id"]
-        title = it["title"]
-        desc = it.get("desc") or ""
-        url = it.get("url") or ""
-        img = it.get("img") or ""
-        price = it.get("price")
-        discount = it.get("discount")
-        category_path = it.get("category_path") or ""
-        brand = it.get("brand") or ""
-
         findora_main = "jatekok"
         if findora_main not in FINDORA_CATS:
             findora_main = "multi"
 
-        row = {
-            "id": pid,
-            "title": title,
-            "img": img,
-            "desc": desc,
-            "price": price,
-            "discount": discount,
-            "url": url,
-            "partner": "regiojatek",
-            "category_path": category_path,
-            "findora_main": findora_main,
-            "cat": findora_main,
-        }
-        rows.append(row)
+        rows.append(
+            {
+                "id": it.get("id"),
+                "title": it.get("title"),
+                "img": it.get("img") or "",
+                "desc": it.get("desc") or "",
+                "price": it.get("price"),
+                "discount": it.get("discount"),
+                "url": it.get("url") or "",
+                "partner": "regiojatek",
+                "category_path": it.get("category_path") or "",
+                "findora_main": findora_main,
+                "cat": findora_main,
+            }
+        )
 
     total = len(rows)
     print(f"[INFO] REGIO Játék: normalizált sorok: {total}")
 
-    # ===== HA NINCS EGYETLEN TERMÉK SEM =====
-    if total == 0:
-        # Globál üres meta + üres page-0001
-        paginate_and_write(
-            OUT_DIR,
-            [],
-            PAGE_SIZE_GLOBAL,
-            meta_extra={
-                "partner": "regiojatek",
-                "scope": "global",
-            },
-        )
-
-        # Minden kategóriára üres meta + üres page-0001
-        for slug in FINDORA_CATS:
-            base_dir = OUT_DIR / slug
-            paginate_and_write(
-                base_dir,
-                [],
-
-
-                PAGE_SIZE_CAT,
-                meta_extra={
-                    "partner": "regiojatek",
-                    "scope": f"category:{slug}",
-                },
-            )
-
-        # Akciós blokk üres meta + üres page-0001
-        akcio_dir = OUT_DIR / "akcio"
-        paginate_and_write(
-            akcio_dir,
-            [],
-            PAGE_SIZE_AKCIO_BLOCK,
-            meta_extra={
-                "partner": "regiojatek",
-                "scope": "akcio",
-            },
-        )
-
-        print("⚠️ REGIO Játék: nincs termék → csak üres meta-k + page-0001.json készült.")
-        return
-
-    # ===== GLOBÁL FEED =====
     paginate_and_write(
         OUT_DIR,
         rows,
@@ -493,54 +404,11 @@ def main():
         meta_extra={
             "partner": "regiojatek",
             "scope": "global",
-            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         },
     )
 
-    # ===== KATEGÓRIA FEED-EK (25 mappa + akcio mappa, mindben meta + page-0001.json) =====
-    buckets = {slug: [] for slug in FINDORA_CATS}
-    for row in rows:
-        slug = row.get("findora_main") or "multi"
-        if slug not in buckets:
-            slug = "multi"
-        buckets[slug].append(row)
-
-    for slug, items_cat in buckets.items():
-        base_dir = OUT_DIR / slug
-        paginate_and_write(
-            base_dir,
-            items_cat,
-            PAGE_SIZE_CAT,
-            meta_extra={
-                "partner": "regiojatek",
-                "scope": f"category:{slug}",
-                "generated_at": datetime.utcnow().isoformat() + "Z",
-            },
-        )
-
-    # ===== AKCIÓS BLOKK (discount >= 10%) =====
-    akcios_items = [
-        row for row in rows
-        if row.get("discount") is not None and row["discount"] >= 10
-    ]
-
-    akcio_dir = OUT_DIR / "akcio"
-    paginate_and_write(
-        akcio_dir,
-        akcios_items,
-        PAGE_SIZE_AKCIO_BLOCK,
-        meta_extra={
-            "partner": "regiojatek",
-            "scope": "akcio",
-            "generated_at": datetime.utcnow().isoformat() + "Z",
-        },
-    )
-
-    print(
-        f"✅ REGIO Játék kész: {total} termék, "
-        f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
-        f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR}"
-    )
+    print(f"✅ REGIO Játék global feed kész: {total} termék, page_size={PAGE_SIZE_GLOBAL} → {OUT_DIR}")
 
 
 if __name__ == "__main__":
