@@ -3,7 +3,7 @@ name: ingest-ekszereshop
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 9,19 * * *"   # kb. 10:00 és 20:00 magyar idő (téli időszámításnál)
+    - cron: "0 9,19 * * *"   # kb. 10:00 és 20:00 HU (téli idő)
 
 permissions:
   contents: write
@@ -22,7 +22,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # --- fontos: mindig sync main ---
+      # mindig a friss main-nel dolgozzunk
       - name: Sync with origin/main
         run: |
           set -e
@@ -48,27 +48,21 @@ jobs:
           set -euo pipefail
 
           if [ -z "${FEED_EKSZERESHOP_URL:-}" ]; then
-            echo "::error title=Missing secret::FEED_EKSZERESHOP_URL nincs beállítva (Settings → Secrets → Actions)."
+            echo "::error title=Missing secret::FEED_EKSZERESHOP_URL nincs beállítva."
             exit 1
           fi
 
           mkdir -p docs/feeds/ekszereshop
-          python -u scripts/build_ekszereshop.py
+
+          # 🔴 EZ A LÉNYEGES SOR – HELYES FÁJLNÉV
+          python -u scripts/ekszereshop.py
 
           echo "Sanity checks (GLOBAL-ONLY):"
           test -s docs/feeds/ekszereshop/meta.json
           test -s docs/feeds/ekszereshop/page-0001.json
 
-          echo "Tree of docs/feeds/ekszereshop:"
+          echo "Tree:"
           ls -la docs/feeds/ekszereshop || true
-
-          echo "First item sanity:"
-          if command -v jq >/dev/null 2>&1; then
-            jq -r '.items[0] | {title, img, url, price, old_price, discount, partner, findora_main}' \
-              docs/feeds/ekszereshop/page-0001.json || true
-          else
-            head -c 800 docs/feeds/ekszereshop/page-0001.json || true
-          fi
 
       - name: Commit & push directly to main (no PR)
         run: |
@@ -79,8 +73,7 @@ jobs:
 
           git add docs/feeds/ekszereshop
 
-          # ha nincs változás → kilép
-          git diff --cached --quiet && echo "No changes, exiting." && exit 0
+          git diff --cached --quiet && echo "No changes" && exit 0
 
           git commit -m "ekszereshop: update feed pages (global-only)"
           git pull --rebase origin main || true
