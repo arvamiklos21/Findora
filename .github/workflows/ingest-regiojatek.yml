@@ -5,6 +5,13 @@ on:
   schedule:
     - cron: "0 */6 * * *"   # 6 óránként
 
+permissions:
+  contents: write
+
+concurrency:
+  group: ingest-regiojatek-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ingest:
     runs-on: ubuntu-latest
@@ -15,32 +22,62 @@ jobs:
         with:
           fetch-depth: 0
 
+      # --- fontos: mindig sync main (stabil, determinisztikus) ---
       - name: Sync with origin/main
         run: |
-          git pull origin main || true
+          set -e
+          git fetch origin
+          git checkout main
+          git reset --hard origin/main
 
-      # FIX: Python telepítés deps nélkül (NEM keres requirements.txt-t)
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          allow-prereleases: true
+          python-version: "3.11"
 
       - name: Install deps
         run: |
+          set -e
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: Build RegioJatek feed pages (global + categories + akcios-block)
+      - name: Build RegioJatek feed pages (GLOBAL ONLY, 1000/page)
         env:
           FEED_REGIOJATEK_URL: ${{ secrets.FEED_REGIOJATEK_URL }}
         run: |
-          python scripts/build_regiojatek.py
+          set -euo pipefail
 
-      - name: Commit feed updates to main (autopush, stable)
+          if [ -z "${FEED_REGIOJATEK_URL:-}" ]; then
+            echo "::error title=Missing secret::FEED_REGIOJATEK_URL nincs beállítva (Settings → Secrets → Actions)."
+            exit 1
+          fi
+
+          mkdir -p docs/feeds/regiojatek
+          python -u scripts/build_regiojatek.py
+
+          # Sanity checks
+          test -s docs/feeds/regiojatek/meta.json
+          test -s docs/feeds/regiojatek/page-0001.json
+
+          if command -v jq >/dev/null 2>&1; then
+            jq -e '.total_items >= 0 and .page_size == 1000 and .page_count >= 1' docs/feeds/regiojatek/meta.json >/dev/null
+          fi
+
+      - name: Commit & push directly to main (no PR)
         run: |
-          git config user.name "github-actions[bot]"
+          set -e
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/feeds/regiojatek || true
-          git commit -m "regiojatek: update feed pages" || true
-          git push origin main || true
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+          git add docs/feeds/regiojatek
+
+          # ha nincs változás → kilép
+          git diff --cached --quiet && echo "No changes, exiting." && exit 0
+
+          git commit -m "regiojatek: update feed pages"
+
+          # rebase a legfrissebb main-ra (ha közben más workflow pusholt)
+          git pull --rebase origin main || true
+
+          git push origin HEAD:main
