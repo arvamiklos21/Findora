@@ -33,32 +33,42 @@ jobs:
       - name: Install deps
         run: |
           set -e
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install requests
 
-      - name: Build OtthonMarket feed pages (global + 25 kategória + akció, üresen is)
+      - name: Build OtthonMarket feed pages (GLOBAL ONLY, 1000/page)
         env:
           FEED_OTTHONMARKET_URL: ${{ secrets.FEED_OTTHONMARKET_URL }}
         run: |
-          set -e
+          set -euo pipefail
 
-          if [ -z "$FEED_OTTHONMARKET_URL" ]; then
+          if [ -z "${FEED_OTTHONMARKET_URL:-}" ]; then
             echo "::error title=Missing secret::FEED_OTTHONMARKET_URL nincs beállítva (Settings → Secrets → Actions)."
             exit 1
           fi
 
           mkdir -p docs/feeds/otthonmarket
 
-          # build_otthonmarket.py:
-          #  - globál feed (docs/feeds/otthonmarket/meta.json + page-0001.json, ...)
-          #  - kategória feedek (docs/feeds/otthonmarket/<category>/meta.json + page-0001.json, ...)
-          #  - akciós blokk (docs/feeds/otthonmarket/akcio/meta.json + page-0001.json, ...)
-          #  - ha nincs egyetlen termék (vagy feed hiba), akkor is legenerálja
-          #    mind a 25 kategóriát + akciót üres page-0001.json-nel
-          python scripts/build_otthonmarket.py
+          # build_otthonmarket.py (új logika):
+          #  - CSAK globál: docs/feeds/otthonmarket/meta.json + page-0001.json...
+          #  - NINCS: docs/feeds/otthonmarket/<category>/...
+          #  - NINCS: docs/feeds/otthonmarket/akcio/...
+          #  - üres feed esetén is meta.json + page-0001.json készül
+          python -u scripts/build_otthonmarket.py
 
-          echo "Tree of docs/feeds/otthonmarket:"
-          ls -R docs/feeds/otthonmarket || true
+          echo "Sanity check:"
+          ls -la docs/feeds/otthonmarket || true
+
+          if [ -f docs/feeds/otthonmarket/page-0001.json ]; then
+            if command -v jq >/dev/null 2>&1; then
+              jq -r '.items[0] | {title, url, price, discount, cat}' docs/feeds/otthonmarket/page-0001.json || true
+            else
+              head -c 600 docs/feeds/otthonmarket/page-0001.json || true
+            fi
+          else
+            echo "::error title=Missing output::page-0001.json nem jött létre!"
+            exit 1
+          fi
 
       - name: Commit feed updates directly to main
         run: |
@@ -67,7 +77,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add docs/feeds/otthonmarket || true
-
-          # Ha nincs változás, ne dőljön el a build
           git commit -m "otthonmarket: update feed pages" || echo "No changes"
           git push origin main || echo "Nothing to push"
