@@ -3,7 +3,7 @@ name: ingest-jateksziget
 on:
   workflow_dispatch:
   schedule:
-    - cron: "10 10,19 * * *"   # reggel 11:10 és este 20:10 magyar idő (10:10 és 19:10 UTC)
+    - cron: "10 10,19 * * *"   # 11:10 és 20:10 HU idő (10:10 és 19:10 UTC)
 
 permissions:
   contents: write
@@ -22,9 +22,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      # --- fontos: mindig sync main ---
       - name: Sync with origin/main
         run: |
+          set -euo pipefail
           git fetch origin
           git checkout main
           git reset --hard origin/main
@@ -36,6 +36,7 @@ jobs:
 
       - name: Install deps
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
           pip install requests
 
@@ -50,38 +51,34 @@ jobs:
             exit 1
           fi
 
-          mkdir -p docs/feeds/jateksziget
-
-          # build_jateksziget.py:
-          #  - CSAK globál feed (docs/feeds/jateksziget/page-0001.json... + meta.json)
-          #  - futás elején törli a docs/feeds/jateksziget tartalmát (régi page-ket is)
           python -u scripts/build_jateksziget.py
 
-          # Sanity check
+          echo "Sanity checks (GLOBAL-ONLY):"
           test -s docs/feeds/jateksziget/meta.json
           test -s docs/feeds/jateksziget/page-0001.json
 
-          echo "Sanity check (global first item):"
+          echo "First item sanity:"
           if command -v jq >/dev/null 2>&1; then
-            jq -r '.items[0] | {title, img, url, price, discount, partner, cat}' docs/feeds/jateksziget/page-0001.json || true
+            jq -r '.items[0] | {title, img, url, price, old_price, discount, partner, findora_main, cat}' \
+              docs/feeds/jateksziget/page-0001.json || true
           else
-            head -c 700 docs/feeds/jateksziget/page-0001.json || true
+            head -c 900 docs/feeds/jateksziget/page-0001.json || true
           fi
 
-          echo "Files in docs/feeds/jateksziget:"
+          echo "Tree of docs/feeds/jateksziget:"
           ls -la docs/feeds/jateksziget || true
 
       - name: Commit & push directly to main (no PR)
         run: |
           set -euo pipefail
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
           git add docs/feeds/jateksziget
 
-          # ha nincs változás → kilép
           git diff --cached --quiet && echo "No changes, exiting." && exit 0
 
-          git commit -m "jateksziget: update feed pages"
+          git commit -m "jateksziget: update feed pages (global-only)"
           git pull --rebase origin main || true
           git push origin HEAD:main
