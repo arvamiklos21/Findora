@@ -1,15 +1,15 @@
 # scripts/build_ekszereshop.py
 #
-# Ekszereshop feed → Findora JSON oldalak (globál + kategória + akciós blokk)
+# Ekszereshop feed → Findora JSON oldalak (GLOBAL-ONLY, onlinemarkabolt elv)
 #
 # Kategorizálás:
 #   - NEM használjuk a category_assign-et
 #   - MINDEN termék fő kategóriája: "divat"
 #
-# Kimenet:
-#   docs/feeds/ekszereshop/meta.json, page-0001.json...              (globál)
-#   docs/feeds/ekszereshop/<findora_cat>/meta.json, page-....json    (kategória)
-#   docs/feeds/ekszereshop/akcio/meta.json, page-....json            (akciós blokk, discount >= 10%)
+# Kimenet (NINCS kategória mappa, NINCS akció mappa):
+#   docs/feeds/ekszereshop/meta.json
+#   docs/feeds/ekszereshop/page-0001.json  (max 1000 termék)
+#   docs/feeds/ekszereshop/page-0002.json  ...
 
 import os
 import re
@@ -22,19 +22,14 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pathlib import Path
 
-from category_assignbase import FINDORA_CATS  # csak a 25 fő kategórát használjuk
+# Csak azért importáljuk, hogy validálni tudjuk a slugot (25-ös lista)
+from category_assignbase import FINDORA_CATS
 
 FEED_URL = os.environ.get("FEED_EKSZERESHOP_URL")
 OUT_DIR = Path("docs/feeds/ekszereshop")
 
-# Globál feed: 300/lap (forrás-oldal méret)
-PAGE_SIZE_GLOBAL = 300
-
-# Kategória feedek: 20/lap
-PAGE_SIZE_CAT = 20
-
-# Akciós blokk: 20/lap
-PAGE_SIZE_AKCIO_BLOCK = 20
+# GLOBAL feed: 1000/lap (onlinemarkabolt elv)
+PAGE_SIZE_GLOBAL = 1000
 
 
 # --------- utilok ----------
@@ -82,8 +77,10 @@ def collect_node(n):
     k0 = strip_ns(n.tag)
     if txt:
         m.setdefault(k0, txt)
+
     for ak, av in (n.attrib or {}).items():
         m.setdefault(strip_ns(ak), av)
+
     for c in list(n):
         k = strip_ns(c.tag)
         v = (c.text or "").strip()
@@ -240,10 +237,12 @@ def parse_items(xml_text):
                 "img": img or "",
                 "desc": desc,
                 "price": price_new,
+                "old_price": old,
                 "discount": discount,
                 "url": link or "",
             }
         )
+
     print(f"ℹ Ekszereshop: parse_items → {len(items)} nyers termék")
     return items
 
@@ -314,9 +313,7 @@ def dedup_size_variants(items):
     buckets = {}
     for it in items:
         tnorm = normalize_title_for_size(it.get("title"))
-        color = detect_color_token(it.get("title")) or detect_color_token(
-            it.get("desc") or ""
-        )
+        color = detect_color_token(it.get("title")) or detect_color_token(it.get("desc") or "")
         base_url = strip_size_from_url(it.get("url") or "")
         key = (tnorm, color or "", base_url or "")
         cur = buckets.get(key)
@@ -329,55 +326,43 @@ def dedup_size_variants(items):
                 cur["price"] = it["price"]
             if (it.get("discount") or 0) > (cur.get("discount") or 0):
                 cur["discount"] = it["discount"]
+            if len(it.get("desc") or "") > len(cur.get("desc") or ""):
+                cur["desc"] = it["desc"]
+            if (it.get("old_price") or 0) > (cur.get("old_price") or 0):
+                cur["old_price"] = it["old_price"]
     return list(buckets.values())
 
 
 def paginate_and_write(base_dir: Path, items, page_size: int, meta_extra=None):
     """
-    Általános lapozó + fájlkiíró:
-      base_dir/meta.json
-      base_dir/page-0001.json, page-0002.json, ...
+    base_dir/meta.json
+    base_dir/page-0001.json, page-0002.json, ...
 
-    FONTOS:
-    - Üres lista esetén is létrejön:
-        - meta.json
-        - page-0001.json ({"items": []})
-      így a frontend soha nem kap 404-et a page-0001.json-re.
+    Üres lista esetén is:
+      meta.json + page-0001.json({"items":[]})
     """
     base_dir.mkdir(parents=True, exist_ok=True)
     total = len(items)
+    page_count = 1 if total == 0 else int(math.ceil(total / page_size))
 
-    # Üres lista esetén is legyen legalább 1 oldal
-    if total == 0:
-        page_count = 1
-    else:
-        page_count = int(math.ceil(total / page_size))
-
-    meta = {
-        "total_items": total,
-        "page_size": page_size,
-        "page_count": page_count,
-    }
+    meta = {"total_items": total, "page_size": page_size, "page_count": page_count}
     if meta_extra:
         meta.update(meta_extra)
 
-    meta_path = base_dir / "meta.json"
-    with meta_path.open("w", encoding="utf-8") as f:
+    with (base_dir / "meta.json").open("w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
     if total == 0:
-        out_path = base_dir / "page-0001.json"
-        with out_path.open("w", encoding="utf-8") as f:
+        with (base_dir / "page-0001.json").open("w", encoding="utf-8") as f:
             json.dump({"items": []}, f, ensure_ascii=False)
-    else:
-        for page_no in range(1, page_count + 1):
-            start = (page_no - 1) * page_size
-            end = start + page_size
-            page_items = items[start:end]
+        return
 
-            out_path = base_dir / f"page-{page_no:04d}.json"
-            with out_path.open("w", encoding="utf-8") as f:
-                json.dump({"items": page_items}, f, ensure_ascii=False)
+    for page_no in range(1, page_count + 1):
+        start = (page_no - 1) * page_size
+        end = start + page_size
+        page_items = items[start:end]
+        with (base_dir / f"page-{page_no:04d}.json").open("w", encoding="utf-8") as f:
+            json.dump({"items": page_items}, f, ensure_ascii=False)
 
 
 def main():
@@ -385,7 +370,7 @@ def main():
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # régi JSON-ok törlése (globál + kategória + akcio)
+    # régi JSON-ok törlése (csak a saját mappában)
     for old in OUT_DIR.rglob("*.json"):
         try:
             old.unlink()
@@ -399,89 +384,44 @@ def main():
     )
     r.raise_for_status()
 
-    # 1) XML → nyers lista + dedup
     raw_items = parse_items(r.text)
     items = dedup_size_variants(raw_items)
     print(f"ℹ Ekszereshop: dedup után {len(items)} termék")
 
-    # 2) NORMALIZÁLÁS + FIX KATEGÓRIA: 'divat'
+    # Normalizálás + fix kategória: divat
+    fixed_cat = "divat" if "divat" in FINDORA_CATS else "multi"
+
     rows = []
     for it in items:
-        pid = it["id"]
-        title = it["title"]
-        desc = it.get("desc") or ""
-        url = it.get("url") or ""
-        img = it.get("img") or ""
-        price = it.get("price")
-        discount = it.get("discount")
-
-        findora_main = "divat"
-        if findora_main not in FINDORA_CATS:
-            findora_main = "multi"
-
-        row = {
-            "id": pid,
-            "title": title,
-            "img": img,
-            "desc": desc,
-            "price": price,
-            "discount": discount,
-            "url": url,
-            "partner": "ekszereshop",
-            "category_path": "",   # nincs külön category mezőnk
-            "findora_main": findora_main,
-            "cat": findora_main,
-        }
-        rows.append(row)
-
-    total = len(rows)
-    print(f"[INFO] Ekszereshop: normalizált sorok: {total}")
-
-    # 3) HA NINCS EGYETLEN TERMÉK SEM
-    if total == 0:
-        # Globál üres meta + üres page-0001
-        paginate_and_write(
-            OUT_DIR,
-            [],
-            PAGE_SIZE_GLOBAL,
-            meta_extra={
+        rows.append(
+            {
+                "id": it["id"],
+                "title": it["title"],
+                "img": it.get("img") or "",
+                "desc": it.get("desc") or "",
+                "price": it.get("price"),
+                "old_price": it.get("old_price"),
+                "discount": it.get("discount"),
+                "url": it.get("url") or "",
                 "partner": "ekszereshop",
-                "scope": "global",
-            },
+                "category_path": "",
+                "findora_main": fixed_cat,
+                "cat": fixed_cat,
+            }
         )
 
-        # Minden kategóriára üres meta + üres page-0001
-        for slug in FINDORA_CATS:
-            base_dir = OUT_DIR / slug
-            paginate_and_write(
-                base_dir,
-                [],
-                PAGE_SIZE_CAT,
-                meta_extra={
-                    "partner": "ekszereshop",
-                    "scope": f"category:{slug}",
-                },
-            )
+    # Stabil rendezés (opcionális, de hasznos)
+    rows_sorted = sorted(
+        rows,
+        key=lambda x: (
+            (x.get("price") or 10**12),
+            x.get("title") or "",
+        ),
+    )
 
-        # Akciós blokk üres meta + üres page-0001
-        akcio_dir = OUT_DIR / "akcio"
-        paginate_and_write(
-            akcio_dir,
-            [],
-            PAGE_SIZE_AKCIO_BLOCK,
-            meta_extra={
-                "partner": "ekszereshop",
-                "scope": "akcio",
-            },
-        )
-
-        print("⚠️ Ekszereshop: nincs termék → csak üres meta-k + page-0001.json készült.")
-        return
-
-    # 4) GLOBÁL FEED
     paginate_and_write(
         OUT_DIR,
-        rows,
+        rows_sorted,
         PAGE_SIZE_GLOBAL,
         meta_extra={
             "partner": "ekszereshop",
@@ -490,50 +430,7 @@ def main():
         },
     )
 
-    # 5) KATEGÓRIA FEED-EK (25 mappa)
-    buckets = {slug: [] for slug in FINDORA_CATS}
-    for row in rows:
-        slug = row.get("findora_main") or "multi"
-        if slug not in buckets:
-            slug = "multi"
-        buckets[slug].append(row)
-
-    for slug, items_cat in buckets.items():
-        base_dir = OUT_DIR / slug
-        paginate_and_write(
-            base_dir,
-            items_cat,
-            PAGE_SIZE_CAT,
-            meta_extra={
-                "partner": "ekszereshop",
-                "scope": f"category:{slug}",
-                "generated_at": datetime.utcnow().isoformat() + "Z",
-            },
-        )
-
-    # 6) AKCIÓS BLOKK (discount >= 10%)
-    akcios_items = [
-        row for row in rows
-        if row.get("discount") is not None and row["discount"] >= 10
-    ]
-
-    akcio_dir = OUT_DIR / "akcio"
-    paginate_and_write(
-        akcio_dir,
-        akcios_items,
-        PAGE_SIZE_AKCIO_BLOCK,
-        meta_extra={
-            "partner": "ekszereshop",
-            "scope": "akcio",
-            "generated_at": datetime.utcnow().isoformat() + "Z",
-        },
-    )
-
-    print(
-        f"✅ Ekszereshop kész: {total} termék, "
-        f"{len(buckets)} kategória (mindegyiknek meta + legalább page-0001.json), "
-        f"akciós blokk tételek: {len(akcios_items)} → {OUT_DIR}"
-    )
+    print(f"✅ Ekszereshop global-only kész: {len(rows_sorted)} termék → {OUT_DIR}")
 
 
 if __name__ == "__main__":
