@@ -1,16 +1,16 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 22814,
-  "lastUpdated": "2025-12-15T18:43:14.769087Z",
+  "total": 23964,
+  "lastUpdated": "2025-12-16T08:42:01.868943Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
-      "total": 38,
+      "total": 36,
       "pages": 1
     },
     "haztartasi_gepek": {
-      "total": 4,
+      "total": 5,
       "pages": 1
     },
     "szamitastechnika": {
@@ -18,7 +18,7 @@
       "pages": 1
     },
     "mobil": {
-      "total": 1,
+      "total": 2,
       "pages": 1
     },
     "gaming": {
@@ -30,7 +30,7 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1035,
+      "total": 1085,
       "pages": 4
     },
     "lakberendezes": {
@@ -38,7 +38,7 @@
       "pages": 1
     },
     "konyha_fozes": {
-      "total": 178,
+      "total": 193,
       "pages": 1
     },
     "kert": {
@@ -46,39 +46,39 @@
       "pages": 1
     },
     "jatekok": {
-      "total": 32,
+      "total": 31,
       "pages": 1
     },
     "divat": {
-      "total": 20804,
-      "pages": 70
+      "total": 21898,
+      "pages": 73
     },
     "szepseg": {
-      "total": 17,
+      "total": 15,
       "pages": 1
     },
     "drogeria": {
-      "total": 125,
+      "total": 122,
       "pages": 1
     },
     "baba": {
-      "total": 65,
+      "total": 60,
       "pages": 1
     },
     "sport": {
-      "total": 133,
+      "total": 132,
       "pages": 1
     },
     "egeszseg": {
-      "total": 73,
+      "total": 70,
       "pages": 1
     },
     "latas": {
-      "total": 1,
+      "total": 2,
       "pages": 1
     },
     "allatok": {
-      "total": 51,
+      "total": 56,
       "pages": 1
     },
     "konyv": {
@@ -98,16 +98,16 @@
       "pages": 1
     },
     "auto_motor": {
-      "total": 7,
+      "total": 5,
       "pages": 1
     },
     "multi": {
-      "total": 174,
+      "total": 176,
       "pages": 1
     },
     "akcio": {
-      "total": 6256,
-      "pages": 21
+      "total": 7163,
+      "pages": 24
     }
   },
   "akcioMinPercent": 10
