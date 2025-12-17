@@ -304,6 +304,12 @@ Object.entries(BACKEND_SYNONYM_TO_CATID).forEach(([backendKey, catId]) => {
   CATID_TO_BACKEND[catId] = backendKey;
 });
 
+// ===== Kategória szűrő (category | findora_main | cat) =====
+function meiliCatFilter(backendSlug) {
+  const s = String(backendSlug || "").replace(/"/g, '\\"');
+  return `(category = "${s}" OR findora_main = "${s}" OR cat = "${s}")`;
+}
+
 // ===== Akciók állapot =====
 let AKCIO_PAGES = [2];
 let AKCIO_CURRENT = 1;
@@ -857,11 +863,11 @@ async function buildFullCategoryState(catId) {
   }
 
   try {
-    // NINCS limit: mindet lehúzzuk Meiliből
+    // NINCS limit: mindet lehúzzuk Meiliből, és elfogadjuk a category / findora_main / cat mezőket
     const hits = await meiliFetchAll(
       {
         q: "",
-        filter: `category = "${backendSlug}"`,
+        filter: meiliCatFilter(backendSlug),
       },
       { pageSize: 1000 }
     );
@@ -1022,7 +1028,8 @@ function renderPartnerViewPage(page) {
     if (PARTNER_VIEW_STATE.loading) {
       grid.innerHTML = '<div class="empty">Termékek betöltése…</div>';
     } else {
-      grid.innerHTML = '<div class="empty">Nincs találat ennél a partnernél.</div>';
+      grid.innerHTML =
+        '<div class="empty">Nincs találat ennél a partnernél.</div>';
     }
     nav.innerHTML = "";
     updatePartnerSubtitle();
@@ -1040,7 +1047,11 @@ function renderPartnerViewPage(page) {
   const start = (page - 1) * pageSize;
   const slice = PARTNER_VIEW_STATE.filtered.slice(start, start + pageSize);
 
-  grid.innerHTML = renderCategoryCards(slice, PARTNER_VIEW_STATE.catId, false);
+  grid.innerHTML = renderCategoryCards(
+    slice,
+    PARTNER_VIEW_STATE.catId,
+    false
+  );
 
   nav.innerHTML =
     '<button class="btn-megnez" ' +
@@ -1089,11 +1100,11 @@ async function hydratePartnerCategoryItems(pid, catId) {
   }
 
   try {
-    // NINCS limit: mindet lehúzzuk Meiliből
+    // NINCS limit: mindet lehúzzuk Meiliből + kategória-szinonima filter
     const hits = await meiliFetchAll(
       {
         q: "",
-        filter: `partner = "${pid}" AND category = "${backendSlug}"`,
+        filter: `partner = "${pid}" AND ${meiliCatFilter(backendSlug)}`,
       },
       { pageSize: 1000 }
     );
@@ -1132,7 +1143,10 @@ function openPartnerView(pid, catId) {
   const name = getPartnerName(pid);
   const catName = getCategoryName(catId);
 
-  const itemsForCombo = (PARTNER_CATEGORY_ITEMS[pid] && PARTNER_CATEGORY_ITEMS[pid][catId]) || [];
+  const itemsForCombo =
+    (PARTNER_CATEGORY_ITEMS[pid] &&
+      PARTNER_CATEGORY_ITEMS[pid][catId]) ||
+    [];
 
   PARTNER_VIEW_STATE = {
     pid,
