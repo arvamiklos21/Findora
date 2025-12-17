@@ -26,14 +26,11 @@ async function meiliSearch(params) {
     body.sort = [params.sort];
   }
 
-  const res = await fetch(
-    `${MEILI_HOST}/indexes/${MEILI_INDEX_UID}/search`,
-    {
-      method: "POST",
-      headers: MEILI_HEADERS,
-      body: JSON.stringify(body),
-    }
-  );
+  const res = await fetch(`${MEILI_HOST}/indexes/${MEILI_INDEX_UID}/search`, {
+    method: "POST",
+    headers: MEILI_HEADERS,
+    body: JSON.stringify(body),
+  });
 
   if (!res.ok) {
     throw new Error(
@@ -41,6 +38,35 @@ async function meiliSearch(params) {
     );
   }
   return res.json(); // { hits, estimatedTotalHits, ... }
+}
+
+// ===== Meili: összes találat letöltése offset lapozással (NINCS KORLÁT) =====
+async function meiliFetchAll(params, opts = {}) {
+  const pageSize = typeof opts.pageSize === "number" ? opts.pageSize : 1000;
+
+  let offset = 0;
+  let all = [];
+
+  while (true) {
+    const res = await meiliSearch({
+      q: params.q || "",
+      filter: params.filter,
+      sort: params.sort,
+      limit: pageSize,
+      offset,
+    });
+
+    const hits = res.hits || [];
+    if (!hits.length) break;
+
+    all.push(...hits);
+    offset += hits.length;
+
+    // Ha kevesebb jött, mint a pageSize, akkor elfogyott
+    if (hits.length < pageSize) break;
+  }
+
+  return all;
 }
 
 // ===== PARTNEREK =====
@@ -70,15 +96,12 @@ function getPartnerName(pid) {
 // ===== Deeplink =====
 function dlUrl(pid, rawUrl) {
   if (!rawUrl) return "#";
-  return (
-    FEEDS_BASE + "/api/dl?u=" + encodeURIComponent(rawUrl) + "&p=" + pid
-  );
+  return FEEDS_BASE + "/api/dl?u=" + encodeURIComponent(rawUrl) + "&p=" + pid;
 }
 
 // ===== Helper =====
 function priceText(v) {
-  if (typeof v === "number" && isFinite(v))
-    return v.toLocaleString("hu-HU") + " Ft";
+  if (typeof v === "number" && isFinite(v)) return v.toLocaleString("hu-HU") + " Ft";
   if (typeof v === "string" && v.trim()) return v;
   return "—";
 }
@@ -88,9 +111,7 @@ function itemUrl(it) {
 }
 
 function itemImg(it) {
-  return (
-    (it && (it.image || it.img || it.image_link || it.thumbnail)) || ""
-  );
+  return (it && (it.image || it.img || it.image_link || it.thumbnail)) || "";
 }
 
 function basePath(u) {
@@ -122,10 +143,7 @@ function normalizeTitleNoSize(t) {
   if (!t) return "";
   return String(t)
     .replace(SIZE_TOKENS, " ")
-    .replace(
-      /\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi,
-      " "
-    )
+    .replace(/\b(?:szín|szin|color)\s*[:\-]?\s*[a-záéíóöőúüű0-9\-]+/gi, " ")
     .replace(/\s{2,}/g, " ")
     .trim()
     .toLowerCase();
@@ -191,10 +209,7 @@ function getAkcioPrices(it) {
 
   if (typeof it.price === "number" && isFinite(it.price)) {
     current = it.price;
-  } else if (
-    typeof it.sale_price === "number" &&
-    isFinite(it.sale_price)
-  ) {
+  } else if (typeof it.sale_price === "number" && isFinite(it.sale_price)) {
     current = it.sale_price;
   }
 
@@ -345,11 +360,8 @@ function renderAkcioCards(itemsWithPartner) {
 
       const disc = getDiscountNumber(item);
       const prices = getAkcioPrices(item);
-      const currentText = priceText(
-        prices.current != null ? prices.current : item && item.price
-      );
-      const originalText =
-        prices.original != null ? priceText(prices.original) : null;
+      const currentText = priceText(prices.current != null ? prices.current : item && item.price);
+      const originalText = prices.original != null ? priceText(prices.original) : null;
 
       const partnerName = (cfg && cfg.name) || pid;
 
@@ -365,9 +377,7 @@ function renderAkcioCards(itemsWithPartner) {
           currentText +
           "</span>" +
           (disc
-            ? '<span class="disc" style="color:#c00;font-weight:bold;">-' +
-              disc +
-              "%</span>"
+            ? '<span class="disc" style="color:#c00;font-weight:bold;">-' + disc + "%</span>"
             : "") +
           "</div>";
       } else {
@@ -415,8 +425,7 @@ function renderAkcioPage(page) {
   if (!grid || !nav) return;
 
   if (!AKCIO_PAGES.length) {
-    grid.innerHTML =
-      '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
+    grid.innerHTML = '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
     nav.innerHTML = "";
     return;
   }
@@ -458,8 +467,7 @@ function renderAkcioFullPage(page) {
 
   const total = AKCIO_FULL_STATE.items.length;
   if (!total) {
-    grid.innerHTML =
-      '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
+    grid.innerHTML = '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
     nav.innerHTML = "";
     return;
   }
@@ -500,7 +508,7 @@ function renderAkcioFullPage(page) {
   };
 }
 
-// ===== AKCIÓS BLOKK – Meiliből =====
+// ===== AKCIÓS BLOKK – Meiliből (NINCS KORLÁT) =====
 async function buildAkciosBlokk() {
   const host = document.getElementById("akciok-grid");
   if (!host) return;
@@ -511,18 +519,18 @@ async function buildAkciosBlokk() {
   if (nav) nav.innerHTML = "";
 
   try {
-    // Meiliben: discount >= 10, csökkenő sorrendben
-    const res = await meiliSearch({
-      q: "",
-      filter: "discount >= 10",
-      sort: "discount:desc",
-      limit: 300,
-    });
+    // Meiliben: discount >= 10, csökkenő sorrendben – NINCS limit: lapozva mindet lehúzzuk
+    const hits = await meiliFetchAll(
+      {
+        q: "",
+        filter: "discount >= 10",
+        sort: "discount:desc",
+      },
+      { pageSize: 1000 }
+    );
 
-    const hits = res.hits || [];
     if (!hits.length) {
-      host.innerHTML =
-        '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
+      host.innerHTML = '<div class="empty">Jelenleg nem találtunk akciós ajánlatot.</div>';
       if (nav) nav.innerHTML = "";
       const bfGrid = document.getElementById("bf-grid");
       if (bfGrid) {
@@ -546,11 +554,7 @@ async function buildAkciosBlokk() {
     const MAX_PREVIEW_PAGES = 2;
 
     AKCIO_PAGES = [];
-    for (
-      let i = 0;
-      i < dedRows.length && AKCIO_PAGES.length < MAX_PREVIEW_PAGES;
-      i += PREVIEW_PAGE_SIZE
-    ) {
+    for (let i = 0; i < dedRows.length && AKCIO_PAGES.length < MAX_PREVIEW_PAGES; i += PREVIEW_PAGE_SIZE) {
       AKCIO_PAGES.push(dedRows.slice(i, i + PREVIEW_PAGE_SIZE));
     }
 
@@ -582,13 +586,11 @@ async function buildAkciosBlokk() {
     }
   } catch (e) {
     console.error("Akciós blokk hiba:", e);
-    host.innerHTML =
-      '<div class="empty">Hiba történt az akciók betöltése közben.</div>';
+    host.innerHTML = '<div class="empty">Hiba történt az akciók betöltése közben.</div>';
     if (nav) nav.innerHTML = "";
     const bfGrid = document.getElementById("bf-grid");
     if (bfGrid) {
-      bfGrid.innerHTML =
-        '<div class="empty">Hiba történt a Black Friday ajánlatok betöltése közben.</div>';
+      bfGrid.innerHTML = '<div class="empty">Hiba történt a Black Friday ajánlatok betöltése közben.</div>';
     }
   }
 }
@@ -645,7 +647,7 @@ function renderCategoryCards(itemsWithPartner, catId, showPartnerRow) {
 // ===== FŐOLDALI kategória blokkok – Meiliből (partnerenként) =====
 async function buildCategoryBlocks() {
   const PAGE_SIZE_PER_PARTNER = 3;
-  const MAX_ITEMS_PER_PARTNER = 400; // partnerenként max ennyit húzunk le
+  // NINCS KORLÁT: mindent lehúzunk Meiliből (offset lapozással)
 
   // Állapot nullázása
   CATEGORY_IDS.forEach((catId) => {
@@ -665,14 +667,15 @@ async function buildCategoryBlocks() {
   // PARTNERS Map-ből megyünk végig az összes bekötött partneren
   for (const [pid] of PARTNERS.entries()) {
     try {
-      // 1) partner összes terméke (max MAX_ITEMS_PER_PARTNER)
-      const res = await meiliSearch({
-        q: "",
-        filter: `partner = "${pid}"`,
-        limit: MAX_ITEMS_PER_PARTNER,
-      });
+      // 1) partner összes terméke (NINCS LIMIT)
+      const hits = await meiliFetchAll(
+        {
+          q: "",
+          filter: `partner = "${pid}"`,
+        },
+        { pageSize: 1000 }
+      );
 
-      const hits = res.hits || [];
       if (!hits.length) continue;
 
       const rows = hits.map((item) => ({
@@ -688,11 +691,7 @@ async function buildCategoryBlocks() {
       // 2) szétosztjuk kategóriákra
       dedRows.forEach((row) => {
         const it = row.item || {};
-        const catSlug =
-          it.category ||
-          it.findora_main ||
-          it.cat ||
-          "multi"; // backend slug (pl. "jatekok")
+        const catSlug = it.category || it.findora_main || it.cat || "multi"; // backend slug (pl. "jatekok")
 
         const catId = BACKEND_SYNONYM_TO_CATID[catSlug];
         if (!catId) return; // olyan kategória, amit a főoldal nem mutat
@@ -761,7 +760,6 @@ async function buildCategoryBlocks() {
   }
 }
 
-
 function renderCategory(catId, page) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
@@ -769,8 +767,7 @@ function renderCategory(catId, page) {
 
   const pages = CATEGORY_PAGES[catId] || [];
   if (!pages.length) {
-    grid.innerHTML =
-      '<div class="empty">Jelenleg nincs termék ebben a kategóriában.</div>';
+    grid.innerHTML = '<div class="empty">Jelenleg nincs termék ebben a kategóriában.</div>';
     nav.innerHTML = "";
     return;
   }
@@ -860,12 +857,15 @@ async function buildFullCategoryState(catId) {
   }
 
   try {
-    const res = await meiliSearch({
-      q: "",
-      filter: `category = "${backendSlug}"`,
-      limit: 1000,
-    });
-    const hits = res.hits || [];
+    // NINCS limit: mindet lehúzzuk Meiliből
+    const hits = await meiliFetchAll(
+      {
+        q: "",
+        filter: `category = "${backendSlug}"`,
+      },
+      { pageSize: 1000 }
+    );
+
     const rows = hits.map((item) => ({
       pid: item.partner || "ismeretlen",
       item,
@@ -888,16 +888,14 @@ function renderFullCategoryPage(catId, page) {
   if (!grid || !nav) return;
 
   if (FULL_CATEGORY_STATE.catId !== catId) {
-    grid.innerHTML =
-      '<div class="empty">Betöltés folyamatban…</div>';
+    grid.innerHTML = '<div class="empty">Betöltés folyamatban…</div>';
     nav.innerHTML = "";
     return;
   }
 
   const total = FULL_CATEGORY_STATE.items.length;
   if (!total) {
-    grid.innerHTML =
-      '<div class="empty">Jelenleg nincs termék ebben a kategóriában.</div>';
+    grid.innerHTML = '<div class="empty">Jelenleg nincs termék ebben a kategóriában.</div>';
     nav.innerHTML = "";
     return;
   }
@@ -953,9 +951,7 @@ function updatePartnerSubtitle() {
 
   const name = getPartnerName(PARTNER_VIEW_STATE.pid);
   const catName = getCategoryName(PARTNER_VIEW_STATE.catId);
-  const total =
-    (PARTNER_VIEW_STATE.filtered && PARTNER_VIEW_STATE.filtered.length) ||
-    0;
+  const total = (PARTNER_VIEW_STATE.filtered && PARTNER_VIEW_STATE.filtered.length) || 0;
 
   if (PARTNER_VIEW_STATE.loading) {
     subEl.textContent =
@@ -1006,10 +1002,8 @@ function applyPartnerFilters() {
     });
   } else if (sort === "price-asc" || sort === "price-desc") {
     arr.sort((a, b) => {
-      const pa =
-        a.item && typeof a.item.price === "number" ? a.item.price : Infinity;
-      const pb =
-        b.item && typeof b.item.price === "number" ? b.item.price : Infinity;
+      const pa = a.item && typeof a.item.price === "number" ? a.item.price : Infinity;
+      const pb = b.item && typeof b.item.price === "number" ? b.item.price : Infinity;
       if (pa === pb) return 0;
       if (sort === "price-asc") return pa - pb;
       return pb - pa;
@@ -1028,8 +1022,7 @@ function renderPartnerViewPage(page) {
     if (PARTNER_VIEW_STATE.loading) {
       grid.innerHTML = '<div class="empty">Termékek betöltése…</div>';
     } else {
-      grid.innerHTML =
-        '<div class="empty">Nincs találat ennél a partnernél.</div>';
+      grid.innerHTML = '<div class="empty">Nincs találat ennél a partnernél.</div>';
     }
     nav.innerHTML = "";
     updatePartnerSubtitle();
@@ -1047,11 +1040,7 @@ function renderPartnerViewPage(page) {
   const start = (page - 1) * pageSize;
   const slice = PARTNER_VIEW_STATE.filtered.slice(start, start + pageSize);
 
-  grid.innerHTML = renderCategoryCards(
-    slice,
-    PARTNER_VIEW_STATE.catId,
-    false
-  );
+  grid.innerHTML = renderCategoryCards(slice, PARTNER_VIEW_STATE.catId, false);
 
   nav.innerHTML =
     '<button class="btn-megnez" ' +
@@ -1073,16 +1062,13 @@ function renderPartnerViewPage(page) {
   updatePartnerSubtitle();
 }
 
-// Meili-ből tölti a partner + kategória összes termékét (max ~1000)
+// Meili-ből tölti a partner + kategória összes termékét (NINCS KORLÁT)
 async function hydratePartnerCategoryItems(pid, catId) {
   if (!pid || !catId) return;
 
   const backendSlug = CATID_TO_BACKEND[catId];
   if (!backendSlug) {
-    if (
-      PARTNER_VIEW_STATE.pid === pid &&
-      PARTNER_VIEW_STATE.catId === catId
-    ) {
+    if (PARTNER_VIEW_STATE.pid === pid && PARTNER_VIEW_STATE.catId === catId) {
       PARTNER_VIEW_STATE.loading = false;
       PARTNER_VIEW_STATE.items = [];
       applyPartnerFilters();
@@ -1092,17 +1078,10 @@ async function hydratePartnerCategoryItems(pid, catId) {
   }
 
   if (!PARTNER_CATEGORY_ITEMS[pid]) PARTNER_CATEGORY_ITEMS[pid] = {};
-  if (
-    PARTNER_CATEGORY_ITEMS[pid][catId] &&
-    PARTNER_CATEGORY_ITEMS[pid][catId].length
-  ) {
-    if (
-      PARTNER_VIEW_STATE.pid === pid &&
-      PARTNER_VIEW_STATE.catId === catId
-    ) {
+  if (PARTNER_CATEGORY_ITEMS[pid][catId] && PARTNER_CATEGORY_ITEMS[pid][catId].length) {
+    if (PARTNER_VIEW_STATE.pid === pid && PARTNER_VIEW_STATE.catId === catId) {
       PARTNER_VIEW_STATE.loading = false;
-      PARTNER_VIEW_STATE.items =
-        PARTNER_CATEGORY_ITEMS[pid][catId].slice();
+      PARTNER_VIEW_STATE.items = PARTNER_CATEGORY_ITEMS[pid][catId].slice();
       applyPartnerFilters();
       renderPartnerViewPage(PARTNER_VIEW_STATE.page || 1);
     }
@@ -1110,12 +1089,15 @@ async function hydratePartnerCategoryItems(pid, catId) {
   }
 
   try {
-    const res = await meiliSearch({
-      q: "",
-      filter: `partner = "${pid}" AND category = "${backendSlug}"`,
-      limit: 1000,
-    });
-    const hits = res.hits || [];
+    // NINCS limit: mindet lehúzzuk Meiliből
+    const hits = await meiliFetchAll(
+      {
+        q: "",
+        filter: `partner = "${pid}" AND category = "${backendSlug}"`,
+      },
+      { pageSize: 1000 }
+    );
+
     const rows = hits.map((item) => ({
       pid: item.partner || pid,
       item,
@@ -1124,10 +1106,7 @@ async function hydratePartnerCategoryItems(pid, catId) {
 
     PARTNER_CATEGORY_ITEMS[pid][catId] = ded;
 
-    if (
-      PARTNER_VIEW_STATE.pid === pid &&
-      PARTNER_VIEW_STATE.catId === catId
-    ) {
+    if (PARTNER_VIEW_STATE.pid === pid && PARTNER_VIEW_STATE.catId === catId) {
       PARTNER_VIEW_STATE.loading = false;
       PARTNER_VIEW_STATE.items = ded.slice();
       applyPartnerFilters();
@@ -1135,10 +1114,7 @@ async function hydratePartnerCategoryItems(pid, catId) {
     }
   } catch (e) {
     console.error("hydratePartnerCategoryItems hiba:", pid, catId, e);
-    if (
-      PARTNER_VIEW_STATE.pid === pid &&
-      PARTNER_VIEW_STATE.catId === catId
-    ) {
+    if (PARTNER_VIEW_STATE.pid === pid && PARTNER_VIEW_STATE.catId === catId) {
       PARTNER_VIEW_STATE.loading = false;
       PARTNER_VIEW_STATE.items = [];
       applyPartnerFilters();
@@ -1156,10 +1132,7 @@ function openPartnerView(pid, catId) {
   const name = getPartnerName(pid);
   const catName = getCategoryName(catId);
 
-  const itemsForCombo =
-    (PARTNER_CATEGORY_ITEMS[pid] &&
-      PARTNER_CATEGORY_ITEMS[pid][catId]) ||
-    [];
+  const itemsForCombo = (PARTNER_CATEGORY_ITEMS[pid] && PARTNER_CATEGORY_ITEMS[pid][catId]) || [];
 
   PARTNER_VIEW_STATE = {
     pid,
@@ -1264,8 +1237,7 @@ async function showFullCategoryList(catId) {
   const grid = document.getElementById(catId + "-grid");
   const nav = document.getElementById(catId + "-nav");
   if (grid) {
-    grid.innerHTML =
-      '<div class="empty">Betöltés folyamatban…</div>';
+    grid.innerHTML = '<div class="empty">Betöltés folyamatban…</div>';
   }
   if (nav) nav.innerHTML = "";
 
@@ -1523,5 +1495,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
-
