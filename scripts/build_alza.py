@@ -1,4 +1,3 @@
-
 # scripts/build_alza.py
 #
 # ALZA feed(ek) → Findora JSON oldalak (GLOBAL ONLY)
@@ -8,7 +7,7 @@
 #     → 1 vagy több XML feed URL, whitespace / vessző / pontosvessző / | elválasztással
 #
 # - Kategorizálás:
-#   ML modell (model_alza.pkl) + category_guard.finalize_category_for_alza
+#   CSAK ML modell (model_alza.pkl)  ✅  (category_guard finalize KIKAPCSOLVA)
 #
 # - Kimenet (CSAK globál, 1000/db oldal):
 #   docs/feeds/alza/meta.json
@@ -36,8 +35,6 @@ import joblib
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
-
-from category_guard import finalize_category_for_alza
 
 MODEL_FILE = os.path.join(SCRIPT_DIR, "model_alza.pkl")
 OUT_DIR = Path("docs/feeds/alza")
@@ -399,12 +396,9 @@ def main():
         brand = it.get("brand") or ""
 
         predicted = predict_category(model, title, desc, category_path, brand)
-        findora_main = finalize_category_for_alza(
-            predicted=predicted,
-            title=title,
-            desc=desc,
-            category_path=category_path,
-        )
+
+        # ✅ ML-ONLY: nincs finalize guard
+        findora_main = predicted
 
         rows.append({
             "id": it.get("id") or "",
