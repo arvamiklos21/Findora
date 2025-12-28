@@ -1,8 +1,8 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 21517,
-  "lastUpdated": "2025-12-27T18:39:48.119100Z",
+  "total": 21319,
+  "lastUpdated": "2025-12-28T08:38:00.873456Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
@@ -30,7 +30,7 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1048,
+      "total": 1042,
       "pages": 4
     },
     "lakberendezes": {
@@ -38,7 +38,7 @@
       "pages": 1
     },
     "konyha_fozes": {
-      "total": 154,
+      "total": 153,
       "pages": 1
     },
     "kert": {
@@ -50,8 +50,8 @@
       "pages": 1
     },
     "divat": {
-      "total": 19607,
-      "pages": 66
+      "total": 19423,
+      "pages": 65
     },
     "szepseg": {
       "total": 13,
@@ -62,15 +62,15 @@
       "pages": 1
     },
     "baba": {
-      "total": 55,
+      "total": 54,
       "pages": 1
     },
     "sport": {
-      "total": 106,
+      "total": 105,
       "pages": 1
     },
     "egeszseg": {
-      "total": 63,
+      "total": 61,
       "pages": 1
     },
     "latas": {
@@ -78,7 +78,7 @@
       "pages": 1
     },
     "allatok": {
-      "total": 51,
+      "total": 48,
       "pages": 1
     },
     "konyv": {
@@ -106,7 +106,7 @@
       "pages": 1
     },
     "akcio": {
-      "total": 7027,
+      "total": 6958,
       "pages": 24
     }
   },
