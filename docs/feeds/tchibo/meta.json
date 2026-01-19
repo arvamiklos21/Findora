@@ -1,12 +1,12 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 19391,
-  "lastUpdated": "2026-01-18T18:40:29.820289Z",
+  "total": 20329,
+  "lastUpdated": "2026-01-19T08:47:09.647251Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
-      "total": 28,
+      "total": 32,
       "pages": 1
     },
     "haztartasi_gepek": {
@@ -18,7 +18,7 @@
       "pages": 1
     },
     "mobil": {
-      "total": 0,
+      "total": 1,
       "pages": 1
     },
     "gaming": {
@@ -30,7 +30,7 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1075,
+      "total": 1125,
       "pages": 4
     },
     "lakberendezes": {
@@ -38,39 +38,39 @@
       "pages": 1
     },
     "konyha_fozes": {
-      "total": 303,
+      "total": 306,
       "pages": 2
     },
     "kert": {
-      "total": 41,
+      "total": 43,
       "pages": 1
     },
     "jatekok": {
-      "total": 24,
+      "total": 26,
       "pages": 1
     },
     "divat": {
-      "total": 17445,
-      "pages": 59
+      "total": 18283,
+      "pages": 61
     },
     "szepseg": {
       "total": 13,
       "pages": 1
     },
     "drogeria": {
-      "total": 97,
+      "total": 103,
       "pages": 1
     },
     "baba": {
-      "total": 55,
+      "total": 59,
       "pages": 1
     },
     "sport": {
-      "total": 107,
+      "total": 113,
       "pages": 1
     },
     "egeszseg": {
-      "total": 60,
+      "total": 69,
       "pages": 1
     },
     "latas": {
@@ -78,7 +78,7 @@
       "pages": 1
     },
     "allatok": {
-      "total": 53,
+      "total": 64,
       "pages": 1
     },
     "konyv": {
@@ -90,11 +90,11 @@
       "pages": 1
     },
     "iroda_iskola": {
-      "total": 3,
+      "total": 4,
       "pages": 1
     },
     "szerszam_barkacs": {
-      "total": 18,
+      "total": 19,
       "pages": 1
     },
     "auto_motor": {
@@ -106,8 +106,8 @@
       "pages": 1
     },
     "akcio": {
-      "total": 6923,
-      "pages": 24
+      "total": 7360,
+      "pages": 25
     }
   },
   "akcioMinPercent": 10
