@@ -1,16 +1,16 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 22076,
-  "lastUpdated": "2026-02-20T08:57:10.820654Z",
+  "total": 21262,
+  "lastUpdated": "2026-02-20T19:04:14.859362Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
-      "total": 34,
+      "total": 33,
       "pages": 1
     },
     "haztartasi_gepek": {
-      "total": 11,
+      "total": 10,
       "pages": 1
     },
     "szamitastechnika": {
@@ -30,7 +30,7 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1359,
+      "total": 1333,
       "pages": 5
     },
     "lakberendezes": {
@@ -38,39 +38,39 @@
       "pages": 1
     },
     "konyha_fozes": {
-      "total": 381,
+      "total": 369,
       "pages": 2
     },
     "kert": {
-      "total": 66,
+      "total": 65,
       "pages": 1
     },
     "jatekok": {
-      "total": 33,
+      "total": 29,
       "pages": 1
     },
     "divat": {
-      "total": 19655,
-      "pages": 66
+      "total": 18914,
+      "pages": 64
     },
     "szepseg": {
-      "total": 18,
+      "total": 17,
       "pages": 1
     },
     "drogeria": {
-      "total": 103,
+      "total": 95,
       "pages": 1
     },
     "baba": {
-      "total": 60,
+      "total": 53,
       "pages": 1
     },
     "sport": {
-      "total": 111,
+      "total": 104,
       "pages": 1
     },
     "egeszseg": {
-      "total": 77,
+      "total": 76,
       "pages": 1
     },
     "latas": {
@@ -78,7 +78,7 @@
       "pages": 1
     },
     "allatok": {
-      "total": 60,
+      "total": 58,
       "pages": 1
     },
     "konyv": {
@@ -94,7 +94,7 @@
       "pages": 1
     },
     "szerszam_barkacs": {
-      "total": 24,
+      "total": 23,
       "pages": 1
     },
     "auto_motor": {
@@ -102,12 +102,12 @@
       "pages": 1
     },
     "multi": {
-      "total": 64,
+      "total": 63,
       "pages": 1
     },
     "akcio": {
-      "total": 7926,
-      "pages": 27
+      "total": 7533,
+      "pages": 26
     }
   },
   "akcioMinPercent": 10
