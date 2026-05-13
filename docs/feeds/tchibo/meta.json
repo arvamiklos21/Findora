@@ -1,16 +1,16 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 23663,
-  "lastUpdated": "2026-05-12T20:12:28.189515Z",
+  "total": 23830,
+  "lastUpdated": "2026-05-13T10:45:24.391703Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
-      "total": 34,
+      "total": 38,
       "pages": 1
     },
     "haztartasi_gepek": {
-      "total": 8,
+      "total": 9,
       "pages": 1
     },
     "szamitastechnika": {
@@ -18,7 +18,7 @@
       "pages": 1
     },
     "mobil": {
-      "total": 0,
+      "total": 1,
       "pages": 1
     },
     "gaming": {
@@ -30,7 +30,7 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1163,
+      "total": 1164,
       "pages": 4
     },
     "lakberendezes": {
@@ -38,11 +38,11 @@
       "pages": 1
     },
     "konyha_fozes": {
-      "total": 386,
+      "total": 391,
       "pages": 2
     },
     "kert": {
-      "total": 77,
+      "total": 75,
       "pages": 1
     },
     "jatekok": {
@@ -50,35 +50,35 @@
       "pages": 1
     },
     "divat": {
-      "total": 21414,
+      "total": 21565,
       "pages": 72
     },
     "szepseg": {
-      "total": 13,
+      "total": 14,
       "pages": 1
     },
     "drogeria": {
-      "total": 128,
+      "total": 130,
       "pages": 1
     },
     "baba": {
-      "total": 59,
+      "total": 58,
       "pages": 1
     },
     "sport": {
-      "total": 124,
+      "total": 122,
       "pages": 1
     },
     "egeszseg": {
-      "total": 76,
+      "total": 81,
       "pages": 1
     },
     "latas": {
-      "total": 5,
+      "total": 4,
       "pages": 1
     },
     "allatok": {
-      "total": 46,
+      "total": 47,
       "pages": 1
     },
     "konyv": {
@@ -94,11 +94,11 @@
       "pages": 1
     },
     "szerszam_barkacs": {
-      "total": 19,
+      "total": 21,
       "pages": 1
     },
     "auto_motor": {
-      "total": 12,
+      "total": 11,
       "pages": 1
     },
     "multi": {
@@ -106,7 +106,7 @@
       "pages": 1
     },
     "akcio": {
-      "total": 5848,
+      "total": 5855,
       "pages": 20
     }
   },
