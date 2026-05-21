@@ -1,9 +1,9 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 6021,
-  "pages": 21,
-  "lastUpdated": "2026-05-21T11:41:49.016724Z",
+  "total": 6000,
+  "pages": 20,
+  "lastUpdated": "2026-05-21T20:11:59.802862Z",
   "source": "productsup",
   "category": "akcio",
   "akcioMinPercent": 10
