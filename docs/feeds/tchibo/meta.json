@@ -1,12 +1,12 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 24965,
-  "lastUpdated": "2026-06-04T20:29:14.436016Z",
+  "total": 24915,
+  "lastUpdated": "2026-06-05T11:43:48.065420Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
-      "total": 37,
+      "total": 36,
       "pages": 1
     },
     "haztartasi_gepek": {
@@ -30,7 +30,7 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1193,
+      "total": 1172,
       "pages": 4
     },
     "lakberendezes": {
@@ -50,31 +50,31 @@
       "pages": 1
     },
     "divat": {
-      "total": 22614,
+      "total": 22598,
       "pages": 76
     },
     "szepseg": {
-      "total": 8,
+      "total": 9,
       "pages": 1
     },
     "drogeria": {
-      "total": 127,
+      "total": 124,
       "pages": 1
     },
     "baba": {
-      "total": 63,
+      "total": 57,
       "pages": 1
     },
     "sport": {
-      "total": 177,
+      "total": 167,
       "pages": 1
     },
     "egeszseg": {
-      "total": 54,
+      "total": 58,
       "pages": 1
     },
     "latas": {
-      "total": 0,
+      "total": 2,
       "pages": 1
     },
     "allatok": {
@@ -106,7 +106,7 @@
       "pages": 1
     },
     "akcio": {
-      "total": 7038,
+      "total": 6976,
       "pages": 24
     }
   },
