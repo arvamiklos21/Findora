@@ -1,16 +1,16 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 24754,
-  "lastUpdated": "2026-06-22T21:19:21.655168Z",
+  "total": 25208,
+  "lastUpdated": "2026-06-23T11:34:51.258004Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
-      "total": 32,
+      "total": 31,
       "pages": 1
     },
     "haztartasi_gepek": {
-      "total": 2,
+      "total": 0,
       "pages": 1
     },
     "szamitastechnika": {
@@ -18,7 +18,7 @@
       "pages": 1
     },
     "mobil": {
-      "total": 0,
+      "total": 1,
       "pages": 1
     },
     "gaming": {
@@ -30,7 +30,7 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1179,
+      "total": 1159,
       "pages": 4
     },
     "lakberendezes": {
@@ -38,27 +38,27 @@
       "pages": 1
     },
     "konyha_fozes": {
-      "total": 392,
+      "total": 390,
       "pages": 2
     },
     "kert": {
-      "total": 85,
+      "total": 81,
       "pages": 1
     },
     "jatekok": {
-      "total": 20,
+      "total": 21,
       "pages": 1
     },
     "divat": {
-      "total": 22525,
-      "pages": 76
+      "total": 22987,
+      "pages": 77
     },
     "szepseg": {
-      "total": 10,
+      "total": 11,
       "pages": 1
     },
     "drogeria": {
-      "total": 88,
+      "total": 87,
       "pages": 1
     },
     "baba": {
@@ -66,19 +66,19 @@
       "pages": 1
     },
     "sport": {
-      "total": 168,
+      "total": 187,
       "pages": 1
     },
     "egeszseg": {
-      "total": 58,
+      "total": 56,
       "pages": 1
     },
     "latas": {
-      "total": 1,
+      "total": 2,
       "pages": 1
     },
     "allatok": {
-      "total": 50,
+      "total": 51,
       "pages": 1
     },
     "konyv": {
@@ -94,7 +94,7 @@
       "pages": 1
     },
     "szerszam_barkacs": {
-      "total": 17,
+      "total": 18,
       "pages": 1
     },
     "auto_motor": {
@@ -102,12 +102,12 @@
       "pages": 1
     },
     "multi": {
-      "total": 60,
+      "total": 59,
       "pages": 1
     },
     "akcio": {
-      "total": 7232,
-      "pages": 25
+      "total": 7561,
+      "pages": 26
     }
   },
   "akcioMinPercent": 10
