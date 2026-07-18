@@ -1,16 +1,16 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 25222,
-  "lastUpdated": "2026-07-18T09:52:46.565486Z",
+  "total": 24124,
+  "lastUpdated": "2026-07-18T19:25:16.834314Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
-      "total": 31,
+      "total": 28,
       "pages": 1
     },
     "haztartasi_gepek": {
-      "total": 2,
+      "total": 1,
       "pages": 1
     },
     "szamitastechnika": {
@@ -18,7 +18,7 @@
       "pages": 1
     },
     "mobil": {
-      "total": 1,
+      "total": 0,
       "pages": 1
     },
     "gaming": {
@@ -30,7 +30,7 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1117,
+      "total": 1076,
       "pages": 4
     },
     "lakberendezes": {
@@ -38,47 +38,47 @@
       "pages": 1
     },
     "konyha_fozes": {
-      "total": 394,
+      "total": 382,
       "pages": 2
     },
     "kert": {
-      "total": 79,
+      "total": 77,
       "pages": 1
     },
     "jatekok": {
-      "total": 17,
+      "total": 16,
       "pages": 1
     },
     "divat": {
-      "total": 23067,
-      "pages": 77
+      "total": 22065,
+      "pages": 74
     },
     "szepseg": {
       "total": 7,
       "pages": 1
     },
     "drogeria": {
-      "total": 74,
+      "total": 70,
       "pages": 1
     },
     "baba": {
-      "total": 54,
+      "total": 48,
       "pages": 1
     },
     "sport": {
-      "total": 206,
+      "total": 191,
       "pages": 1
     },
     "egeszseg": {
-      "total": 45,
+      "total": 40,
       "pages": 1
     },
     "latas": {
-      "total": 4,
+      "total": 3,
       "pages": 1
     },
     "allatok": {
-      "total": 40,
+      "total": 38,
       "pages": 1
     },
     "konyv": {
@@ -98,7 +98,7 @@
       "pages": 1
     },
     "auto_motor": {
-      "total": 11,
+      "total": 9,
       "pages": 1
     },
     "multi": {
@@ -106,8 +106,8 @@
       "pages": 1
     },
     "akcio": {
-      "total": 9446,
-      "pages": 32
+      "total": 8972,
+      "pages": 30
     }
   },
   "akcioMinPercent": 10
