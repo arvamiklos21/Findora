@@ -1,12 +1,12 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 23900,
-  "lastUpdated": "2026-08-17T19:02:44.118348Z",
+  "total": 24691,
+  "lastUpdated": "2026-08-18T09:05:10.029606Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
-      "total": 19,
+      "total": 25,
       "pages": 1
     },
     "haztartasi_gepek": {
@@ -30,7 +30,7 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1030,
+      "total": 1060,
       "pages": 4
     },
     "lakberendezes": {
@@ -38,47 +38,47 @@
       "pages": 1
     },
     "konyha_fozes": {
-      "total": 327,
+      "total": 337,
       "pages": 2
     },
     "kert": {
-      "total": 71,
+      "total": 70,
       "pages": 1
     },
     "jatekok": {
-      "total": 38,
+      "total": 37,
       "pages": 1
     },
     "divat": {
-      "total": 21900,
-      "pages": 73
+      "total": 22617,
+      "pages": 76
     },
     "szepseg": {
-      "total": 8,
+      "total": 13,
       "pages": 1
     },
     "drogeria": {
-      "total": 89,
+      "total": 91,
       "pages": 1
     },
     "baba": {
-      "total": 57,
+      "total": 61,
       "pages": 1
     },
     "sport": {
-      "total": 176,
+      "total": 198,
       "pages": 1
     },
     "egeszseg": {
-      "total": 49,
+      "total": 47,
       "pages": 1
     },
     "latas": {
-      "total": 1,
+      "total": 0,
       "pages": 1
     },
     "allatok": {
-      "total": 33,
+      "total": 34,
       "pages": 1
     },
     "konyv": {
@@ -90,24 +90,24 @@
       "pages": 1
     },
     "iroda_iskola": {
-      "total": 3,
+      "total": 4,
       "pages": 1
     },
     "szerszam_barkacs": {
-      "total": 23,
+      "total": 21,
       "pages": 1
     },
     "auto_motor": {
-      "total": 11,
+      "total": 10,
       "pages": 1
     },
     "multi": {
-      "total": 54,
+      "total": 55,
       "pages": 1
     },
     "akcio": {
-      "total": 10484,
-      "pages": 35
+      "total": 10672,
+      "pages": 36
     }
   },
   "akcioMinPercent": 10
