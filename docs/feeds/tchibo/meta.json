@@ -1,16 +1,16 @@
 {
   "partner": "tchibo",
   "pageSize": 300,
-  "total": 26030,
-  "lastUpdated": "2026-11-03T23:22:06.928998Z",
+  "total": 26218,
+  "lastUpdated": "2026-11-04T16:24:17.882351Z",
   "source": "productsup",
   "categories": {
     "elektronika": {
-      "total": 15,
+      "total": 16,
       "pages": 1
     },
     "haztartasi_gepek": {
-      "total": 8,
+      "total": 7,
       "pages": 1
     },
     "szamitastechnika": {
@@ -30,7 +30,7 @@
       "pages": 1
     },
     "otthon": {
-      "total": 1117,
+      "total": 1139,
       "pages": 4
     },
     "lakberendezes": {
@@ -38,47 +38,47 @@
       "pages": 1
     },
     "konyha_fozes": {
-      "total": 363,
+      "total": 370,
       "pages": 2
     },
     "kert": {
-      "total": 72,
+      "total": 74,
       "pages": 1
     },
     "jatekok": {
-      "total": 22,
+      "total": 21,
       "pages": 1
     },
     "divat": {
-      "total": 23886,
-      "pages": 80
+      "total": 24057,
+      "pages": 81
     },
     "szepseg": {
-      "total": 11,
+      "total": 9,
       "pages": 1
     },
     "drogeria": {
-      "total": 107,
+      "total": 104,
       "pages": 1
     },
     "baba": {
-      "total": 92,
+      "total": 88,
       "pages": 1
     },
     "sport": {
-      "total": 167,
+      "total": 162,
       "pages": 1
     },
     "egeszseg": {
-      "total": 62,
+      "total": 61,
       "pages": 1
     },
     "latas": {
-      "total": 3,
+      "total": 2,
       "pages": 1
     },
     "allatok": {
-      "total": 33,
+      "total": 36,
       "pages": 1
     },
     "konyv": {
@@ -90,7 +90,7 @@
       "pages": 1
     },
     "iroda_iskola": {
-      "total": 2,
+      "total": 3,
       "pages": 1
     },
     "szerszam_barkacs": {
@@ -98,7 +98,7 @@
       "pages": 1
     },
     "auto_motor": {
-      "total": 8,
+      "total": 7,
       "pages": 1
     },
     "multi": {
@@ -106,7 +106,7 @@
       "pages": 1
     },
     "akcio": {
-      "total": 8248,
+      "total": 8308,
       "pages": 28
     }
   },
